@@ -1,0 +1,1347 @@
+{
+  "rackArea": [],
+  "nonRackArea": [
+    {
+      "lock": false,
+      "weight": 20.2,
+      "size": 1,
+      "code": "7D73CTO1WW",
+      "name": "Server",
+      "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+      "type": "server",
+      "hardwareType": null,
+      "image": "",
+      "width": 434.4,
+      "depth": 781.2,
+      "physicalHeight": 43,
+      "cogHeight": 40,
+      "cogWidth": 217,
+      "cogDepth": 370,
+      "shipUninstalled": false,
+      "uninstalled": false,
+      "shipWeight": 0,
+      "id": "US__73f7b3bd-9328-4291-81c0-9834719adde40",
+      "position": 1,
+      "highestPosition": null,
+      "lowestPosition": null,
+      "defaultPosition": null,
+      "placementError": [],
+      "sliceCtoCode": "7D73CTO1WW",
+      "nodes": [],
+      "capacity": 0,
+      "features": [
+        {
+          "name": "US_SHIPMENT_INDICATOR",
+          "results": [
+            {
+              "code": "CA0Z",
+              "quantity": 1,
+              "installations": [],
+              "description": "Variable Supply Choice for Motherboard Country of Origin",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "BASE",
+          "results": [
+            {
+              "code": "BLK4",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem V3 1U 10x2.5\" Chassis",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "UEFI_OPERATING_MODES",
+          "results": [
+            {
+              "code": "BFYE",
+              "quantity": 1,
+              "installations": [],
+              "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "HIGH_TDP_TEMPERATURE",
+          "results": [
+            {
+              "code": "BVGL",
+              "quantity": 1,
+              "installations": [],
+              "description": "Data Center Environment 30 Degree Celsius / 86 Degree Fahrenheit",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "PROCESSOR",
+          "results": [
+            {
+              "code": "BYW3",
+              "quantity": 1,
+              "installations": [
+                {
+                  "targetFeatureCode": "BYW3",
+                  "targetSpaceConnector": "CPU_S",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "CPU Slot",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "Intel Xeon Silver 4509Y 8C 125W 2.6GHz Processor",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "MEMORY",
+          "results": [
+            {
+              "code": "BWHS",
+              "quantity": 1,
+              "installations": [
+                {
+                  "targetFeatureCode": "BWHS",
+                  "targetSpaceConnector": "Memory_D",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "Memory Dimm",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "ThinkSystem 64GB TruDDR5 5600MHz (2Rx4) RDIMM",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RAID_CONFIG",
+          "results": [
+            {
+              "code": "5977",
+              "quantity": 1,
+              "installations": [],
+              "description": "Select Storage devices - no configured RAID required",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "POWERSUPPLY",
+          "results": [
+            {
+              "code": "BNFG",
+              "quantity": 2,
+              "installations": [
+                {
+                  "targetFeatureCode": "BNFG",
+                  "targetSpaceConnector": "Power_B",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "Power Supply Bay",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "BNFG",
+                  "targetSpaceConnector": "Power_B",
+                  "installSequence": "2",
+                  "spaceConnectorDescription": "Power Supply Bay",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "ThinkSystem 750W 230V/115V Platinum Hot-Swap Gen2 Power Supply v3",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RACK_POWERCABLE",
+          "results": [
+            {
+              "code": "6400",
+              "quantity": 2,
+              "installations": [],
+              "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "MECH_FRONT_IO",
+          "results": [
+            {
+              "code": "BLKD",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U V3 10x2.5\" Media Bay w/ Ext. Diagnostics Port",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "FAN",
+          "results": [
+            {
+              "code": "BH9M",
+              "quantity": 6,
+              "installations": [],
+              "description": "ThinkSystem V3 1U Performance Fan Option Kit v2",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RAIL_KIT",
+          "results": [
+            {
+              "code": "B8LA",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem Toolless Slide Rail Kit v2",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "TPM_MODULE",
+          "results": [
+            {
+              "code": "BPKR",
+              "quantity": 1,
+              "installations": [],
+              "description": "TPM 2.0",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "IPMI",
+          "results": [
+            {
+              "code": "B7XZ",
+              "quantity": 1,
+              "installations": [],
+              "description": "Disable IPMI-over-LAN",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "Lenovo Recommends|Better",
+          "results": [
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA0F",
+              "quantity": 1,
+              "installations": [],
+              "description": "Premier",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA08",
+              "quantity": 1,
+              "installations": [],
+              "description": "24x7 4hr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA0A",
+              "quantity": 1,
+              "installations": [],
+              "description": "Keep Your Drive",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QABL",
+              "quantity": 1,
+              "installations": [],
+              "description": "CO2 Offset",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "A la Carte|Column3|3 Years",
+          "results": [
+            {
+              "code": "QA0F",
+              "quantity": 1,
+              "installations": [],
+              "description": "Premier",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA08",
+              "quantity": 1,
+              "installations": [],
+              "description": "24x7 4hr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "Add ons|Keep Your Drive|3 Years",
+          "results": [
+            {
+              "code": "QA0A",
+              "quantity": 1,
+              "installations": [],
+              "description": "Keep Your Drive",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "Add ons|CO2 Offset|CO2 Offset",
+          "results": [
+            {
+              "code": "QABL",
+              "quantity": 1,
+              "installations": [],
+              "description": "CO2 Offset",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+          "results": [
+            {
+              "code": "QASW",
+              "quantity": 1,
+              "installations": [],
+              "description": "None",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "INSTALLATION_CFC",
+          "results": [
+            {
+              "code": "QAB4",
+              "quantity": 1,
+              "installations": [],
+              "description": "None",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "T1GT",
+          "results": [
+            {
+              "code": "SCJD",
+              "quantity": 1,
+              "installations": [],
+              "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+              "type": "software"
+            }
+          ]
+        },
+        {
+          "name": "T167",
+          "results": [
+            {
+              "code": "SBCV",
+              "quantity": 1,
+              "installations": [],
+              "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+              "type": "software"
+            }
+          ]
+        },
+        {
+          "name": "MB",
+          "results": [
+            {
+              "code": "C9RM",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 MB w/IO VN"
+            }
+          ]
+        },
+        {
+          "name": "OTHER_MI",
+          "results": [
+            {
+              "code": "BVMC",
+              "quantity": 1,
+              "installations": [],
+              "description": "Trigger MFG to scan the SN from the CPU Board via this MI"
+            },
+            {
+              "code": "C8WP",
+              "quantity": 1,
+              "installations": [],
+              "description": "SR630 V3 Laser service indicator"
+            }
+          ]
+        },
+        {
+          "name": "SYSTEM_MANAGEMENT_UPGRADE",
+          "results": [
+            {
+              "code": "BRPJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "XCC Platinum"
+            }
+          ]
+        },
+        {
+          "name": "POWER_POLICY_MI",
+          "results": [
+            {
+              "code": "BE0E",
+              "quantity": 1,
+              "installations": [],
+              "description": "N+N Redundancy With Over-Subscription"
+            }
+          ]
+        },
+        {
+          "name": "MECH_DERIVE_FCS",
+          "results": [
+            {
+              "code": "BQBP",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem MCC CPU Clip"
+            },
+            {
+              "code": "BPFK",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR850 V3/SR630 V3/SR630 V4 Standard Heatsink"
+            },
+            {
+              "code": "B984",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U PLV Top Cover Sponge"
+            },
+            {
+              "code": "C9RN",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630V3/SR650V3 Root of Trust Module Absolut-LV-VN"
+            },
+            {
+              "code": "B989",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem V2 1U Package"
+            }
+          ]
+        },
+        {
+          "name": "DERIVE_FILLERS_DUMMY",
+          "results": [
+            {
+              "code": "BEYJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem MS Height CPU Dummy"
+            },
+            {
+              "code": "B8NM",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS Air Duct"
+            },
+            {
+              "code": "BCEB",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U V2 2x3 2.5\" HDD Dummy"
+            },
+            {
+              "code": "AVEN",
+              "quantity": 4,
+              "installations": [],
+              "description": "ThinkSystem 1x1 2.5\" HDD Filler"
+            },
+            {
+              "code": "B8NK",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U Super Cap Holder Dummy"
+            },
+            {
+              "code": "B8NA",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS LP+LP Riser Filler"
+            },
+            {
+              "code": "B8NB",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS LP Riser Filler"
+            },
+            {
+              "code": "B8NJ",
+              "quantity": 2,
+              "installations": [],
+              "description": "ThinkSystem 1U MS Fan Dummy"
+            },
+            {
+              "code": "AUWG",
+              "quantity": 1,
+              "installations": [],
+              "description": "Lenovo ThinkSystem 1U VGA Filler"
+            },
+            {
+              "code": "B5WJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem OCP3 Filler"
+            }
+          ]
+        },
+        {
+          "name": "VOLTAGE_MI",
+          "results": [
+            {
+              "code": "BK14",
+              "quantity": 1,
+              "installations": [],
+              "description": "Low voltage (100V+)"
+            }
+          ]
+        },
+        {
+          "name": "LPK",
+          "results": [
+            {
+              "code": "BPK3",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem WW Lenovo LPK"
+            }
+          ]
+        },
+        {
+          "name": "DERIVE_LABELS",
+          "results": [
+            {
+              "code": "B97B",
+              "quantity": 1,
+              "installations": [],
+              "description": "XCC Label"
+            },
+            {
+              "code": "B8JV",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 750W Pt Power Rating Label WW"
+            },
+            {
+              "code": "BPD7",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Service Label for WW"
+            },
+            {
+              "code": "BPD6",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Model Name Label"
+            },
+            {
+              "code": "AWF9",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem Response time Service Label LI"
+            },
+            {
+              "code": "AUTQ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem small Lenovo Label for 24x2.5\"/12x3.5\"/10x2.5\""
+            },
+            {
+              "code": "BQPS",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem logo Label"
+            },
+            {
+              "code": "CJ1L",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Agency Label, no ES Mark without CECP"
+            }
+          ]
+        }
+      ],
+      "rule": null,
+      "cloneBy": null,
+      "occupiedBay": null,
+      "asVLH": false,
+      "vlhId": null,
+      "newHardwareNumber": 0,
+      "placementInfo": null,
+      "errors": [],
+      "quantity": 0,
+      "machineType": "7D73",
+      "lfo": false,
+      "endPosition": 2,
+      "positionForErrorMessage": 2,
+      "chassisModel": "dense",
+      "attributes": {},
+      "height": 1,
+      "originalIndex": 0,
+      "pageIndex": 0
+    }
+  ],
+  "configurations": [
+    {
+      "id": "US__73f7b3bd-9328-4291-81c0-9834719adde40",
+      "code": "7D73CTO1WW",
+      "sections": [
+        {
+          "name": "US_SHIPMENT_INDICATOR",
+          "features": [
+            {
+              "code": "CA0Z",
+              "quantity": 1,
+              "installations": [],
+              "description": "Variable Supply Choice for Motherboard Country of Origin",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "BASE",
+          "features": [
+            {
+              "code": "BLK4",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem V3 1U 10x2.5\" Chassis",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "UEFI_OPERATING_MODES",
+          "features": [
+            {
+              "code": "BFYE",
+              "quantity": 1,
+              "installations": [],
+              "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "HIGH_TDP_TEMPERATURE",
+          "features": [
+            {
+              "code": "BVGL",
+              "quantity": 1,
+              "installations": [],
+              "description": "Data Center Environment 30 Degree Celsius / 86 Degree Fahrenheit",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "PROCESSOR",
+          "features": [
+            {
+              "code": "BYW3",
+              "quantity": 1,
+              "installations": [
+                {
+                  "targetFeatureCode": "BYW3",
+                  "targetSpaceConnector": "CPU_S",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "CPU Slot",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "Intel Xeon Silver 4509Y 8C 125W 2.6GHz Processor",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "MEMORY",
+          "features": [
+            {
+              "code": "BWHS",
+              "quantity": 1,
+              "installations": [
+                {
+                  "targetFeatureCode": "BWHS",
+                  "targetSpaceConnector": "Memory_D",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "Memory Dimm",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "ThinkSystem 64GB TruDDR5 5600MHz (2Rx4) RDIMM",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RAID_CONFIG",
+          "features": [
+            {
+              "code": "5977",
+              "quantity": 1,
+              "installations": [],
+              "description": "Select Storage devices - no configured RAID required",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "POWERSUPPLY",
+          "features": [
+            {
+              "code": "BNFG",
+              "quantity": 2,
+              "installations": [
+                {
+                  "targetFeatureCode": "BNFG",
+                  "targetSpaceConnector": "Power_B",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "Power Supply Bay",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "BNFG",
+                  "targetSpaceConnector": "Power_B",
+                  "installSequence": "2",
+                  "spaceConnectorDescription": "Power Supply Bay",
+                  "virtualSequence": 0
+                }
+              ],
+              "description": "ThinkSystem 750W 230V/115V Platinum Hot-Swap Gen2 Power Supply v3",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RACK_POWERCABLE",
+          "features": [
+            {
+              "code": "6400",
+              "quantity": 2,
+              "installations": [],
+              "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "MECH_FRONT_IO",
+          "features": [
+            {
+              "code": "BLKD",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U V3 10x2.5\" Media Bay w/ Ext. Diagnostics Port",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "FAN",
+          "features": [
+            {
+              "code": "BH9M",
+              "quantity": 6,
+              "installations": [],
+              "description": "ThinkSystem V3 1U Performance Fan Option Kit v2",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "RAIL_KIT",
+          "features": [
+            {
+              "code": "B8LA",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem Toolless Slide Rail Kit v2",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "TPM_MODULE",
+          "features": [
+            {
+              "code": "BPKR",
+              "quantity": 1,
+              "installations": [],
+              "description": "TPM 2.0",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "IPMI",
+          "features": [
+            {
+              "code": "B7XZ",
+              "quantity": 1,
+              "installations": [],
+              "description": "Disable IPMI-over-LAN",
+              "type": "hardware"
+            }
+          ]
+        },
+        {
+          "name": "Lenovo Recommends|Better",
+          "features": [
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA0F",
+              "quantity": 1,
+              "installations": [],
+              "description": "Premier",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA08",
+              "quantity": 1,
+              "installations": [],
+              "description": "24x7 4hr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA0A",
+              "quantity": 1,
+              "installations": [],
+              "description": "Keep Your Drive",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QABL",
+              "quantity": 1,
+              "installations": [],
+              "description": "CO2 Offset",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "A la Carte|Column3|3 Years",
+          "features": [
+            {
+              "code": "QA0F",
+              "quantity": 1,
+              "installations": [],
+              "description": "Premier",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA08",
+              "quantity": 1,
+              "installations": [],
+              "description": "24x7 4hr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "Add ons|Keep Your Drive|3 Years",
+          "features": [
+            {
+              "code": "QA0A",
+              "quantity": 1,
+              "installations": [],
+              "description": "Keep Your Drive",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QA03",
+              "quantity": 1,
+              "installations": [],
+              "description": "3Yr",
+              "type": "servicesAndor"
+            },
+            {
+              "code": "QAKT",
+              "quantity": 1,
+              "installations": [],
+              "description": "Enhanced Warranty",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "Add ons|CO2 Offset|CO2 Offset",
+          "features": [
+            {
+              "code": "QABL",
+              "quantity": 1,
+              "installations": [],
+              "description": "CO2 Offset",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+          "features": [
+            {
+              "code": "QASW",
+              "quantity": 1,
+              "installations": [],
+              "description": "None",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "INSTALLATION_CFC",
+          "features": [
+            {
+              "code": "QAB4",
+              "quantity": 1,
+              "installations": [],
+              "description": "None",
+              "type": "servicesAndor"
+            }
+          ]
+        },
+        {
+          "name": "T1GT",
+          "features": [
+            {
+              "code": "SCJD",
+              "quantity": 1,
+              "installations": [],
+              "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+              "type": "software"
+            }
+          ]
+        },
+        {
+          "name": "T167",
+          "features": [
+            {
+              "code": "SBCV",
+              "quantity": 1,
+              "installations": [],
+              "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+              "type": "software"
+            }
+          ]
+        },
+        {
+          "name": "MB",
+          "features": [
+            {
+              "code": "C9RM",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 MB w/IO VN"
+            }
+          ]
+        },
+        {
+          "name": "OTHER_MI",
+          "features": [
+            {
+              "code": "BVMC",
+              "quantity": 1,
+              "installations": [],
+              "description": "Trigger MFG to scan the SN from the CPU Board via this MI"
+            },
+            {
+              "code": "C8WP",
+              "quantity": 1,
+              "installations": [],
+              "description": "SR630 V3 Laser service indicator"
+            }
+          ]
+        },
+        {
+          "name": "SYSTEM_MANAGEMENT_UPGRADE",
+          "features": [
+            {
+              "code": "BRPJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "XCC Platinum"
+            }
+          ]
+        },
+        {
+          "name": "POWER_POLICY_MI",
+          "features": [
+            {
+              "code": "BE0E",
+              "quantity": 1,
+              "installations": [],
+              "description": "N+N Redundancy With Over-Subscription"
+            }
+          ]
+        },
+        {
+          "name": "MECH_DERIVE_FCS",
+          "features": [
+            {
+              "code": "BQBP",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem MCC CPU Clip"
+            },
+            {
+              "code": "BPFK",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR850 V3/SR630 V3/SR630 V4 Standard Heatsink"
+            },
+            {
+              "code": "B984",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U PLV Top Cover Sponge"
+            },
+            {
+              "code": "C9RN",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630V3/SR650V3 Root of Trust Module Absolut-LV-VN"
+            },
+            {
+              "code": "B989",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem V2 1U Package"
+            }
+          ]
+        },
+        {
+          "name": "DERIVE_FILLERS_DUMMY",
+          "features": [
+            {
+              "code": "BEYJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem MS Height CPU Dummy"
+            },
+            {
+              "code": "B8NM",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS Air Duct"
+            },
+            {
+              "code": "BCEB",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U V2 2x3 2.5\" HDD Dummy"
+            },
+            {
+              "code": "AVEN",
+              "quantity": 4,
+              "installations": [],
+              "description": "ThinkSystem 1x1 2.5\" HDD Filler"
+            },
+            {
+              "code": "B8NK",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U Super Cap Holder Dummy"
+            },
+            {
+              "code": "B8NA",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS LP+LP Riser Filler"
+            },
+            {
+              "code": "B8NB",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 1U MS LP Riser Filler"
+            },
+            {
+              "code": "B8NJ",
+              "quantity": 2,
+              "installations": [],
+              "description": "ThinkSystem 1U MS Fan Dummy"
+            },
+            {
+              "code": "AUWG",
+              "quantity": 1,
+              "installations": [],
+              "description": "Lenovo ThinkSystem 1U VGA Filler"
+            },
+            {
+              "code": "B5WJ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem OCP3 Filler"
+            }
+          ]
+        },
+        {
+          "name": "VOLTAGE_MI",
+          "features": [
+            {
+              "code": "BK14",
+              "quantity": 1,
+              "installations": [],
+              "description": "Low voltage (100V+)"
+            }
+          ]
+        },
+        {
+          "name": "LPK",
+          "features": [
+            {
+              "code": "BPK3",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem WW Lenovo LPK"
+            }
+          ]
+        },
+        {
+          "name": "DERIVE_LABELS",
+          "features": [
+            {
+              "code": "B97B",
+              "quantity": 1,
+              "installations": [],
+              "description": "XCC Label"
+            },
+            {
+              "code": "B8JV",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem 750W Pt Power Rating Label WW"
+            },
+            {
+              "code": "BPD7",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Service Label for WW"
+            },
+            {
+              "code": "BPD6",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Model Name Label"
+            },
+            {
+              "code": "AWF9",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem Response time Service Label LI"
+            },
+            {
+              "code": "AUTQ",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem small Lenovo Label for 24x2.5\"/12x3.5\"/10x2.5\""
+            },
+            {
+              "code": "BQPS",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem logo Label"
+            },
+            {
+              "code": "CJ1L",
+              "quantity": 1,
+              "installations": [],
+              "description": "ThinkSystem SR630 V3 Agency Label, no ES Mark without CECP"
+            }
+          ]
+        }
+      ],
+      "name": "Server",
+      "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+      "connectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet",
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "VGA",
+          "port": "VGA",
+          "topologies": [
+            "Console"
+          ],
+          "connectorFunction": "Console",
+          "cableCompatible": "",
+          "transceiverCompatibility": "FC:3756,3757,5340,5341",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        }
+      ],
+      "selectedTopologies": {},
+      "selectedStorageNetwork": null,
+      "sliceCtoCode": "7D73CTO1WW",
+      "slice": "GP",
+      "asVLH": false,
+      "vlhId": null
+    }
+  ],
+  "controllerExpansionMap": {},
+  "floorPreference": {
+    "growthRatioHorizontal": 1,
+    "growthRatioVertical": 1,
+    "rackDist": 0.01,
+    "vertDist": 0.5,
+    "coldDist": 3,
+    "hotDist": 2,
+    "slackDist": 0,
+    "useTrayCabling": false
+  },
+  "floorItems": [],
+  "clusterPreference": [],
+  "powerPreference": [],
+  "storageConnectionNetworks": [],
+  "cloneRackMapping": {},
+  "connections": [],
+  "autoConnectSettings": {
+    "autoAddPDU": true,
+    "autoAddSwitch": true,
+    "p2pCabling": true
+  },
+  "switchMap": [],
+  "virtualContainerIdMapping": {},
+  "virtualContainerRule2ConfigMapping": {},
+  "virtualContainerInvalidRuleIdMapping": {},
+  "vlhItems": [],
+  "cloneDependency": {}
+}

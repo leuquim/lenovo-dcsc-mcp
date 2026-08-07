@@ -148,7 +148,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
   );
 
   // -------------------------------------------------------------------------
-  // Session lifecycle
+  // Session lifecycle & Workspace
   // -------------------------------------------------------------------------
 
   server.registerTool(
@@ -157,8 +157,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
       title: 'Start configuring a DCSC product',
       description:
         'Launches a configuration session for a product code and returns a compact summary (tabs, price, constraints). ' +
-        'Returns a session handle used by all other configuration tools. ' +
-        'The full option tree is large and is never returned — use dcsc_list_options to explore it.',
+        'Returns a session handle used by all other configuration tools. Pass optional workspace to add a second product to a multi-product solution.',
       inputSchema: {
         productCode: z.string().describe('Product code from dcsc_find_products, e.g. "7D73CTO1WW".'),
         mode: z
@@ -167,6 +166,10 @@ export function registerTools(server: McpServer, service: DcscService): void {
           .default('cto')
           .describe('cto for configure-to-order, lfo for a preconfigured model.'),
         label: z.string().optional().describe('Optional friendly name for this session.'),
+        workspace: z
+          .string()
+          .optional()
+          .describe('Optional existing workspace or session ID to add a product to a multi-product solution.'),
         solutionMode: z.string().optional(),
       },
     },
@@ -179,9 +182,11 @@ export function registerTools(server: McpServer, service: DcscService): void {
           mode: args.mode,
           solution,
           ctx,
+          workspaceId: args.workspace,
           ...(args.label !== undefined ? { label: args.label } : {}),
         });
         return {
+          workspace: session.workspaceId,
           ...projectSummary({
             sessionId: session.id,
             revision: session.revision,
@@ -200,13 +205,14 @@ export function registerTools(server: McpServer, service: DcscService): void {
     'dcsc_session_list',
     {
       title: 'List open DCSC configuration sessions',
-      description: 'Lists the configuration sessions currently open in this server.',
+      description: 'Lists the configuration sessions and multi-product workspaces currently open in this server.',
       inputSchema: {},
     },
     async () =>
       guard(async () =>
         service.sessions.list().map((s) => ({
           session: s.id,
+          workspace: s.workspaceId,
           label: s.label,
           product: s.product.code,
           description: s.product.description,
@@ -222,10 +228,108 @@ export function registerTools(server: McpServer, service: DcscService): void {
     'dcsc_session_close',
     {
       title: 'Close a DCSC configuration session',
-      description: 'Discards a configuration session and frees its memory.',
+      description: 'Discards a configuration session or workspace and frees its memory.',
       inputSchema: { session: z.string() },
     },
     async (args) => guard(async () => ({ closed: service.sessions.delete(args.session) })),
+  );
+
+  server.registerTool(
+    'dcsc_add_rack',
+    {
+      title: 'Add a rack enclosure to a solution workspace',
+      description:
+        'Adds a rack enclosure (e.g. "7D6DCTO1WW") to a solution workspace for physical placement and rack diagrams.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+        rackCode: z.string().describe('Rack product code, e.g. "7D6DCTO1WW".'),
+        description: z.string().optional().default('Rack Enclosure'),
+        uheight: z.number().int().min(1).max(52).optional().default(42),
+        position: z.number().int().min(1).optional().default(1),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const rack = service.addRack(
+          args.session,
+          args.rackCode,
+          args.description,
+          args.uheight,
+          args.position,
+        );
+        return {
+          session: args.session,
+          rack,
+          next: 'dcsc_place_in_rack(session, configId, rackId, uPosition) to place products in this rack.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_place_in_rack',
+    {
+      title: 'Place a product in a rack enclosure',
+      description:
+        'Places a server or switch configuration into a rack enclosure at a specific U position.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+        configId: z.string().describe('Configuration ID to place in the rack.'),
+        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
+        uPosition: z.number().int().min(1).max(52).describe('Starting U position in the rack.'),
+        height: z.number().int().min(1).max(10).optional().default(1).describe('Height in U units.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const placed = service.placeInRack(
+          args.session,
+          args.configId,
+          args.rackId,
+          args.uPosition,
+          args.height,
+        );
+        if (!placed) throw new Error(`Could not place config ${args.configId} in rack ${args.rackId}`);
+        return {
+          session: args.session,
+          placed: true,
+          configId: args.configId,
+          rackId: args.rackId,
+          uPosition: args.uPosition,
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_add_cabling',
+    {
+      title: 'Add cabling connections between products',
+      description:
+        'Connects ports between products (e.g. server host port to switch port) in a solution workspace for P2P reports.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+        fromConfigId: z.string().describe('Source configuration ID.'),
+        fromPort: z.string().describe('Source port name or number.'),
+        toConfigId: z.string().describe('Destination configuration ID.'),
+        toPort: z.string().describe('Destination port name or number.'),
+        cableCode: z.string().optional().describe('Optional cable feature or part code.'),
+        description: z.string().optional().describe('Optional description of the cable.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const link = service.addCabling(args.session, {
+          fromConfigId: args.fromConfigId,
+          fromPort: args.fromPort,
+          toConfigId: args.toConfigId,
+          toPort: args.toPort,
+          ...(args.cableCode !== undefined ? { cableCode: args.cableCode } : {}),
+          ...(args.description !== undefined ? { description: args.description } : {}),
+        });
+        return {
+          session: args.session,
+          cabling: link,
+        };
+      }),
   );
 
   // -------------------------------------------------------------------------
@@ -235,15 +339,42 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_session_info',
     {
-      title: 'Summarise a DCSC configuration',
+      title: 'Summarise a DCSC configuration or workspace',
       description:
-        'Returns the compact summary of a configuration: product, quantity, list price, tabs and resource constraints.',
+        'Returns the compact summary of a configuration or multi-product workspace: products, quantities, prices, tabs and constraints.',
       inputSchema: { session: z.string() },
     },
     async (args) =>
       guard(async () => {
         const session = requireSession(service, args.session);
+        const workspace = service.sessions.getWorkspace(args.session);
+        const isMulti = workspace && workspace.configurations.size > 1;
+
+        if (isMulti) {
+          const configs = [...workspace.configurations.values()].map((s) => ({
+            id: s.id,
+            productCode: s.product.code,
+            description: s.product.description,
+            quantity: s.raw.quantity ?? 1,
+            unitPrice: s.raw.totalPrice ?? 0,
+            extendedPrice: (s.raw.totalPrice ?? 0) * (s.raw.quantity ?? 1),
+          }));
+          const totalExt = configs.reduce((sum, c) => sum + c.extendedPrice, 0);
+
+          return {
+            workspace: workspace.id,
+            isMultiProduct: true,
+            totalPrice: Math.round(totalExt * 100) / 100,
+            currency: session.locale.currency,
+            country: session.locale.country,
+            configurations: configs,
+            racks: [...workspace.racks.values()],
+            cables: workspace.cables,
+          };
+        }
+
         return {
+          workspace: session.workspaceId,
           ...projectSummary({
             sessionId: session.id,
             revision: session.revision,
@@ -289,7 +420,6 @@ export function registerTools(server: McpServer, service: DcscService): void {
       guard(async () => {
         const session = requireSession(service, args.session);
 
-        // Tab view (L1): sections only, no feature lists.
         if (args.tab && !args.query && !args.section) {
           return projectTab({
             sessionId: session.id,
@@ -300,7 +430,6 @@ export function registerTools(server: McpServer, service: DcscService): void {
           });
         }
 
-        // Search or section view (L2).
         const found = searchFeatures(session.index, {
           ...(args.query !== undefined ? { query: args.query } : {}),
           ...(args.tab !== undefined ? { tab: args.tab } : {}),
@@ -555,13 +684,13 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_export',
     {
-      title: 'Export a configuration as XML + Excel',
+      title: 'Export a configuration or solution workspace as XML + Excel',
       description:
-        'Exports the configuration to a ZIP on disk and returns the file paths.\n' +
+        'Exports the configuration or multi-product workspace to a ZIP on disk and returns the file paths.\n' +
         'The XML is Lenovo CFXML — it re-imports into DCSC and is the file used to raise a bid or quote ' +
         'in Lenovo Bid Portal. The XLSX is the quote spreadsheet.\n' +
-        'Returns paths, never file contents. Note that a configuration containing errors can be exported ' +
-        'but will NOT import into Lenovo quoting tools.',
+        'Supports rack diagrams, floor reports, P2P cabling reports, and message history.\n' +
+        'Returns paths, never file contents.',
       inputSchema: {
         session: z.string(),
         fileName: z
@@ -580,6 +709,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
               'RACK_REPORT',
               'RACK_DIAGRAM',
               'FLOOR',
+              'MESSAGE_HISTORY',
+              'P2P_REPORT',
             ]),
           )
           .optional()
@@ -588,13 +719,16 @@ export function registerTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const session = requireSession(service, args.session);
-        const fileName = sanitiseFileName(
-          args.fileName ?? `${session.product.code}-${Date.now()}`,
-        );
-        const ctx = service.newCtx({ locale: session.locale, solution: session.solution });
+        const session = service.sessions.get(args.session);
+        const workspace = service.sessions.getWorkspace(args.session);
+        if (!session && !workspace) throw new Error(`Session / Workspace ${args.session} not found`);
 
-        const { stream, contentDisposition } = await service.exportZip(session, {
+        const pCode = session?.product.code ?? [...workspace!.configurations.values()][0]?.product.code ?? 'solution';
+        const fileName = sanitiseFileName(args.fileName ?? `${pCode}-${Date.now()}`);
+        const solution = workspace?.solution ?? session!.solution;
+        const ctx = service.newCtx({ locale: service.locale, solution });
+
+        const { stream, contentDisposition } = await service.exportZip(args.session, {
           fileTypes: (args.fileTypes ?? ['XML', 'QUOTE', 'SUMMARY']) as ExportFileType[],
           fileName,
           ctx,
@@ -603,8 +737,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
         const bundle = await writeExportBundle(stream, fileName, service.config);
 
         return {
-          session: session.id,
-          revision: session.revision,
+          session: args.session,
           contentDisposition,
           ...bundle,
           priceType: 'LIST',

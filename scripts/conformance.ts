@@ -301,6 +301,43 @@ async function main(): Promise<void> {
     (bundle.warnings ?? []).join('; '),
   );
 
+  // --- rack & cabling ------------------------------------------------------
+  const addedRack = await track('dcsc_add_rack', {
+    session,
+    rackCode: '7D6DCTO1WW',
+    description: 'ThinkSystem 42U Onyx Rack',
+    uheight: 42,
+    position: 1,
+  });
+  const rackInfo = addedRack.json as { rack: { id: string; uheight: number } };
+  check(
+    'dcsc_add_rack returns a rack placement',
+    !addedRack.isError && typeof rackInfo.rack?.id === 'string',
+    JSON.stringify(addedRack.json).slice(0, 150),
+  );
+
+  if (rackInfo.rack?.id) {
+    const placed = await track('dcsc_place_in_rack', {
+      session,
+      configId: session,
+      rackId: rackInfo.rack.id,
+      uPosition: 1,
+      height: 1,
+    });
+    check('dcsc_place_in_rack places config in rack', !placed.isError, JSON.stringify(placed.json).slice(0, 120));
+  }
+
+  const cable = await track('dcsc_add_cabling', {
+    session,
+    fromConfigId: session,
+    fromPort: 'RJ45-1',
+    toConfigId: session,
+    toPort: 'RJ45-mgmt',
+    cableCode: '6400',
+    description: 'Management Jumper',
+  });
+  check('dcsc_add_cabling links ports', !cable.isError, JSON.stringify(cable.json).slice(0, 120));
+
   // --- LFO session ---------------------------------------------------------
   if (lfoHits[0]) {
     const lfoLaunch = await track('dcsc_launch', {

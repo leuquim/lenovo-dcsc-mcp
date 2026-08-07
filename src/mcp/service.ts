@@ -20,7 +20,12 @@ import {
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
 import { logger, newCorrId } from '../http/trace.js';
 import type { RawConfiguration } from '../model/types.js';
-import { SessionStore, type ConfigSession } from '../session/SessionStore.js';
+import {
+  SessionStore,
+  type ConfigSession,
+  type RackPlacement,
+  type CableLink,
+} from '../session/SessionStore.js';
 
 const SOLUTION_MODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
@@ -33,10 +38,6 @@ interface Cached<T> {
 /**
  * Holds the pieces that outlive a single tool call: the HTTP client, the
  * long-TTL metadata caches, and the session store.
- *
- * The caches matter for politeness as much as latency — the catalog is a large
- * response and re-fetching it per tool call would be the fastest way to get
- * this client flagged.
  */
 export class DcscService {
   readonly http: DcscHttpClient;
@@ -89,10 +90,7 @@ export class DcscService {
   }
 
   /**
-   * Launches a configuration and opens a session.
-   *
-   * CTO and LFO take different endpoints; the mode is fixed at launch and the
-   * path is chosen here rather than being exposed as a tool parameter.
+   * Launches a configuration and opens a session within a workspace.
    */
   async launch(opts: {
     productCode: string;
@@ -100,6 +98,7 @@ export class DcscService {
     solution: SolutionContext;
     ctx: RequestCtx;
     label?: string | undefined;
+    workspaceId?: string | undefined;
   }): Promise<ConfigSession> {
     const { productCode, mode, solution, ctx } = opts;
     const encoded = encodeURIComponent(productCode);
@@ -135,14 +134,6 @@ export class DcscService {
     const reduceMode = mode === 'cto' ? 'cto' : 'lfo';
     let reduced = reduceConfiguration(raw, configurationId, reduceMode);
 
-    // The SPA runs an autoDerive with no delta immediately after launch. That
-    // pass materialises the derived sections (fillers, labels, voltage, service
-    // and software rows) that the launch response does not contain, and the
-    // first real change is rejected without it.
-    //
-    // Best-effort on purpose: the launch response is already valid for
-    // browsing, pricing and the bill of materials, so a priming failure must
-    // not sink the whole session. It is recorded and retried on first mutation.
     let primed = false;
     try {
       const derived = await this.#autoDerive(reduced, {
@@ -171,6 +162,7 @@ export class DcscService {
       raw,
       configurationId,
       reduced,
+      workspaceId: opts.workspaceId,
       ...(opts.label !== undefined ? { label: opts.label } : {}),
     });
   }
@@ -184,8 +176,6 @@ export class DcscService {
       validationMode: 'guided' | 'expert';
     },
   ): Promise<RawConfiguration | undefined> {
-    // CTO and LFO have mirrored endpoint families; posting an LFO
-    // configuration to the CTO route 404s with "Not found CTO with code".
     const isLfo = opts.mode !== 'cto';
     const res = await this.http.send({
       endpoint: isLfo ? 'lfo_autoDerive' : 'cto_autoDerive',
@@ -206,10 +196,6 @@ export class DcscService {
 
   /**
    * Applies selection changes and commits the reconciled result.
-   *
-   * Changes are batched into one round trip so "swap the CPU and bump the
-   * memory" is atomic rather than transiently invalid. DCSC reconciles from
-   * the per-change delta, which is why `previousFeatureCode` matters.
    */
   async configure(
     session: ConfigSession,
@@ -249,10 +235,6 @@ export class DcscService {
 
   /**
    * Sets how many identical units of this configuration are wanted.
-   *
-   * Quantity is a property of the client-held configuration, not something the
-   * rules engine reconciles, so this needs no round trip — but it does change
-   * the extended price and the exported line, so it bumps the revision.
    */
   setQuantity(session: ConfigSession, quantity: number): ConfigSession {
     session.raw.quantity = quantity;
@@ -262,31 +244,76 @@ export class DcscService {
     return session;
   }
 
+  addRack(
+    sessionHandle: string,
+    rackCode: string,
+    description = 'Rack Enclosure',
+    uheight = 42,
+    position = 1,
+  ): RackPlacement {
+    const ws = this.sessions.getWorkspace(sessionHandle);
+    if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+    return this.sessions.addRack(ws.id, rackCode, description, uheight, position);
+  }
+
+  placeInRack(
+    sessionHandle: string,
+    configId: string,
+    rackId: string,
+    uPosition: number,
+    height = 1,
+  ): boolean {
+    const ws = this.sessions.getWorkspace(sessionHandle);
+    if (!ws) return false;
+    return this.sessions.placeInRack(ws.id, configId, rackId, uPosition, height);
+  }
+
+  addCabling(sessionHandle: string, cable: Omit<CableLink, 'id'>): CableLink {
+    const ws = this.sessions.getWorkspace(sessionHandle);
+    if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+    return this.sessions.addCabling(ws.id, cable);
+  }
+
   /** Streams the export ZIP to disk and returns where it landed. */
   async exportZip(
-    session: ConfigSession,
+    sessionHandle: string,
     opts: { fileTypes: ExportFileType[]; fileName: string; ctx: RequestCtx },
   ): Promise<{ stream: NodeJS.ReadableStream; contentDisposition: string | undefined }> {
-    const data = buildExportData({
-      raw: session.raw,
-      config: session.reduced,
-      solution: session.solution,
-      fileTypes: opts.fileTypes,
-      validationMode: session.validationMode,
-    });
+    const session = this.sessions.get(sessionHandle);
+    const workspace = this.sessions.getWorkspace(sessionHandle);
+    if (!session && !workspace) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+
+    const isWorkspaceMulti = workspace && workspace.configurations.size > 1;
+    const solution = workspace?.solution ?? session!.solution;
+    const validationMode = workspace?.validationMode ?? session!.validationMode;
+    const isLfo = session ? session.mode !== 'cto' : false;
+
+    const data = isWorkspaceMulti
+      ? buildExportData({
+          workspace,
+          solution,
+          fileTypes: opts.fileTypes,
+          validationMode,
+        })
+      : buildExportData({
+          raw: session!.raw,
+          config: session!.reduced,
+          solution,
+          fileTypes: opts.fileTypes,
+          validationMode,
+        });
+
     const form = buildExportForm({
       data,
-      groups: buildGroups(session.raw, session.configurationId),
+      groups: isWorkspaceMulti
+        ? buildGroups(workspace!)
+        : buildGroups(session!.raw, session!.configurationId),
     });
 
-    // Export mirrors the CTO/LFO split like every other endpoint family.
-    const isLfo = session.mode !== 'cto';
     const res = await this.http.send({
       endpoint: isLfo ? 'lfo_export_zip' : 'cto_export_zip',
       method: 'POST',
       path: isLfo ? '/lfos/export_zip' : '/ctos/export_zip',
-      // The export endpoint takes a minimal query: no geo, solutionMode or
-      // masterSlices. Sending them is harmless but they are not required.
       query: { fileName: opts.fileName },
       requiresSolution: false,
       body: { kind: 'form', fields: form },

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { SolutionContext } from '../config/schema.js';
 import type { RawConfiguration, RawSection } from '../model/types.js';
+import type { WorkspaceSession } from '../session/SessionStore.js';
 
 /**
  * Builds the *reduced* configuration model DCSC expects on mutation and export.
@@ -114,15 +115,6 @@ export function reduceConfiguration(
     }
   }
 
-  // A CTO launch returns `sliceCtoCode`; an LFO launch (`as_lfo_launch`) does
-  // not — it uses `code` for the preconfigured model and `ctoCode` for the
-  // underlying CTO.
-  //
-  // Crucially, the /lfos/* endpoints resolve the model by the LFO code, so
-  // `sliceCtoCode` (the "model number" they look up) must carry the LFO code
-  // there. Sending the CTO code yields
-  // "Unable to find a model with model number 7DCECTO1WW", which breaks both
-  // autoDerive and export for every preconfigured model.
   const underlyingCto =
     raw.sliceCtoCode ?? (raw.ctoCode as string | undefined) ?? (raw.code as string | undefined) ?? '';
   const lfoCode =
@@ -182,10 +174,6 @@ function toResults(section: RawSection): ReducedResult[] {
 
 /**
  * Applies a selection change to the reduced model and records the delta.
- *
- * For a single-entry section the incoming code replaces whatever was there;
- * DCSC needs `previousFeatureCode` to reconcile dependent parts (heatsinks,
- * cables, fillers), which is why the delta is not merely descriptive.
  */
 export function applyChange(
   config: ReducedConfiguration,
@@ -222,18 +210,6 @@ export function applyChange(
   return { ...config, delta };
 }
 
-/**
- * A placement entry for `workspaceInformation.nonRackData`.
- *
- * Distinct from `workspace.nonRackArea`, which is the *layout* entry
- * (`originalIds` / `derivedResults` / `removedResults`). Conflating the two
- * makes the rule engine return HTTP 500 with no useful detail.
- *
- * The real client sends full physical metadata here (weight, dimensions,
- * centre-of-gravity), which comes from the rack placement service. For a
- * non-rack configuration those are not needed: this minimal shape was verified
- * to return HTTP 200 by ablating a known-good captured request.
- */
 export function buildPlacement(
   id: string,
   productCode: string,
@@ -257,11 +233,59 @@ export function buildPlacement(
   };
 }
 
-/** The envelope autoDerive expects. Note `workspaceInformation.configurations` is null. */
+/** The envelope autoDerive expects. Supports single config or workspace. */
 export function buildAutoDeriveRequest(
-  config: ReducedConfiguration,
+  input: ReducedConfiguration | WorkspaceSession,
   opts: { validationMode: 'guided' | 'expert' },
 ): Record<string, unknown> {
+  if ('configurations' in input && input.configurations instanceof Map) {
+    const ws = input as WorkspaceSession;
+    const configs = [...ws.configurations.values()].map((s) => s.reduced);
+    const ids = configs.map((c) => c.id);
+    const nonRackPlacement = [...ws.configurations.values()].map((s) =>
+      buildPlacement(s.configurationId, s.reduced.sliceCtoCode, s.raw.quantity ?? 1),
+    );
+
+    const cloneDependency: Record<string, string[]> = {};
+    for (const id of ids) cloneDependency[id] = [id];
+
+    return {
+      workspaceInformation: {
+        configurations: null,
+        rackData: [],
+        nonRackData: nonRackPlacement,
+        cloneDependency,
+        nonRackVirtualData: [],
+        rackVirtualData: [],
+      },
+      autoDerivedResults: [],
+      configurations: configs,
+      operationHistories: [],
+      controllerExpansionMap: {},
+      customizingFlags: {
+        componentRestriction: true,
+        autoDerive: opts.validationMode === 'guided',
+        ctoRules: true,
+        minMax: true,
+        placement: true,
+        fromMemoryWizard: false,
+        autoVariant: true,
+      },
+      virtualContainerIdMapping: {},
+      virtualContainerRule2ConfigMapping: {},
+      virtualContainerInvalidRuleIdMapping: {},
+      callServiceVarintOnly: false,
+      statusRelatedResult: {
+        overPreSelectResults: [],
+        autoDerivedConfigurationIds: ids,
+        requiredSections: null,
+      },
+      customizingIds: ids,
+      importInformation: [],
+    };
+  }
+
+  const config = input as ReducedConfiguration;
   const id = config.id;
   return {
     workspaceInformation: {
@@ -278,7 +302,6 @@ export function buildAutoDeriveRequest(
     controllerExpansionMap: {},
     customizingFlags: {
       componentRestriction: true,
-      // Guided mode runs full rules validation on every change; expert defers.
       autoDerive: opts.validationMode === 'guided',
       ctoRules: true,
       minMax: true,
@@ -300,12 +323,7 @@ export function buildAutoDeriveRequest(
   };
 }
 
-/**
- * Export format flags. Captured from the live export dialog — these are what
- * populate the ZIP. Without them the server returns a valid but EMPTY archive.
- */
 export const EXPORT_FILE_TYPES = {
-  /** The interchange XML: re-imports into DCSC and feeds Lenovo Bid Portal. */
   XML: 'XML',
   QUOTE: 'QUOTE',
   QUOTE_SUPPLYINFO: 'QUOTE_SUPPLYINFO',
@@ -316,6 +334,7 @@ export const EXPORT_FILE_TYPES = {
   RACK_DIAGRAM: 'RACK_DIAGRAM',
   FLOOR: 'FLOOR',
   MESSAGE_HISTORY: 'MESSAGE_HISTORY',
+  P2P_REPORT: 'P2P_REPORT',
 } as const;
 
 export type ExportFileType = keyof typeof EXPORT_FILE_TYPES;
@@ -336,17 +355,77 @@ export interface ExportGroupProduct {
   asMultiProd: boolean;
 }
 
-/** The `groups` form field: the priced product list shown on the summary page. */
+/** The `groups` form field: priced products in the solution workspace. */
 export function buildGroups(
-  raw: RawConfiguration,
-  configurationId: string,
+  raw: RawConfiguration | WorkspaceSession,
+  configurationId?: string,
 ): Array<Record<string, unknown>> {
-  // `totalPrice` is the price of ONE configured unit. In the groups payload
-  // `price` is the extended line total and `unitPrice` is the per-unit figure —
-  // they coincide only at quantity 1. Sending the unit price as the extended
-  // total would under-price an 8-node cluster by a factor of 8.
-  const quantity = raw.quantity ?? 1;
-  const unitPrice = raw.totalPrice ?? 0;
+  if ('configurations' in raw && raw.configurations instanceof Map) {
+    const ws = raw as WorkspaceSession;
+    const products: Array<Record<string, unknown>> = [];
+
+    for (const session of ws.configurations.values()) {
+      const q = session.raw.quantity ?? 1;
+      const unit = session.raw.totalPrice ?? 0;
+      products.push({
+        id: session.configurationId,
+        code: session.raw.sliceCtoCode ?? session.product.code,
+        description: session.raw.description ?? '',
+        quantity: q,
+        price: unit * q,
+        unitPrice: unit,
+        prices: session.raw.totalPrices ?? [],
+        type: 'hardware',
+        groupId: 'Config 1',
+        showPrice: session.raw.showPrice !== false,
+        priceNotAvailable: false,
+        asMultiProd: false,
+        specialBid: false,
+        shippingStatus: session.raw.shippingStatus ?? [],
+      });
+
+      // Include hipo software & service products if present
+      for (const hipo of (session.raw.hipoDerivedItems as Array<Record<string, unknown>>) ?? []) {
+        products.push({
+          id: session.configurationId,
+          code: hipo.targetCtoCode ?? '',
+          description: hipo.targetCtoCodeDescription ?? '',
+          quantity: hipo.targetCtoQuantity ?? 1,
+          price: (hipo.targetCtoPrice as number) ?? 0,
+          prices: hipo.targetCTOPrices ?? [],
+          unitPrice: (hipo.targetCtoUnitPrice as number) ?? 1,
+          type: 'hipo',
+          priceNotAvailable: false,
+          showPrice: true,
+          asMultiProd: false,
+          groupId: 'Config 1',
+        });
+      }
+
+      for (const svc of (session.raw.hipoServiceCtoServices as Array<Record<string, unknown>>) ?? []) {
+        products.push({
+          id: session.configurationId,
+          code: svc.targetCto ?? '',
+          description: svc.description ?? '',
+          quantity: 1,
+          price: (svc.price as number) ?? 0,
+          unitPrice: (svc.price as number) ?? 0,
+          type: 'servicectohipo',
+          titleType: 'serviceCtoHipo',
+          priceNotAvailable: false,
+          showPrice: true,
+          groupId: 'Config 1',
+        });
+      }
+    }
+
+    return [{ name: 'Config 1', parent: null, index: -1, products }];
+  }
+
+  const rawConfig = raw as RawConfiguration;
+  const configId = configurationId ?? newConfigurationId('US');
+  const quantity = rawConfig.quantity ?? 1;
+  const unitPrice = rawConfig.totalPrice ?? 0;
 
   return [
     {
@@ -355,47 +434,32 @@ export function buildGroups(
       index: -1,
       products: [
         {
-          id: configurationId,
-          code: raw.sliceCtoCode ?? '',
-          description: raw.description ?? '',
+          id: configId,
+          code: rawConfig.sliceCtoCode ?? '',
+          description: rawConfig.description ?? '',
           quantity,
           price: unitPrice * quantity,
           unitPrice,
-          prices: raw.totalPrices ?? [],
+          prices: rawConfig.totalPrices ?? [],
           type: 'hardware',
           groupId: 'Config 1',
-          showPrice: raw.showPrice !== false,
+          showPrice: rawConfig.showPrice !== false,
           priceNotAvailable: false,
           asMultiProd: false,
           specialBid: false,
-          shippingStatus: raw.shippingStatus ?? [],
+          shippingStatus: rawConfig.shippingStatus ?? [],
         },
       ],
     },
   ];
 }
 
-/**
- * The export endpoint takes a DIFFERENT configuration shape from autoDerive.
- *
- * Its DTO rejects unknown properties, so sending the autoDerive shape fails the
- * whole body with HTTP 400 "Failed to read request". Two differences matter
- * most:
- *   - it reads `code`, not `ctoCode` (omitting `code` makes the rule engine
- *     request `/cto/characters/` with an empty segment and 404);
- *   - it has no `workspaceId`, `slice`, `solutionMode`, `asVLH`, `products`,
- *     `networkDerivedFeatures`, `operationHistories` or `pinnedList`.
- *
- * Field set verified against a live browser capture, 2026-08-07.
- */
 export function buildExportConfiguration(
   config: ReducedConfiguration,
   raw: RawConfiguration,
 ): Record<string, unknown> {
   return {
     id: config.id,
-    // For a preconfigured model the export identifies the product by its LFO
-    // code; for a CTO it is the CTO code.
     code: config.lfoCode ?? config.sliceCtoCode,
     sliceCtoCode: config.sliceCtoCode,
     lfoCode: config.lfoCode,
@@ -428,22 +492,138 @@ export function buildExportConfiguration(
 
 /**
  * Builds the `data` field of the export form POST.
- *
- * `exportFileTypes` is the field that blind probing could not find: it is a
- * plain top-level array inside `data`, not a separate parameter and not the
- * `{zipAll, selection}` shape the bundle's builder function suggested. Without
- * it the server returns a valid but EMPTY archive.
+ * Supports single configuration or full WorkspaceSession with racks & cabling.
  */
 export function buildExportData(opts: {
-  raw: RawConfiguration;
-  config: ReducedConfiguration;
+  raw?: RawConfiguration;
+  config?: ReducedConfiguration;
+  workspace?: WorkspaceSession;
   solution: SolutionContext;
   fileTypes: ExportFileType[];
   validationMode: 'guided' | 'expert';
 }): Record<string, unknown> {
-  const id = opts.config.id;
-  const quantity = opts.raw.quantity ?? 1;
-  const exportConfig = buildExportConfiguration(opts.config, opts.raw);
+  if (opts.workspace) {
+    const ws = opts.workspace;
+    const configs = [...ws.configurations.values()];
+    const exportConfigs = configs.map((s) => buildExportConfiguration(s.reduced, s.raw));
+    const ids = configs.map((s) => s.configurationId);
+
+    const rackArea: unknown[] = [];
+
+    const nonRackArea = configs.map((s) => ({
+      id: s.configurationId,
+      quantity: s.raw.quantity ?? 1,
+      size: 1,
+      type: 'server',
+      originalIds: [s.configurationId],
+      derivedResults: [],
+      removedResults: [],
+    }));
+
+    const nonRackData = configs.map((s) =>
+      buildPlacement(s.configurationId, s.reduced.sliceCtoCode, s.raw.quantity ?? 1),
+    );
+
+    const rackData: unknown[] = [];
+
+    const cloneDependency: Record<string, string[]> = {};
+    for (const id of ids) cloneDependency[id] = [id];
+
+    return {
+      toggle7116On: false,
+      workspace: {
+        rackArea,
+        nonRackArea,
+        floorItems: [],
+        cloneRackMapping: {},
+      },
+      configurations: exportConfigs,
+      crnId: '',
+      cloneDependencyColor: {},
+      virtualContainerIdMapping: {},
+      virtualContainerRule2ConfigMapping: {},
+      virtualContainerInvalidRuleIdMapping: {},
+      statusRelatedResult: {
+        overPreSelectResults: [],
+        autoDerivedConfigurationIds: ids,
+        requiredSections: null,
+      },
+      workspaceInformation: {
+        configurations: exportConfigs,
+        rackData,
+        nonRackData,
+        cloneDependency,
+        nonRackVirtualData: [],
+        rackVirtualData: [],
+      },
+      autoDerivedResults: [],
+      crossSystemConfigs: [],
+      standaloneData: [],
+      ruleConditionIdMapping: '{}',
+      instanceIdMapping: '{}',
+      controllerExpansionMap: {},
+      controllerIndexMap: {},
+      autoConnectResults: [],
+      floorInformation: { floorGrid: [], floorGridSettings: {}, floorPreference: {}, cloneRackMapping: {} },
+      networkingInformation: {
+        powerSelection: [],
+        autoConnectResults: [],
+        cables: ws.cables.map((c) => ({
+          fromId: c.fromConfigId,
+          fromPort: c.fromPort,
+          toId: c.toConfigId,
+          toPort: c.toPort,
+          cableCode: c.cableCode ?? '',
+          quantity: 1,
+        })),
+        switchMap: [],
+      },
+      customizingFlags: {
+        componentRestriction: true,
+        autoDerive: true,
+        ctoRules: true,
+        minMax: true,
+        placement: true,
+        fromMemoryWizard: false,
+        autoVariant: true,
+        cogValidation: true,
+        autoAddPDU: ws.racks.size > 0,
+        autoAddSwitch: ws.racks.size > 0,
+        p2pCabling: ws.cables.length > 0,
+        autoArrange: false,
+        autoConnect: ws.cables.length > 0,
+      },
+      messageHistory: {
+        history: [],
+        validationReport: {
+          err: {},
+          info: {},
+          warn: {},
+          configurations: [],
+        },
+      },
+      operationMode: {
+        type: opts.validationMode === 'guided' ? 'guide' : 'expert',
+        options: { autoFix: false, showErrors: true },
+      },
+      solutionMode: {
+        mode: opts.solution.solutionMode,
+        masterSlices: opts.solution.masterSlices,
+        sbSlices: [],
+      },
+      configId2RecommendedDatasMap: {},
+      lbpExportShowPrice: [1],
+      crossVariantDeriveResults: [],
+      exportFileTypes: opts.fileTypes,
+    };
+  }
+
+  const config = opts.config!;
+  const raw = opts.raw!;
+  const id = config.id;
+  const quantity = raw.quantity ?? 1;
+  const exportConfig = buildExportConfiguration(config, raw);
+
   return {
     toggle7116On: false,
     workspace: {
@@ -451,9 +631,6 @@ export function buildExportData(opts: {
       nonRackArea: [
         {
           id,
-          // This is what drives <Quantity> in the exported CFXML. Hardcoding 1
-          // silently exports a single unit however many the caller asked for —
-          // i.e. a quote short by a factor of `quantity`.
           quantity,
           size: 1,
           type: 'server',
@@ -467,9 +644,6 @@ export function buildExportData(opts: {
     },
     configurations: [exportConfig],
     crnId: '',
-    // The map's values are objects, not colour scalars. Sending `{id: 0}`
-    // fails the whole body with "Failed to read request"; an empty map is
-    // accepted.
     cloneDependencyColor: {},
     virtualContainerIdMapping: {},
     virtualContainerRule2ConfigMapping: {},
@@ -482,7 +656,7 @@ export function buildExportData(opts: {
     workspaceInformation: {
       configurations: [exportConfig],
       rackData: [],
-      nonRackData: [buildPlacement(id, opts.config.sliceCtoCode, quantity)],
+      nonRackData: [buildPlacement(id, config.sliceCtoCode, quantity)],
       cloneDependency: { [id]: [id] },
       nonRackVirtualData: [],
       rackVirtualData: [],
@@ -496,12 +670,12 @@ export function buildExportData(opts: {
     controllerIndexMap: {},
     autoConnectResults: [],
     floorInformation: { floorGridSettings: {}, floorPreference: {}, cloneRackMapping: {} },
-    // Deliberately NOT sent: `networkingInformation` and `messageHistory`.
-    // The real client sends both, but its shapes differ from the naive
-    // `{powerSelection:{}, cables:[], …}` / `{history:[], validationReport:[]}`
-    // and each fails deserialization with HTTP 400 "Failed to read request".
-    // They are only meaningful for rack/cluster solutions, so omitting them
-    // costs nothing for a general-purpose configuration.
+    networkingInformation: {
+      powerSelection: [],
+      autoConnectResults: [],
+      cables: [],
+      switchMap: [],
+    },
     customizingFlags: {
       componentRestriction: true,
       autoDerive: true,
@@ -516,6 +690,15 @@ export function buildExportData(opts: {
       p2pCabling: false,
       autoArrange: false,
       autoConnect: false,
+    },
+    messageHistory: {
+      history: [],
+      validationReport: {
+        err: {},
+        info: {},
+        warn: {},
+        configurations: [],
+      },
     },
     operationMode: {
       type: opts.validationMode === 'guided' ? 'guide' : 'expert',
@@ -556,8 +739,6 @@ export function buildExportForm(opts: {
       context: '',
       serviceWithProductNumber: false,
     }),
-    // Empty even in the real browser for a non-rack configuration — the
-    // html2canvas rack diagram only applies to rack solutions.
     image: '',
     user: '',
     'dcsc-isFromIntegration': 'false',
