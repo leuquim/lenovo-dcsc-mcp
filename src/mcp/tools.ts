@@ -332,6 +332,110 @@ export function registerTools(server: McpServer, service: DcscService): void {
       }),
   );
 
+  server.registerTool(
+    'dcsc_import',
+    {
+      title: 'Import a saved Lenovo CFXML configuration file or string',
+      description:
+        'Imports a saved Lenovo CFXML string or file path from Lenovo Bid Portal or DCSC into a new configuration session or workspace.',
+      inputSchema: {
+        content: z.string().optional().describe('XML content string of the CFXML file.'),
+        filePath: z.string().optional().describe('Absolute local file path to the CFXML file.'),
+        mode: z.enum(CONFIG_MODES).optional().default('cto'),
+        workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        let xmlContent = args.content;
+        if (args.filePath) {
+          const { readFileSync } = await import('node:fs');
+          xmlContent = readFileSync(args.filePath, 'utf8');
+        } else if (
+          xmlContent &&
+          (xmlContent.endsWith('.xml') || xmlContent.startsWith('/') || xmlContent.startsWith('./'))
+        ) {
+          const { readFileSync } = await import('node:fs');
+          xmlContent = readFileSync(xmlContent, 'utf8');
+        }
+        if (!xmlContent) {
+          throw new Error('Either content string or filePath must be provided.');
+        }
+
+        const ctx = service.newCtx();
+        const res = await service.importConfig({
+          content: xmlContent,
+          ctx,
+          mode: args.mode,
+          ...(args.workspace !== undefined ? { workspaceId: args.workspace } : {}),
+        });
+
+        return {
+          workspace: res.workspaceId,
+          importedConfigurations: res.sessions.length,
+          sessions: res.sessions.map((s) => ({
+            id: s.id,
+            productCode: s.product.code,
+            description: s.product.description,
+            quantity: s.raw.quantity ?? 1,
+            totalPrice: s.raw.totalPrice ?? 0,
+          })),
+          next: 'dcsc_session_info(session) to inspect imported configuration.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_place_on_floor',
+    {
+      title: 'Place a rack enclosure on datacenter floor tiles',
+      description:
+        'Positions a rack enclosure on datacenter floor grid coordinates (x, y) for 2D datacenter layout planning.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
+        x: z.number().int().min(0).describe('Floor tile X coordinate.'),
+        y: z.number().int().min(0).describe('Floor tile Y coordinate.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const item = service.placeOnFloor(args.session, args.rackId, args.x, args.y);
+        return {
+          session: args.session,
+          floorPlacement: item,
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_configure_pdu',
+    {
+      title: 'Configure PDU power selection and voltage for a rack',
+      description:
+        'Sets PDU power options (PDU part code, power cord, line voltage) for a rack enclosure.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
+        pduCode: z.string().optional().describe('Optional PDU feature or part code.'),
+        cordCode: z.string().optional().describe('Optional power cord feature code.'),
+        voltage: z.string().optional().describe('Optional voltage rating, e.g. "200V+".'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const pdu = service.configurePdu(args.session, args.rackId, {
+          ...(args.pduCode !== undefined ? { pduCode: args.pduCode } : {}),
+          ...(args.cordCode !== undefined ? { cordCode: args.cordCode } : {}),
+          ...(args.voltage !== undefined ? { voltage: args.voltage } : {}),
+        });
+        return {
+          session: args.session,
+          powerSelection: pdu,
+        };
+      }),
+  );
+
   // -------------------------------------------------------------------------
   // Inspection
   // -------------------------------------------------------------------------
@@ -528,6 +632,33 @@ export function registerTools(server: McpServer, service: DcscService): void {
           selections: [...byTab.entries()].map(([tab, items]) => ({ tab, items })),
         };
       }),
+  );
+
+  server.registerTool(
+    'dcsc_validate',
+    {
+      title: 'Inspect validation warnings and rules report',
+      description:
+        'Returns the rule validation report (errors, warnings, thermal/power alerts) and headroom limits for a configuration or workspace.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+      },
+    },
+    async (args) => guard(async () => service.validate(args.session)),
+  );
+
+  server.registerTool(
+    'dcsc_diff_sessions',
+    {
+      title: 'Compare two DCSC configurations side-by-side',
+      description:
+        'Compares two configuration sessions side-by-side and returns the precise differences: added, removed and replaced parts, quantity changes, price delta, and resource headroom comparison.',
+      inputSchema: {
+        sessionA: z.string().describe('First session ID to compare.'),
+        sessionB: z.string().describe('Second session ID to compare.'),
+      },
+    },
+    async (args) => guard(async () => service.diffSessions(args.sessionA, args.sessionB)),
   );
 
   // -------------------------------------------------------------------------

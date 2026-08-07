@@ -325,6 +325,21 @@ async function main(): Promise<void> {
       height: 1,
     });
     check('dcsc_place_in_rack places config in rack', !placed.isError, JSON.stringify(placed.json).slice(0, 120));
+
+    const floor = await track('dcsc_place_on_floor', {
+      session,
+      rackId: rackInfo.rack.id,
+      x: 2,
+      y: 3,
+    });
+    check('dcsc_place_on_floor positions rack on grid', !floor.isError, JSON.stringify(floor.json).slice(0, 120));
+
+    const pdu = await track('dcsc_configure_pdu', {
+      session,
+      rackId: rackInfo.rack.id,
+      voltage: '200V+',
+    });
+    check('dcsc_configure_pdu configures power options', !pdu.isError, JSON.stringify(pdu.json).slice(0, 120));
   }
 
   const cable = await track('dcsc_add_cabling', {
@@ -337,6 +352,30 @@ async function main(): Promise<void> {
     description: 'Management Jumper',
   });
   check('dcsc_add_cabling links ports', !cable.isError, JSON.stringify(cable.json).slice(0, 120));
+
+  const val = await track('dcsc_validate', { session });
+  check('dcsc_validate returns validation report', !val.isError, JSON.stringify(val.json).slice(0, 120));
+
+  // --- import & diff --------------------------------------------------------
+  if (bundle.xml) {
+    const imported = await track('dcsc_import', {
+      filePath: bundle.xml,
+      mode: 'cto',
+    });
+    check('dcsc_import re-hydrates CFXML', !imported.isError, JSON.stringify(imported.json).slice(0, 150));
+
+    if (!imported.isError) {
+      const impSession = ((imported.json as { sessions: Array<{ id: string }> }).sessions[0])?.id;
+      if (impSession) {
+        const diff = await track('dcsc_diff_sessions', {
+          sessionA: session,
+          sessionB: impSession,
+        });
+        check('dcsc_diff_sessions compares configurations', !diff.isError, JSON.stringify(diff.json).slice(0, 150));
+        await track('dcsc_session_close', { session: impSession });
+      }
+    }
+  }
 
   // --- LFO session ---------------------------------------------------------
   if (lfoHits[0]) {

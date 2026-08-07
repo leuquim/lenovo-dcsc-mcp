@@ -30,8 +30,9 @@ async function main(): Promise<void> {
     const raw = res1.raw as Record<string, unknown>;
     console.log('Keys:', Object.keys(raw));
     console.log('ctoCode:', raw.ctoCode ?? raw.sliceCtoCode);
-  } catch (e: any) {
-    console.log(`Standard launch failed:`, e.status, String(e.internal ?? e).slice(0, 150));
+  } catch (e: unknown) {
+    const err = e as { status?: number; internal?: unknown };
+    console.log(`Standard launch failed:`, err.status, String(err.internal ?? e).slice(0, 150));
   }
 
   // Test 2: Rack launch
@@ -48,8 +49,9 @@ async function main(): Promise<void> {
     console.log(`SUCCESS rack /ctos/racks/${CODE}/launch! Status ${res2.status}`);
     const raw = res2.raw as Record<string, unknown>;
     console.log('Keys:', Object.keys(raw));
-  } catch (e: any) {
-    console.log(`Rack launch failed:`, e.status, String(e.internal ?? e).slice(0, 150));
+  } catch (e: unknown) {
+    const err = e as { status?: number; internal?: unknown };
+    console.log(`Rack launch failed:`, err.status, String(err.internal ?? e).slice(0, 150));
   }
 
   await http.close();

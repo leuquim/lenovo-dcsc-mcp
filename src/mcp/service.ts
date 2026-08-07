@@ -17,6 +17,9 @@ import {
   type ExportFileType,
   type ReducedConfiguration,
 } from '../domain/reduce.js';
+import { parseCfxml } from '../domain/import.js';
+import { diffConfigurations } from '../model/diff.js';
+import { projectSummary } from '../model/project.js';
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
 import { logger, newCorrId } from '../http/trace.js';
 import type { RawConfiguration } from '../model/types.js';
@@ -272,6 +275,147 @@ export class DcscService {
     const ws = this.sessions.getWorkspace(sessionHandle);
     if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
     return this.sessions.addCabling(ws.id, cable);
+  }
+
+  placeOnFloor(sessionHandle: string, rackId: string, x: number, y: number) {
+    const ws = this.sessions.getWorkspace(sessionHandle);
+    if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+    return this.sessions.placeOnFloor(ws.id, rackId, x, y);
+  }
+
+  configurePdu(
+    sessionHandle: string,
+    rackId: string,
+    pduSelection: { pduCode?: string; cordCode?: string; voltage?: string },
+  ) {
+    const ws = this.sessions.getWorkspace(sessionHandle);
+    if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+    return this.sessions.configurePdu(ws.id, rackId, pduSelection);
+  }
+
+  async importConfig(opts: {
+    content: string;
+    ctx: RequestCtx;
+    mode?: ConfigMode;
+    workspaceId?: string;
+  }): Promise<{ workspaceId: string; sessions: ConfigSession[] }> {
+    const parsed = parseCfxml(opts.content);
+    const solution = await this.resolveSolution(opts.ctx, parsed.solutionMode);
+
+    const sessions: ConfigSession[] = [];
+    let wsId = opts.workspaceId;
+
+    for (const cfg of parsed.configurations) {
+      const session = await this.launch({
+        productCode: cfg.productCode,
+        mode: opts.mode ?? 'cto',
+        solution,
+        ctx: opts.ctx,
+        workspaceId: wsId,
+      });
+      wsId = session.workspaceId;
+
+      if (cfg.quantity > 1) {
+        this.setQuantity(session, cfg.quantity);
+      }
+
+      const changes: Array<{ section: string; code: string; quantity: number }> = [];
+      for (const sel of cfg.selections) {
+        const feat = session.index.features.find((f) => f.code === sel.code);
+        if (feat) {
+          changes.push({
+            section: feat.sectionTitle,
+            code: sel.code,
+            quantity: sel.quantity,
+          });
+        }
+      }
+
+      if (changes.length > 0) {
+        await this.configure(session, changes, opts.ctx);
+      }
+
+      sessions.push(session);
+    }
+
+    return { workspaceId: wsId!, sessions };
+  }
+
+  validate(sessionHandle: string) {
+    const session = this.sessions.get(sessionHandle);
+    const workspace = this.sessions.getWorkspace(sessionHandle);
+    if (!session && !workspace) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+
+    const targets = workspace ? [...workspace.configurations.values()] : [session!];
+    const errors: Array<{ code?: string; message: string; section?: string }> = [];
+    const warnings: Array<{ code?: string; message: string; section?: string }> = [];
+    const info: Array<{ code?: string; message: string; section?: string }> = [];
+
+    for (const s of targets) {
+      const msgs = (s.raw as { expansionMessages?: Array<{ type?: string; text?: string; code?: string; sectionName?: string }> }).expansionMessages ?? [];
+      for (const m of msgs) {
+        const entry = {
+          ...(m.code !== undefined ? { code: m.code } : {}),
+          message: m.text ?? String(m),
+          ...(m.sectionName !== undefined ? { section: m.sectionName } : {}),
+        };
+        if (m.type === 'error' || m.type === 'err') errors.push(entry);
+        else if (m.type === 'warn' || m.type === 'warning') warnings.push(entry);
+        else info.push(entry);
+      }
+    }
+
+    const headroom = targets.flatMap((s) => projectSummary({
+      sessionId: s.id,
+      revision: s.revision,
+      raw: s.raw,
+      index: s.index,
+      currency: s.locale.currency,
+      country: s.locale.country,
+      pricedAt: s.pricedAt,
+    }).constraints);
+
+    return {
+      sessionHandle,
+      workspaceId: workspace?.id ?? session?.workspaceId,
+      isValid: errors.length === 0,
+      report: {
+        errorCount: errors.length,
+        warningCount: warnings.length,
+        infoCount: info.length,
+        errors,
+        warnings,
+        info,
+      },
+      headroom,
+    };
+  }
+
+  diffSessions(sessionHandleA: string, sessionHandleB: string) {
+    const sA = this.sessions.get(sessionHandleA);
+    const sB = this.sessions.get(sessionHandleB);
+    if (!sA || !sB) {
+      throw new Error(
+        `Both sessions must exist to compare. Found: A (${sA ? 'ok' : 'missing'}), B (${sB ? 'ok' : 'missing'}).`,
+      );
+    }
+
+    const diff = diffConfigurations({
+      beforeIndex: sA.index,
+      afterIndex: sB.index,
+      beforeRaw: sA.raw,
+      afterRaw: sB.raw,
+      currency: sA.locale.currency,
+      requested: new Set<string>(),
+    });
+
+    return {
+      sessionA: sA.id,
+      sessionB: sB.id,
+      productA: sA.product,
+      productB: sB.product,
+      ...diff,
+    };
   }
 
   /** Streams the export ZIP to disk and returns where it landed. */

@@ -534,7 +534,7 @@ export function buildExportData(opts: {
       workspace: {
         rackArea,
         nonRackArea,
-        floorItems: [],
+        floorItems: ws.floorItems.map((f) => ({ id: f.id, rackId: f.rackId, x: f.x, y: f.y })),
         cloneRackMapping: {},
       },
       configurations: exportConfigs,
@@ -566,7 +566,7 @@ export function buildExportData(opts: {
       autoConnectResults: [],
       floorInformation: { floorGrid: [], floorGridSettings: {}, floorPreference: {}, cloneRackMapping: {} },
       networkingInformation: {
-        powerSelection: [],
+        powerSelection: ws.powerSelections,
         autoConnectResults: [],
         cables: ws.cables.map((c) => ({
           fromId: c.fromConfigId,

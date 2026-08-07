@@ -58,6 +58,20 @@ export interface CableLink {
   description?: string;
 }
 
+export interface FloorItem {
+  id: string;
+  rackId: string;
+  x: number;
+  y: number;
+}
+
+export interface PduSelection {
+  rackId: string;
+  pduCode?: string | undefined;
+  cordCode?: string | undefined;
+  voltage?: string | undefined;
+}
+
 export interface WorkspaceSession {
   id: string;
   label?: string | undefined;
@@ -67,6 +81,8 @@ export interface WorkspaceSession {
   configurations: Map<string, ConfigSession>;
   racks: Map<string, RackPlacement>;
   cables: CableLink[];
+  floorItems: FloorItem[];
+  powerSelections: PduSelection[];
   revision: number;
   createdAt: number;
   lastAccessAt: number;
@@ -128,6 +144,8 @@ export class SessionStore {
         configurations: new Map(),
         racks: new Map(),
         cables: [],
+        floorItems: [],
+        powerSelections: [],
         revision: 1,
         createdAt: now,
         lastAccessAt: now,
@@ -362,6 +380,38 @@ export class SessionStore {
     ws.cables.push(link);
     ws.lastAccessAt = Date.now();
     return link;
+  }
+
+  placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem {
+    const ws = this.getWorkspace(workspaceId);
+    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
+    ws.floorItems = ws.floorItems.filter((item) => item.rackId !== rackId);
+    const item: FloorItem = {
+      id: `floor_${ulid().slice(-6).toLowerCase()}`,
+      rackId,
+      x,
+      y,
+    };
+    ws.floorItems.push(item);
+    ws.lastAccessAt = Date.now();
+    return item;
+  }
+
+  configurePdu(
+    workspaceId: string,
+    rackId: string,
+    pduSelection: Omit<PduSelection, 'rackId'>,
+  ): PduSelection {
+    const ws = this.getWorkspace(workspaceId);
+    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
+    ws.powerSelections = ws.powerSelections.filter((ps) => ps.rackId !== rackId);
+    const sel: PduSelection = {
+      rackId,
+      ...pduSelection,
+    };
+    ws.powerSelections.push(sel);
+    ws.lastAccessAt = Date.now();
+    return sel;
   }
 
   #evictIfNeeded(): void {
