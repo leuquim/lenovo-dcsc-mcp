@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Export artifacts contain customer-identifying configuration data and part
+# numbers, and land on disk unencrypted. Never commit them.
+artifacts/
+*.har
+
+# Captured bundles are large and regenerable.
+scratch/
+*.bundle.js
+
+.env
+.env.local
