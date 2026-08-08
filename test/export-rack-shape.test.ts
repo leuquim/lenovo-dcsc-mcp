@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   rackToLocalExportShape,
   rackToServerExportShape,
+  reduceConfiguration,
 } from '../src/domain/reduce.js';
 import {
   collectExpansionMessages,
   summariseValidation,
 } from '../src/domain/validate.js';
 import { localeFromOption, type LocaleOption } from '../src/domain/locale.js';
+import type { RawConfiguration } from '../src/model/types.js';
 
 describe('rack export dual-shape transforms', () => {
   it('converts customize (1-based rackItems) to SPA local (0-based servers)', () => {
@@ -101,5 +103,26 @@ describe('localeFromOption', () => {
       currency: 'EUR',
     });
     expect(localeFromOption(opt, 'en').language).toBe('en');
+  });
+});
+
+describe('reduceConfiguration fabric fields', () => {
+  it('reads selectedTopologies and nodeRole from raw instead of wiping them', () => {
+    const raw = {
+      tabs: [],
+      code: '7DM9CTO1WW',
+      selectedTopologies: { cfg1: 'IB_XDR' },
+      nodeRole: 'Compute',
+    } as unknown as RawConfiguration;
+    const reduced = reduceConfiguration(raw, 'cfg1', 'cto', 'HPC and AI - Systems');
+    expect(reduced.selectedTopologies).toEqual({ cfg1: 'IB_XDR' });
+    expect(reduced.nodeRole).toBe('Compute');
+  });
+
+  it('defaults fabric fields when raw has none', () => {
+    const raw = { tabs: [], code: 'X' } as unknown as RawConfiguration;
+    const reduced = reduceConfiguration(raw, 'id', 'cto', 'General Purpose');
+    expect(reduced.selectedTopologies).toEqual({});
+    expect(reduced.nodeRole).toBe('');
   });
 });

@@ -146,11 +146,17 @@ export function reduceConfiguration(
       ((Array.isArray(raw.configurations) && raw.configurations[0]?.hipoServiceCtoServices) as unknown[]) ??
       [],
     networkDerivedFeatures: {},
-    selectedTopologies: {},
+    // Fabric choices are client-held (SPA Redux / our session). autoDerive does
+    // not echo them, so reduce must read them from raw when present rather than
+    // wiping to {}.
+    selectedTopologies:
+      typeof raw.selectedTopologies === 'object' && raw.selectedTopologies !== null
+        ? (raw.selectedTopologies as Record<string, unknown>)
+        : {},
     selectedStorageNetwork: null,
     autoDerivedResultId: null,
-    nodeRole: '',
-    expansionMessages: [],
+    nodeRole: typeof raw.nodeRole === 'string' ? raw.nodeRole : '',
+    expansionMessages: Array.isArray(raw.expansionMessages) ? raw.expansionMessages : [],
     voltage: raw.voltage ?? {},
     currentPowerPolicy: raw.currentPowerPolicy ?? 5,
     loadFactor: raw.loadFactor ?? 70,

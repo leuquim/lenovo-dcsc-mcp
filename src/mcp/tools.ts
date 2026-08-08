@@ -924,17 +924,14 @@ export function registerTools(server: McpServer, service: DcscService): void {
                 lmcURL: report.server.lmcURL,
               }
             : undefined,
-          ...(report.server
-            ? {}
-            : {
-                warning:
-                  'DCSC LMC validation did not return a handoff; only local expansionMessages are shown. ' +
-                  'Re-try after a successful customize/autoDerive, or check dcsc_health.',
-              }),
+          rackDataOmitted: report.rackDataOmitted,
+          ...(report.warning !== undefined ? { warning: report.warning } : {}),
           headroom: report.headroom,
-          next: report.server?.lmcURL
-            ? 'Open lmc.lmcURL for the manufacturing configurator view, or dcsc_export for deliverables.'
-            : 'dcsc_list_options / dcsc_configure to clear rule issues, then re-validate.',
+          next: report.rackDataOmitted
+            ? 'dcsc_workspace_layout for racks; LMC handoff covers configurations only until rack export DTO is known.'
+            : report.server?.lmcURL
+              ? 'Open lmc.lmcURL for the manufacturing configurator view, or dcsc_export for deliverables.'
+              : 'dcsc_list_options / dcsc_configure to clear rule issues, then re-validate.',
         };
       }),
   );

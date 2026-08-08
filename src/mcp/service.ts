@@ -445,6 +445,11 @@ export class DcscService {
     ctx: RequestCtx,
   ): Promise<ConfigSession> {
     return this.sessions.withLock(session.id, async () => {
+      // Client-held fabric fields: keep across autoDerive, but do not post them
+      // in the derive body — DCSC rejects unknown/extra topology shapes (400).
+      const preservedTopologies = session.reduced.selectedTopologies ?? {};
+      const preservedRole = session.reduced.nodeRole ?? '';
+
       let reduced = session.reduced;
       for (const change of changes) {
         reduced = applyChange(reduced, {
@@ -454,7 +459,13 @@ export class DcscService {
         });
       }
 
-      const updated = await this.#autoDerive(reduced, {
+      const forDerive: ReducedConfiguration = {
+        ...reduced,
+        selectedTopologies: {},
+        nodeRole: '',
+      };
+
+      const updated = await this.#autoDerive(forDerive, {
         ctx,
         solution: session.solution,
         mode: session.mode,
@@ -465,10 +476,24 @@ export class DcscService {
       }
 
       session.primed = true;
+      const updatedTopologies =
+        typeof (updated as Record<string, unknown>)['selectedTopologies'] === 'object' &&
+        (updated as Record<string, unknown>)['selectedTopologies'] !== null
+          ? ((updated as Record<string, unknown>)['selectedTopologies'] as Record<string, unknown>)
+          : undefined;
+      const updatedRole =
+        typeof (updated as Record<string, unknown>)['nodeRole'] === 'string'
+          ? ((updated as Record<string, unknown>)['nodeRole'] as string)
+          : undefined;
       const mergedUpdated = {
         ...updated,
         hipoDerivedItems: updated.hipoDerivedItems ?? session.raw.hipoDerivedItems,
         hipoServiceCtoServices: updated.hipoServiceCtoServices ?? session.raw.hipoServiceCtoServices,
+        selectedTopologies:
+          updatedTopologies && Object.keys(updatedTopologies).length > 0
+            ? updatedTopologies
+            : preservedTopologies,
+        nodeRole: updatedRole && updatedRole !== '' ? updatedRole : preservedRole,
       };
       const reduceMode = session.mode === 'cto' ? 'cto' : 'lfo';
       const committed = this.sessions.commit(
@@ -1062,6 +1087,9 @@ export class DcscService {
     workspaceId?: string | undefined;
     headroom: unknown[];
     source: 'lmc_validation';
+    /** True when racks were present but omitted from the LMC payload (same gap as export). */
+    rackDataOmitted: boolean;
+    warning?: string | undefined;
   }> {
     const session = this.sessions.get(sessionHandle);
     const workspace = this.sessions.getWorkspace(sessionHandle);
@@ -1071,32 +1099,26 @@ export class DcscService {
     const solution = workspace?.solution ?? session!.solution;
     const validationMode = workspace?.validationMode ?? session!.validationMode;
     const mode = session?.mode === 'lfo' ? 'lfo' : 'cto';
+    const hadRacks = (workspace?.rackArea.length ?? 0) > 0;
 
-    // LMC expects the export-shaped body. Rack-bearing workspace payloads
-    // still 500 on export_zip; for validation prefer a rack-free snapshot so
-    // the server can accept the request (configs remain fully priced).
-    const exportPayload =
-      workspace && workspace.rackArea.length > 0
-        ? buildExportData({
-            workspace: { ...workspace, rackArea: [] } as WorkspaceSession,
-            solution,
-            fileTypes: ['XML'],
-            validationMode,
-          })
-        : workspace
-          ? buildExportData({
-              workspace,
-              solution,
-              fileTypes: ['XML'],
-              validationMode,
-            })
-          : buildExportData({
-              raw: session!.raw,
-              config: session!.reduced,
-              solution,
-              fileTypes: ['XML'],
-              validationMode,
-            });
+    // LMC expects the export-shaped body. Try with racks first when present;
+    // if DCSC rejects (same 500 as export_zip), fall back to a rack-free
+    // snapshot and surface rackDataOmitted — never claim a full-workspace pass.
+    let rackDataOmitted = false;
+    let exportPayload = workspace
+      ? buildExportData({
+          workspace,
+          solution,
+          fileTypes: ['XML'],
+          validationMode,
+        })
+      : buildExportData({
+          raw: session!.raw,
+          config: session!.reduced,
+          solution,
+          fileTypes: ['XML'],
+          validationMode,
+        });
 
     let server;
     try {
@@ -1107,12 +1129,44 @@ export class DcscService {
         mode,
       );
     } catch (err) {
-      logger().warn(
-        { err: err instanceof Error ? err.message : String(err) },
-        'LMC validation request failed; returning expansionMessages only',
-      );
-      server = undefined;
+      if (hadRacks && workspace) {
+        logger().warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'LMC validation with rack data failed; retrying without racks',
+        );
+        rackDataOmitted = true;
+        exportPayload = buildExportData({
+          workspace: { ...workspace, rackArea: [] } as WorkspaceSession,
+          solution,
+          fileTypes: ['XML'],
+          validationMode,
+        });
+        try {
+          server = await runLmcValidation(
+            this.http,
+            { ...ctx, solution },
+            exportPayload,
+            mode,
+          );
+        } catch (err2) {
+          logger().warn(
+            { err: err2 instanceof Error ? err2.message : String(err2) },
+            'LMC validation request failed; returning expansionMessages only',
+          );
+          server = undefined;
+        }
+      } else {
+        logger().warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'LMC validation request failed; returning expansionMessages only',
+        );
+        server = undefined;
+      }
     }
+
+    // If racks were present but we never attempted them (should not happen with
+    // the try-first path) — keep the flag honest if we stripped preemptively.
+    // Currently we only set rackDataOmitted on fallback after a failed rack attempt.
 
     const messages = collectExpansionMessages(
       targets.map((s) => ({
@@ -1134,12 +1188,22 @@ export class DcscService {
       }).constraints,
     );
 
+    const warning = rackDataOmitted
+      ? 'LMC validation ran without rack layout data: DCSC rejected the rack-bearing payload ' +
+        '(same gap as export). The handoff covers configurations only; use dcsc_workspace_layout ' +
+        'for the validated rack layout.'
+      : !server
+        ? 'DCSC LMC validation did not return a handoff; only local expansionMessages are shown.'
+        : undefined;
+
     return {
       sessionHandle,
       workspaceId: workspace?.id ?? session?.workspaceId,
       source: 'lmc_validation',
       ...summary,
       headroom,
+      rackDataOmitted,
+      ...(warning !== undefined ? { warning } : {}),
     };
   }
 

@@ -412,6 +412,24 @@ async function groupValidate(service: DcscService): Promise<void> {
   );
   check(typeof report.isValid === 'boolean', 'isValid is boolean');
   check(Array.isArray(report.messages), 'messages array present');
+  check(report.rackDataOmitted === false, 'single config has no rack omission');
+
+  // Racked workspace: either LMC accepted racks, or we disclose omission.
+  const added = await service.addRack(node.id, '7D6DCTO1WW', service.newCtx());
+  check((added.racks.length ?? 0) > 0, 'rack added for validate-with-racks check');
+  const racked = await service.validate(node.id, service.newCtx());
+  if (racked.rackDataOmitted) {
+    check(
+      typeof racked.warning === 'string' && /rack/i.test(racked.warning),
+      'racked validate surfaces explicit rack-omission warning',
+      racked.warning?.slice(0, 80),
+    );
+  } else {
+    check(
+      !!racked.server?.buildEntityNumber || !!racked.server?.lmcURL,
+      'racked validate kept racks and still got LMC handoff',
+    );
+  }
 }
 
 async function groupLocale(service: DcscService): Promise<void> {
@@ -451,6 +469,24 @@ async function groupTopology(service: DcscService): Promise<void> {
     Object.values(applied.selectedTopologies).includes(topo.shortName),
     'selectedTopologies map contains the choice',
   );
+
+  // Regression: autoDerive must not wipe topology on the next configure.
+  const selected = [...node.index.features].find((f) => f.selectedQty > 0 && f.sectionName);
+  check(!!selected, 'have a selected feature to re-apply through configure', selected?.code);
+  if (selected) {
+    await service.configure(
+      node,
+      [{ section: selected.sectionName!, code: selected.code, quantity: selected.selectedQty }],
+      service.newCtx(),
+    );
+    const after = service.sessions.get(node.id)!;
+    const still =
+      Object.values(after.reduced.selectedTopologies ?? {}).includes(topo.shortName) ||
+      Object.values((after.raw as { selectedTopologies?: Record<string, string> }).selectedTopologies ?? {}).includes(
+        topo.shortName,
+      );
+    check(still, 'selectedTopologies survives configure/autoDerive', topo.shortName);
+  }
 }
 
 async function groupServices(service: DcscService): Promise<void> {
