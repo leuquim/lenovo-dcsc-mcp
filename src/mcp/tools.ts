@@ -760,6 +760,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
         '  - query: searches every tab and returns matches with their location. This is usually what you want.\n' +
         '  - tab: lists the sections of one tab with current selections, but no option lists.\n' +
         '  - section: lists the individual options in one section, paginated, priced relative to the current selection.\n' +
+        'Services tab: list/search works (warranty packages and selected CFC lines). Anonymous configure of ' +
+        'package UI sections usually does not change selectedQty — trust DCSC after dcsc_configure, do not assume success.\n' +
         'Results are deliberately compact; use dcsc_get_feature to confirm details before selecting.',
       inputSchema: {
         session: z.string(),
@@ -1015,9 +1017,12 @@ export function registerTools(server: McpServer, service: DcscService): void {
     {
       title: 'List Services portal categories (anonymous)',
       description:
-        'Lists the top of the Lenovo Services portal category tree available without login. ' +
-        'Full warranty/service SKU selection on a product still uses the configuration Services tab ' +
-        '(auto-attached when serviceCto applies) or may be entitlement-gated beyond this catalogue.',
+        'Lists the top of the Lenovo Services portal category tree available without login.\n' +
+        'On a launched product, use dcsc_list_options(session, tab: "Services") or query "warranty" to see ' +
+        'the Services tab (package UI + currently selected CFC lines such as base warranty). ' +
+        'Anon CTO autoDerive attaches a default service package (serviceCto=true on launch) but does not ' +
+        'accept package-section re-picks or alternate CFC codes — only the selected service lines are ' +
+        'exposed as switchable results. Do not invent warranty prices or claim a change unless selectedQty moves.',
       inputSchema: {
         solutionMode: z.string().optional(),
       },
@@ -1047,9 +1052,10 @@ export function registerTools(server: McpServer, service: DcscService): void {
             })),
           })),
           note:
-            'This is the portal catalogue, not priced warranty lines on a CTO. ' +
-            'For service features on a launched product use dcsc_list_options(session, tab: "Services").',
-          next: 'dcsc_list_options(session, query: "warranty") on a launched configuration.',
+            'Portal catalogue only. Product Services tab: dcsc_list_options(session, tab: "Services"). ' +
+            'Anonymous autoDerive keeps the default warranty package; package UI codes (Lenovo Recommends|*) ' +
+            'list but do not stick via dcsc_configure — verify selectedQty after any change.',
+          next: 'dcsc_launch then dcsc_list_options(session, tab: "Services") or query: "warranty".',
         };
       }),
   );

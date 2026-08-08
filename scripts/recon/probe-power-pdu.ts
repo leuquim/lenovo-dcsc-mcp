@@ -1,10 +1,10 @@
 /**
  * Probes the power/PDU endpoints so dcsc_power can be built on real numbers.
  */
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 import * as fs from 'node:fs';
 
 const OUT = 'artifacts/rack_probe';

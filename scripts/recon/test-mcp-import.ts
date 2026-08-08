@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient, RequestBudget } from '../src/http/request.js';
-import { configureLogger, newCorrId } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient, RequestBudget } from '../../src/http/request.js';
+import { configureLogger, newCorrId } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 
 async function main() {
   const config = loadConfig({ logLevel: 'info' });

@@ -2,17 +2,17 @@
  * Figure out how to select/install a PDU so configure_pdu has a DCSC-backed path.
  */
 import * as fs from 'node:fs';
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 import {
   buildRackItem,
   buildRackObject,
   customizeLayout,
   fetchEnvelopes,
   fetchRackCabinets,
-} from '../src/domain/rack.js';
+} from '../../src/domain/rack.js';
 
 const OUT = 'artifacts/rack_probe';
 type Obj = Record<string, unknown>;

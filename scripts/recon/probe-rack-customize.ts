@@ -5,10 +5,10 @@
  * /racks/customize/non_rack, promote it into rackArea as a rack cabinet, and
  * see what the server fills in (capacity, positions, placement errors).
  */
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 

@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 
 async function main() {
   const config = loadConfig({ logLevel: 'error' });

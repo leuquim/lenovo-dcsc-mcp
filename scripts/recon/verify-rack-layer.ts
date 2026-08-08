@@ -5,10 +5,10 @@
  * rejected placements surface, and that a populated rack finally makes
  * RACK_REPORT / RACK_DIAGRAM export real files.
  */
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 import { writeFileSync } from 'node:fs';
 import yauzl from 'yauzl';
 

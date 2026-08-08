@@ -5,8 +5,8 @@ import { execSync } from 'node:child_process';
 import path from 'node:path';
 import yauzl from 'yauzl';
 
-import { loadConfig } from '../src/config/load.js';
-import { fetchSolutionModes, toSolutionContext } from '../src/domain/context.js';
+import { loadConfig } from '../../src/config/load.js';
+import { fetchSolutionModes, toSolutionContext } from '../../src/domain/context.js';
 import {
   buildAutoDeriveRequest,
   buildExportData,
@@ -15,10 +15,10 @@ import {
   newConfigurationId,
   reduceConfiguration,
   type ExportFileType,
-} from '../src/domain/reduce.js';
-import { DcscHttpClient, RequestBudget } from '../src/http/request.js';
-import { configureLogger, newCorrId } from '../src/http/trace.js';
-import type { RawConfiguration } from '../src/model/types.js';
+} from '../../src/domain/reduce.js';
+import { DcscHttpClient, RequestBudget } from '../../src/http/request.js';
+import { configureLogger, newCorrId } from '../../src/http/trace.js';
+import type { RawConfiguration } from '../../src/model/types.js';
 
 const PRODUCT_CODE = '7DG9CTO1WW'; // ThinkSystem SR630 V4-3yr Base Warranty
 const QUANTITY = 8;

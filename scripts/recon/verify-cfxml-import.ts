@@ -10,10 +10,10 @@
  * because launch does not enforce catalog membership.
  */
 import { readFileSync } from 'node:fs';
-import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
-import { configureLogger } from '../src/http/trace.js';
-import { DcscService } from '../src/mcp/service.js';
+import { loadConfig } from '../../src/config/load.js';
+import { DcscHttpClient } from '../../src/http/request.js';
+import { configureLogger } from '../../src/http/trace.js';
+import { DcscService } from '../../src/mcp/service.js';
 
 const DIR = 'artifacts/nvidia_ai_factory_blueprints';
 const BLUEPRINTS = [

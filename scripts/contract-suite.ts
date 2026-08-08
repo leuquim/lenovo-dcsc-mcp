@@ -8,7 +8,8 @@
  *
  * Usage: npx tsx scripts/contract-suite.ts [group]
  *   groups: import, rack, power, fabric, scaleout, blueprints, persist,
- *           floor, cabling, pdu, validate, locale, topology, services, all
+ *           floor, cabling, pdu, validate, locale, topology, services,
+ *           services_cto, all
  */
 import { readFileSync, rmSync } from 'node:fs';
 import { loadConfig } from '../src/config/load.js';
@@ -503,6 +504,63 @@ async function groupServices(service: DcscService): Promise<void> {
   );
 }
 
+/**
+ * Product Services tab via list/configure — not the portal tree.
+ * Documents what anonymous DCSC actually accepts.
+ */
+async function groupServicesCto(service: DcscService): Promise<void> {
+  console.log('\n=== services_cto: Services tab list + configure honesty ===');
+  const ctx = service.newCtx();
+  const solution = await service.resolveSolution(ctx, 'General Purpose');
+  const node = await service.launch({ productCode: '7D73CTO1WW', mode: 'cto', solution, ctx });
+
+  check(node.index.tabs.some((t) => t === 'Services'), 'Services tab present on launched CTO');
+  const serviceFeats = node.index.features.filter((f) => f.tab === 'Services');
+  check(serviceFeats.length > 0, 'Services tab has features in the index', `${serviceFeats.length}`);
+  const selected = serviceFeats.filter((f) => f.selectedQty > 0);
+  check(
+    selected.length > 0,
+    'default service package auto-attached (serviceCto)',
+    selected.map((f) => f.code).join(','),
+  );
+
+  // Package UI option (Lenovo Recommends) — listable but typically not accepted by autoDerive.
+  const packageOpt = serviceFeats.find(
+    (f) => f.selectedQty === 0 && f.sectionName?.includes('Lenovo Recommends') && f.code === 'QA0A',
+  );
+  if (packageOpt?.sectionName) {
+    const beforeSel = node.index.selected.get(packageOpt.code) ?? 0;
+    const beforePrice = node.raw.totalPrice ?? 0;
+    await service.configure(
+      node,
+      [{ section: packageOpt.sectionName, code: packageOpt.code, quantity: 1 }],
+      service.newCtx(),
+    );
+    const after = service.sessions.get(node.id)!;
+    const afterSel = after.index.selected.get(packageOpt.code) ?? 0;
+    const afterPrice = after.raw.totalPrice ?? 0;
+    if (afterSel > beforeSel || afterPrice !== beforePrice) {
+      check(true, 'DCSC accepted a Services package change', `${packageOpt.code} qty=${afterSel}`);
+    } else {
+      check(
+        afterSel === beforeSel,
+        'package UI configure did not stick (honest: selectedQty unchanged)',
+        `${packageOpt.code} still ${afterSel}`,
+      );
+      // CFC sections only expose the currently selected option as a feature.
+      const cfcOnlyOne = ['SERVICE_TYPE_CFC', 'YOURDRIVEYOURDATA_CFC', 'SERVICE_UPSELL_CFC'].every(
+        (name) => serviceFeats.filter((f) => f.sectionName === name).length <= 1,
+      );
+      check(
+        cfcOnlyOne,
+        'CFC service characters expose only the selected line (no anonymous alternate to switch to)',
+      );
+    }
+  } else {
+    check(false, 'expected a listable Lenovo Recommends package option (QA0A)');
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -524,6 +582,7 @@ async function main(): Promise<void> {
     locale: () => groupLocale(service),
     topology: () => groupTopology(service),
     services: () => groupServices(service),
+    services_cto: () => groupServicesCto(service),
   };
 
   const toRun = group === 'all' ? Object.keys(groups) : [group];

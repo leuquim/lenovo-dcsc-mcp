@@ -10,10 +10,10 @@
  *
  * Run with: npx tsx scripts/probe-rack.ts
  */
-import { loadConfig } from '../src/config/load.js';
-import { fetchSolutionModes, toSolutionContext } from '../src/domain/context.js';
-import { DcscHttpClient, RequestBudget, type RequestCtx } from '../src/http/request.js';
-import { configureLogger, newCorrId } from '../src/http/trace.js';
+import { loadConfig } from '../../src/config/load.js';
+import { fetchSolutionModes, toSolutionContext } from '../../src/domain/context.js';
+import { DcscHttpClient, RequestBudget, type RequestCtx } from '../../src/http/request.js';
+import { configureLogger, newCorrId } from '../../src/http/trace.js';
 
 const PRODUCT = process.argv[2] ?? '7DMKCTO1WW';
 
