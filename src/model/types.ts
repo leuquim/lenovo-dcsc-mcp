@@ -122,6 +122,7 @@ export interface FeatureLocation {
   subTab: string;
   section: string;
   sectionTitle: string;
+  sectionName?: string;
 }
 
 export interface IndexedFeature extends FeatureLocation {

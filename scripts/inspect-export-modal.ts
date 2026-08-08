@@ -1,0 +1,138 @@
+import { chromium } from 'playwright';
+import type { Request, Response } from 'playwright';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yauzl from 'yauzl';
+
+async function main() {
+  const outputDir = path.resolve('artifacts/summary_export_modal');
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  console.log('Launching browser...');
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+
+  page.on('request', async (req: Request) => {
+    if (req.url().includes('/export_zip')) {
+      console.log('\n>>> SUCCESS! CAPTURED /export_zip REQUEST FROM WEB UI! <<<');
+      const postData = req.postData();
+      if (postData) {
+        fs.writeFileSync(path.join(outputDir, 'web_export_raw_post.txt'), postData);
+        try {
+          const params = new URLSearchParams(postData);
+          const parsedObj: Record<string, any> = {};
+          params.forEach((v, k) => {
+            try {
+              parsedObj[k] = JSON.parse(v);
+            } catch {
+              parsedObj[k] = v;
+            }
+          });
+          fs.writeFileSync(path.join(outputDir, 'web_export_parsed_data.json'), JSON.stringify(parsedObj, null, 2));
+          console.log('Saved parsed POST payload!');
+        } catch (e) {}
+      }
+    }
+  });
+
+  console.log('Navigating to SR630 V3 CTO configurator...');
+  await page.goto('https://dcsc.lenovo.com/#/configuration/cto/7D73CTO1WW?hardwareType=server', {
+    waitUntil: 'networkidle',
+    timeout: 45000,
+  });
+  await page.waitForTimeout(8000);
+
+  // Close banners
+  try {
+    const cookieClose = page.locator('.dcsc-cookie-close').first();
+    if (await cookieClose.isVisible({ timeout: 2000 })) await cookieClose.click();
+  } catch {}
+
+  // Click "Summary" button
+  console.log('Clicking Summary...');
+  const summaryBtn = page.locator('button:has-text("Summary")').first();
+  if (await summaryBtn.isVisible({ timeout: 5000 })) {
+    await summaryBtn.click();
+    await page.waitForTimeout(4000);
+  }
+
+  // Click "Export" button on Summary page
+  const exportBtn = page.locator('button:has-text("Export"), a:has-text("Export")').first();
+  if (await exportBtn.isVisible({ timeout: 5000 })) {
+    console.log('Clicking Export...');
+    await exportBtn.click();
+    await page.waitForTimeout(3000);
+  }
+
+  // Screenshot modal
+  await page.screenshot({ path: path.join(outputDir, '1-modal-open.png') });
+
+  // Log all text and buttons inside modal
+  const modal = page.locator('.ant-modal, .modal, div[role="dialog"]').first();
+  if (await modal.isVisible()) {
+    console.log('Modal is visible! Logging elements inside modal:');
+    const modalButtons = modal.locator('button, input, label, span');
+    const mCount = await modalButtons.count();
+    for (let i = 0; i < mCount; i++) {
+      const text = (await modalButtons.nth(i).textContent())?.trim();
+      const type = await modalButtons.nth(i).getAttribute('type');
+      if (text) {
+        console.log(`Modal Element ${i}: tag=${await modalButtons.nth(i).evaluate(e => e.tagName)} text="${text}" type=${type}`);
+      }
+    }
+
+    // Prepare download promise
+    const downloadPromise = page.waitForEvent('download', { timeout: 25000 }).catch(() => null);
+
+    // Click the submit button inside modal (e.g. Ok / Export / Submit)
+    const submitModalBtn = modal.locator('button:has-text("Export"), button:has-text("OK"), button.ant-btn-primary').first();
+    if (await submitModalBtn.isVisible()) {
+      console.log('Clicking primary button inside modal...');
+      await submitModalBtn.click();
+    }
+
+    const download = await downloadPromise;
+    if (download) {
+      const zipPath = path.join(outputDir, 'web_official_export.zip');
+      await download.saveAs(zipPath);
+      console.log(`Saved official Web UI zip to ${zipPath}`);
+
+      // Extract official XML
+      await new Promise<void>((resolve) => {
+        yauzl.open(zipPath, { lazyEntries: true }, (err, zip) => {
+          if (err || !zip) return resolve();
+          zip.on('entry', (entry) => {
+            if (entry.fileName.endsWith('.xml')) {
+              zip.openReadStream(entry, (err, readStream) => {
+                if (err || !readStream) return resolve();
+                let data = '';
+                readStream.on('data', (c) => (data += c));
+                readStream.on('end', () => {
+                  fs.writeFileSync(path.join(outputDir, 'web_official.xml'), data);
+                  console.log(`Extracted official XML (${data.length} bytes)!`);
+                  resolve();
+                });
+              });
+            } else {
+              zip.readEntry();
+            }
+          });
+          zip.readEntry();
+        });
+      });
+    } else {
+      console.warn('Download event did not complete.');
+    }
+  } else {
+    console.warn('Modal was not visible.');
+  }
+
+  await browser.close();
+  console.log('Script finished.');
+}
+
+main().catch(console.error);

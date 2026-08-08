@@ -1,4 +1,5 @@
 import { Agent, request as undiciRequest } from 'undici';
+import { randomBytes } from 'node:crypto';
 import type { Readable } from 'node:stream';
 
 import { API_PREFIX } from '../config/constants.js';
@@ -20,10 +21,17 @@ import { childLogger, logger } from './trace.js';
 export type TimeoutClass = 'fast' | 'interactive' | 'heavy' | 'export';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD';
 
+/** One part of a multipart/form-data body: either a plain field or a file. */
+export type MultipartPart =
+  | { name: string; value: string }
+  | { name: string; filename: string; contentType: string; content: string };
+
 export type ReqBody =
   | { kind: 'json'; value: unknown }
   /** Reproduces the SPA's hidden-iframe form POST used for exports. */
-  | { kind: 'form'; fields: Record<string, string> };
+  | { kind: 'form'; fields: Record<string, string> }
+  /** Reproduces the SPA's file upload used for CFXML import. */
+  | { kind: 'multipart'; parts: MultipartPart[] };
 
 export interface RequestCtx {
   corrId: string;
@@ -273,6 +281,10 @@ export class DcscHttpClient {
     } else if (input.body?.kind === 'form') {
       headers['content-type'] = 'application/x-www-form-urlencoded';
       payload = new URLSearchParams(input.body.fields).toString();
+    } else if (input.body?.kind === 'multipart') {
+      const boundary = `----DcscFormBoundary${randomBytes(16).toString('hex')}`;
+      headers['content-type'] = `multipart/form-data; boundary=${boundary}`;
+      payload = serialiseMultipart(boundary, input.body.parts);
     }
 
     const { overallMs, bodyMs } = this.#timeoutFor(timeoutClass);
@@ -370,6 +382,30 @@ export class DcscHttpClient {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Builds a multipart/form-data body byte-for-byte the way the SPA does.
+ *
+ * DCSC's import endpoint is strict about CRLF line endings and about the file
+ * part carrying an explicit Content-Type; omitting either yields an HTTP 500.
+ */
+function serialiseMultipart(boundary: string, parts: MultipartPart[]): string {
+  let out = '';
+  for (const part of parts) {
+    out += `--${boundary}\r\n`;
+    if ('filename' in part) {
+      out += `Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n`;
+      out += `Content-Type: ${part.contentType}\r\n\r\n`;
+      out += part.content;
+    } else {
+      out += `Content-Disposition: form-data; name="${part.name}"\r\n\r\n`;
+      out += part.value;
+    }
+    out += '\r\n';
+  }
+  out += `--${boundary}--\r\n`;
+  return out;
+}
 
 function flattenHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
   const out: Record<string, string> = {};

@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import type { ConfigMode } from '../config/constants.js';
 import type { Locale, SolutionContext } from '../config/schema.js';
 import type { ReducedConfiguration } from '../domain/reduce.js';
+import type { RackObject, RackSummary } from '../domain/rack.js';
 import { buildIndex, type ConfigIndex } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
 
@@ -34,6 +35,13 @@ export interface ConfigSession {
   pricedAt: number;
 }
 
+/**
+ * Kept for the export payload's benefit only.
+ *
+ * The authoritative rack state is `WorkspaceSession.rackArea`, which holds the
+ * objects DCSC itself returned — see domain/rack.ts for why the layout cannot
+ * be modelled locally.
+ */
 export interface RackPlacement {
   id: string;
   code: string;
@@ -80,6 +88,10 @@ export interface WorkspaceSession {
   validationMode: 'guided' | 'expert';
   configurations: Map<string, ConfigSession>;
   racks: Map<string, RackPlacement>;
+  /** DCSC's own rackArea objects, re-posted verbatim on every mutation. */
+  rackArea: RackObject[];
+  /** Reduced view of the last layout DCSC validated. */
+  rackSummaries: RackSummary[];
   cables: CableLink[];
   floorItems: FloorItem[];
   powerSelections: PduSelection[];
@@ -143,6 +155,8 @@ export class SessionStore {
         validationMode: input.validationMode ?? 'guided',
         configurations: new Map(),
         racks: new Map(),
+        rackArea: [],
+        rackSummaries: [],
         cables: [],
         floorItems: [],
         powerSelections: [],
@@ -370,6 +384,14 @@ export class SessionStore {
     return true;
   }
 
+  /** Replaces the workspace cable list (used after DCSC auto-connect). */
+  setCables(workspaceId: string, cables: CableLink[]): void {
+    const ws = this.getWorkspace(workspaceId);
+    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
+    ws.cables = cables;
+    ws.lastAccessAt = Date.now();
+  }
+
   addCabling(workspaceId: string, cable: Omit<CableLink, 'id'>): CableLink {
     const ws = this.getWorkspace(workspaceId);
     if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
@@ -382,36 +404,132 @@ export class SessionStore {
     return link;
   }
 
-  placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem {
+  setFloorItem(workspaceId: string, item: FloorItem): FloorItem {
     const ws = this.getWorkspace(workspaceId);
     if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    ws.floorItems = ws.floorItems.filter((item) => item.rackId !== rackId);
-    const item: FloorItem = {
-      id: `floor_${ulid().slice(-6).toLowerCase()}`,
-      rackId,
-      x,
-      y,
-    };
+    ws.floorItems = ws.floorItems.filter((f) => f.rackId !== item.rackId);
     ws.floorItems.push(item);
     ws.lastAccessAt = Date.now();
     return item;
   }
 
+  /** @deprecated Prefer service.placeOnFloor, which validates the rack exists. */
+  placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem {
+    return this.setFloorItem(workspaceId, {
+      id: `floor_${ulid().slice(-6).toLowerCase()}`,
+      rackId,
+      x,
+      y,
+    });
+  }
+
+  setPowerSelection(workspaceId: string, selection: PduSelection): PduSelection {
+    const ws = this.getWorkspace(workspaceId);
+    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
+    ws.powerSelections = ws.powerSelections.filter((ps) => ps.rackId !== selection.rackId);
+    ws.powerSelections.push(selection);
+    ws.lastAccessAt = Date.now();
+    return selection;
+  }
+
+  /** @deprecated Prefer service.configurePdu, which selects features via DCSC. */
   configurePdu(
     workspaceId: string,
     rackId: string,
     pduSelection: Omit<PduSelection, 'rackId'>,
   ): PduSelection {
+    return this.setPowerSelection(workspaceId, { rackId, ...pduSelection });
+  }
+
+  /** Finds a configuration in this workspace by DCSC configuration id. */
+  findByConfigurationId(workspaceId: string, configurationId: string): ConfigSession | undefined {
     const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    ws.powerSelections = ws.powerSelections.filter((ps) => ps.rackId !== rackId);
-    const sel: PduSelection = {
-      rackId,
-      ...pduSelection,
-    };
-    ws.powerSelections.push(sel);
-    ws.lastAccessAt = Date.now();
-    return sel;
+    if (!ws) return undefined;
+    for (const s of ws.configurations.values()) {
+      if (s.configurationId === configurationId) return s;
+    }
+    return undefined;
+  }
+
+  /**
+   * Rebuilds workspaces from a persisted snapshot.
+   *
+   * The feature index is derived, so it is rebuilt from `raw` rather than
+   * stored. Anything malformed is skipped rather than throwing: a corrupt
+   * snapshot should cost the user their history, not their ability to start.
+   */
+  restore(workspaces: unknown[]): number {
+    let restored = 0;
+
+    for (const entry of workspaces) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const w = entry as Record<string, unknown>;
+      const id = w['id'];
+      const configs = w['configurations'];
+      if (typeof id !== 'string' || !Array.isArray(configs)) continue;
+
+      const now = Date.now();
+      const ws: WorkspaceSession = {
+        id,
+        ...(typeof w['label'] === 'string' ? { label: w['label'] } : {}),
+        locale: w['locale'] as WorkspaceSession['locale'],
+        solution: w['solution'] as WorkspaceSession['solution'],
+        validationMode: (w['validationMode'] as 'guided' | 'expert') ?? 'guided',
+        configurations: new Map(),
+        racks: new Map(),
+        rackArea: (w['rackArea'] as RackObject[]) ?? [],
+        rackSummaries: (w['rackSummaries'] as RackSummary[]) ?? [],
+        cables: (w['cables'] as CableLink[]) ?? [],
+        floorItems: (w['floorItems'] as FloorItem[]) ?? [],
+        powerSelections: (w['powerSelections'] as PduSelection[]) ?? [],
+        revision: typeof w['revision'] === 'number' ? w['revision'] : 1,
+        createdAt: typeof w['createdAt'] === 'number' ? w['createdAt'] : now,
+        lastAccessAt: typeof w['lastAccessAt'] === 'number' ? w['lastAccessAt'] : now,
+        pricedAt: typeof w['pricedAt'] === 'number' ? w['pricedAt'] : now,
+      };
+      if (!ws.locale || !ws.solution) continue;
+
+      for (const c of configs) {
+        if (typeof c !== 'object' || c === null) continue;
+        const s = c as Record<string, unknown>;
+        const sid = s['id'];
+        const raw = s['raw'];
+        if (typeof sid !== 'string' || typeof raw !== 'object' || raw === null) continue;
+
+        const session: ConfigSession = {
+          id: sid,
+          workspaceId: ws.id,
+          ...(typeof s['label'] === 'string' ? { label: s['label'] } : {}),
+          locale: ws.locale,
+          solution: ws.solution,
+          product: s['product'] as ConfigSession['product'],
+          mode: (s['mode'] as ConfigMode) ?? 'cto',
+          validationMode: (s['validationMode'] as 'guided' | 'expert') ?? 'guided',
+          raw: raw as RawConfiguration,
+          configurationId: String(s['configurationId'] ?? ''),
+          reduced: s['reduced'] as ReducedConfiguration,
+          primed: s['primed'] === true,
+          index: buildIndex(raw as RawConfiguration),
+          revision: typeof s['revision'] === 'number' ? s['revision'] : 1,
+          intents: (s['intents'] as ConfigIntent[]) ?? [],
+          snapshots: (s['snapshots'] as ConfigSession['snapshots']) ?? [],
+          createdAt: typeof s['createdAt'] === 'number' ? s['createdAt'] : now,
+          lastAccessAt: typeof s['lastAccessAt'] === 'number' ? s['lastAccessAt'] : now,
+          pricedAt: typeof s['pricedAt'] === 'number' ? s['pricedAt'] : now,
+        };
+        if (!session.product || !session.reduced) continue;
+
+        ws.configurations.set(sid, session);
+        this.#sessions.set(sid, session);
+      }
+
+      if (ws.configurations.size === 0) continue;
+      this.#workspaces.set(ws.id, ws);
+      restored += 1;
+    }
+
+    this.#evictIfNeeded();
+    return restored;
   }
 
   #evictIfNeeded(): void {

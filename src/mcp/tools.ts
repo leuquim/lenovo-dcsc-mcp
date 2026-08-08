@@ -6,10 +6,13 @@ import { redactConfig } from '../config/schema.js';
 import { browseCatalog, searchCatalog } from '../domain/catalog.js';
 import { toToolError } from '../http/errors.js';
 import { logger } from '../http/trace.js';
-import type { ExportFileType } from '../domain/reduce.js';
+import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
+import type { LayoutResult } from '../domain/rack.js';
+import { aggregatePower, extractPowerReport } from '../domain/power.js';
+import { BLUEPRINTS, findBlueprint } from '../domain/blueprints.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import { diffConfigurations } from '../model/diff.js';
-import { searchFeatures } from '../model/index.js';
+import { buildIndex, searchFeatures } from '../model/index.js';
 import {
   projectFeatureDetail,
   projectOptions,
@@ -42,6 +45,46 @@ async function guard(fn: () => Promise<unknown>): Promise<ToolResult> {
   } catch (err) {
     return fail(err);
   }
+}
+
+/**
+ * Presents a rack layout the way an architect reads one.
+ *
+ * Everything here is DCSC's verdict, not ours — in particular `unplaced` and
+ * `errors`, which are how the server says a placement was refused.
+ */
+function projectLayout(layout: LayoutResult): Record<string, unknown> {
+  const unstable = layout.racks.filter((r) => r.stableStatus && r.stableStatus !== 'PASSED');
+  return {
+    racks: layout.racks.map((r) => ({
+      rackId: r.id,
+      code: r.code,
+      description: r.description,
+      sizeU: r.sizeU,
+      usedU: r.usedU,
+      freeU: r.freeU,
+      totalWeightKg: r.totalWeightKg,
+      stability: r.stableStatus,
+      items: r.items,
+    })),
+    unplaced: layout.unplaced,
+    errors: layout.errors,
+    ...(layout.unplaced.length > 0
+      ? {
+          warning:
+            `DCSC could not place ${layout.unplaced.length} item(s) in a rack. ` +
+            'They remain outside the rack area — see errors for the rule that blocked them.',
+        }
+      : {}),
+    ...(unstable.length > 0
+      ? {
+          stabilityWarning:
+            `Centre-of-gravity check returned ${unstable
+              .map((r) => `${r.code}=${r.stableStatus}`)
+              .join(', ')}. FAILED means the rack is not safe to ship as laid out.`,
+        }
+      : {}),
+  };
 }
 
 export function registerTools(server: McpServer, service: DcscService): void {
@@ -96,19 +139,30 @@ export function registerTools(server: McpServer, service: DcscService): void {
           includeWithdrawn: args.includeWithdrawn,
           limit: args.limit,
         });
+        // A model is only configurable and importable in the modes whose
+        // catalog contains it, and that is not always the mode searched.
+        const availability = await service.modesContaining(
+          ctx,
+          hits.map((h) => h.code),
+        );
+
         return {
           solutionMode: solution.solutionMode,
           currency: service.locale.currency,
           country: service.locale.country,
           total: hits.length,
-          products: hits.map((h) => ({
-            code: h.code,
-            type: h.type,
-            description: h.description,
-            path: h.path.join(' > '),
-            ...(h.price !== undefined ? { listPrice: h.price } : {}),
-            ...(h.withdrawn ? { withdrawn: true } : {}),
-          })),
+          products: hits.map((h) => {
+            const modes = availability.get(h.code.toUpperCase()) ?? [];
+            return {
+              code: h.code,
+              type: h.type,
+              description: h.description,
+              path: h.path.join(' > '),
+              ...(h.price !== undefined ? { listPrice: h.price } : {}),
+              ...(h.withdrawn ? { withdrawn: true } : {}),
+              availableIn: modes,
+            };
+          }),
           next: 'dcsc_launch(productCode) to start configuring one of these.',
         };
       }),
@@ -177,6 +231,15 @@ export function registerTools(server: McpServer, service: DcscService): void {
       guard(async () => {
         const ctx = service.newCtx();
         const solution = await service.resolveSolution(ctx, args.solutionMode);
+
+        // Launch succeeds for models outside the requested mode's catalog, but
+        // the resulting configuration cannot be imported back under that mode.
+        // Warn rather than block: the session is still usable and correctly
+        // priced, the caller just needs to know which mode it belongs to.
+        const availability = await service.modesContaining(ctx, [args.productCode]);
+        const availableIn = availability.get(args.productCode.toUpperCase()) ?? [];
+        const outOfCatalog = availableIn.length > 0 && !availableIn.includes(solution.solutionMode);
+
         const session = await service.launch({
           productCode: args.productCode,
           mode: args.mode,
@@ -196,6 +259,17 @@ export function registerTools(server: McpServer, service: DcscService): void {
             country: session.locale.country,
             pricedAt: session.pricedAt,
           }),
+          solutionMode: solution.solutionMode,
+          availableIn,
+          ...(outOfCatalog
+            ? {
+                warning:
+                  `${args.productCode} is not in the "${solution.solutionMode}" catalog ` +
+                  `(it belongs to: ${availableIn.join(', ')}). This session will configure and price ` +
+                  'normally, but exporting it and importing it back under this mode will fail. ' +
+                  `Relaunch with solutionMode "${availableIn[0]}" unless you have a reason not to.`,
+              }
+            : {}),
           next: 'dcsc_list_options(session, tab: "<tab title>") or dcsc_list_options(session, query: "...")',
         };
       }),
@@ -235,32 +309,49 @@ export function registerTools(server: McpServer, service: DcscService): void {
   );
 
   server.registerTool(
+    'dcsc_list_racks',
+    {
+      title: 'List available rack cabinets',
+      description:
+        'Lists the rack cabinets that can hold configurations in this solution mode, with their product codes. ' +
+        'Use this to get a rackCode for dcsc_add_rack.',
+      inputSchema: { solutionMode: z.string().optional() },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const racks = await service.rackCabinets(ctx, solution);
+        return {
+          solutionMode: solution.solutionMode,
+          total: racks.length,
+          racks,
+          next: 'dcsc_add_rack(session, rackCode) to add one to a workspace.',
+        };
+      }),
+  );
+
+  server.registerTool(
     'dcsc_add_rack',
     {
       title: 'Add a rack enclosure to a solution workspace',
       description:
-        'Adds a rack enclosure (e.g. "7D6DCTO1WW") to a solution workspace for physical placement and rack diagrams.',
+        'Adds a rack cabinet to a solution workspace and returns the layout DCSC validated. ' +
+        'The rack\'s U height, empty weight and placement rules come from DCSC, not from you — ' +
+        'get valid rackCodes from dcsc_list_racks.',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
-        rackCode: z.string().describe('Rack product code, e.g. "7D6DCTO1WW".'),
-        description: z.string().optional().default('Rack Enclosure'),
-        uheight: z.number().int().min(1).max(52).optional().default(42),
-        position: z.number().int().min(1).optional().default(1),
+        rackCode: z.string().describe('Rack product code from dcsc_list_racks, e.g. "7D6DCTO1WW".'),
       },
     },
     async (args) =>
       guard(async () => {
-        const rack = service.addRack(
-          args.session,
-          args.rackCode,
-          args.description,
-          args.uheight,
-          args.position,
-        );
+        const ctx = service.newCtx();
+        const layout = await service.addRack(args.session, args.rackCode, ctx);
         return {
           session: args.session,
-          rack,
-          next: 'dcsc_place_in_rack(session, configId, rackId, uPosition) to place products in this rack.',
+          ...projectLayout(layout),
+          next: 'dcsc_place_in_rack(session, rackId, sessionId) to place a configuration in this rack.',
         };
       }),
   );
@@ -268,33 +359,38 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_place_in_rack',
     {
-      title: 'Place a product in a rack enclosure',
+      title: 'Place a configuration in a rack enclosure',
       description:
-        'Places a server or switch configuration into a rack enclosure at a specific U position.',
+        'Places a configured product into a rack and returns DCSC\'s validated layout: occupied U positions, ' +
+        'accumulated weight, and the centre-of-gravity stability verdict.\n' +
+        'Omit uPosition to let DCSC choose a slot — placement rules are per product and per rack ' +
+        '(an SR680a V3 cannot sit below U3 in a 42U cabinet), so guessing usually gets rejected.\n' +
+        'Anything DCSC refuses to place is returned in "unplaced" with the reason in "errors" — always report those.',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
-        configId: z.string().describe('Configuration ID to place in the rack.'),
         rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
-        uPosition: z.number().int().min(1).max(52).describe('Starting U position in the rack.'),
-        height: z.number().int().min(1).max(10).optional().default(1).describe('Height in U units.'),
+        sessionId: z.string().describe('Session ID of the configuration to place.'),
+        uPosition: z
+          .number()
+          .int()
+          .min(1)
+          .max(60)
+          .optional()
+          .describe('Starting U position. Omit to let DCSC arrange it.'),
       },
     },
     async (args) =>
       guard(async () => {
-        const placed = service.placeInRack(
-          args.session,
-          args.configId,
-          args.rackId,
-          args.uPosition,
-          args.height,
-        );
-        if (!placed) throw new Error(`Could not place config ${args.configId} in rack ${args.rackId}`);
+        const ctx = service.newCtx();
+        const layout = await service.placeInRack(args.session, {
+          rackId: args.rackId,
+          sessionId: args.sessionId,
+          ...(args.uPosition !== undefined ? { position: args.uPosition } : {}),
+          ctx,
+        });
         return {
           session: args.session,
-          placed: true,
-          configId: args.configId,
-          rackId: args.rackId,
-          uPosition: args.uPosition,
+          ...projectLayout(layout),
         };
       }),
   );
@@ -302,22 +398,71 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_add_cabling',
     {
-      title: 'Add cabling connections between products',
+      title: 'Cable a solution (auto-connect or manual)',
       description:
-        'Connects ports between products (e.g. server host port to switch port) in a solution workspace for P2P reports.',
+        'Builds port-to-port cabling for a workspace.\n' +
+        'Default mode is "auto": posts the current rack layout to DCSC /auto_connect and replaces ' +
+        'the workspace cable list with the connections the server returns. That is the only ' +
+        'server-validated path — empty connections are normal when the layout has nothing to cable ' +
+        '(e.g. a single node and no switch).\n' +
+        'Mode "manual" records a single port map locally for planning; DCSC does not validate ' +
+        'manual links (the web UI stores them the same way). Prefer auto.',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
-        fromConfigId: z.string().describe('Source configuration ID.'),
-        fromPort: z.string().describe('Source port name or number.'),
-        toConfigId: z.string().describe('Destination configuration ID.'),
-        toPort: z.string().describe('Destination port name or number.'),
-        cableCode: z.string().optional().describe('Optional cable feature or part code.'),
-        description: z.string().optional().describe('Optional description of the cable.'),
+        mode: z
+          .enum(['auto', 'manual'])
+          .optional()
+          .default('auto')
+          .describe('auto = DCSC /auto_connect (default). manual = local port map only.'),
+        fromConfigId: z
+          .string()
+          .optional()
+          .describe('Manual mode: source configuration ID (DCSC configuration id).'),
+        fromPort: z.string().optional().describe('Manual mode: source port name or number.'),
+        toConfigId: z.string().optional().describe('Manual mode: destination configuration ID.'),
+        toPort: z.string().optional().describe('Manual mode: destination port name or number.'),
+        cableCode: z.string().optional().describe('Manual mode: optional cable part code.'),
+        description: z.string().optional().describe('Manual mode: optional description.'),
       },
     },
     async (args) =>
       guard(async () => {
-        const link = service.addCabling(args.session, {
+        const mode = args.mode ?? 'auto';
+        if (mode === 'auto') {
+          const ctx = service.newCtx();
+          const result = await service.runAutoConnect(args.session, ctx);
+          return {
+            session: args.session,
+            mode: 'auto',
+            connectionCount: result.connections.length,
+            connections: result.connections.map((c) => ({
+              id: c.id,
+              fromId: c.fromId,
+              fromPort: c.fromPort,
+              toId: c.toId,
+              toPort: c.toPort,
+              cableCode: c.cableCode,
+              description: c.description,
+            })),
+            messages: result.messages,
+            ...(result.connections.length === 0
+              ? {
+                  note:
+                    'DCSC returned no connections. That is expected when the layout has nothing ' +
+                    'to cable (no switch, single node). Add networking hardware and re-run.',
+                }
+              : {}),
+            next: 'dcsc_workspace_layout(session) to inspect the updated racks; P2P export is still blocked (P1).',
+          };
+        }
+
+        if (!args.fromConfigId || !args.fromPort || !args.toConfigId || !args.toPort) {
+          throw new Error(
+            'Manual mode requires fromConfigId, fromPort, toConfigId and toPort. ' +
+              'Or omit them and use mode "auto" to let DCSC cable the layout.',
+          );
+        }
+        const link = service.addManualCabling(args.session, {
           fromConfigId: args.fromConfigId,
           fromPort: args.fromPort,
           toConfigId: args.toConfigId,
@@ -327,7 +472,12 @@ export function registerTools(server: McpServer, service: DcscService): void {
         });
         return {
           session: args.session,
+          mode: 'manual',
           cabling: link,
+          warning:
+            'Manual cabling is client-side only — DCSC does not validate port maps. ' +
+            'Prefer mode "auto" (dcsc_add_cabling with mode auto) for server-authored connections.',
+          next: 'dcsc_add_cabling(session, mode: "auto") to replace manual links with DCSC auto-connect.',
         };
       }),
   );
@@ -343,6 +493,14 @@ export function registerTools(server: McpServer, service: DcscService): void {
         filePath: z.string().optional().describe('Absolute local file path to the CFXML file.'),
         mode: z.enum(CONFIG_MODES).optional().default('cto'),
         workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
+        solutionMode: z
+          .string()
+          .optional()
+          .describe(
+            'Solution mode to import under. Defaults to the mode declared in the file. ' +
+              'DCSC resolves each model against this mode\'s catalog, so a model outside it ' +
+              'is rejected even though the file is valid.',
+          ),
       },
     },
     async (args) =>
@@ -368,7 +526,14 @@ export function registerTools(server: McpServer, service: DcscService): void {
           ctx,
           mode: args.mode,
           ...(args.workspace !== undefined ? { workspaceId: args.workspace } : {}),
+          ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
+          ...(args.filePath !== undefined
+            ? { fileName: args.filePath.split('/').pop() ?? 'configuration.xml' }
+            : {}),
         });
+
+        const { missingParts, removedParts, replacedParts, eccnRestricted } = res.diagnostics;
+        const lostParts = missingParts.length + removedParts.length;
 
         return {
           workspace: res.workspaceId,
@@ -380,6 +545,21 @@ export function registerTools(server: McpServer, service: DcscService): void {
             quantity: s.raw.quantity ?? 1,
             totalPrice: s.raw.totalPrice ?? 0,
           })),
+          // Reported by DCSC's own import, so an empty set here means the file
+          // round-trips cleanly through the real configurator, not merely that
+          // the codes were re-launchable.
+          missingParts,
+          removedParts,
+          replacedParts,
+          eccnRestricted,
+          ...(lostParts > 0
+            ? {
+                warning:
+                  `DCSC could not carry ${lostParts} part(s) across the import. ` +
+                  'The imported configuration is incomplete and its price is not comparable ' +
+                  'to the original.',
+              }
+            : {}),
           next: 'dcsc_session_info(session) to inspect imported configuration.',
         };
       }),
@@ -388,22 +568,28 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_place_on_floor',
     {
-      title: 'Place a rack enclosure on datacenter floor tiles',
+      title: 'Place a rack on the floor grid (planning only)',
       description:
-        'Positions a rack enclosure on datacenter floor grid coordinates (x, y) for 2D datacenter layout planning.',
+        'Positions a rack on floor-tile coordinates (x, y) for layout planning.\n' +
+        'IMPORTANT: DCSC has no floor-grid endpoint — the web UI keeps the grid client-side too. ' +
+        'This tool only checks that the rack exists in the workspace and that the tile is free. ' +
+        'It does not claim server validation. FLOOR export is still blocked (P1).',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
-        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
-        x: z.number().int().min(0).describe('Floor tile X coordinate.'),
-        y: z.number().int().min(0).describe('Floor tile Y coordinate.'),
+        rackId: z.string().describe('Rack ID from dcsc_add_rack (configuration id of the rack).'),
+        x: z.number().int().min(0).describe('Floor tile X coordinate (0-based).'),
+        y: z.number().int().min(0).describe('Floor tile Y coordinate (0-based).'),
       },
     },
     async (args) =>
       guard(async () => {
-        const item = service.placeOnFloor(args.session, args.rackId, args.x, args.y);
+        const result = service.placeOnFloor(args.session, args.rackId, args.x, args.y);
         return {
           session: args.session,
-          floorPlacement: item,
+          floorPlacement: result.item,
+          clientSide: result.clientSide,
+          warning: result.warning,
+          next: 'dcsc_workspace_layout(session) to list floor items; FLOOR export is not available yet.',
         };
       }),
   );
@@ -411,27 +597,92 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_configure_pdu',
     {
-      title: 'Configure PDU power selection and voltage for a rack',
+      title: 'Select PDUs and power cords on a rack',
       description:
-        'Sets PDU power options (PDU part code, power cord, line voltage) for a rack enclosure.',
+        'Configures power distribution on a rack cabinet that was added with dcsc_add_rack.\n' +
+        'The rack is a full configuration: its Power tab lists PDU, RACK_POWERCABLE and LINECORD ' +
+        'options. This tool applies the selection through DCSC autoDerive and returns what the ' +
+        'server accepted (quantity and price), not a local guess.\n' +
+        'Call with only session+rackId to list available options and sidewall placement rules. ' +
+        'Then call again with pduCode (and optional cordCode, quantity).',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
-        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
-        pduCode: z.string().optional().describe('Optional PDU feature or part code.'),
-        cordCode: z.string().optional().describe('Optional power cord feature code.'),
-        voltage: z.string().optional().describe('Optional voltage rating, e.g. "200V+".'),
+        rackId: z.string().describe('Rack ID from dcsc_add_rack (configuration id of the rack).'),
+        pduCode: z
+          .string()
+          .optional()
+          .describe('PDU feature code from the catalog, e.g. "C0CS". Omit to list options only.'),
+        cordCode: z
+          .string()
+          .optional()
+          .describe('Line cord or rack power cable feature code, e.g. "6500".'),
+        quantity: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(1)
+          .describe('Quantity for pduCode/cordCode. 0 removes. Default 1.'),
       },
     },
     async (args) =>
       guard(async () => {
-        const pdu = service.configurePdu(args.session, args.rackId, {
+        const ctx = service.newCtx();
+        const result = await service.configurePdu(args.session, args.rackId, {
           ...(args.pduCode !== undefined ? { pduCode: args.pduCode } : {}),
           ...(args.cordCode !== undefined ? { cordCode: args.cordCode } : {}),
-          ...(args.voltage !== undefined ? { voltage: args.voltage } : {}),
+          quantity: args.quantity ?? 1,
+          ctx,
         });
+
+        if (result.catalog) {
+          const pdus = result.catalog.options.filter((o) => o.section.toUpperCase() === 'PDU');
+          const cords = result.catalog.options.filter((o) => o.section.toUpperCase() !== 'PDU');
+          return {
+            session: args.session,
+            rackId: result.rackId,
+            rackSession: result.rackSessionId,
+            listing: true,
+            pduOptions: pdus.slice(0, 30).map((o) => ({
+              code: o.code,
+              description: o.description,
+              min: o.min,
+              max: o.max,
+              unitPrice: o.unitPrice,
+              selectedQty: o.selectedQty,
+            })),
+            cordOptions: cords.slice(0, 20).map((o) => ({
+              code: o.code,
+              description: o.description,
+              section: o.section,
+              min: o.min,
+              max: o.max,
+              unitPrice: o.unitPrice,
+              selectedQty: o.selectedQty,
+            })),
+            placementRules: result.catalog.placementRules,
+            totalCombinedSlots: result.catalog.totalCombinedSlots,
+            selected: result.selected,
+            totalPrice: result.totalPrice,
+            priceType: 'LIST',
+            next:
+              'dcsc_configure_pdu(session, rackId, pduCode: "<code>", quantity: N) to select. ' +
+              'Prices are anonymous LIST prices.',
+          };
+        }
+
         return {
           session: args.session,
-          powerSelection: pdu,
+          rackId: result.rackId,
+          rackSession: result.rackSessionId,
+          powerSelection: result.selection,
+          selected: result.selected,
+          totalPrice: result.totalPrice,
+          priceType: 'LIST',
+          note:
+            'Selection was applied through DCSC autoDerive. totalPrice is the rack cabinet LIST price ' +
+            'after the change, not a quote.',
+          next: 'dcsc_session_info(rackSession) for the full rack BOM, or dcsc_workspace_layout(session).',
         };
       }),
   );
@@ -845,7 +1096,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
             ]),
           )
           .optional()
-          .describe('Defaults to XML + QUOTE + SUMMARY.'),
+          .describe('Defaults to all export file types.'),
       },
     },
     async (args) =>
@@ -859,8 +1110,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
         const solution = workspace?.solution ?? session!.solution;
         const ctx = service.newCtx({ locale: service.locale, solution });
 
-        const { stream, contentDisposition } = await service.exportZip(args.session, {
-          fileTypes: (args.fileTypes ?? ['XML', 'QUOTE', 'SUMMARY']) as ExportFileType[],
+        const { stream, contentDisposition, rackDataOmitted } = await service.exportZip(args.session, {
+          fileTypes: (args.fileTypes ?? DEFAULT_EXPORT_TYPES) as ExportFileType[],
           fileName,
           ctx,
         });
@@ -872,10 +1123,434 @@ export function registerTools(server: McpServer, service: DcscService): void {
           contentDisposition,
           ...bundle,
           priceType: 'LIST',
+          ...(rackDataOmitted
+            ? {
+                rackDataOmitted: true,
+                rackWarning:
+                  'DCSC rejected the rack layout in the export payload, so this archive has no rack ' +
+                  'diagram or rack report. The racks and their contents are still priced in the BOM, ' +
+                  'and the validated layout is readable via dcsc_session_info.',
+              }
+            : {}),
           disclaimer:
             'List prices for the configured country and currency. Not a quote. ' +
             'A configuration containing errors cannot be imported into Lenovo quoting tools.',
         };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_compare_scenarios',
+    {
+      title: 'Compare design scenarios side by side',
+      description:
+        'Compares two or more configurations or workspaces on the axes an architect actually decides on: ' +
+        'list price, power, heat, rack count and weight — plus derived efficiency figures like price per kW.\n' +
+        'This is the tool for "B200 air-cooled versus GB300 direct water at 32 nodes".\n' +
+        'Pass nodes to scale every scenario to the same node count before comparing.',
+      inputSchema: {
+        sessions: z
+          .array(z.string())
+          .min(2)
+          .max(6)
+          .describe('Session or workspace IDs to compare.'),
+        nodes: z
+          .number()
+          .int()
+          .min(1)
+          .max(10000)
+          .optional()
+          .describe('Scale each scenario to this many nodes before comparing.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const scale = args.nodes;
+        const scenarios = args.sessions.map((handle) => {
+          const ws = service.sessions.getWorkspace(handle);
+          const single = service.sessions.get(handle);
+          if (!ws && !single) throw new Error(`Session / Workspace ${handle} not found`);
+
+          const configs = ws ? [...ws.configurations.values()] : [single!];
+          const entries = configs
+            .map((s) => ({ report: extractPowerReport(s.raw), quantity: s.raw.quantity ?? 1 }))
+            .filter(
+              (e): e is { report: NonNullable<typeof e.report>; quantity: number } =>
+                e.report !== undefined,
+            );
+
+          // When scaling, treat the primary configuration as the repeated unit.
+          const unit = single ?? configs[0]!;
+          const unitPrice = unit.raw.totalPrice ?? 0;
+          const unitPower = extractPowerReport(unit.raw);
+          const factor = scale ?? 1;
+
+          const power = scale
+            ? unitPower
+              ? aggregatePower([{ report: unitPower, quantity: scale }])
+              : undefined
+            : aggregatePower(entries);
+
+          const listPrice = scale
+            ? unitPrice * scale
+            : configs.reduce((acc, s) => acc + (s.raw.totalPrice ?? 0) * (s.raw.quantity ?? 1), 0);
+
+          const racks = ws?.rackSummaries ?? [];
+          return {
+            session: handle,
+            label: ws?.label ?? single?.label ?? unit.product.code,
+            primaryProduct: unit.product.code,
+            description: unit.product.description,
+            configurations: configs.length,
+            ...(scale ? { scaledToNodes: scale, unitListPrice: unitPrice } : {}),
+            listPrice,
+            ...(power
+              ? {
+                  expectedKW: power.expectedKW,
+                  maxKW: power.maxKW,
+                  heatBtuHrMax: Math.round(power.heatBtuHr.max),
+                  pricePerExpectedKW:
+                    power.expectedKW > 0 ? Math.round(listPrice / power.expectedKW) : undefined,
+                }
+              : {}),
+            racks: racks.length,
+            rackWeightKg: racks.reduce((acc, r) => acc + (r.totalWeightKg ?? 0), 0) * factor,
+            stability: racks.map((r) => r.stableStatus).filter(Boolean),
+          };
+        });
+
+        // Rank on the axes where lower is better, so the answer is readable.
+        const byPrice = [...scenarios].sort((a, b) => a.listPrice - b.listPrice);
+        const withPower = scenarios.filter(
+          (s): s is typeof s & { expectedKW: number } => typeof s.expectedKW === 'number',
+        );
+        const byPower = [...withPower].sort((a, b) => a.expectedKW - b.expectedKW);
+
+        return {
+          scenarios,
+          cheapest: byPrice[0]?.session,
+          lowestPower: byPower[0]?.session,
+          priceType: 'LIST',
+          note:
+            'expectedKW applies DCSC\'s load factor and is the figure to size a room against. ' +
+            'pricePerExpectedKW is list price divided by that, useful for comparing accelerator generations.',
+          disclaimer:
+            'List prices for the configured country and currency, retrieved anonymously. Not a quote.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_blueprints',
+    {
+      title: 'List verified AI factory reference configurations',
+      description:
+        'Lists curated starting points for AI factory designs — B200, MI300X and GB300 nodes — each verified ' +
+        'to launch, price, export and re-import cleanly, with the solution mode it actually belongs to. ' +
+        'Start here rather than from a blank configurator.',
+      inputSchema: {},
+    },
+    async () =>
+      guard(async () => ({
+        blueprints: BLUEPRINTS,
+        priceType: 'LIST',
+        note:
+          'Prices were verified on the stated date for US/USD and will drift. ' +
+          'dcsc_start_from_blueprint(id) launches one and returns live pricing.',
+      })),
+  );
+
+  server.registerTool(
+    'dcsc_start_from_blueprint',
+    {
+      title: 'Start a configuration from a verified blueprint',
+      description:
+        'Launches one of the reference AI factory configurations in the correct solution mode. ' +
+        'Equivalent to dcsc_launch with the right product code and mode already chosen.',
+      inputSchema: {
+        blueprint: z.string().describe('Blueprint id or product code from dcsc_blueprints.'),
+        label: z.string().optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const blueprint = findBlueprint(args.blueprint);
+        if (!blueprint) {
+          throw new Error(
+            `Unknown blueprint "${args.blueprint}". Valid ids: ${BLUEPRINTS.map((b) => b.id).join(', ')}.`,
+          );
+        }
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, blueprint.solutionMode);
+        const session = await service.launch({
+          productCode: blueprint.productCode,
+          mode: 'cto',
+          solution,
+          ctx,
+          ...(args.label !== undefined ? { label: args.label } : {}),
+        });
+        return {
+          blueprint: blueprint.id,
+          workspace: session.workspaceId,
+          solutionMode: solution.solutionMode,
+          ...projectSummary({
+            sessionId: session.id,
+            revision: session.revision,
+            raw: session.raw,
+            index: session.index,
+            currency: session.locale.currency,
+            country: session.locale.country,
+            pricedAt: session.pricedAt,
+          }),
+          next: 'dcsc_scale_out(session, nodes, rackCode) to size a cluster, or dcsc_list_options to adjust the node.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_scale_out',
+    {
+      title: 'Size a cluster from one designed node',
+      description:
+        'Takes a node you have already configured and sizes a cluster of N of them: how many fit per rack, ' +
+        'how many racks that needs, and the resulting list price, weight and power per rack and in total.\n' +
+        'Rack capacity is measured against DCSC, not calculated — placement rules mean an 8U node rarely ' +
+        'yields 42/8 slots per cabinet.\n' +
+        'This sizes and prices the cluster; it does not create N separate configurations.',
+      inputSchema: {
+        session: z.string().describe('Session holding the designed node.'),
+        nodes: z.number().int().min(1).max(10000).describe('How many nodes in the cluster.'),
+        rackCode: z.string().describe('Rack cabinet code from dcsc_list_racks.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const plan = await service.scaleOut({
+          sessionHandle: args.session,
+          nodes: args.nodes,
+          rackCode: args.rackCode,
+          ctx: service.newCtx(),
+        });
+        return {
+          ...plan,
+          priceType: 'LIST',
+          disclaimer:
+            'List prices for the configured country and currency. Not a quote. ' +
+            'Power figures are DCSC\'s for the node as configured, multiplied by node count.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_explain',
+    {
+      title: 'Explain why the configuration looks the way it does',
+      description:
+        'Explains what DCSC\'s rules engine decided on its own and why: which parts it added, removed or ' +
+        'substituted without being asked, and the rule messages it emitted.\n' +
+        'Use this when a configuration contains something the user did not choose, or when a change had ' +
+        'a larger effect than expected. The reasoning is DCSC\'s, surfaced verbatim — not inferred.',
+      inputSchema: {
+        session: z.string(),
+        sinceRevision: z
+          .number()
+          .int()
+          .optional()
+          .describe('Compare against this revision instead of the one immediately before.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const session = requireSession(service, args.session);
+
+        const snapshots = session.snapshots;
+        const baseline =
+          args.sinceRevision !== undefined
+            ? snapshots.find((s) => s.revision === args.sinceRevision)
+            : snapshots[snapshots.length - 1];
+
+        const messages = (
+          (session.raw as {
+            expansionMessages?: Array<{
+              type?: string;
+              text?: string;
+              code?: string;
+              sectionName?: string;
+            }>;
+          }).expansionMessages ?? []
+        ).map((m) => ({
+          severity: m.type ?? 'info',
+          ...(m.code !== undefined ? { code: m.code } : {}),
+          ...(m.sectionName !== undefined ? { section: m.sectionName } : {}),
+          message: m.text ?? String(m),
+        }));
+
+        const lastIntent = session.intents[session.intents.length - 1];
+
+        if (!baseline) {
+          return {
+            session: session.id,
+            revision: session.revision,
+            ruleMessages: messages,
+            note:
+              'No earlier revision is retained, so only the current rule messages are available. ' +
+              'Rule messages explain constraints DCSC is enforcing on this configuration.',
+          };
+        }
+
+        const diff = diffConfigurations({
+          beforeIndex: buildIndex(baseline.raw),
+          afterIndex: session.index,
+          beforeRaw: baseline.raw,
+          afterRaw: session.raw,
+          currency: session.locale.currency,
+          requested: new Set((lastIntent?.changes ?? []).map((c) => c.code)),
+        });
+
+        return {
+          session: session.id,
+          comparedFrom: baseline.revision,
+          comparedTo: session.revision,
+          requested: lastIntent?.changes ?? [],
+          ...diff,
+          ruleMessages: messages,
+          note:
+            'Entries flagged "auto" were chosen by DCSC, not requested. Rule messages are the engine\'s ' +
+            'own words for the constraint it applied.',
+        };
+      }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Power, thermal and fabric
+  // -------------------------------------------------------------------------
+
+  server.registerTool(
+    'dcsc_power',
+    {
+      title: 'Power and thermal budget for a configuration or solution',
+      description:
+        'Reports DCSC\'s own power and heat figures: input power, current, apparent power and heat output, ' +
+        'each as idle / expected / max / worst-case.\n' +
+        'Given a workspace it aggregates across every configuration and breaks the total down per rack — ' +
+        'which is what decides how many nodes fit in a room, long before price does.\n' +
+        'Figures come from DCSC as configured; they are not estimates.',
+      inputSchema: {
+        session: z.string().describe('Session or workspace ID.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const workspace = service.sessions.getWorkspace(args.session);
+        const single = service.sessions.get(args.session);
+        if (!workspace && !single) throw new Error(`Session / Workspace ${args.session} not found`);
+
+        const configs = workspace ? [...workspace.configurations.values()] : [single!];
+        const perConfig = configs.map((s) => ({
+          session: s.id,
+          code: s.product.code,
+          description: s.product.description,
+          quantity: s.raw.quantity ?? 1,
+          power: extractPowerReport(s.raw),
+        }));
+
+        const contributing = perConfig.filter(
+          (p): p is typeof p & { power: NonNullable<typeof p.power> } => p.power !== undefined,
+        );
+        const total = aggregatePower(
+          contributing.map((p) => ({ report: p.power, quantity: p.quantity })),
+        );
+
+        // Per-rack rollup, using the layout DCSC validated.
+        const perRack = (workspace?.rackSummaries ?? []).map((rack) => {
+          const ids = new Set(rack.items.map((i) => i.id));
+          const inRack = contributing.filter((p) => {
+            const cfg = configs.find((c) => c.id === p.session);
+            return cfg !== undefined && ids.has(cfg.configurationId);
+          });
+          return {
+            rackId: rack.id,
+            code: rack.code,
+            nodes: inRack.length,
+            ...aggregatePower(inRack.map((p) => ({ report: p.power, quantity: p.quantity }))),
+          };
+        });
+
+        const voltages = [
+          ...new Set(contributing.map((p) => p.power.operatingVoltage).filter(Boolean)),
+        ];
+
+        return {
+          session: args.session,
+          perConfiguration: perConfig,
+          total,
+          ...(perRack.length > 0 ? { perRack } : {}),
+          operatingVoltage: voltages.length === 1 ? voltages[0] : voltages,
+          ...(voltages.length > 1
+            ? {
+                voltageWarning:
+                  'Configurations run at different voltages, so the summed current figure is not meaningful. ' +
+                  'Compare power (W) instead.',
+              }
+            : {}),
+          note:
+            'idle / expected / max / worst are DCSC\'s own bands. "expected" applies the configured ' +
+            'load factor and is the figure to size a room against; "worst" is what a breaker must survive.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_fabric_options',
+    {
+      title: 'List network topologies, node roles and storage switches',
+      description:
+        'Lists the network fabrics DCSC can build (IB_XDR, 400GbE_Fiber, 800GbE_Copper and so on), ' +
+        'the node roles a system can take (Compute, Storage, Management), and the storage switches available. ' +
+        'Use this before designing the fabric of an AI factory.',
+      inputSchema: { solutionMode: z.string().optional() },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const fabric = await service.fabricOptions(ctx, solution);
+        return {
+          solutionMode: solution.solutionMode,
+          ...fabric,
+          note: 'Topology and role selection is applied per configuration with dcsc_set_node_role.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_set_node_role',
+    {
+      title: 'Set a configuration\'s role in the cluster',
+      description:
+        'Tags a configuration as Compute, Storage or Management. The role travels with the configuration ' +
+        'into the export and is what lets DCSC and downstream tools tell a compute node from a storage node ' +
+        'in a multi-node solution.',
+      inputSchema: {
+        session: z.string(),
+        role: z.string().describe('Role from dcsc_fabric_options, e.g. "Compute".'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const session = requireSession(service, args.session);
+        const ctx = service.newCtx();
+        const roles = await service.fabricOptions(ctx, session.solution);
+        const match = roles.nodeRoles.find(
+          (r) => r.role.toLowerCase() === args.role.toLowerCase(),
+        );
+        if (!match) {
+          throw new Error(
+            `Unknown node role "${args.role}". Valid roles: ${roles.nodeRoles.map((r) => r.role).join(', ')}.`,
+          );
+        }
+        session.reduced.nodeRole = match.role;
+        return { session: session.id, nodeRole: match.role };
       }),
   );
 

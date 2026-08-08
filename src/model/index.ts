@@ -94,8 +94,34 @@ export function buildIndex(raw: RawConfiguration): ConfigIndex {
             subTab: subTitle,
             section: id,
             sectionTitle: title,
+            sectionName: name,
             haystack: `${feature.code} ${description} ${title}`.toLowerCase(),
           });
+        }
+
+        for (const result of section.results ?? []) {
+          if (!result.code) continue;
+          if (!features.some((f) => f.code === result.code && f.section === id)) {
+            const rawRes = result as Record<string, unknown>;
+            const description = typeof rawRes.description === 'string' ? rawRes.description : result.code;
+            const unitPrice = typeof rawRes.unitListPrice === 'number' ? rawRes.unitListPrice : (result.cost ?? 0);
+            features.push({
+              code: result.code,
+              description,
+              min: 0,
+              max: Math.max(1, result.quantity ?? 1),
+              unitPrice,
+              category: undefined,
+              selectedQty: result.quantity ?? 1,
+              eccnRestricted: false,
+              tab: tabTitle,
+              subTab: subTitle,
+              section: id,
+              sectionTitle: title,
+              sectionName: name,
+              haystack: `${result.code} ${description} ${title}`.toLowerCase(),
+            });
+          }
         }
       }
     }

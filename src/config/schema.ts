@@ -96,6 +96,10 @@ const FilesSchema = z.object({
   maxUnzipEntries: z.number().int().default(500),
   maxCompressionRatio: z.number().default(100),
   exportEncoding: z.enum(['urlencoded', 'multipart']).default('urlencoded'),
+  /** Sessions survive a restart unless this is turned off. */
+  persistSessions: z.boolean().default(true),
+  /** Overrides the default XDG state path for the session snapshot. */
+  sessionFile: z.string().optional(),
 });
 
 export const ConfigSchema = z.object({

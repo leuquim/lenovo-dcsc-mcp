@@ -96,6 +96,7 @@ export function reduceConfiguration(
   raw: RawConfiguration,
   configurationId: string,
   mode: 'cto' | 'lfo' = 'cto',
+  solutionMode = 'General Purpose',
 ): ReducedConfiguration {
   const sections: ReducedSection[] = [];
 
@@ -130,14 +131,20 @@ export function reduceConfiguration(
     ctoCode: underlyingCto,
     lfoCode,
     slice: raw.slice ?? 'GP',
-    solutionMode: 'General Purpose',
+    solutionMode,
     showPrice: raw.showPrice !== false,
     asMultiProd: false,
     asVLH: false,
     sections,
     products: [],
-    hipoDerivedItems: (raw.hipoDerivedItems as unknown[]) ?? [],
-    hipoServiceCtoServices: (raw.hipoServiceCtoServices as unknown[]) ?? [],
+    hipoDerivedItems:
+      (raw.hipoDerivedItems as unknown[]) ??
+      ((Array.isArray(raw.configurations) && raw.configurations[0]?.hipoDerivedItems) as unknown[]) ??
+      [],
+    hipoServiceCtoServices:
+      (raw.hipoServiceCtoServices as unknown[]) ??
+      ((Array.isArray(raw.configurations) && raw.configurations[0]?.hipoServiceCtoServices) as unknown[]) ??
+      [],
     networkDerivedFeatures: {},
     selectedTopologies: {},
     selectedStorageNetwork: null,
@@ -179,8 +186,44 @@ export function applyChange(
   config: ReducedConfiguration,
   change: { sectionName: string; code: string; quantity: number },
 ): ReducedConfiguration {
-  const section = config.sections.find((s) => s.name === change.sectionName);
-  const previous = section?.results[0];
+  const needle = change.sectionName.toLowerCase();
+  let sections = config.sections;
+  let section = sections.find(
+    (s) =>
+      s.name.toLowerCase() === needle ||
+      (typeof (s as unknown as Record<string, unknown>).title === 'string' &&
+        String((s as unknown as Record<string, unknown>).title).toLowerCase() === needle),
+  );
+
+  // reduceConfiguration only keeps sections that already have results. A first
+  // selection into an empty section (PDU on a fresh rack, for example) has to
+  // create the section or autoDerive never sees the change.
+  if (!section) {
+    if (change.quantity <= 0) {
+      return {
+        ...config,
+        delta: {
+          section: change.sectionName,
+          featureCode: change.code,
+          quantity: 0,
+          isClear: true,
+          type: 'hardware',
+          previousQuantity: 0,
+          previousFeatureCode: null,
+        },
+      };
+    }
+    section = {
+      name: change.sectionName,
+      multipleSelectable: true,
+      type: 'hardware',
+      subTabTitle: '',
+      results: [],
+    };
+    sections = [...sections, section];
+  }
+
+  const previous = section.results.find((r) => r.code === change.code) ?? section.results[0];
 
   const delta: ConfigDelta = {
     section: change.sectionName,
@@ -192,33 +235,34 @@ export function applyChange(
     previousFeatureCode: previous?.code ?? null,
   };
 
-  if (section) {
-    if (section.multipleSelectable) {
-      const existing = section.results.find((r) => r.code === change.code);
-      if (existing) existing.quantity = change.quantity;
-      else if (change.quantity > 0)
-        section.results.push({ code: change.code, quantity: change.quantity, type: 'hardware' });
-      section.results = section.results.filter((r) => r.quantity > 0);
-    } else {
-      section.results =
-        change.quantity > 0
-          ? [{ code: change.code, quantity: change.quantity, type: 'hardware' }]
-          : [];
-    }
+  if (section.multipleSelectable) {
+    const existing = section.results.find((r) => r.code === change.code);
+    if (existing) existing.quantity = change.quantity;
+    else if (change.quantity > 0)
+      section.results.push({ code: change.code, quantity: change.quantity, type: 'hardware' });
+    section.results = section.results.filter((r) => r.quantity > 0);
+  } else {
+    section.results =
+      change.quantity > 0
+        ? [{ code: change.code, quantity: change.quantity, type: 'hardware' }]
+        : [];
   }
 
-  return { ...config, delta };
+  return { ...config, sections, delta };
 }
 
 export function buildPlacement(
   id: string,
   productCode: string,
   quantity = 0,
+  slice = 'GP',
 ): Record<string, unknown> {
   return {
     id,
     code: productCode,
     sliceCtoCode: productCode,
+    machineType: productCode.length >= 4 ? productCode.slice(0, 4) : productCode,
+    slice,
     type: 'server',
     size: 1,
     height: 1,
@@ -339,7 +383,8 @@ export const EXPORT_FILE_TYPES = {
 
 export type ExportFileType = keyof typeof EXPORT_FILE_TYPES;
 
-export const DEFAULT_EXPORT_TYPES: ExportFileType[] = ['XML', 'QUOTE', 'SUMMARY'];
+export const ALL_EXPORT_TYPES: ExportFileType[] = Object.keys(EXPORT_FILE_TYPES) as ExportFileType[];
+export const DEFAULT_EXPORT_TYPES: ExportFileType[] = ALL_EXPORT_TYPES;
 
 export interface ExportGroupProduct {
   id: string;
@@ -419,7 +464,7 @@ export function buildGroups(
       }
     }
 
-    return [{ name: 'Config 1', parent: null, index: -1, products }];
+    return [{ name: 'Config 1', parent: null, index: -1, depth: 1, products }];
   }
 
   const rawConfig = raw as RawConfiguration;
@@ -432,6 +477,7 @@ export function buildGroups(
       name: 'Config 1',
       parent: null,
       index: -1,
+      depth: 1,
       products: [
         {
           id: configId,
@@ -460,7 +506,9 @@ export function buildExportConfiguration(
 ): Record<string, unknown> {
   return {
     id: config.id,
+    workspaceId: config.id,
     code: config.lfoCode ?? config.sliceCtoCode,
+    ctoCode: config.sliceCtoCode,
     sliceCtoCode: config.sliceCtoCode,
     lfoCode: config.lfoCode,
     name: config.name,
@@ -469,9 +517,17 @@ export function buildExportConfiguration(
     showPrice: config.showPrice,
     priceNotAvailable: false,
     specialBid: false,
+    evaluationFlag: raw.evaluationFlag ?? 11,
     asMultiProd: false,
     autoDerivedResultId: null,
     sections: config.sections,
+    products: [],
+    slice: config.solutionMode === 'HPC and AI - Systems' ? 'HPCGP' : (config.slice ?? 'GP'),
+    networkDerivedFeatures: {},
+    solutionMode: config.solutionMode,
+    asVLH: false,
+    operationHistories: [],
+    pinnedList: [],
     hipoDerivedItems: config.hipoDerivedItems,
     hipoServiceCtoServices: config.hipoServiceCtoServices,
     expansionMessages: [],
@@ -508,9 +564,26 @@ export function buildExportData(opts: {
     const exportConfigs = configs.map((s) => buildExportConfiguration(s.reduced, s.raw));
     const ids = configs.map((s) => s.configurationId);
 
-    const rackArea: unknown[] = [];
+    // DCSC's own validated rack objects. Anything we synthesised here instead
+    // would be a layout the server has never agreed to, and rack diagrams and
+    // rack reports would come back empty.
+    const rackArea: unknown[] = ws.rackArea;
 
-    const nonRackArea = configs.map((s) => ({
+    // Configurations that live in the rack area — the cabinets themselves and
+    // anything DCSC placed inside them — must not also be exported as loose
+    // non-rack items, or they would be counted twice.
+    const rackedIds = new Set<string>();
+    for (const rack of ws.rackArea) {
+      const rackId = rack['id'];
+      if (typeof rackId === 'string') rackedIds.add(rackId);
+      for (const item of (rack['rackItems'] as Array<Record<string, unknown>> | undefined) ?? []) {
+        const id = item['id'];
+        if (typeof id === 'string') rackedIds.add(id);
+      }
+    }
+    const looseConfigs = configs.filter((s) => !rackedIds.has(s.configurationId));
+
+    const nonRackArea = looseConfigs.map((s) => ({
       id: s.configurationId,
       quantity: s.raw.quantity ?? 1,
       size: 1,
@@ -520,11 +593,17 @@ export function buildExportData(opts: {
       removedResults: [],
     }));
 
-    const nonRackData = configs.map((s) =>
-      buildPlacement(s.configurationId, s.reduced.sliceCtoCode, s.raw.quantity ?? 1),
-    );
+    const nonRackData = looseConfigs.map((s) => {
+      const idx = configs.indexOf(s);
+      return buildPlacement(
+        s.configurationId,
+        s.reduced.sliceCtoCode,
+        s.raw.quantity ?? 1,
+        (exportConfigs[idx]?.slice as string) ?? 'GP',
+      );
+    });
 
-    const rackData: unknown[] = [];
+    const rackData: unknown[] = ws.rackArea;
 
     const cloneDependency: Record<string, string[]> = {};
     for (const id of ids) cloneDependency[id] = [id];
@@ -656,7 +735,7 @@ export function buildExportData(opts: {
     workspaceInformation: {
       configurations: [exportConfig],
       rackData: [],
-      nonRackData: [buildPlacement(id, config.sliceCtoCode, quantity)],
+      nonRackData: [buildPlacement(id, config.sliceCtoCode, quantity, exportConfig.slice as string)],
       cloneDependency: { [id]: [id] },
       nonRackVirtualData: [],
       rackVirtualData: [],
