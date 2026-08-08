@@ -8,7 +8,7 @@
  *
  * Usage: npx tsx scripts/contract-suite.ts [group]
  *   groups: import, rack, power, fabric, scaleout, blueprints, persist,
- *           floor, cabling, pdu, all
+ *           floor, cabling, pdu, validate, locale, topology, services, all
  */
 import { readFileSync, rmSync } from 'node:fs';
 import { loadConfig } from '../src/config/load.js';
@@ -398,6 +398,75 @@ async function groupPdu(service: DcscService): Promise<void> {
   check(applied.selection.pduCode === pick.code, 'workspace powerSelection records accepted code');
 }
 
+async function groupValidate(service: DcscService): Promise<void> {
+  console.log('\n=== validate: LMC handoff from DCSC export-shaped payload ===');
+  const ctx = service.newCtx();
+  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
+  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const report = await service.validate(node.id, service.newCtx());
+  check(report.source === 'lmc_validation', 'validation source is lmc_validation');
+  check(
+    !!report.server?.buildEntityNumber || !!report.server?.uuid || !!report.server?.lmcURL,
+    'DCSC returned an LMC handoff field',
+    report.server?.buildEntityNumber ?? report.server?.uuid ?? report.server?.lmcURL ?? 'none',
+  );
+  check(typeof report.isValid === 'boolean', 'isValid is boolean');
+  check(Array.isArray(report.messages), 'messages array present');
+}
+
+async function groupLocale(service: DcscService): Promise<void> {
+  console.log('\n=== locale: /locales catalogue and cohesive override ===');
+  const ctx = service.newCtx();
+  const locales = await service.listLocales(ctx);
+  check(locales.length > 10, 'locales listed from DCSC', `${locales.length} countries`);
+  const us = locales.find((l) => l.countryCode === 'US');
+  check(!!us, 'US present in catalogue');
+  check(!!us?.currency, 'US has currency', us?.currency);
+  const de = await service.resolveLocale(ctx, 'DE');
+  check(de.country === 'DE', 'resolveLocale returns DE');
+  check(de.currency.length === 3, 'currency is ISO-4217', de.currency);
+  check(de.geo.length >= 2, 'geo/region present', de.geo);
+  service.setLocale(de);
+  check(service.locale.country === 'DE', 'setLocale updates process locale');
+  // restore US for subsequent groups sharing this service instance
+  service.setLocale(await service.resolveLocale(ctx, 'US'));
+}
+
+async function groupTopology(service: DcscService): Promise<void> {
+  console.log('\n=== topology: selection stored and fabric shortNames from DCSC ===');
+  const ctx = service.newCtx();
+  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
+  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const fabric = await service.fabricOptions(ctx, solution);
+  const topo = fabric.topologies.find((t) => t.shortName.includes('IB')) ?? fabric.topologies[0]!;
+  check(!!topo, 'a topology shortName is available', topo?.shortName);
+  const applied = await service.applyTopology({
+    sessionHandle: node.id,
+    topology: topo.shortName,
+    autoConnect: false,
+    ctx: service.newCtx(),
+  });
+  check(applied.topology === topo.shortName, 'topology applied', applied.topology);
+  check(
+    Object.values(applied.selectedTopologies).includes(topo.shortName),
+    'selectedTopologies map contains the choice',
+  );
+}
+
+async function groupServices(service: DcscService): Promise<void> {
+  console.log('\n=== services: portal categories available anonymously ===');
+  const ctx = service.newCtx();
+  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
+  const root = await service.servicePortalCategories(ctx, solution);
+  check(!!root, 'services portal root returned');
+  check((root?.children.length ?? 0) > 0, 'service categories listed', `${root?.children.length} top-level`);
+  check(
+    (root?.children.some((c) => /advise|deploy|support|maintain|service/i.test(c.title)) ?? false),
+    'category titles look like services',
+    root?.children.map((c) => c.title).slice(0, 5).join(', '),
+  );
+}
+
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -415,6 +484,10 @@ async function main(): Promise<void> {
     floor: () => groupFloor(service),
     cabling: () => groupCabling(service),
     pdu: () => groupPdu(service),
+    validate: () => groupValidate(service),
+    locale: () => groupLocale(service),
+    topology: () => groupTopology(service),
+    services: () => groupServices(service),
   };
 
   const toRun = group === 'all' ? Object.keys(groups) : [group];

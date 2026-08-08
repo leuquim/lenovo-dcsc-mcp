@@ -888,14 +888,173 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_validate',
     {
-      title: 'Inspect validation warnings and rules report',
+      title: 'Validate a configuration with DCSC (LMC)',
       description:
-        'Returns the rule validation report (errors, warnings, thermal/power alerts) and headroom limits for a configuration or workspace.',
+        'Runs DCSC\'s manufacturing validation (/lmc_validation) using the same payload shape the web UI exports, ' +
+        'and merges any expansionMessages already on the configuration tree.\n' +
+        'A successful server response is an LMC handoff (buildEntityNumber, uuid, lmcURL) — not a local guess. ' +
+        'isValid is false only when expansionMessages contain errors; an LMC link means DCSC accepted the request.',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
       },
     },
-    async (args) => guard(async () => service.validate(args.session)),
+    async (args) =>
+      guard(async () => {
+        const session = service.sessions.get(args.session);
+        const ws = service.sessions.getWorkspace(args.session);
+        if (!session && !ws) throw new Error(`No such session/workspace: ${args.session}`);
+        const ctx = service.newCtx({
+          locale: session?.locale ?? ws!.locale,
+          solution: session?.solution ?? ws!.solution,
+        });
+        const report = await service.validate(args.session, ctx);
+        return {
+          session: args.session,
+          workspaceId: report.workspaceId,
+          source: report.source,
+          isValid: report.isValid,
+          errorCount: report.errorCount,
+          warningCount: report.warningCount,
+          infoCount: report.infoCount,
+          messages: report.messages.slice(0, 40),
+          lmc: report.server
+            ? {
+                buildEntityNumber: report.server.buildEntityNumber,
+                uuid: report.server.uuid,
+                lmcURL: report.server.lmcURL,
+              }
+            : undefined,
+          ...(report.server
+            ? {}
+            : {
+                warning:
+                  'DCSC LMC validation did not return a handoff; only local expansionMessages are shown. ' +
+                  'Re-try after a successful customize/autoDerive, or check dcsc_health.',
+              }),
+          headroom: report.headroom,
+          next: report.server?.lmcURL
+            ? 'Open lmc.lmcURL for the manufacturing configurator view, or dcsc_export for deliverables.'
+            : 'dcsc_list_options / dcsc_configure to clear rule issues, then re-validate.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_list_locales',
+    {
+      title: 'List DCSC countries, languages and currencies',
+      description:
+        'Returns the country/region catalogue from DCSC /locales. Pick a full row (country + language + currency + geo) — ' +
+        'mismatched pairings cause HTTP 500s. Pass the result into dcsc_set_locale or launch with a resolved locale.',
+      inputSchema: {
+        query: z
+          .string()
+          .optional()
+          .describe('Optional filter on country name or code, e.g. "Germany" or "DE".'),
+        limit: z.number().int().min(1).max(50).optional().default(20),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        let locales = await service.listLocales(ctx);
+        locales = locales.filter((l) => !l.countryInvalid);
+        if (args.query) {
+          const q = args.query.toLowerCase();
+          locales = locales.filter(
+            (l) =>
+              l.countryCode.toLowerCase().includes(q) ||
+              l.countryName.toLowerCase().includes(q) ||
+              l.currency.toLowerCase().includes(q),
+          );
+        }
+        const limit = args.limit ?? 20;
+        return {
+          count: locales.length,
+          locales: locales.slice(0, limit).map((l) => ({
+            country: l.countryCode,
+            name: l.countryName,
+            currency: l.currency,
+            geo: l.region,
+            languages: l.languages.map((x) => x.languageCode),
+            defaultLanguage: l.languages.find((x) => x.defaulted)?.languageCode ?? l.languages[0]?.languageCode,
+          })),
+          current: service.locale,
+          next: 'dcsc_set_locale(country: "DE") then dcsc_launch — new sessions use the chosen locale.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_set_locale',
+    {
+      title: 'Set country / language / currency for subsequent DCSC calls',
+      description:
+        'Resolves a country against DCSC /locales and sets the process locale used by newCtx/launch. ' +
+        'Existing sessions keep the locale they were launched with. Prices after a locale change are still anonymous LIST prices for that country/currency.',
+      inputSchema: {
+        country: z.string().describe('ISO country code from dcsc_list_locales, e.g. "US", "DE", "GB".'),
+        language: z.string().optional().describe('Optional language code; defaults to the country default.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const locale = await service.resolveLocale(ctx, args.country, args.language);
+        service.setLocale(locale);
+        return {
+          locale,
+          priceType: 'LIST',
+          note:
+            'Subsequent launches and catalog searches use this locale. ' +
+            'Prices are anonymous LIST prices for the configured country/currency, not a quote.',
+          next: 'dcsc_launch or dcsc_find_products under the new locale.',
+        };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_service_categories',
+    {
+      title: 'List Services portal categories (anonymous)',
+      description:
+        'Lists the top of the Lenovo Services portal category tree available without login. ' +
+        'Full warranty/service SKU selection on a product still uses the configuration Services tab ' +
+        '(auto-attached when serviceCto applies) or may be entitlement-gated beyond this catalogue.',
+      inputSchema: {
+        solutionMode: z.string().optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const root = await service.servicePortalCategories(ctx, solution);
+        if (!root) {
+          return {
+            categories: [],
+            warning: 'DCSC returned no services portal categories for this locale/mode.',
+          };
+        }
+        return {
+          root: { id: root.id, title: root.title },
+          categories: root.children.map((c) => ({
+            id: c.id,
+            title: c.title,
+            description: c.description,
+            childCount: c.children.length,
+            children: c.children.slice(0, 12).map((ch) => ({
+              id: ch.id,
+              title: ch.title,
+              childCount: ch.children.length,
+            })),
+          })),
+          note:
+            'This is the portal catalogue, not priced warranty lines on a CTO. ' +
+            'For service features on a launched product use dcsc_list_options(session, tab: "Services").',
+          next: 'dcsc_list_options(session, query: "warranty") on a launched configuration.',
+        };
+      }),
   );
 
   server.registerTool(
@@ -1127,9 +1286,10 @@ export function registerTools(server: McpServer, service: DcscService): void {
             ? {
                 rackDataOmitted: true,
                 rackWarning:
-                  'DCSC rejected the rack layout in the export payload, so this archive has no rack ' +
-                  'diagram or rack report. The racks and their contents are still priced in the BOM, ' +
-                  'and the validated layout is readable via dcsc_session_info.',
+                  'DCSC rejected every rack-bearing export payload tried (including SPA dual-shape: ' +
+                  'workspace.servers 0-based + rackData.rackItems 1-based; HTTP 500 Index 0 out of bounds). ' +
+                  'RACK_DIAGRAM / RACK_REPORT / FLOOR / P2P artifacts cannot be produced yet. ' +
+                  'Cabinets remain priced in the BOM; use dcsc_workspace_layout for the validated layout.',
               }
             : {}),
           disclaimer:
@@ -1551,6 +1711,52 @@ export function registerTools(server: McpServer, service: DcscService): void {
         }
         session.reduced.nodeRole = match.role;
         return { session: session.id, nodeRole: match.role };
+      }),
+  );
+
+  server.registerTool(
+    'dcsc_set_topology',
+    {
+      title: 'Apply a network topology to a configuration',
+      description:
+        'Selects a fabric topology shortName (from dcsc_fabric_options, e.g. IB_XDR, 400GbE_Fiber) on a configuration. ' +
+        'The selection is stored on the configuration the way the SPA stores selectedTopologies. ' +
+        'When the workspace has racks, auto-connect is run so DCSC can recompute connections for the fabric.',
+      inputSchema: {
+        session: z.string().describe('Configuration session ID.'),
+        topology: z.string().describe('Topology shortName from dcsc_fabric_options, e.g. "IB_XDR".'),
+        autoConnect: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe('If true (default) and the workspace has racks, run DCSC auto-connect after selecting.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const session = requireSession(service, args.session);
+        const ctx = service.newCtx({ locale: session.locale, solution: session.solution });
+        const result = await service.applyTopology({
+          sessionHandle: session.id,
+          topology: args.topology,
+          autoConnect: args.autoConnect ?? true,
+          ctx,
+        });
+        return {
+          session: result.session,
+          topology: result.topology,
+          selectedTopologies: result.selectedTopologies,
+          autoConnect: result.autoConnect
+            ? {
+                connectionCount: result.autoConnect.connections.length,
+                messages: result.autoConnect.messages,
+              }
+            : undefined,
+          next:
+            result.autoConnect && result.autoConnect.connections.length === 0
+              ? 'No connections yet — add switches/nodes or re-run dcsc_add_cabling(mode: "auto").'
+              : 'dcsc_add_cabling(mode: "auto") or dcsc_workspace_layout to inspect cabling.',
+        };
       }),
   );
 

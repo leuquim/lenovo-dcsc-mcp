@@ -40,6 +40,14 @@ import {
   selectedPowerLines,
   type PduCatalog,
 } from '../domain/pdu.js';
+import {
+  collectExpansionMessages,
+  runLmcValidation,
+  summariseValidation,
+  type ValidationReport,
+} from '../domain/validate.js';
+import { fetchLocales, localeFromOption, type LocaleOption } from '../domain/locale.js';
+import { fetchServicePortalCategories, type ServiceCategory } from '../domain/services-catalog.js';
 import { diffConfigurations } from '../model/diff.js';
 import { projectSummary } from '../model/project.js';
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
@@ -240,7 +248,14 @@ export class DcscService {
   }
 
   get locale(): Locale {
-    return this.config.locale;
+    return this.#localeOverride ?? this.config.locale;
+  }
+
+  #localeOverride: Locale | undefined;
+
+  /** Overrides the process locale for subsequent newCtx/launch calls. */
+  setLocale(locale: Locale): void {
+    this.#localeOverride = locale;
   }
 
   /** A fresh request context with its own correlation id and request budget. */
@@ -1034,53 +1049,200 @@ export class DcscService {
     return { workspaceId: wsId!, sessions, diagnostics };
   }
 
-  validate(sessionHandle: string) {
+  /**
+   * Validates a configuration against DCSC's LMC validation endpoint.
+   *
+   * The SPA posts the export payload to /lmc_validation and receives a
+   * manufacturing handoff (build entity + deep link). Local expansionMessages
+   * from autoDerive are merged in so callers still see rule text that is
+   * already on the tree.
+   */
+  async validate(sessionHandle: string, ctx: RequestCtx): Promise<ValidationReport & {
+    sessionHandle: string;
+    workspaceId?: string | undefined;
+    headroom: unknown[];
+    source: 'lmc_validation';
+  }> {
     const session = this.sessions.get(sessionHandle);
     const workspace = this.sessions.getWorkspace(sessionHandle);
     if (!session && !workspace) throw new Error(`Session / Workspace ${sessionHandle} not found`);
 
     const targets = workspace ? [...workspace.configurations.values()] : [session!];
-    const errors: Array<{ code?: string; message: string; section?: string }> = [];
-    const warnings: Array<{ code?: string; message: string; section?: string }> = [];
-    const info: Array<{ code?: string; message: string; section?: string }> = [];
+    const solution = workspace?.solution ?? session!.solution;
+    const validationMode = workspace?.validationMode ?? session!.validationMode;
+    const mode = session?.mode === 'lfo' ? 'lfo' : 'cto';
 
-    for (const s of targets) {
-      const msgs = (s.raw as { expansionMessages?: Array<{ type?: string; text?: string; code?: string; sectionName?: string }> }).expansionMessages ?? [];
-      for (const m of msgs) {
-        const entry = {
-          ...(m.code !== undefined ? { code: m.code } : {}),
-          message: m.text ?? String(m),
-          ...(m.sectionName !== undefined ? { section: m.sectionName } : {}),
-        };
-        if (m.type === 'error' || m.type === 'err') errors.push(entry);
-        else if (m.type === 'warn' || m.type === 'warning') warnings.push(entry);
-        else info.push(entry);
-      }
+    // LMC expects the export-shaped body. Rack-bearing workspace payloads
+    // still 500 on export_zip; for validation prefer a rack-free snapshot so
+    // the server can accept the request (configs remain fully priced).
+    const exportPayload =
+      workspace && workspace.rackArea.length > 0
+        ? buildExportData({
+            workspace: { ...workspace, rackArea: [] } as WorkspaceSession,
+            solution,
+            fileTypes: ['XML'],
+            validationMode,
+          })
+        : workspace
+          ? buildExportData({
+              workspace,
+              solution,
+              fileTypes: ['XML'],
+              validationMode,
+            })
+          : buildExportData({
+              raw: session!.raw,
+              config: session!.reduced,
+              solution,
+              fileTypes: ['XML'],
+              validationMode,
+            });
+
+    let server;
+    try {
+      server = await runLmcValidation(
+        this.http,
+        { ...ctx, solution },
+        exportPayload,
+        mode,
+      );
+    } catch (err) {
+      logger().warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'LMC validation request failed; returning expansionMessages only',
+      );
+      server = undefined;
     }
 
-    const headroom = targets.flatMap((s) => projectSummary({
-      sessionId: s.id,
-      revision: s.revision,
-      raw: s.raw,
-      index: s.index,
-      currency: s.locale.currency,
-      country: s.locale.country,
-      pricedAt: s.pricedAt,
-    }).constraints);
+    const messages = collectExpansionMessages(
+      targets.map((s) => ({
+        configurationId: s.configurationId,
+        raw: s.raw as Record<string, unknown>,
+      })),
+    );
+    const summary = summariseValidation(server, messages);
+
+    const headroom = targets.flatMap((s) =>
+      projectSummary({
+        sessionId: s.id,
+        revision: s.revision,
+        raw: s.raw,
+        index: s.index,
+        currency: s.locale.currency,
+        country: s.locale.country,
+        pricedAt: s.pricedAt,
+      }).constraints,
+    );
 
     return {
       sessionHandle,
       workspaceId: workspace?.id ?? session?.workspaceId,
-      isValid: errors.length === 0,
-      report: {
-        errorCount: errors.length,
-        warningCount: warnings.length,
-        infoCount: info.length,
-        errors,
-        warnings,
-        info,
-      },
+      source: 'lmc_validation',
+      ...summary,
       headroom,
+    };
+  }
+
+  async listLocales(ctx: RequestCtx): Promise<LocaleOption[]> {
+    return fetchLocales(this.http, ctx);
+  }
+
+  /**
+   * Resolves a country (and optional language) against /locales into a Locale.
+   * Does not mutate server config; callers pass the result into newCtx/launch.
+   */
+  async resolveLocale(
+    ctx: RequestCtx,
+    countryCode: string,
+    languageCode?: string,
+  ): Promise<Locale> {
+    const locales = await this.listLocales(ctx);
+    const match = locales.find(
+      (l) => l.countryCode.toUpperCase() === countryCode.toUpperCase() && !l.countryInvalid,
+    );
+    if (!match) {
+      const sample = locales
+        .filter((l) => !l.countryInvalid)
+        .slice(0, 12)
+        .map((l) => l.countryCode)
+        .join(', ');
+      throw new Error(
+        `Unknown or invalid country "${countryCode}". Examples: ${sample}${locales.length > 12 ? ', …' : ''}.`,
+      );
+    }
+    return localeFromOption(match, languageCode);
+  }
+
+  async servicePortalCategories(ctx: RequestCtx, solution: SolutionContext): Promise<ServiceCategory | undefined> {
+    return fetchServicePortalCategories(this.http, { ...ctx, solution });
+  }
+
+  /**
+   * Applies a network topology shortName to a configuration and optionally
+   * re-runs auto-connect so DCSC can recompute cabling for the fabric choice.
+   */
+  async applyTopology(opts: {
+    sessionHandle: string;
+    topology: string;
+    autoConnect?: boolean | undefined;
+    ctx: RequestCtx;
+  }): Promise<{
+    session: string;
+    topology: string;
+    selectedTopologies: Record<string, unknown>;
+    autoConnect?: AutoConnectResult | undefined;
+  }> {
+    const session = this.sessions.get(opts.sessionHandle);
+    if (!session) throw new Error(`Session ${opts.sessionHandle} not found`);
+
+    const fabric = await this.fabricOptions(opts.ctx, session.solution);
+    const match = fabric.topologies.find(
+      (t) => t.shortName.toLowerCase() === opts.topology.toLowerCase(),
+    );
+    if (!match) {
+      throw new Error(
+        `Unknown topology "${opts.topology}". Use dcsc_fabric_options for valid shortNames ` +
+          `(e.g. ${fabric.topologies
+            .slice(0, 8)
+            .map((t) => t.shortName)
+            .join(', ')}).`,
+      );
+    }
+
+    // SPA stores selectedTopologies as a map keyed by configuration id.
+    const selected = {
+      ...(typeof session.reduced.selectedTopologies === 'object' &&
+      session.reduced.selectedTopologies !== null
+        ? session.reduced.selectedTopologies
+        : {}),
+      [session.configurationId]: match.shortName,
+    };
+    session.reduced.selectedTopologies = selected;
+    (session.raw as Record<string, unknown>)['selectedTopologies'] = selected;
+    session.revision += 1;
+    session.lastAccessAt = Date.now();
+    this.persist();
+
+    let ac: AutoConnectResult | undefined;
+    if (opts.autoConnect !== false) {
+      const ws = this.sessions.getWorkspace(session.workspaceId);
+      if (ws && ws.rackArea.length > 0) {
+        try {
+          ac = await this.runAutoConnect(session.workspaceId, opts.ctx);
+        } catch (err) {
+          logger().warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            'auto_connect after topology selection failed',
+          );
+        }
+      }
+    }
+
+    return {
+      session: session.id,
+      topology: match.shortName,
+      selectedTopologies: selected,
+      ...(ac !== undefined ? { autoConnect: ac } : {}),
     };
   }
 

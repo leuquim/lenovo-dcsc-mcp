@@ -512,7 +512,7 @@ export function buildExportConfiguration(
     sliceCtoCode: config.sliceCtoCode,
     lfoCode: config.lfoCode,
     name: config.name,
-    type: 'server',
+    type: raw.type ?? 'server',
     quantity: raw.quantity ?? 1,
     showPrice: config.showPrice,
     priceNotAvailable: false,
@@ -530,10 +530,10 @@ export function buildExportConfiguration(
     pinnedList: [],
     hipoDerivedItems: config.hipoDerivedItems,
     hipoServiceCtoServices: config.hipoServiceCtoServices,
-    expansionMessages: [],
-    nodeRole: '',
-    selectedTopologies: {},
-    selectedStorageNetwork: null,
+    expansionMessages: raw.expansionMessages ?? [],
+    nodeRole: config.nodeRole ?? '',
+    selectedTopologies: config.selectedTopologies ?? {},
+    selectedStorageNetwork: config.selectedStorageNetwork,
     serviceCtoFlag: config.serviceCtoFlag,
     storageWizardOption: null,
     shippingStatus: config.shippingStatus,
@@ -544,6 +544,68 @@ export function buildExportConfiguration(
     showExpressMode: false,
     showExpressT2Mode: false,
   };
+}
+
+/**
+ * SPA local rack shape for export: `servers` with 0-based U positions.
+ * customize/auto_connect return `rackItems` with 1-based positions.
+ */
+export function rackToLocalExportShape(rack: Record<string, unknown>): Record<string, unknown> {
+  const items =
+    (rack['servers'] as Array<Record<string, unknown>> | undefined) ??
+    (rack['rackItems'] as Array<Record<string, unknown>> | undefined) ??
+    [];
+  const fromServerForm = Array.isArray(rack['rackItems']) && !Array.isArray(rack['servers']);
+  const servers = items.map((it) => {
+    const pos = typeof it['position'] === 'number' ? it['position'] : Number(it['position']) || 0;
+    return { ...it, position: fromServerForm ? Math.max(0, pos - 1) : pos };
+  });
+  const featureItems = ((rack['featureItems'] as Array<Record<string, unknown>> | undefined) ?? []).map(
+    (fi) => {
+      if (!fromServerForm || typeof fi['position'] !== 'number') return fi;
+      return { ...fi, position: Math.max(0, fi['position'] - 1) };
+    },
+  );
+  const lockedSpace = Array.isArray(rack['lockedSpace'])
+    ? fromServerForm
+      ? (rack['lockedSpace'] as number[]).map((n) => n - 1)
+      : rack['lockedSpace']
+    : rack['lockedSpace'];
+  const { rackItems: _ri, servers: _s, ...rest } = rack;
+  return {
+    ...rest,
+    servers,
+    featureItems,
+    lockedSpace,
+    quantity: rack['quantity'] ?? 1,
+    name: rack['name'] ?? 'Rack1',
+  };
+}
+
+/** Server rack shape for export: `rackItems` with 1-based U positions. */
+export function rackToServerExportShape(local: Record<string, unknown>): Record<string, unknown> {
+  const items =
+    (local['rackItems'] as Array<Record<string, unknown>> | undefined) ??
+    (local['servers'] as Array<Record<string, unknown>> | undefined) ??
+    [];
+  const fromLocal = Array.isArray(local['servers']) && !Array.isArray(local['rackItems']);
+  const rackItems = items.map((it) => {
+    const pos = typeof it['position'] === 'number' ? it['position'] : Number(it['position']) || 0;
+    return { ...it, position: fromLocal ? pos + 1 : pos };
+  });
+  const featureItems = ((local['featureItems'] as Array<Record<string, unknown>> | undefined) ?? []).map(
+    (fi) => {
+      if (!fromLocal || typeof fi['position'] !== 'number') return fi;
+      return { ...fi, position: fi['position'] + 1 };
+    },
+  );
+  const lockedSpace = Array.isArray(local['lockedSpace'])
+    ? fromLocal
+      ? (local['lockedSpace'] as number[]).map((n) => n + 1)
+      : local['lockedSpace']
+    : local['lockedSpace'];
+  const { servers: _s, rackItems: _r, ...rest } = local;
+  return { ...rest, rackItems, featureItems, lockedSpace };
 }
 
 /**
@@ -564,10 +626,14 @@ export function buildExportData(opts: {
     const exportConfigs = configs.map((s) => buildExportConfiguration(s.reduced, s.raw));
     const ids = configs.map((s) => s.configurationId);
 
-    // DCSC's own validated rack objects. Anything we synthesised here instead
-    // would be a layout the server has never agreed to, and rack diagrams and
-    // rack reports would come back empty.
-    const rackArea: unknown[] = ws.rackArea;
+    // The SPA keeps two rack shapes in the export payload:
+    //   workspace.rackArea     — local form with `servers` and 0-based positions
+    //   workspaceInformation.rackData — server form with `rackItems` and 1-based
+    // customize/auto_connect return the server form; convert for the dual write.
+    // (As of 2026-08 the export endpoint still 500s with racks present — see
+    // handoff ruled-out notes — but validation and future DTO fixes need the SPA shape.)
+    const localRackArea = ws.rackArea.map(rackToLocalExportShape);
+    const rackData = localRackArea.map(rackToServerExportShape);
 
     // Configurations that live in the rack area — the cabinets themselves and
     // anything DCSC placed inside them — must not also be exported as loose
@@ -577,6 +643,10 @@ export function buildExportData(opts: {
       const rackId = rack['id'];
       if (typeof rackId === 'string') rackedIds.add(rackId);
       for (const item of (rack['rackItems'] as Array<Record<string, unknown>> | undefined) ?? []) {
+        const id = item['id'];
+        if (typeof id === 'string') rackedIds.add(id);
+      }
+      for (const item of (rack['servers'] as Array<Record<string, unknown>> | undefined) ?? []) {
         const id = item['id'];
         if (typeof id === 'string') rackedIds.add(id);
       }
@@ -603,7 +673,22 @@ export function buildExportData(opts: {
       );
     });
 
-    const rackData: unknown[] = ws.rackArea;
+    // Mark rack cabinets as type "rack" so export can distinguish them.
+    for (const c of exportConfigs) {
+      const code = String(c['code'] ?? '');
+      if (ws.rackArea.some((r) => String(r['code'] ?? '').toUpperCase() === code.toUpperCase())) {
+        c['type'] = 'rack';
+        c['name'] = 'Rack';
+      }
+      // Carry topology selection into the export payload.
+      const session = configs.find((s) => s.configurationId === c['id'] || s.reduced.id === c['id']);
+      if (session?.reduced.selectedTopologies) {
+        c['selectedTopologies'] = session.reduced.selectedTopologies;
+      }
+      if (session?.reduced.nodeRole) {
+        c['nodeRole'] = session.reduced.nodeRole;
+      }
+    }
 
     const cloneDependency: Record<string, string[]> = {};
     for (const id of ids) cloneDependency[id] = [id];
@@ -611,7 +696,7 @@ export function buildExportData(opts: {
     return {
       toggle7116On: false,
       workspace: {
-        rackArea,
+        rackArea: localRackArea,
         nonRackArea,
         floorItems: ws.floorItems.map((f) => ({ id: f.id, rackId: f.rackId, x: f.x, y: f.y })),
         cloneRackMapping: {},
@@ -627,8 +712,8 @@ export function buildExportData(opts: {
         autoDerivedConfigurationIds: ids,
         requiredSections: null,
       },
+      // SPA deletes workspaceInformation.configurations when removeRedundantConfigurations is on.
       workspaceInformation: {
-        configurations: exportConfigs,
         rackData,
         nonRackData,
         cloneDependency,
