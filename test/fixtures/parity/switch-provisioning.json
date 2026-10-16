@@ -1,0 +1,185 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/parity-headless/discovery-hpc-fresh-r25-auto-switch-2026-10-15/wire/044-050",
+    "note": "Anonymous headless AI/HPC browser run. Generated ids and unrelated product detail are replaced with stable aliases."
+  },
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "rack-1",
+        "code": "7D6DCTO1WW",
+        "rackItems": [
+          { "id": "server-1", "code": "7D73CTOHWW", "position": 1, "size": 1, "type": "server" },
+          { "id": "manual-switch-1", "code": "7D5FCTOFWW", "position": 5, "size": 1, "type": "switch" }
+        ]
+      }
+    ],
+    "nonRackArea": [],
+    "configurations": [
+      { "id": "server-1", "code": "7D73CTOHWW" },
+      { "id": "rack-1", "code": "7D6DCTO1WW" },
+      { "id": "manual-switch-1", "code": "7D5FCTOFWW" }
+    ],
+    "clusterPreference": [
+      {
+        "name": "Management",
+        "networkType": "1GbE_Copper",
+        "cableType": "Cat5E",
+        "mainSwitch": { "option": "7D5FCTOFWW", "feature": "BPC7" },
+        "maximumPorts": 48,
+        "trunks": 1
+      }
+    ],
+    "floorPreference": { "rackDist": 0.01, "useTrayCabling": false },
+    "powerPreference": [],
+    "floorItems": [{ "row": 0, "col": 0, "rackItem": { "id": "rack-1" } }],
+    "cloneRackMapping": {},
+    "storageConnectionNetworks": [],
+    "switchMap": [],
+    "cloneDependency": {
+      "server-1": ["server-1"],
+      "rack-1": ["rack-1"],
+      "manual-switch-1": ["manual-switch-1"]
+    },
+    "autoConnectSettings": { "autoAddPDU": false, "autoAddSwitch": true, "p2pCabling": true },
+    "connections": [{ "stale": true }],
+    "futureWorkspaceField": { "mustNotLeak": true }
+  },
+  "calculationResponse": [
+    {
+      "id": "rack-1",
+      "option": "7D6DCTO1WW",
+      "quantity": 1,
+      "size": 42,
+      "items": [
+        {
+          "id": "",
+          "option": "7D5FCTOFWW",
+          "rawCode": "7D5FCTOFWW",
+          "size": 1,
+          "type": "switch",
+          "network": "Management",
+          "usage": "main",
+          "quantity": 1,
+          "position": 22
+        }
+      ]
+    }
+  ],
+  "launch": {
+    "id": null,
+    "code": "7D5FCTOFWW",
+    "sliceCtoCode": "7D5FCTOFWW",
+    "slice": "HPCGPALL",
+    "type": "switch",
+    "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+    "asVLH": false,
+    "vlhId": null,
+    "selectedTopologies": {},
+    "selectedStorageNetwork": null,
+    "connectors": [{ "port": "RJ45", "portNumber": "2" }],
+    "tabs": [
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "BASE",
+                "results": [
+                  {
+                    "code": "BPC7",
+                    "quantity": 1,
+                    "installations": [],
+                    "description": "Nvidia SN2201 1GbE Managed Switch with Cumulus (PSE)",
+                    "type": "hardware"
+                  }
+                ]
+              },
+              {
+                "name": "ETHERNET_CABLE",
+                "results": [
+                  {
+                    "code": "3802",
+                    "quantity": 1,
+                    "installations": [],
+                    "description": "1.5m Blue Cat5e Cable",
+                    "type": "hardware"
+                  }
+                ]
+              },
+              {
+                "name": "RACK_POWERCABLE",
+                "results": [
+                  {
+                    "code": "6311",
+                    "quantity": 2,
+                    "installations": [],
+                    "description": "2.8m, 10A/100-250V, C13 to C14 Jumper Cord",
+                    "type": "hardware"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "unSelectableCharacters": [
+      {
+        "name": "MOUNT_RACK_KIT",
+        "results": [
+          {
+            "code": "BSNB",
+            "quantity": 1,
+            "installations": [],
+            "description": "NVIDIA SN2201 Enterprise Rack Mount Kit w/Air Duct"
+          }
+        ]
+      }
+    ]
+  },
+  "expectedGenerated": {
+    "id": "generated-switch-1",
+    "name": "Switch - Management Main 1",
+    "rackId": "rack-1",
+    "requestedPosition": 22,
+    "wireSectionNames": ["BASE", "ETHERNET_CABLE", "RACK_POWERCABLE", "MOUNT_RACK_KIT"],
+    "rackItem": {
+      "id": "generated-switch-1",
+      "code": "7D5FCTOFWW",
+      "sliceCtoCode": "7D5FCTOFWW",
+      "position": 22,
+      "type": "switch",
+      "fixPosition": true,
+      "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+      "name": "Switch - Management Main 1",
+      "hardwareType": "switch"
+    },
+    "switchMapEntry": {
+      "id": "generated-switch-1",
+      "network": "Management",
+      "type": "main",
+      "code": "7D5FCTOFWW"
+    },
+    "cloneDependency": { "generated-switch-1": ["generated-switch-1"] }
+  },
+  "authoritativeCustomizeResult": {
+    "requestedPosition": 22,
+    "acceptedPosition": 6,
+    "connectionCount": 1,
+    "note": "Auto-arrange moved the generated switch. Persist the customize response position, not the calculation position."
+  },
+  "derivePatch": {
+    "configurationIds": ["rack-1", "generated-switch-1"],
+    "note": "The autoDerive response is partial. Merge by id and retain server, manual switch and all other omitted configurations."
+  },
+  "sequence": [
+    { "phase": "calculate", "method": "POST", "path": "/switch_calculation" },
+    { "phase": "launch-each-generated-switch", "method": "POST", "path": "/ctos/{code}/launch" },
+    { "phase": "customize-generated-layout", "method": "POST", "path": "/ctos/racks/customize" },
+    { "phase": "derive-generated-configuration", "method": "POST", "path": "/ctos/autoDerive" },
+    { "phase": "connect-p2p", "method": "POST", "path": "/auto_connect" }
+  ]
+}

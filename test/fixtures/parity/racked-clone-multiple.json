@@ -1,0 +1,51 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "Anonymous DCSC browser Clone Multiple request, rack-clone-browser-fresh-run4/01-request.json",
+    "product": "ThinkSystem SR630 V3 (7D73CTO1WW)",
+    "rack": "ThinkSystem 42U Onyx Heavy Duty Rack Cabinet (7D6DCTO1WW)",
+    "scope": "One direct, rule-free, 1U rack item; Copy and nested physical items are not represented"
+  },
+  "rackArea": [
+    {
+      "id": "rack-1",
+      "configurationId": "rack-1",
+      "code": "7D6DCTO1WW",
+      "type": "rack",
+      "size": 42,
+      "lockedSpace": [],
+      "opaqueRackMetadata": { "retained": true },
+      "rackItems": [
+        {
+          "id": "server-1",
+          "configurationId": "server-1",
+          "code": "7D73CTO1WW",
+          "type": "server",
+          "position": 1,
+          "size": 1,
+          "lowestPosition": 1,
+          "highestPosition": 42,
+          "defaultPosition": 1,
+          "lock": false,
+          "rule": { "mtMinMaxRule": null, "productMinMaxRule": null },
+          "nodes": [],
+          "capacity": 0,
+          "opaqueItemMetadata": { "retained": true }
+        }
+      ]
+    }
+  ],
+  "nonRackArea": [],
+  "cloneDependency": {
+    "server-1": ["server-1"],
+    "rack-1": ["rack-1"]
+  },
+  "cloneIds": ["server-2"],
+  "expected": {
+    "position": 2,
+    "cloneDependency": {
+      "server-1": ["server-1", "server-2"],
+      "rack-1": ["rack-1"]
+    }
+  }
+}

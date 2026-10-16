@@ -1,0 +1,80 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/pdu-edit-contract/entry-request.json",
+    "workflow": "Browser import of one-rack SR630 V3 CFXML followed by Rack > Customize",
+    "note": "Dynamic IDs and unrelated catalog fields removed; positions, filler runs, feature availability and selected results are exact."
+  },
+  "rack": {
+    "id": "rack-1",
+    "code": "7D6DCTO1WW",
+    "type": "rack",
+    "size": 42,
+    "lockedSpace": [],
+    "featureItems": [],
+    "rackItems": [
+      { "id": "server-1", "code": "7D73CTO1WW", "type": "server", "position": 1, "size": 1 }
+    ],
+    "features": [
+      { "name": "PDU", "results": [{ "code": "CE6L", "quantity": 0, "forAutoConnect": true }] }
+    ]
+  },
+  "configuration": {
+    "id": "rack-1",
+    "code": "7D6DCTO1WW",
+    "sliceCtoCode": "7D6DCTO1WW",
+    "type": "rack",
+    "tabs": [
+      {
+        "title": "Base",
+        "type": "hardware",
+        "subTabs": [
+          {
+            "title": "Base",
+            "sections": [
+              {
+                "name": "BASE",
+                "results": [{ "code": "BHC3", "quantity": 1, "description": "Lenovo ThinkSystem 42U Onyx Heavy Duty Rack Cabinet" }]
+              },
+              {
+                "name": "PDU",
+                "results": [{ "code": "CE6L", "quantity": 0 }]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "unSelectableCharacters": [
+      {
+        "name": "MECH_DERIVE_FCS",
+        "description": "Mechanical Derived Parts",
+        "features": [
+          { "code": "4271", "description": "1U black plastic filler panel", "unitPrice": 14.5 },
+          { "code": "4273", "description": "3U black plastic filler panel", "unitPrice": 24.5 },
+          { "code": "4275", "description": "5U black plastic filler panel", "unitPrice": 54.5 }
+        ],
+        "results": [{ "code": "BNVL", "quantity": 1, "derived": true }]
+      }
+    ]
+  },
+  "expected": {
+    "baseFeatureCode": "BHC3",
+    "filler": [
+      { "position": 1, "size": 5 },
+      { "position": 6, "size": 5 },
+      { "position": 11, "size": 5 },
+      { "position": 16, "size": 5 },
+      { "position": 21, "size": 5 },
+      { "position": 26, "size": 5 },
+      { "position": 31, "size": 5 },
+      { "position": 36, "size": 5 },
+      { "position": 41, "size": 1 }
+    ],
+    "results": [
+      { "code": "BNVL", "quantity": 1, "derived": true },
+      { "code": "4275", "quantity": 8, "derived": true },
+      { "code": "4271", "quantity": 1, "derived": true }
+    ]
+  }
+}

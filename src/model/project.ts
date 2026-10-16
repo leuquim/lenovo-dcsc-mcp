@@ -1,5 +1,6 @@
 import type { ConfigIndex, SectionRef } from './index.js';
 import type { IndexedFeature, RawConfiguration, RawResourceTracker } from './types.js';
+import { availablePrice, configurationListPrice } from '../domain/pricing.js';
 
 /**
  * Progressive disclosure.
@@ -91,14 +92,15 @@ export interface SessionSummary {
   currency: string;
   country: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: number | null;
   /** Price of one configured unit. */
-  totalPrice: number;
+  totalPrice: number | null;
   /** totalPrice x quantity — what the line actually costs. */
-  extendedPrice: number;
+  extendedPrice: number | null;
+  priceAvailable: boolean;
   priceType: 'LIST';
   pricedAt: string;
-  tabs: Array<{ title: string; sections: number; selected: number }>;
+  tabs: Array<{ id: string; title: string; sections: number; selected: number }>;
   constraints: Constraint[];
   disclaimer: string;
 }
@@ -117,6 +119,7 @@ export function projectSummary(opts: {
   pricedAt: number;
 }): SessionSummary {
   const { raw, index } = opts;
+  const totalPrice = configurationListPrice(raw);
 
   const tabs = index.tabs.map((title) => {
     const sections = index.sections.filter((s) => s.tab === title);
@@ -124,7 +127,9 @@ export function projectSummary(opts: {
       (n, s) => n + (s.section.results?.filter((r) => r.code).length ?? 0),
       0,
     );
-    return { title, sections: sections.length, selected };
+    // The exact DCSC title is also the accepted tab selector. Publishing it as
+    // an id gives callers a stable value to pass back without slug guessing.
+    return { id: title, title, sections: sections.length, selected };
   });
 
   return {
@@ -138,9 +143,10 @@ export function projectSummary(opts: {
     currency: opts.currency,
     country: opts.country,
     quantity: raw.quantity ?? 1,
-    unitPrice: round(raw.unitPrice ?? 0),
-    totalPrice: round(raw.totalPrice ?? 0),
-    extendedPrice: round((raw.totalPrice ?? 0) * (raw.quantity ?? 1)),
+    unitPrice: availablePrice(raw.unitPrice, raw.priceNotAvailable === true),
+    totalPrice,
+    extendedPrice: totalPrice === null ? null : round(totalPrice * (raw.quantity ?? 1)),
+    priceAvailable: totalPrice !== null,
     priceType: 'LIST',
     pricedAt: new Date(opts.pricedAt).toISOString(),
     tabs,
@@ -151,7 +157,10 @@ export function projectSummary(opts: {
 
 export interface TabSection {
   id: string;
+  /** Human display title. */
   name: string;
+  /** DCSC's internal section name — the identifier mutations resolve against. */
+  sectionName: string;
   subTab: string;
   required: boolean;
   single: boolean;
@@ -165,6 +174,8 @@ export interface TabView {
   revision: number;
   currency: string;
   tab: string;
+  /** Exact identifier accepted by option search's `tab` filter. */
+  tabId: string;
   tabSubtotal: number;
   sections: TabSection[];
   next: string;
@@ -191,6 +202,7 @@ export function projectTab(opts: {
     revision: opts.revision,
     currency: opts.currency,
     tab: refs[0]?.tab ?? opts.tab,
+    tabId: refs[0]?.tab ?? opts.tab,
     tabSubtotal: round(subtotal),
     sections,
     next: `dcsc_list_options(session, section: "<id>") to see the options in a section`,
@@ -216,7 +228,11 @@ function projectSection(ref: SectionRef, index: ConfigIndex): TabSection {
 
   return {
     id: ref.id,
+    // `name` has always carried the human title here. Keep it, but publish
+    // DCSC's internal name too: it is the identifier mutations resolve against,
+    // and it was previously invisible from every listing.
     name: ref.title,
+    sectionName: ref.name,
     subTab: ref.subTab,
     required: ref.section.required === true,
     single: ref.section.singleEntry === true,
@@ -230,6 +246,14 @@ function projectSection(ref: SectionRef, index: ConfigIndex): TabSection {
 export interface OptionLine {
   code: string;
   desc: string;
+  /** Exact tab title accepted by the `tab` filter. */
+  tabId: string;
+  /** Stable synthetic id accepted by configure and the `section` filter. */
+  sectionId: string;
+  /** DCSC's internal section name, useful when inspecting raw rule messages. */
+  sectionName: string;
+  /** Arguments that can be passed directly to dcsc_configure with a quantity. */
+  configure: { section: string; code: string };
   /** Delta versus the currently selected item in this section, when there is one. */
   delta?: number;
   unit: number;
@@ -244,11 +268,13 @@ export interface OptionsView {
   section?: string | undefined;
   name?: string | undefined;
   query?: string | undefined;
+  tab?: string | undefined;
+  filter?: 'all' | 'selected' | 'selectable' | undefined;
   priceBasis: string;
   page: { offset: number; limit: number; total: number };
   options: OptionLine[];
   truncated?: { shown: number; total: number };
-  next?: string;
+  next?: { tool: string; arguments: Record<string, unknown> };
 }
 
 /**
@@ -269,6 +295,8 @@ export function projectOptions(opts: {
   index: ConfigIndex;
   section?: string | undefined;
   query?: string | undefined;
+  tab?: string | undefined;
+  filter?: 'all' | 'selected' | 'selectable' | undefined;
   maxBytes?: number | undefined;
 }): OptionsView {
   const { items, index } = opts;
@@ -284,6 +312,10 @@ export function projectOptions(opts: {
   const lines: OptionLine[] = items.map((f) => ({
     code: f.code,
     desc: shortDesc(f.description),
+    tabId: f.tab,
+    sectionId: f.section,
+    sectionName: f.sectionName ?? '',
+    configure: { section: f.section, code: f.code },
     ...(basis ? { delta: round(f.unitPrice - basis.unitPrice) } : {}),
     unit: round(f.unitPrice),
     ...(f.selectedQty > 0 ? { sel: f.selectedQty } : {}),
@@ -299,17 +331,16 @@ export function projectOptions(opts: {
       ? { name: index.sectionById.get(opts.section)?.title }
       : {}),
     ...(opts.query !== undefined ? { query: opts.query } : {}),
+    ...(opts.tab !== undefined ? { tab: opts.tab } : {}),
+    ...(opts.filter !== undefined ? { filter: opts.filter } : {}),
     priceBasis,
     page: { offset: opts.offset, limit: opts.limit, total: opts.total },
     options: lines,
   };
 
-  if (opts.offset + items.length < opts.total) {
-    view.next = `dcsc_list_options(session, ${
-      opts.section ? `section: "${opts.section}", ` : ''
-    }offset: ${opts.offset + items.length})`;
-  }
-
+  // Reserve continuation text before trimming so it participates in the byte
+  // budget. enforceBudget recalculates its offset from the options retained.
+  if (opts.offset < opts.total && items.length > 0) view.next = continuation(view);
   return enforceBudget(view, opts.maxBytes ?? DEFAULT_MAX_BYTES);
 }
 
@@ -318,9 +349,9 @@ export function projectOptions(opts: {
  * Drops trailing options and records what was hidden.
  */
 export function enforceBudget(view: OptionsView, maxBytes: number): OptionsView {
-  let current = view;
+  let current = withContinuation(view);
   while (
-    Buffer.byteLength(JSON.stringify(current), 'utf8') > maxBytes &&
+    Buffer.byteLength(JSON.stringify(current, null, 2), 'utf8') > maxBytes &&
     current.options.length > 1
   ) {
     const keep = Math.max(1, Math.floor(current.options.length * 0.75));
@@ -329,8 +360,30 @@ export function enforceBudget(view: OptionsView, maxBytes: number): OptionsView 
       options: current.options.slice(0, keep),
       truncated: { shown: keep, total: view.page.total },
     };
+    current = withContinuation(current);
   }
-  return current;
+  return withContinuation(current);
+}
+
+function withContinuation(view: OptionsView): OptionsView {
+  const nextOffset = view.page.offset + view.options.length;
+  if (view.options.length === 0 || nextOffset >= view.page.total) {
+    const { next: _next, ...withoutNext } = view;
+    return withoutNext;
+  }
+  return { ...view, next: continuation(view) };
+}
+
+function continuation(view: OptionsView): NonNullable<OptionsView['next']> {
+  return { tool: 'dcsc_list_options', arguments: {
+    session: view.session,
+    ...(view.query !== undefined ? { query: view.query } : {}),
+    ...(view.tab !== undefined ? { tab: view.tab } : {}),
+    ...(view.section !== undefined ? { section: view.section } : {}),
+    ...(view.filter !== undefined ? { filter: view.filter } : {}),
+    limit: view.page.limit,
+    offset: view.page.offset + view.options.length,
+  } };
 }
 
 export interface FeatureDetail {
@@ -339,6 +392,8 @@ export interface FeatureDetail {
   tab: string;
   section: string;
   sectionTitle: string;
+  /** DCSC's internal section name — the identifier mutations resolve against. */
+  sectionName: string;
   min: number;
   max: number;
   unitPrice: number;
@@ -366,6 +421,7 @@ export function projectFeatureDetail(
     tab: f.tab,
     section: f.section,
     sectionTitle: f.sectionTitle,
+    sectionName: f.sectionName ?? '',
     min: f.min,
     max: f.max,
     unitPrice: round(f.unitPrice),

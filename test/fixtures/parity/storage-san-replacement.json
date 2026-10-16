@@ -1,0 +1,49 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Anonymous headless AI/HPC workspace; edit a physically placed DB710S, then change its configured SAN selector to Direct Attached Connection",
+    "evidence": "artifacts/parity-headless/storage-san-postplacement-r48"
+  },
+  "definitionName": "Parity Postplacement Edit",
+  "template": {
+    "id": "san-template",
+    "code": "7DHNCTO1WW",
+    "type": "switch",
+    "selectedFeature": { "code": "C1FP", "quantity": 1 }
+  },
+  "physical": {
+    "id": "san-physical",
+    "rackId": "rack-1",
+    "position": 4,
+    "code": "7DHNCTO1WW",
+    "type": "switch"
+  },
+  "before": {
+    "mainSwitch": {
+      "hardwareType": "switch",
+      "option": "7DHNCTO1WW",
+      "featureCode": "C1FM",
+      "id": "san-template"
+    },
+    "cloneDependency": ["san-template", "san-physical"],
+    "commercial": [
+      { "code": "7DHNCTO1WW", "type": "hardware", "quantity": 1, "price": 19037.51, "unitPrice": 19037.51 },
+      { "code": "5WS7C21341", "type": "service", "quantity": 1, "price": 629, "unitPrice": 629 },
+      { "code": "5MS7B07545", "type": "service", "quantity": 1, "price": 95, "unitPrice": 95 }
+    ]
+  },
+  "after": {
+    "mainSwitch": { "hardwareType": "switch", "option": "", "featureCode": "" },
+    "templateRetained": true,
+    "physicalRetained": true,
+    "cloneDependencyRetained": true,
+    "nonRackPhysicalItems": [],
+    "nativeCommercial": [
+      { "code": "7DHNCTO1WW", "type": "hardware", "quantity": 2, "price": 38075.02, "unitPrice": 19037.51 },
+      { "code": "5WS7C21341", "type": "service", "quantity": 2, "price": 629, "unitPrice": 629 },
+      { "code": "5MS7B07545", "type": "service", "quantity": 2, "price": 95, "unitPrice": 95 }
+    ],
+    "mcpCorrectedPhysicalQuantity": 1,
+    "nativeCommercialDifference": "website-counts-detached-template"
+  }
+}

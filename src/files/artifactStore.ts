@@ -1,12 +1,31 @@
-import { createWriteStream, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  createWriteStream,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
+import { Readable, Transform, type TransformCallback } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { createHash } from 'node:crypto';
 import yauzl from 'yauzl';
 
 import { MAGIC_BYTES } from '../config/constants.js';
 import type { Config } from '../config/schema.js';
+
+const OWNED_ARTIFACT = 'lenovo-dcsc-export';
+const OWNED_ARTIFACT_VERSION = 1;
+const PREVIEW_BYTES = 200;
+const MAX_MANIFEST_BYTES = 64 * 1024;
+const DAY_DIRECTORY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Final artifact directories currently being published in this process. */
+const activeArtifacts = new Set<string>();
 
 export interface ExportMember {
   name: string;
@@ -24,10 +43,29 @@ export interface ExportBundle {
   warnings: string[];
 }
 
+export interface ArtifactCleanupResult {
+  removed: string[];
+  warnings: string[];
+}
+
+export interface RecoveryArtifact {
+  path: string;
+  bytes: number;
+  sha256: string;
+  format: 'lenovo-dcsc-session-snapshot-v2' | 'lenovo-dcsc-session-source-bytes';
+  warnings: string[];
+}
+
+interface OwnedArtifactManifest {
+  owner?: unknown;
+  version?: unknown;
+  status?: unknown;
+  createdAt?: unknown;
+}
+
 export function artifactDir(config: Config): string {
   if (config.files.artifactDir) return config.files.artifactDir;
-  const base =
-    process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
+  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
   return join(base, 'lenovo-dcsc', 'artifacts');
 }
 
@@ -48,70 +86,344 @@ export function sanitiseFileName(name: string): string {
 }
 
 /**
- * Streams the export to disk, verifies it is genuinely a ZIP, then unpacks it.
+ * Removes only completed export bundles that this module marked as owned.
  *
- * The magic-byte check is not optional: DCSC's form-POST endpoints return
- * errors with HTTP 200 and a Content-Disposition header, so trusting the status
- * code alone silently produces corrupt output.
+ * Unmarked directories, user imports, symlinks and in-progress publications
+ * are deliberately ignored. A caller may run this concurrently with an export:
+ * staging directories are hidden and a final directory remains in activeArtifacts
+ * until writeExportBundle has returned.
+ */
+export function cleanupExpiredArtifacts(
+  config: Config,
+  nowMs = Date.now(),
+): ArtifactCleanupResult {
+  const root = resolve(artifactDir(config));
+  const cutoff = nowMs - config.files.artifactTtlDays * 24 * 60 * 60 * 1_000;
+  const removed: string[] = [];
+  const warnings: string[] = [];
+
+  let days;
+  try {
+    days = readdirSync(root, { withFileTypes: true });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { removed, warnings };
+    return {
+      removed,
+      warnings: [`Could not inspect artifact retention directory: ${errorMessage(err)}`],
+    };
+  }
+
+  for (const day of days) {
+    if (!day.isDirectory() || !DAY_DIRECTORY.test(day.name)) continue;
+    const dayPath = resolve(root, day.name);
+    if (!isInside(root, dayPath)) continue;
+
+    let candidates;
+    try {
+      candidates = readdirSync(dayPath, { withFileTypes: true });
+    } catch (err) {
+      warnings.push(`Could not inspect artifact directory ${dayPath}: ${errorMessage(err)}`);
+      continue;
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate.isDirectory() || candidate.name.startsWith('.')) continue;
+      const candidatePath = resolve(dayPath, candidate.name);
+      if (!isInside(root, candidatePath) || activeArtifacts.has(candidatePath)) continue;
+
+      try {
+        const stat = lstatSync(candidatePath);
+        if (!stat.isDirectory() || stat.isSymbolicLink()) continue;
+        const manifestPath = join(candidatePath, 'manifest.json');
+        const manifestStat = lstatSync(manifestPath);
+        if (
+          !manifestStat.isFile() ||
+          manifestStat.isSymbolicLink() ||
+          manifestStat.size > MAX_MANIFEST_BYTES
+        ) {
+          continue;
+        }
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as OwnedArtifactManifest;
+        if (
+          manifest.owner !== OWNED_ARTIFACT ||
+          manifest.version !== OWNED_ARTIFACT_VERSION ||
+          manifest.status !== 'complete' ||
+          typeof manifest.createdAt !== 'string'
+        ) {
+          continue;
+        }
+        const createdAt = Date.parse(manifest.createdAt);
+        if (!Number.isFinite(createdAt) || createdAt >= cutoff) continue;
+        rmSync(candidatePath, { recursive: true, force: true });
+        removed.push(candidatePath);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        // A directory without our manifest is not ours to manage.
+        if (code !== 'ENOENT') {
+          warnings.push(`Could not inspect or expire artifact ${candidatePath}: ${errorMessage(err)}`);
+        }
+      }
+    }
+
+    // Remove the date container only when it became empty. Never recurse here.
+    try {
+      if (readdirSync(dayPath).length === 0) rmSync(dayPath);
+    } catch {
+      // Another export may have created an entry between the read and removal.
+    }
+  }
+
+  return { removed, warnings };
+}
+
+/**
+ * Streams the export into a private staging directory, verifies and extracts it,
+ * then publishes the whole bundle with one directory rename.
+ *
+ * The download limit is enforced before each chunk reaches disk. Hashing and the
+ * error preview are gathered during that same pass, so the completed ZIP is never
+ * read back into memory.
  */
 export async function writeExportBundle(
   stream: NodeJS.ReadableStream,
   fileName: string,
   config: Config,
 ): Promise<ExportBundle> {
+  const cleanup = cleanupExpiredArtifacts(config);
+  const root = resolve(artifactDir(config));
   const day = new Date().toISOString().slice(0, 10);
-  const dir = join(artifactDir(config), day, sanitiseFileName(fileName));
-  mkdirSync(dir, { recursive: true });
+  const dayDir = join(root, day);
+  const safeName = sanitiseFileName(fileName);
+  const artifactName = `${safeName}-${randomUUID()}`;
+  const finalDir = resolve(dayDir, artifactName);
+  const stagingDir = resolve(dayDir, `.${artifactName}.tmp`);
 
-  const zipPath = join(dir, `${sanitiseFileName(fileName)}.zip`);
-  await pipeline(stream, createWriteStream(zipPath));
+  if (!isInside(root, finalDir) || !isInside(root, stagingDir)) {
+    throw new Error('Refusing to write an export outside the configured artifact directory.');
+  }
 
-  const bytes = statSync(zipPath).size;
-  const buf = readFileSync(zipPath);
-  const head = buf.subarray(0, 4);
+  mkdirSync(dayDir, { recursive: true });
+  mkdirSync(stagingDir);
+  activeArtifacts.add(finalDir);
 
-  if (!head.equals(MAGIC_BYTES.zip) && !head.equals(MAGIC_BYTES.zipEmpty)) {
-    const preview = buf.subarray(0, 200).toString('utf8');
-    throw new Error(
-      `DCSC returned HTTP 200 but the body is not a ZIP archive (starts with ${JSON.stringify(
-        preview.slice(0, 80),
-      )}). This is an error response disguised as a download.`,
+  try {
+    const stagedZipPath = join(stagingDir, `${safeName}.zip`);
+    const inspection = new DownloadInspector(config.files.maxDownloadBytes);
+    await pipeline(stream, inspection, createWriteStream(stagedZipPath, { flags: 'wx' }));
+
+    const head = inspection.preview.subarray(0, 4);
+    if (!head.equals(MAGIC_BYTES.zip) && !head.equals(MAGIC_BYTES.zipEmpty)) {
+      const preview = inspection.preview.toString('utf8');
+      throw new Error(
+        `DCSC returned HTTP 200 but the body is not a ZIP archive (starts with ${JSON.stringify(
+          preview.slice(0, 80),
+        )}). This is an error response disguised as a download.`,
+      );
+    }
+
+    const warnings = [...cleanup.warnings];
+    if (head.equals(MAGIC_BYTES.zipEmpty)) {
+      warnings.push(
+        'DCSC returned an empty archive. This usually means no export formats were accepted.',
+      );
+    }
+
+    const stagedMembers = await unzip(stagedZipPath, stagingDir, config);
+    const finalZipPath = join(finalDir, `${safeName}.zip`);
+    const members = stagedMembers.map((member) => ({
+      ...member,
+      path: join(finalDir, 'extracted', sanitiseFileName(member.name)),
+    }));
+    const xml = members.find((member) => member.name.toLowerCase().endsWith('.xml'));
+    const workbooks = members
+      .filter((member) => /\.xlsx?$/i.test(member.name))
+      .map((member) => member.path);
+
+    if (!xml && !head.equals(MAGIC_BYTES.zipEmpty)) {
+      warnings.push('No XML member found — this archive cannot be imported into Lenovo Bid Portal.');
+    }
+
+    const bundle: ExportBundle = {
+      zipPath: finalZipPath,
+      bytes: inspection.bytes,
+      sha256: inspection.digest(),
+      members,
+      ...(xml ? { xml: xml.path } : {}),
+      workbooks,
+      warnings,
+    };
+
+    writeFileSync(
+      join(stagingDir, 'manifest.json'),
+      JSON.stringify(
+        {
+          owner: OWNED_ARTIFACT,
+          version: OWNED_ARTIFACT_VERSION,
+          status: 'complete',
+          ...bundle,
+          createdAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+      { encoding: 'utf8', flush: true },
     );
+
+    renameSync(stagingDir, finalDir);
+    return bundle;
+  } catch (err) {
+    rmSync(stagingDir, { recursive: true, force: true });
+    throw err;
+  } finally {
+    activeArtifacts.delete(finalDir);
+  }
+}
+
+/**
+ * Publishes a bounded JSON recovery snapshot through the same owned-artifact
+ * lifecycle as downloaded exports. The supplied JSON is preserved byte for
+ * byte; callers remain responsible for choosing the recovery envelope.
+ */
+export async function writeRecoveryArtifact(
+  json: string,
+  fileName: string,
+  config: Config,
+): Promise<RecoveryArtifact> {
+  try {
+    JSON.parse(json);
+  } catch {
+    throw new Error('Recovery artifact content must be valid JSON.');
+  }
+  return writeRecoveryContent(Buffer.from(json, 'utf8'), fileName, config, 'lenovo-dcsc-session-snapshot-v2', 'json');
+}
+
+/** Corrupt source files must remain recoverable without decoding or JSON normalization. */
+export async function writeRecoverySourceArtifact(
+  bytes: Buffer,
+  fileName: string,
+  config: Config,
+): Promise<RecoveryArtifact> {
+  return writeRecoveryContent(bytes, fileName, config, 'lenovo-dcsc-session-source-bytes', 'bin');
+}
+
+async function writeRecoveryContent(
+  bytes: Buffer,
+  fileName: string,
+  config: Config,
+  format: RecoveryArtifact['format'],
+  extension: 'json' | 'bin',
+): Promise<RecoveryArtifact> {
+  if (bytes.length > config.files.maxDownloadBytes) {
+    throw new Error(`Recovery artifact exceeded the configured download limit of ${config.files.maxDownloadBytes} bytes.`);
   }
 
-  const warnings: string[] = [];
-  if (head.equals(MAGIC_BYTES.zipEmpty)) {
-    warnings.push(
-      'DCSC returned an empty archive. This usually means no export formats were accepted.',
+  const cleanup = cleanupExpiredArtifacts(config);
+  const root = resolve(artifactDir(config));
+  const day = new Date().toISOString().slice(0, 10);
+  const dayDir = join(root, day);
+  const safeName = sanitiseFileName(fileName.replace(/\.json$/i, ''));
+  const artifactName = `${safeName}-${randomUUID()}`;
+  const finalDir = resolve(dayDir, artifactName);
+  const stagingDir = resolve(dayDir, `.${artifactName}.tmp`);
+
+  if (!isInside(root, finalDir) || !isInside(root, stagingDir)) {
+    throw new Error('Refusing to write a recovery artifact outside the configured artifact directory.');
+  }
+
+  mkdirSync(dayDir, { recursive: true });
+  mkdirSync(stagingDir);
+  activeArtifacts.add(finalDir);
+
+  try {
+    const outputName = `${safeName}.${extension}`;
+    const stagedPath = join(stagingDir, outputName);
+    const finalPath = join(finalDir, outputName);
+    const inspection = new DownloadInspector(config.files.maxDownloadBytes, 'Recovery artifact');
+    await pipeline(
+      Readable.from([bytes]),
+      inspection,
+      createWriteStream(stagedPath, { flags: 'wx' }),
     );
+    const artifact: RecoveryArtifact = {
+      path: finalPath,
+      bytes: inspection.bytes,
+      sha256: inspection.digest(),
+      format,
+      warnings: [...cleanup.warnings],
+    };
+    writeFileSync(
+      join(stagingDir, 'manifest.json'),
+      JSON.stringify(
+        {
+          owner: OWNED_ARTIFACT,
+          version: OWNED_ARTIFACT_VERSION,
+          status: 'complete',
+          kind: extension === 'json' ? 'recovery-json' : 'recovery-source',
+          ...artifact,
+          createdAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+      { encoding: 'utf8', flush: true },
+    );
+    renameSync(stagingDir, finalDir);
+    return artifact;
+  } catch (err) {
+    rmSync(stagingDir, { recursive: true, force: true });
+    throw err;
+  } finally {
+    activeArtifacts.delete(finalDir);
+  }
+}
+
+class DownloadInspector extends Transform {
+  bytes = 0;
+  #hash = createHash('sha256');
+  #preview = Buffer.alloc(0);
+  #digested = false;
+
+  constructor(
+    private readonly maxBytes: number,
+    private readonly subject = 'DCSC export',
+  ) {
+    super();
   }
 
-  const members = await unzip(zipPath, dir, config);
-  const xml = members.find((m) => m.name.toLowerCase().endsWith('.xml'));
-  const workbooks = members
-    .filter((m) => /\.xlsx?$/i.test(m.name))
-    .map((m) => m.path);
-
-  if (!xml && !head.equals(MAGIC_BYTES.zipEmpty)) {
-    warnings.push('No XML member found — this archive cannot be imported into Lenovo Bid Portal.');
+  get preview(): Buffer {
+    return this.#preview;
   }
 
-  const bundle: ExportBundle = {
-    zipPath,
-    bytes,
-    sha256: createHash('sha256').update(buf).digest('hex').slice(0, 16),
-    members,
-    ...(xml ? { xml: xml.path } : {}),
-    workbooks,
-    warnings,
-  };
+  digest(): string {
+    if (this.#digested) throw new Error('Export hash was already finalized.');
+    this.#digested = true;
+    return this.#hash.digest('hex');
+  }
 
-  writeFileSync(
-    join(dir, 'manifest.json'),
-    JSON.stringify({ ...bundle, createdAt: new Date().toISOString() }, null, 2),
-  );
+  override _transform(
+    chunk: Buffer | string,
+    encoding: BufferEncoding,
+    callback: TransformCallback,
+  ): void {
+    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    const nextBytes = this.bytes + data.length;
+    if (nextBytes > this.maxBytes) {
+      callback(
+        new Error(
+          `${this.subject} exceeded the configured download limit of ${this.maxBytes} bytes.`,
+        ),
+      );
+      return;
+    }
 
-  return bundle;
+    this.bytes = nextBytes;
+    this.#hash.update(data);
+    if (this.#preview.length < PREVIEW_BYTES) {
+      const remaining = PREVIEW_BYTES - this.#preview.length;
+      this.#preview = Buffer.concat([this.#preview, data.subarray(0, remaining)]);
+    }
+    callback(null, data);
+  }
 }
 
 async function unzip(zipPath: string, dir: string, config: Config): Promise<ExportMember[]> {
@@ -124,10 +436,13 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
       if (err || !zip) return reject(err ?? new Error('Could not open export archive'));
 
       const members: ExportMember[] = [];
+      const outputNames = new Set<string>();
       let totalBytes = 0;
+      let entryCount = 0;
 
       zip.on('entry', (entry: yauzl.Entry) => {
-        if (members.length >= config.files.maxUnzipEntries) {
+        entryCount += 1;
+        if (entryCount > config.files.maxUnzipEntries) {
           zip.close();
           return reject(new Error('Export archive has too many entries.'));
         }
@@ -135,8 +450,14 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
         if (entry.fileName.endsWith('/')) return zip.readEntry();
 
         const safeName = sanitiseFileName(entry.fileName);
+        if (outputNames.has(safeName)) {
+          zip.close();
+          return reject(new Error(`Export archive contains duplicate output name: ${safeName}`));
+        }
+        outputNames.add(safeName);
+
         const target = resolve(join(outDir, safeName));
-        if (!target.startsWith(root + sep)) {
+        if (!isInside(root, target)) {
           zip.close();
           return reject(new Error(`Refusing to extract outside the target directory: ${entry.fileName}`));
         }
@@ -159,7 +480,7 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
             zip.close();
             return reject(rsErr ?? new Error('Could not read archive entry'));
           }
-          pipeline(readStream, createWriteStream(target))
+          pipeline(readStream, createWriteStream(target, { flags: 'wx' }))
             .then(() => {
               members.push({
                 name: entry.fileName,
@@ -168,7 +489,10 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
               });
               zip.readEntry();
             })
-            .catch(reject);
+            .catch((streamErr: unknown) => {
+              zip.close();
+              reject(streamErr);
+            });
         });
       });
 
@@ -177,4 +501,12 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
       zip.readEntry();
     });
   });
+}
+
+function isInside(root: string, candidate: string): boolean {
+  return candidate.startsWith(root + sep);
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

@@ -1,0 +1,21 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/nested-vlh-browser-run16/16-request.json",
+    "workflow": "D3 chassis Add Node -> Already Configured Nodes -> SD535 at Non Rack Area -> As Copy"
+  },
+  "rackArea": [{
+    "id": "rack-1", "code": "7D6DCTO1WW", "type": "rack", "size": 42,
+    "rackItems": [{
+      "id": "chassis-1", "code": "7DD0CTOLWW", "type": "chassis", "position": 1,
+      "size": 2, "capacity": 4, "nodes": [], "opaqueChassis": { "retained": true }
+    }]
+  }],
+  "nonRackArea": [{
+    "id": "node-source", "code": "7DD1CTOLWW", "type": "node", "position": 1,
+    "size": 0, "capacity": 0, "occupiedBay": 1, "nodes": [],
+    "features": [{ "name": "BASE", "results": [{ "code": "BWSY", "quantity": 1 }] }],
+    "opaqueNode": { "retained": true }
+  }],
+  "copyId": "node-copy"
+}

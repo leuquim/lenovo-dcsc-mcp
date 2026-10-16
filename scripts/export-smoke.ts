@@ -7,9 +7,11 @@
  *
  * Run with: npx tsx scripts/export-smoke.ts
  */
-import { writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { createWriteStream } from 'node:fs';
+import type { ZipFile } from 'yauzl';
 
 import { loadConfig } from '../src/config/load.js';
 import { fetchSolutionModes, toSolutionContext } from '../src/domain/context.js';
@@ -30,6 +32,7 @@ import type { RawConfiguration } from '../src/model/types.js';
 const OUT = 'artifacts';
 
 async function main(): Promise<void> {
+  mkdirSync(OUT, { recursive: true });
   const config = loadConfig({ logLevel: process.env.DCSC_LOG_LEVEL ?? 'warn' });
   configureLogger(config.logLevel);
   const http = new DcscHttpClient(config);
@@ -88,10 +91,9 @@ async function main(): Promise<void> {
     // and jumping straight to a change makes the rule engine return HTTP 500.
     console.log('\n2. initial autoDerive (no delta) — materialises derived sections');
     const primed = await derive('priming');
-    if (primed) {
-      reduced = reduceConfiguration(primed, configurationId);
-      console.log(`      sections now: ${reduced.sections.length}`);
-    }
+    assert(primed, 'Priming autoDerive returned no configuration.');
+    reduced = reduceConfiguration(primed, configurationId);
+    console.log(`      sections now: ${reduced.sections.length}`);
 
     // 3. Now apply the real change.
     console.log('\n3. autoDerive: swap processor to BYWK (Xeon Gold 6530 32C 270W)');
@@ -101,17 +103,18 @@ async function main(): Promise<void> {
       quantity: 1,
     });
     const updated = await derive('change');
-    if (updated) {
-      reduced = reduceConfiguration(updated, configurationId);
-      console.log(`      new totalPrice = ${updated.totalPrice}`);
-      console.log(`      PROCESSOR now: ${findSelected(updated, 'PROCESSOR').join(', ')}`);
-    }
+    assert(updated, 'Processor autoDerive returned no configuration.');
+    reduced = reduceConfiguration(updated, configurationId);
+    const processors = findSelected(updated, 'PROCESSOR');
+    assert.deepEqual(processors, ['BYWK x1'], `DCSC did not accept the requested BYWK processor: ${processors.join(', ')}`);
+    console.log(`      new totalPrice = ${updated.totalPrice}`);
+    console.log(`      PROCESSOR now: ${processors.join(', ')}`);
 
     // 3. Export with the format flags recovered from the capture.
     console.log('\n4. export_zip with exportFileTypes');
     const fileTypes: ExportFileType[] = ['XML', 'QUOTE', 'SUMMARY', 'POWER_REPORT'];
     const exportData = buildExportData({
-      raw: updated ?? raw,
+      raw: updated,
       config: reduced,
       solution,
       fileTypes,
@@ -119,7 +122,7 @@ async function main(): Promise<void> {
     });
     const form = buildExportForm({
       data: exportData,
-      groups: buildGroups(updated ?? raw, configurationId),
+      groups: buildGroups(updated, configurationId),
     });
 
     const res = await http.send({
@@ -144,24 +147,18 @@ async function main(): Promise<void> {
     const size = statSync(path).size;
     console.log(`   -> wrote ${path} (${size} bytes)`);
 
-    const yauzl = await import('yauzl');
-    await new Promise<void>((resolve, reject) => {
-      yauzl.open(path, { lazyEntries: true }, (err, zip) => {
-        if (err || !zip) return reject(err ?? new Error('no zip'));
-        const names: string[] = [];
-        zip.on('entry', (e) => {
-          names.push(`${e.fileName} (${e.uncompressedSize} B)`);
-          zip.readEntry();
-        });
-        zip.on('end', () => {
-          console.log(`\n   ZIP CONTENTS (${names.length}):`);
-          for (const n of names) console.log(`     - ${n}`);
-          if (names.length === 0) console.log('     (EMPTY — exportFileTypes not accepted)');
-          resolve();
-        });
-        zip.readEntry();
-      });
-    });
+    const entries = await readZipEntries(path);
+    console.log(`\n   ZIP CONTENTS (${entries.length}):`);
+    for (const entry of entries) console.log(`     - ${entry.name} (${entry.data.length} B)`);
+    assert(entries.every(entry => entry.data.length > 0), 'Export ZIP contains an empty member.');
+    assert(entries.some(entry => /\.xml$/i.test(entry.name)), 'Export ZIP contains no nonempty XML file.');
+    const workbook = entries.find(entry => /\.xlsx$/i.test(entry.name));
+    assert(workbook, 'Export ZIP contains no nonempty workbook for QUOTE, SUMMARY and POWER_REPORT.');
+    const workbookEntries = await readZipEntries(workbook.data);
+    const workbookXml = workbookEntries.find(entry => entry.name === 'xl/workbook.xml')?.data.toString('utf8') ?? '';
+    for (const sheet of ['Quote', 'Summary', 'Power Report']) {
+      assert(workbookXml.includes(`name="${sheet}"`), `Export workbook is missing the requested ${sheet} sheet.`);
+    }
 
     writeFileSync(`${OUT}/export-form-sent.json`, JSON.stringify(exportData, null, 1));
     console.log(`\nBudget used: ${budget.used}/${budget.limit}`);
@@ -182,6 +179,39 @@ function findSelected(cfg: RawConfiguration, sectionName: string): string[] {
     }
   }
   return out;
+}
+
+async function readZipEntries(input: string | Buffer): Promise<Array<{ name: string; data: Buffer }>> {
+  const yauzl = await import('yauzl');
+  return new Promise((resolve, reject) => {
+    const opened = (err: Error | null, zip?: ZipFile): void => {
+      if (err || !zip) {
+        reject(err ?? new Error('ZIP could not be opened.'));
+        return;
+      }
+      const entries: Array<{ name: string; data: Buffer }> = [];
+      zip.on('error', reject);
+      zip.on('entry', entry => {
+        zip.openReadStream(entry, (streamError, stream) => {
+          if (streamError || !stream) {
+            reject(streamError ?? new Error(`ZIP member ${entry.fileName} could not be read.`));
+            return;
+          }
+          const chunks: Buffer[] = [];
+          stream.on('data', chunk => chunks.push(Buffer.from(chunk)));
+          stream.on('error', reject);
+          stream.on('end', () => {
+            entries.push({ name: entry.fileName, data: Buffer.concat(chunks) });
+            zip.readEntry();
+          });
+        });
+      });
+      zip.on('end', () => resolve(entries));
+      zip.readEntry();
+    };
+    if (Buffer.isBuffer(input)) yauzl.fromBuffer(input, { lazyEntries: true }, opened);
+    else yauzl.open(input, { lazyEntries: true }, opened);
+  });
 }
 
 main().catch((err: unknown) => {

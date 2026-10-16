@@ -1,0 +1,50 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "discovery-hpc-fresh-r19-2026-10-15/browser-export-data.json",
+    "workflow": "Fresh AI/HPC rack/server/switch, Automated Rack PDU off, P2P enabled, storage definition created; real browser Export Save produced ZIP"
+  },
+  "customizingFlags": {
+    "componentRestriction": true,
+    "autoDerive": true,
+    "ctoRules": true,
+    "minMax": true,
+    "placement": true,
+    "fromMemoryWizard": false,
+    "autoVariant": true,
+    "cogValidation": true,
+    "autoAddPDU": false,
+    "autoAddSwitch": true,
+    "p2pCabling": true,
+    "autoArrange": true,
+    "autoConnect": true
+  },
+  "networkingInformationKeys": [
+    "autoConnectResults",
+    "cables",
+    "clusterPreference",
+    "powerPreference",
+    "powerSelection",
+    "storageNetworks",
+    "switchMap"
+  ],
+  "storageNetworks": [
+    {
+      "name": "Parity Storage",
+      "maximumExpansions": 1,
+      "type": "General Storage",
+      "layout": "Fully Redundant",
+      "controller": {
+        "hardwareType": "storage",
+        "option": "7D4FCTO6WW",
+        "featureCode": "BCBN"
+      },
+      "expansion": {
+        "hardwareType": "storage"
+      },
+      "mainSwitch": {
+        "hardwareType": "switch"
+      }
+    }
+  ]
+}

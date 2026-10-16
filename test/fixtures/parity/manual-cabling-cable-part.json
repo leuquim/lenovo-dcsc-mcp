@@ -1,0 +1,104 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15T19:31:52.275Z",
+    "artifact": "artifacts/implementation-2026-10-15/manual-cable-browser-part/report.json",
+    "spaSource": "/tmp/dcsc-app-current.pretty.js:74381-74480 and 32506-32527",
+    "note": "The entranceFlag=auto_Derive_After_Import request was residual import traffic. selectCable performs one targeted configuration derive after local graph and rack-feature updates."
+  },
+  "physicalDestinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+  "configurationId": "US__02579351-49f4-427c-8a57-e472132552740",
+  "sectionName": "ETHERNET_CABLE",
+  "oldCode": "AVFT",
+  "newChoice": {
+    "category": "Cable",
+    "featureCode": "3802",
+    "ctoCode": "7D5FCTOFWW",
+    "description": "1.5m Blue Cat5e Cable",
+    "optionCode": "40K8785",
+    "price": 9.5,
+    "length": 1.5,
+    "selectionGroups": ["ETHERNET_CABLE"]
+  },
+  "beforeResults": [
+    {
+      "code": "3802",
+      "quantity": 1,
+      "ctoCode": "7D5FCTOFWW",
+      "description": "1.5m Blue Cat5e Cable",
+      "storageWizardDerived": false,
+      "type": "hardware",
+      "optionCode": ""
+    },
+    {
+      "code": "AVFT",
+      "quantity": 1,
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.75m Blue Cat5e Cable",
+      "storageWizardDerived": false,
+      "type": "hardware",
+      "optionCode": ""
+    }
+  ],
+  "beforeRackResults": [
+    {
+      "code": "3802",
+      "description": "1.5m Blue Cat5e Cable",
+      "quantity": 1,
+      "forAutoConnect": false,
+      "installations": [],
+      "attributeMap": null
+    },
+    {
+      "code": "AVFT",
+      "description": "0.75m Blue Cat5e Cable",
+      "quantity": 1,
+      "forAutoConnect": true,
+      "installations": [],
+      "attributeMap": null
+    }
+  ],
+  "expectedRequest": {
+    "query": {
+      "configurationId": "US__02579351-49f4-427c-8a57-e472132552740"
+    },
+    "customizingIds": ["US__02579351-49f4-427c-8a57-e472132552740"],
+    "delta": {
+      "section": "ETHERNET_CABLE",
+      "featureCode": "3802",
+      "quantity": 1,
+      "isClear": false,
+      "type": "hardware"
+    },
+    "results": [
+      {
+        "code": "3802",
+        "quantity": 1,
+        "ctoCode": "7D5FCTOFWW",
+        "description": "1.5m Blue Cat5e Cable",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      },
+      {
+        "code": "3802",
+        "quantity": 1,
+        "type": "hardware",
+        "autoCorrected": false
+      }
+    ],
+    "rackResults": [
+      {
+        "code": "3802",
+        "description": "1.5m Blue Cat5e Cable",
+        "quantity": 1,
+        "forAutoConnect": false,
+        "installations": [],
+        "attributeMap": null
+      }
+    ]
+  },
+  "authoritativeResponse": {
+    "totalPrice": 6760.51,
+    "results": [{"code": "3802", "quantity": 1}]
+  }
+}

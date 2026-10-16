@@ -107,6 +107,15 @@ export interface SearchOptions {
   hardwareType?: string | undefined;
   includeWithdrawn?: boolean | undefined;
   limit?: number | undefined;
+  offset?: number | undefined;
+}
+
+export interface CatalogPage<T> {
+  items: T[];
+  /** Total after query/filtering and before pagination. */
+  total: number;
+  offset: number;
+  limit: number;
 }
 
 /**
@@ -116,7 +125,15 @@ export interface SearchOptions {
  * should not have to page through fuzzy hits to confirm it.
  */
 export function searchCatalog(catalog: Catalog, opts: SearchOptions): CatalogEntry[] {
-  const limit = opts.limit ?? 20;
+  return searchCatalogPage(catalog, opts).items;
+}
+
+/** Ranked search with a true filtered total and an offset cursor. */
+export function searchCatalogPage(
+  catalog: Catalog,
+  opts: SearchOptions,
+): CatalogPage<CatalogEntry> {
+  const { offset, limit } = pagination(opts.offset, opts.limit, 20);
   const needle = opts.query.trim().toLowerCase();
   const tokens = needle.split(/\s+/).filter(Boolean);
 
@@ -146,21 +163,37 @@ export function searchCatalog(catalog: Catalog, opts: SearchOptions): CatalogEnt
   }
 
   scored.sort((a, b) => b.score - a.score || a.entry.code.localeCompare(b.entry.code));
-  return scored.slice(0, limit).map((s) => s.entry);
+  return {
+    items: scored.slice(offset, offset + limit).map((s) => s.entry),
+    total: scored.length,
+    offset,
+    limit,
+  };
 }
 
 export interface BrowseResult {
   path: string[];
   children: Array<{ name: string; id: string; childCount: number; productCount: number }>;
   products: CatalogEntry[];
+  page: { offset: number; limit: number; total: number };
+}
+
+export interface BrowseOptions {
+  includeWithdrawn?: boolean | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
 }
 
 /** Walks one level of the tree, for the rare case structure matters. */
 export function browseCatalog(
   catalog: Catalog,
   path: string[] = [],
-  includeWithdrawn = false,
+  includeWithdrawnOrOptions: boolean | BrowseOptions = false,
 ): BrowseResult {
+  const options =
+    typeof includeWithdrawnOrOptions === 'boolean'
+      ? { includeWithdrawn: includeWithdrawnOrOptions }
+      : includeWithdrawnOrOptions;
   let nodes: CategoryNode[] = catalog.tree;
   const walked: string[] = [];
 
@@ -173,11 +206,19 @@ export function browseCatalog(
     nodes = match.children ?? [];
   }
 
-  const products = catalog.entries.filter(
+  const allProducts = catalog.entries.filter(
     (e) =>
-      e.path.length === walked.length + 1 &&
+      // A non-empty path names the category whose direct products are being
+      // browsed. At the root there is no selected category, so retain the old
+      // behavior of showing products attached to top-level categories.
+      e.path.length === walked.length + (walked.length === 0 ? 1 : 0) &&
       walked.every((seg, i) => e.path[i] === seg) &&
-      (includeWithdrawn || !e.withdrawn),
+      (options.includeWithdrawn || !e.withdrawn),
+  );
+  const { offset, limit } = pagination(
+    options.offset,
+    options.limit,
+    Math.max(1, allProducts.length),
   );
 
   return {
@@ -188,6 +229,23 @@ export function browseCatalog(
       childCount: n.children?.length ?? 0,
       productCount: n.products?.length ?? 0,
     })),
-    products,
+    products: allProducts.slice(offset, offset + limit),
+    page: { offset, limit, total: allProducts.length },
   };
+}
+
+function pagination(
+  requestedOffset: number | undefined,
+  requestedLimit: number | undefined,
+  defaultLimit: number,
+): { offset: number; limit: number } {
+  const offset = requestedOffset ?? 0;
+  const limit = requestedLimit ?? defaultLimit;
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new RangeError('Catalog offset must be a non-negative integer.');
+  }
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError('Catalog limit must be a positive integer.');
+  }
+  return { offset, limit };
 }

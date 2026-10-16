@@ -1,0 +1,80 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15",
+    "browser": "headless Chromium",
+    "endpoint": "/lfos/export_zip",
+    "product": "7DCE100GNA",
+    "evidence": "artifacts/implementation-2026-10-15/software-mixed-lfo-final/browser-mixed-qty4-oracle-form.json"
+  },
+  "configurationId": "lfo-config",
+  "mode": "lfo",
+  "raw": {
+    "id": "lfo-config",
+    "code": "7DCE100GNA",
+    "ctoCode": "7DCECTO1WW",
+    "description": "ThinkSystem ST250 V3-3yr Base Warranty",
+    "quantity": 1,
+    "totalPrice": 5325.5,
+    "totalPrices": [
+      { "priceTypeId": 1, "price": 5325.5, "priceNotAvailable": false }
+    ],
+    "showPrice": true,
+    "tabs": [
+      {
+        "type": "servicesAndor",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "Lenovo Recommends|Better",
+                "results": [
+                  { "code": "5WS7C02329", "quantity": 1, "price": 1154 },
+                  { "code": "5PS7C02338", "quantity": 1, "price": 142 },
+                  { "code": "5MS7B07545", "quantity": 1, "price": 95 }
+                ],
+                "features": [
+                  { "code": "5WS7C02329", "description": "3Yr Premier 24x7 4Hr Resp ST250 V3", "unitPrice": 1154 },
+                  { "code": "5PS7C02338", "description": "3Yr KYD Add-On ST250 V3", "unitPrice": 142 },
+                  { "code": "5MS7B07545", "description": "CO2 Offset 10 Metric Tonnes", "unitPrice": 95 }
+                ]
+              },
+              {
+                "name": "A la Carte|Column3|3 Year",
+                "results": [
+                  { "code": "5WS7C02329", "quantity": 1, "price": 1154 }
+                ],
+                "features": [
+                  { "code": "5WS7C02329", "description": "3Yr Premier 24x7 4Hr Resp ST250 V3", "unitPrice": 1154 }
+                ]
+              },
+              {
+                "name": "Add ons|Keep Your Drive|3 Year",
+                "results": [
+                  { "code": "5PS7C02338", "quantity": 1, "price": 142 }
+                ],
+                "features": [
+                  { "code": "5PS7C02338", "description": "3Yr KYD Add-On ST250 V3", "unitPrice": 142 }
+                ]
+              },
+              {
+                "name": "Add ons|CO2 Offset|CO2 Offset",
+                "results": [
+                  { "code": "5MS7B07545", "quantity": 1, "price": 95 }
+                ],
+                "features": [
+                  { "code": "5MS7B07545", "description": "CO2 Offset 10 Metric Tonnes", "unitPrice": 95 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": [
+    { "code": "7DCE100GNA", "type": "hardware", "quantity": 1, "price": 3934.5, "unitPrice": 3934.5 },
+    { "code": "5WS7C02329", "type": "added-options", "quantity": 1, "price": 1154, "unitPrice": 1154 },
+    { "code": "5PS7C02338", "type": "added-options", "quantity": 1, "price": 142, "unitPrice": 142 },
+    { "code": "5MS7B07545", "type": "added-options", "quantity": 1, "price": 95, "unitPrice": 95 }
+  ]
+}

@@ -18,6 +18,7 @@ export interface RawPrice {
 }
 
 export interface RawFeature {
+  [key: string]: unknown;
   code: string;
   description?: string | null;
   min?: number | null;
@@ -36,6 +37,7 @@ export interface RawFeature {
 
 /** An entry in `section.results[]` — i.e. a currently selected item. */
 export interface RawResult {
+  [key: string]: unknown;
   code?: string | null;
   quantity?: number | null;
   cost?: number | null;
@@ -45,6 +47,7 @@ export interface RawResult {
 }
 
 export interface RawSection {
+  [key: string]: unknown;
   name?: string | null;
   title?: string | null;
   description?: string | null;
@@ -60,6 +63,7 @@ export interface RawSection {
 }
 
 export interface RawSubTab {
+  [key: string]: unknown;
   title?: string | null;
   description?: string | null;
   type?: string | null;

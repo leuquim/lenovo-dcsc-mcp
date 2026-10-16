@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "host": "dcsc.lenovo.com",
+  "locale": {
+    "country": "US",
+    "geo": "NA",
+    "language": "en",
+    "currency": "USD"
+  },
+  "localeStrict": true,
+  "pacing": {
+    "maxConcurrency": 2,
+    "perToolRequestBudget": 40
+  },
+  "files": {
+    "persistSessions": true,
+    "sessionFile": "/absolute/path/to/state/sessions.json",
+    "artifactDir": "/absolute/path/to/state/artifacts",
+    "artifactTtlDays": 30
+  },
+  "logLevel": "info",
+  "logRawErrors": false,
+  "probe": false,
+  "record": false
+}

@@ -3,7 +3,17 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'fixtures/**', 'node_modules/**', 'artifacts/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'fixtures/**',
+      'node_modules/**',
+      'artifacts/**',
+      // Historical browser/API probes are retained as evidence. The directory's
+      // README explicitly excludes them from the maintained script surface.
+      'scripts/recon/**',
+    ],
+  },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

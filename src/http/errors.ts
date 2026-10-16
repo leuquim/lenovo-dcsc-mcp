@@ -1,4 +1,5 @@
 import { redactUnknown } from './redact.js';
+import { SessionPersistenceError } from '../session/persistenceError.js';
 
 export type DcscErrorKind =
   | 'validation'
@@ -192,21 +193,35 @@ export function isProblemJson(contentType: string | undefined): boolean {
   return contentType?.toLowerCase().includes('application/problem+json') ?? false;
 }
 
-const SERVER_ERROR_TEMPLATE =
-  'DCSC returned an internal error (HTTP {status}, trace {requestId}). ' +
-  'This usually means a required parameter was missing or the API shape changed.';
+const SAFE_REFERENCE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
+function safeReferenceId(value: string | undefined): string | undefined {
+  return value !== undefined && SAFE_REFERENCE_ID.test(value) ? value : undefined;
+}
 
 /**
  * Builds the user-facing message for a 5xx.
  *
  * This is the absolute sanitisation rule: for status >= 500 the user sees a
- * fixed template and nothing else. The raw body never escapes.
+ * fixed template plus syntactically safe correlation identifiers. The raw
+ * body never escapes.
  */
-export function serverErrorMessage(status: number, requestId: string | undefined): string {
-  return SERVER_ERROR_TEMPLATE.replace('{status}', String(status)).replace(
-    '{requestId}',
-    requestId ?? 'unknown',
-  );
+export function serverErrorMessage(
+  status: number,
+  requestId: string | undefined,
+  traceId?: string | undefined,
+  corrId?: string | undefined,
+): string {
+  const safeTraceId = safeReferenceId(traceId);
+  const safeRequestId = safeReferenceId(requestId);
+  const safeCorrId = safeReferenceId(corrId);
+  const references = [
+    ...(safeTraceId ? [`trace ${safeTraceId}`] : safeRequestId ? [`request ${safeRequestId}`] : []),
+    ...(safeCorrId ? [`correlation ${safeCorrId}`] : []),
+  ];
+  return `DCSC returned a server error (HTTP ${status}). ${references.length > 0
+    ? `References: ${references.join(', ')}.`
+    : 'No correlation reference was returned.'}`;
 }
 
 export interface BuildErrorInput {
@@ -261,7 +276,7 @@ export function buildHttpError(input: BuildErrorInput): DcscError {
   }
 
   // status >= 500
-  const userMessage = serverErrorMessage(status, requestId);
+  const userMessage = serverErrorMessage(status, requestId, traceId, corrId);
   if (method !== 'GET' && method !== 'HEAD') {
     return new DcscAmbiguousStateError({
       ...base,
@@ -283,8 +298,10 @@ export function buildHttpError(input: BuildErrorInput): DcscError {
 }
 
 /**
- * The MCP boundary. A tool result may contain only the user message, the
- * request id, and structured hints. Everything else is log-only.
+ * The MCP boundary. A tool result may contain only the user message,
+ * syntactically validated request/trace/correlation references, and structured
+ * hints. The endpoint, raw body, body hash and redacted internal detail remain
+ * log-only.
  *
  * Never construct tool errors anywhere else.
  */
@@ -292,15 +309,35 @@ export function toToolError(err: unknown): {
   error: string;
   kind: string;
   requestId?: string;
+  traceId?: string;
+  correlationId?: string;
   missingParam?: string;
   retryAfterMs?: number;
   capability?: string;
+  code?: string;
+  remoteApplied?: boolean;
+  localNotCommitted?: boolean;
+  retryable?: boolean;
+  operation?: string;
+  recoveryHint?: string;
 } {
+  if (err instanceof SessionPersistenceError) {
+    return {
+      error: err.message, kind: 'persistence', code: err.code,
+      remoteApplied: err.remoteApplied, localNotCommitted: true, retryable: false,
+      ...(err.operation ? { operation: err.operation } : {}), recoveryHint: err.recoveryHint,
+    };
+  }
   if (err instanceof DcscError) {
+    const requestId = safeReferenceId(err.requestId);
+    const traceId = safeReferenceId(err.traceId);
+    const correlationId = safeReferenceId(err.corrId);
     return {
       error: err.userMessage,
       kind: err.kind,
-      ...(err.requestId !== undefined ? { requestId: err.requestId } : {}),
+      ...(requestId !== undefined ? { requestId } : {}),
+      ...(traceId !== undefined ? { traceId } : {}),
+      ...(correlationId !== undefined ? { correlationId } : {}),
       ...(err instanceof DcscValidationError && err.missingParam !== undefined
         ? { missingParam: err.missingParam }
         : {}),

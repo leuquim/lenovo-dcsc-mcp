@@ -1,0 +1,68 @@
+{
+  "capturedAt": "2026-10-15T15:40:16.408Z",
+  "source": "Anonymous production DCSC browser, General Purpose, US/USD",
+  "trigger": "Rack menu > Customize on imported 7D6DCTO1WW",
+  "request": {
+    "method": "POST",
+    "path": "/api/ctos/autoDerive",
+    "query": {
+      "entranceFlag": "customize",
+      "_request": "web",
+      "guideMode": "true",
+      "configurationId": "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0"
+    },
+    "configurationIds": [
+      "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+      "US__b4c1cddd-19ce-46a5-aaaf-ecbbb62e78600"
+    ],
+    "customizingIds": ["US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0"],
+    "statusAutoDerivedConfigurationIds": [
+      "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+      "US__b4c1cddd-19ce-46a5-aaaf-ecbbb62e78600"
+    ],
+    "rackCount": 1,
+    "nonRackCount": 0
+  },
+  "response": {
+    "configurationCount": 1,
+    "configuration": {
+      "id": "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+      "sliceCtoCode": "7D6DCTO1WW",
+      "type": "rack",
+      "totalPrice": 12706.51,
+      "tabs": [],
+      "unSelectableCharacters": [
+        {
+          "name": "MECH_DERIVE_FCS",
+          "results": [
+            { "code": "4275", "quantity": 8, "description": "5U black plastic filler panel", "derived": true },
+            { "code": "4271", "quantity": 1, "description": "1U black plastic filler panel", "derived": true }
+          ]
+        }
+      ]
+    },
+    "metadata": {
+      "haveCsdResult": false,
+      "statusRelatedResult": {
+        "autoDerivedConfigurationIds": [
+          "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+          "US__b4c1cddd-19ce-46a5-aaaf-ecbbb62e78600"
+        ]
+      }
+    }
+  },
+  "importBaseline": {
+    "totalPrice": 12256.01,
+    "missingDerivedResults": ["4275", "4271"]
+  },
+  "effect": {
+    "priceDelta": 450.5,
+    "merge": "replace only the returned rack configuration by id; preserve the server and workspace layout; retain response metadata"
+  },
+  "rawEvidence": {
+    "manifest": "artifacts/implementation-2026-10-15/rack-recustomize-capture/manifest.json",
+    "request": "artifacts/implementation-2026-10-15/rack-recustomize-capture/recustomize-request.json",
+    "response": "artifacts/implementation-2026-10-15/rack-recustomize-capture/0-api_ctos_autoDerive-response.json",
+    "responseSha256": "c1bcf9262187d646c21e2418364ecb9e52b6448f4b1b4453126256858d197b28"
+  }
+}

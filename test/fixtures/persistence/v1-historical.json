@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "savedAt": 1700000000000,
+  "workspaces": [
+    {
+      "id": "ws_historical_v1",
+      "label": "Historical v1 fixture",
+      "locale": { "country": "US", "geo": "NA", "language": "en", "currency": "USD" },
+      "solution": { "solutionMode": "General Purpose", "masterSlices": ["ISG"] },
+      "validationMode": "guided",
+      "rackArea": [],
+      "rackSummaries": [],
+      "cables": [],
+      "floorItems": [],
+      "powerSelections": [],
+      "revision": 3,
+      "createdAt": 1699999999000,
+      "lastAccessAt": 1700000000000,
+      "pricedAt": 1700000000000,
+      "configurations": [
+        {
+          "id": "sess_historical_v1",
+          "label": "Saved server",
+          "product": { "code": "7D73CTO1WW", "description": "ThinkSystem SR630 V3", "type": "SERVER" },
+          "mode": "cto",
+          "validationMode": "guided",
+          "raw": {
+            "id": "US__historical_v1",
+            "sliceCtoCode": "7D73CTO1WW",
+            "description": "ThinkSystem SR630 V3",
+            "type": "SERVER",
+            "quantity": 2,
+            "unitPrice": 100,
+            "totalPrice": 200,
+            "tabs": []
+          },
+          "configurationId": "US__historical_v1",
+          "reduced": {
+            "id": "US__historical_v1",
+            "sliceCtoCode": "7D73CTO1WW",
+            "description": "ThinkSystem SR630 V3",
+            "type": "SERVER",
+            "quantity": 2,
+            "unitPrice": 100,
+            "totalPrice": 200,
+            "tabs": []
+          },
+          "primed": true,
+          "revision": 2,
+          "intents": [],
+          "snapshots": [
+            {
+              "revision": 1,
+              "raw": {
+                "id": "US__historical_v1",
+                "sliceCtoCode": "7D73CTO1WW",
+                "description": "ThinkSystem SR630 V3",
+                "type": "SERVER",
+                "quantity": 1,
+                "unitPrice": 100,
+                "totalPrice": 100,
+                "tabs": []
+              },
+              "reduced": {
+                "id": "US__historical_v1",
+                "sliceCtoCode": "7D73CTO1WW",
+                "description": "ThinkSystem SR630 V3",
+                "type": "SERVER",
+                "quantity": 1,
+                "unitPrice": 100,
+                "totalPrice": 100,
+                "tabs": []
+              }
+            }
+          ],
+          "createdAt": 1699999999000,
+          "lastAccessAt": 1700000000000,
+          "pricedAt": 1700000000000
+        }
+      ]
+    }
+  ]
+}

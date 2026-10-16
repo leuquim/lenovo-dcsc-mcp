@@ -1,0 +1,62 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/network-leaf-browser-workflow-run6",
+    "scope": "Fresh anonymous headless browser, imported two-server AI/HPC rack, Distributed Management with BPC7 main and leaf"
+  },
+  "preference": {
+    "name": "Management",
+    "networkType": "1GbE_Copper",
+    "networkLayout": "Distributed",
+    "mainSwitch": { "feature": "BPC7", "option": "7D5FCTOFWW" },
+    "leafSwitch": { "feature": "BPC7", "option": "7D5FCTOFWW" },
+    "trunks": 1,
+    "leafTrunks": 1,
+    "leafCabling": "Balance Connections across leaf switches (best performance)"
+  },
+  "closeOrchestration": [
+    "switch_calculation",
+    "automatic_switch_launch",
+    "racks_customize",
+    "workspace_autoDerive"
+  ],
+  "settings": {
+    "initialP2p": true,
+    "disableAutoConnectRequests": 0,
+    "enableAutoConnectRequests": 1,
+    "final": { "autoAddPDU": false, "autoAddSwitch": true, "p2pCabling": true }
+  },
+  "switchMap": [
+    { "network": "Management", "type": "leaf", "code": "7D5FCTOFWW" },
+    { "network": "Management", "type": "main", "code": "7D5FCTOFWW" }
+  ],
+  "connections": [
+    {
+      "sourceRole": "leaf",
+      "destinationRole": "main",
+      "sourcePortNumber": "1",
+      "destinationPortNumber": "2",
+      "cablePart": "3791",
+      "cableOption": "40K8933",
+      "totalDistance": 0.44445
+    },
+    {
+      "sourceRole": "server@U1",
+      "destinationRole": "leaf",
+      "sourcePortNumber": "1",
+      "destinationPortNumber": "3",
+      "cablePart": "AVFW",
+      "cableOption": "00WE123",
+      "totalDistance": 0.6667000000000001
+    },
+    {
+      "sourceRole": "server@U2",
+      "destinationRole": "leaf",
+      "sourcePortNumber": "1",
+      "destinationPortNumber": "2",
+      "cablePart": "AVFW",
+      "cableOption": "00WE123",
+      "totalDistance": 0.62225
+    }
+  ]
+}

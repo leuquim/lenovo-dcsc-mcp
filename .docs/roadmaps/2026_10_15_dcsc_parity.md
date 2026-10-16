@@ -1,6 +1,6 @@
 # DCSC MCP correctness and website-parity roadmap
 
-**Date:** 2026-10-15  
+**Date:** 2026-10-15
 **Status:** Final frozen verification is complete for the implemented scope; website parity remains partial because no tested native storage design has produced a populated connection graph for the managed physical-alias cable-edit gate. See the [implementation ledger](2026_10_15_dcsc_progress.md) and [current context](../context.md).
 **Baseline:** Materialized snapshot `20261016T041423Z`, including its reviewed tracked patch, untracked runtime inputs and ignored roadmap documents.
 **Scope:** Resolve all 23 findings in the verified review (local `artifacts/review-2026-10-15/review.txt`), plus the import and validation defects confirmed during planning. Browser checks must run headless.

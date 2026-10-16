@@ -1,0 +1,1021 @@
+[
+  {
+    "name": "US_SHIPMENT_INDICATOR",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Base",
+    "results": [
+      {
+        "code": "CA0Z",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Variable Supply Choice for Motherboard Country of Origin",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "BASE",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Base",
+    "results": [
+      {
+        "code": "BLK4",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem V3 1U 10x2.5\" Chassis",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "UEFI_OPERATING_MODES",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Base",
+    "results": [
+      {
+        "code": "BFYE",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "HIGH_TDP_TEMPERATURE",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Base",
+    "results": [
+      {
+        "code": "BVGL",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Data Center Environment 30 Degree Celsius / 86 Degree Fahrenheit",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "PROCESSOR",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Processors",
+    "results": [
+      {
+        "code": "BYW3",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Intel Xeon Silver 4509Y 8C 125W 2.6GHz Processor",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "MEMORY",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Memory",
+    "results": [
+      {
+        "code": "BWHS",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem 64GB TruDDR5 5600MHz (2Rx4) RDIMM",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "RAID_CONFIG",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "RAID Type",
+    "results": [
+      {
+        "code": "5977",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Select Storage devices - no configured RAID required",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "POWERSUPPLY",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Power Supply",
+    "results": [
+      {
+        "code": "BNFG",
+        "quantity": 2,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem 750W 230V/115V Platinum Hot-Swap Gen2 Power Supply v3",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "RACK_POWERCABLE",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Power Cables",
+    "results": [
+      {
+        "code": "6400",
+        "quantity": 2,
+        "ctoCode": "7D73CTO1WW",
+        "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "MECH_FRONT_IO",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Others",
+    "results": [
+      {
+        "code": "BLKD",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem 1U V3 10x2.5\" Media Bay w/ Ext. Diagnostics Port",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "FAN",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Others",
+    "results": [
+      {
+        "code": "BH9M",
+        "quantity": 6,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem V3 1U Performance Fan Option Kit v2",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "RAIL_KIT",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Mechanical",
+    "results": [
+      {
+        "code": "B8LA",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "ThinkSystem Toolless Slide Rail Kit v2",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "TPM_MODULE",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Security",
+    "results": [
+      {
+        "code": "BPKR",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "TPM 2.0",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "IPMI",
+    "multipleSelectable": false,
+    "type": "hardware",
+    "subTabTitle": "Security",
+    "results": [
+      {
+        "code": "B7XZ",
+        "quantity": 1,
+        "ctoCode": "7D73CTO1WW",
+        "description": "Disable IPMI-over-LAN",
+        "storageWizardDerived": false,
+        "type": "hardware",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "Lenovo Recommends|Better",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "Lenovo Recommends|Better",
+    "source": "Lenovo Recommends",
+    "markingConditions": null,
+    "results": [
+      {
+        "code": "QA0F",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Premier",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "PREMIER_CFC"
+      },
+      {
+        "code": "QAKT",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Enhanced Warranty",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_UPSELL_CFC"
+      },
+      {
+        "code": "QA08",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "24x7 4hr",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_TYPE_CFC"
+      },
+      {
+        "code": "QA03",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "3Yr",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_TERM_CFC"
+      },
+      {
+        "code": "QA0A",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Keep Your Drive",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "YOURDRIVEYOURDATA_CFC"
+      },
+      {
+        "code": "QABL",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "CO2 Offset",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "CO2_OFFSET_CFC"
+      }
+    ]
+  },
+  {
+    "name": "A la Carte|Column3|3 Years",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "A la Carte|Column3",
+    "source": "A la Carte",
+    "markingConditions": {
+      "code": "QA06",
+      "quantityOptions": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84
+      ],
+      "value": null
+    },
+    "results": [
+      {
+        "code": "QA0F",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Premier",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "PREMIER_CFC"
+      },
+      {
+        "code": "QAKT",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Enhanced Warranty",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_UPSELL_CFC"
+      },
+      {
+        "code": "QA08",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "24x7 4hr",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_TYPE_CFC"
+      },
+      {
+        "code": "QA03",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "3Yr",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_TERM_CFC"
+      }
+    ]
+  },
+  {
+    "name": "Add ons|Keep Your Drive|3 Years",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "Add ons|Keep Your Drive",
+    "description": "Add ons|Keep Your Drive",
+    "source": "Add ons",
+    "markingConditions": null,
+    "results": [
+      {
+        "code": "QA0A",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Keep Your Drive",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "YOURDRIVEYOURDATA_CFC"
+      },
+      {
+        "code": "QAKT",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "Enhanced Warranty",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_UPSELL_CFC"
+      },
+      {
+        "code": "QA03",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "3Yr",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "SERVICE_TERM_CFC"
+      }
+    ]
+  },
+  {
+    "name": "Add ons|CO2 Offset|CO2 Offset",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "Add ons|CO2 Offset",
+    "description": "Add ons|CO2 Offset",
+    "source": "Add ons",
+    "markingConditions": null,
+    "results": [
+      {
+        "code": "QABL",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "CO2 Offset",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "CO2_OFFSET_CFC"
+      }
+    ]
+  },
+  {
+    "name": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "Unselectable Andor Services",
+    "source": "Unselectable",
+    "markingConditions": null,
+    "results": [
+      {
+        "code": "QASW",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "None",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "COMMITTED_SERVICE_REPAIR_TIME_CFC"
+      }
+    ]
+  },
+  {
+    "name": "INSTALLATION_CFC",
+    "multipleSelectable": false,
+    "type": "servicesAndor",
+    "priceNotAvailable": false,
+    "subTabTitle": "Unselectable Andor Services",
+    "source": "Unselectable",
+    "markingConditions": null,
+    "results": [
+      {
+        "code": "QAB4",
+        "quantity": 1,
+        "ctoCode": "7QCFCTO1WW",
+        "description": "None",
+        "storageWizardDerived": false,
+        "type": "servicecto",
+        "optionCode": "",
+        "characterName": "INSTALLATION_CFC"
+      }
+    ]
+  },
+  {
+    "name": "T1GT",
+    "productNumber": "7S0XCTO6WW",
+    "isMultiCto": false,
+    "multipleSelectable": false,
+    "isSwType": true,
+    "type": "software",
+    "subTabTitle": "XClarity",
+    "results": [
+      {
+        "code": "T1GU",
+        "quantity": 1,
+        "productNumber": "7S0XCTO6WW",
+        "description": "XClarity One - Managed Device",
+        "type": "software",
+        "optionCode": "",
+        "hardMandatory": false
+      },
+      {
+        "code": "SCJD",
+        "quantity": 1,
+        "productNumber": "7S0XCTO6WW",
+        "derived": true,
+        "ctoCode": "7S0XCTO6WW",
+        "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+        "preSelected": false,
+        "serviceVariant": false,
+        "priceNotAvailable": false,
+        "shippingStatus": [],
+        "forAutoConnect": false,
+        "autoCorrected": false,
+        "storageWizardDerived": false,
+        "type": "hipo",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "SW_MAINT_TYPE",
+    "productNumber": "7S0XCTO6WW",
+    "code": "T1GU",
+    "type": "software",
+    "results": [
+      {
+        "code": "T1Q7",
+        "quantity": 1,
+        "productNumber": "7S0XCTO6WW",
+        "preSelected": true,
+        "priceNotAvailable": false,
+        "type": "software",
+        "optionCode": "",
+        "hardMandatory": false
+      }
+    ]
+  },
+  {
+    "name": "SW_MAINT_DURATION",
+    "productNumber": "7S0XCTO6WW",
+    "code": "T1GU",
+    "type": "software",
+    "results": [
+      {
+        "code": "SMD3",
+        "quantity": 1,
+        "productNumber": "7S0XCTO6WW",
+        "preSelected": true,
+        "priceNotAvailable": false,
+        "type": "software",
+        "optionCode": "",
+        "hardMandatory": false
+      }
+    ]
+  },
+  {
+    "name": "T167",
+    "productNumber": "7S0XCTO5WW",
+    "isMultiCto": false,
+    "multipleSelectable": true,
+    "isSwType": true,
+    "type": "software",
+    "subTabTitle": "XClarity",
+    "results": [
+      {
+        "code": "SBCV",
+        "quantity": 1,
+        "productNumber": "7S0XCTO5WW",
+        "derived": true,
+        "ctoCode": "7S0XCTO5WW",
+        "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+        "preSelected": false,
+        "serviceVariant": false,
+        "priceNotAvailable": false,
+        "shippingStatus": [],
+        "forAutoConnect": false,
+        "autoCorrected": false,
+        "storageWizardDerived": false,
+        "type": "hipo",
+        "optionCode": ""
+      },
+      {
+        "code": "T168",
+        "quantity": 1,
+        "productNumber": "7S0XCTO5WW",
+        "description": "XCC2 Platinum Upgrade",
+        "type": "software",
+        "optionCode": "",
+        "hardMandatory": false
+      },
+      {
+        "code": "SBCV",
+        "quantity": 1,
+        "productNumber": "7S0XCTO5WW",
+        "derived": true,
+        "ctoCode": "7S0XCTO5WW",
+        "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+        "preSelected": false,
+        "serviceVariant": false,
+        "priceNotAvailable": false,
+        "shippingStatus": [],
+        "forAutoConnect": false,
+        "autoCorrected": false,
+        "storageWizardDerived": false,
+        "type": "hipo",
+        "optionCode": ""
+      }
+    ]
+  },
+  {
+    "name": "SWXCLARITYXCC2",
+    "productNumber": "7S0XCTO5WW",
+    "code": "T168",
+    "type": "software",
+    "results": [
+      {
+        "code": "T0SJ",
+        "quantity": 1,
+        "productNumber": "7S0XCTO5WW",
+        "preSelected": true,
+        "priceNotAvailable": false,
+        "type": "software",
+        "optionCode": "",
+        "hardMandatory": false
+      }
+    ]
+  },
+  {
+    "name": "MB",
+    "description": "Mother Board",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR630 V3 MB w/IO VN",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "C9RM"
+      }
+    ]
+  },
+  {
+    "name": "OTHER_MI",
+    "description": "Other MI",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "Trigger MFG to scan the SN from the CPU Board via this MI",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BVMC"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "SR630 V3 Laser service indicator",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "C8WP"
+      }
+    ]
+  },
+  {
+    "name": "SYSTEM_MANAGEMENT_UPGRADE",
+    "description": "System Management Upgrade",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": true,
+        "quantity": 1,
+        "description": "XCC Platinum",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BRPJ"
+      }
+    ]
+  },
+  {
+    "name": "POWER_POLICY_MI",
+    "description": "Power Policy MI",
+    "results": [
+      {
+        "derived": false,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "N+N Redundancy With Over-Subscription",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BE0E"
+      }
+    ]
+  },
+  {
+    "name": "MECH_DERIVE_FCS",
+    "description": "Mechanical Derived Parts",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem MCC CPU Clip",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BQBP"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR850 V3/SR630 V3/SR630 V4 Standard Heatsink",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BPFK"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U PLV Top Cover Sponge",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B984"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR630V3/SR650V3 Root of Trust Module Absolut-LV-VN",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "C9RN"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem V2 1U Package",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B989"
+      }
+    ]
+  },
+  {
+    "name": "DERIVE_FILLERS_DUMMY",
+    "description": "Derive Filler and dummy",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem MS Height CPU Dummy",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BEYJ"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U MS Air Duct",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8NM"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U V2 2x3 2.5\" HDD Dummy",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BCEB"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 4,
+        "description": "ThinkSystem 1x1 2.5\" HDD Filler",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "AVEN"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U Super Cap Holder Dummy",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8NK"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U MS LP+LP Riser Filler",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8NA"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 1U MS LP Riser Filler",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8NB"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 2,
+        "description": "ThinkSystem 1U MS Fan Dummy",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8NJ"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "Lenovo ThinkSystem 1U VGA Filler",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "AUWG"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem OCP3 Filler",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B5WJ"
+      }
+    ]
+  },
+  {
+    "name": "VOLTAGE_MI",
+    "description": "Voltage MI",
+    "results": [
+      {
+        "derived": false,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "Low voltage (100V+)",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BK14"
+      }
+    ]
+  },
+  {
+    "name": "LPK",
+    "description": "Language Pack Document",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem WW Lenovo LPK",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BPK3"
+      }
+    ]
+  },
+  {
+    "name": "DERIVE_LABELS",
+    "description": "Derive labels",
+    "results": [
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "XCC Label",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B97B"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem 750W Pt Power Rating Label WW",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "B8JV"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR630 V3 Service Label for WW",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BPD7"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR630 V3 Model Name Label",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BPD6"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem Response time Service Label LI",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "AWF9"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem small Lenovo Label for 24x2.5\"/12x3.5\"/10x2.5\"",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "AUTQ"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem logo Label",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "BQPS"
+      },
+      {
+        "derived": true,
+        "swDerived": false,
+        "quantity": 1,
+        "description": "ThinkSystem SR630 V3 Agency Label, no ES Mark without CECP",
+        "forAutoConnect": false,
+        "installations": [],
+        "storageWizardDerivedQuantity": 0,
+        "code": "CJ1L"
+      }
+    ]
+  }
+]

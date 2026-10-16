@@ -7,6 +7,7 @@ import {
   DcscValidationError,
   buildHttpError,
   parseProblemDetail,
+  serverErrorMessage,
   toToolError,
 } from '../src/http/errors.js';
 import { redactBody } from '../src/http/redact.js';
@@ -69,6 +70,8 @@ describe('5xx never leaks to the user', () => {
     expect(err).toBeInstanceOf(DcscServerError);
     expect(err.userMessage).toContain('HTTP 500');
     expect(err.userMessage).toContain('req-123');
+    expect(err.userMessage).not.toContain('required parameter');
+    expect(err.userMessage).not.toContain('API shape');
     expect(err.userMessage).not.toContain('select');
     expect(err.userMessage).not.toContain('com.lenovo');
 
@@ -76,6 +79,80 @@ describe('5xx never leaks to the user', () => {
     const tool = toToolError(err);
     expect(JSON.stringify(tool)).not.toContain('select');
     expect(JSON.stringify(tool)).not.toContain('com.lenovo');
+  });
+
+  it('surfaces safe trace and correlation references without leaking a 5xx body', () => {
+    const rawBody =
+      '[502 Bad Gateway] during GET to http://cto-rule-engine-rel.earth-us.xpaas.lenovo.com/private';
+    const err = buildHttpError({
+      status: 502,
+      method: 'GET',
+      endpoint: 'lfo_autoDerive',
+      contentType: 'text/plain',
+      body: rawBody,
+      requestId: undefined,
+      traceId: '6ad18c05c7127dff4b640651a25974dd',
+      corrId: '01M518NX21G4ST446KTX3PBNGS',
+      logRawErrors: true,
+    });
+    const tool = toToolError(err);
+    expect(err.internal).toContain('cto-rule-engine-rel');
+    expect(err.userMessage).toBe(
+      'DCSC returned a server error (HTTP 502). References: ' +
+      'trace 6ad18c05c7127dff4b640651a25974dd, correlation 01M518NX21G4ST446KTX3PBNGS.',
+    );
+    expect(tool).toMatchObject({
+      kind: 'server',
+      traceId: '6ad18c05c7127dff4b640651a25974dd',
+      correlationId: '01M518NX21G4ST446KTX3PBNGS',
+    });
+    expect(JSON.stringify(tool)).not.toContain('cto-rule-engine-rel');
+    expect(JSON.stringify(tool)).not.toContain('/private');
+    expect(JSON.stringify(tool)).not.toContain(rawBody);
+    expect(tool).not.toHaveProperty('endpoint');
+  });
+
+  it('drops unsafe upstream identifiers and falls back to the safe local correlation', () => {
+    const err = buildHttpError({
+      status: 503,
+      method: 'GET',
+      endpoint: 'category_hierarchies',
+      contentType: 'text/plain',
+      body: leaky,
+      requestId: 'http://internal.example/request',
+      traceId: 'cto-rule-engine-rel.earth-us.xpaas.lenovo.com',
+      corrId: '01M518NX21G4ST446KTX3PBNGS',
+      logRawErrors: false,
+    });
+    const tool = toToolError(err);
+    expect(err.userMessage).toBe(
+      'DCSC returned a server error (HTTP 503). References: correlation 01M518NX21G4ST446KTX3PBNGS.',
+    );
+    expect(tool).not.toHaveProperty('requestId');
+    expect(tool).not.toHaveProperty('traceId');
+    expect(tool).toHaveProperty('correlationId', '01M518NX21G4ST446KTX3PBNGS');
+  });
+
+  it('states when no correlation reference is available', () => {
+    expect(serverErrorMessage(500, undefined)).toBe(
+      'DCSC returned a server error (HTTP 500). No correlation reference was returned.',
+    );
+  });
+
+  it('rejects whitespace and overlong identifiers at the MCP boundary', () => {
+    const err = buildHttpError({
+      status: 502,
+      method: 'GET',
+      endpoint: 'category_hierarchies',
+      contentType: 'text/plain',
+      body: leaky,
+      requestId: 'request id with spaces',
+      traceId: 'a'.repeat(129),
+      corrId: 'corr\nheader-injection',
+      logRawErrors: false,
+    });
+    expect(err.userMessage).toContain('No correlation reference was returned.');
+    expect(toToolError(err)).toEqual({ error: err.userMessage, kind: 'server' });
   });
 
   it('flags a 5xx on a mutation as ambiguous rather than retryable', () => {
@@ -92,6 +169,7 @@ describe('5xx never leaks to the user', () => {
     });
     expect(err).toBeInstanceOf(DcscAmbiguousStateError);
     expect(err.userMessage).toContain('may or may not have been applied');
+    expect(toToolError(err).kind).toBe('ambiguous_state');
     expect(err.retryable).toBe(false);
   });
 

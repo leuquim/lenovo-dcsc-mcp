@@ -1,0 +1,1311 @@
+{
+  "provenance": {
+    "source": "software-mixed-lfo-run1/browser-customize-contract/05-lfo-auto-derive-request.json",
+    "capturedAt": "2026-10-15",
+    "workflow": "Browser hardware Customize after mixed LFO import; no-op authoritative derive",
+    "normalization": "Opaque configuration IDs replaced with US__fixture-lfo; selected sections retained"
+  },
+  "inputConfiguration": {
+    "id": "US__fixture-lfo",
+    "workspaceId": "US__fixture-lfo",
+    "name": "Server",
+    "sliceCtoCode": "7DCE100GNA",
+    "ctoCode": "7DCECTO1WW",
+    "lfoCode": "7DCE100GNA",
+    "slice": "GP",
+    "solutionMode": "General Purpose",
+    "quantity": 1,
+    "showPrice": true,
+    "asMultiProd": false,
+    "asVLH": false,
+    "sections": [
+      {
+        "name": "BASE",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Base",
+        "results": [
+          {
+            "code": "BZB9",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "ST250 V3 2.5\" Chassis Base(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "",
+            "fixed": true
+          }
+        ]
+      },
+      {
+        "name": "UEFI_OPERATING_MODES",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Base",
+        "results": [
+          {
+            "code": "BFYE",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": ""
+          }
+        ]
+      },
+      {
+        "name": "MB",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Base",
+        "results": [
+          {
+            "code": "BWL8",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "ThinkSystem ST250 V3 Motherboard(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "",
+            "fixed": true
+          }
+        ]
+      },
+      {
+        "name": "PROCESSOR",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Processors",
+        "results": [
+          {
+            "code": "C51Z",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "Intel Xeon 6315P 4C 55W 2.8GHz Processor(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "",
+            "fixed": true
+          }
+        ]
+      },
+      {
+        "name": "MEMORY",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Memory",
+        "results": [
+          {
+            "code": "C527",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "ThinkSystem 16GB TruDDR5 5600MHz (1Rx8) ECC UDIMM(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "4X77A99751"
+          }
+        ]
+      },
+      {
+        "name": "RAID_CONFIG",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "RAID Type",
+        "results": [
+          {
+            "code": "5977",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "Select Storage devices - no configured RAID required(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": ""
+          }
+        ]
+      },
+      {
+        "name": "SAS_SATA_RAID_CONTROLLER",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Controllers",
+        "results": [
+          {
+            "code": "AVV0",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "On Board SATA Software RAID Mode(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": ""
+          }
+        ]
+      },
+      {
+        "name": "BACKPLANE",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Backplane",
+        "results": [
+          {
+            "code": "4XF7A81461",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": null,
+            "description": "ThinkSystem ST250 Series 8x2.5\" Hot Swap SAS/SATA Backplane Kit(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "4XF7A81461"
+          }
+        ]
+      },
+      {
+        "name": "POWERSUPPLY",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Power Supply",
+        "results": [
+          {
+            "code": "BWM5",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "ThinkSystem 800W 230V/115V Platinum CRPS Hot-Swap Power Supply v1.4(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "4P57A87054"
+          }
+        ]
+      },
+      {
+        "name": "LINECORD",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Power Cables",
+        "results": [
+          {
+            "code": "6313",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "2.8m, 10A/120V, C13 to NEMA 5-15P (US) Line Cord(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": "90Y3016"
+          }
+        ]
+      },
+      {
+        "name": "TPM_MODULE",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Security",
+        "results": [
+          {
+            "code": "BPKR",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "TPM 2.0(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": ""
+          }
+        ]
+      },
+      {
+        "name": "IPMI",
+        "multipleSelectable": false,
+        "type": "hardware",
+        "subTabTitle": "Security",
+        "results": [
+          {
+            "code": "B7XZ",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "Disable IPMI-over-LAN(Standard)",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "hardware",
+            "optionCode": ""
+          }
+        ]
+      },
+      {
+        "name": "Lenovo Recommends|Better",
+        "priceNotAvailable": false,
+        "multipleSelectable": false,
+        "type": "servicesAndor",
+        "subTabTitle": "Lenovo Recommends|Better",
+        "results": [
+          {
+            "code": "5WS7C02329",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "3Yr Premier 24x7 4Hr Resp ST250 V3",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Warranty Service Upgrades"
+          },
+          {
+            "code": "5PS7C02338",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "3Yr KYD Add-On ST250 V3",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Keep Your Drive"
+          },
+          {
+            "code": "5MS7B07545",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "CO2 Offset 10 Metric Tonnes",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Sustainability"
+          }
+        ],
+        "source": "Lenovo Recommends"
+      },
+      {
+        "name": "A la Carte|Column3|3 Year",
+        "priceNotAvailable": false,
+        "multipleSelectable": false,
+        "type": "servicesAndor",
+        "subTabTitle": "A la Carte|Column3",
+        "results": [
+          {
+            "code": "5WS7C02329",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "3Yr Premier 24x7 4Hr Resp ST250 V3",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Warranty Service Upgrades"
+          }
+        ],
+        "source": "A la Carte"
+      },
+      {
+        "name": "Add ons|Keep Your Drive|3 Year",
+        "priceNotAvailable": false,
+        "multipleSelectable": false,
+        "type": "servicesAndor",
+        "subTabTitle": "Add ons|Keep Your Drive",
+        "results": [
+          {
+            "code": "5PS7C02338",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "3Yr KYD Add-On ST250 V3",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Keep Your Drive"
+          }
+        ],
+        "source": "Add ons",
+        "description": "Add ons|Keep Your Drive"
+      },
+      {
+        "name": "Add ons|CO2 Offset|CO2 Offset",
+        "priceNotAvailable": false,
+        "multipleSelectable": false,
+        "type": "servicesAndor",
+        "subTabTitle": "Add ons|CO2 Offset",
+        "results": [
+          {
+            "code": "5MS7B07545",
+            "quantity": 1,
+            "derived": false,
+            "ctoCode": "7DCECTO1WW",
+            "description": "CO2 Offset 10 Metric Tonnes",
+            "priceNotAvailable": false,
+            "shippingStatus": [],
+            "autoCorrected": false,
+            "type": "servicesAndor",
+            "optionCode": "",
+            "characterName": "Sustainability"
+          }
+        ],
+        "source": "Add ons",
+        "description": "Add ons|CO2 Offset"
+      },
+      {
+        "description": "Voltage MI",
+        "name": "VOLTAGE_MI",
+        "results": [
+          {
+            "derived": false,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BK14"
+          }
+        ]
+      },
+      {
+        "description": "Must Derived Parts",
+        "name": "MUSTDERIVE",
+        "results": [
+          {
+            "derived": false,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "AUTA"
+          }
+        ]
+      },
+      {
+        "description": "Language Pack Document",
+        "name": "LPK",
+        "results": [
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWLF"
+          }
+        ]
+      },
+      {
+        "description": "MI_P",
+        "name": "MI_P",
+        "results": [
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "A2HP"
+          }
+        ]
+      },
+      {
+        "description": "Power Policy MI",
+        "name": "POWER_POLICY_MI",
+        "results": [
+          {
+            "derived": false,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BE0B"
+          }
+        ]
+      },
+      {
+        "description": "Other MI",
+        "name": "OTHER_MI",
+        "results": [
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BQ1K"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWMW"
+          }
+        ]
+      },
+      {
+        "description": "System Management Upgrade",
+        "name": "SYSTEM_MANAGEMENT_UPGRADE",
+        "results": [
+          {
+            "derived": false,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BRPJ"
+          }
+        ]
+      },
+      {
+        "description": "Mechanical Derived Parts",
+        "name": "MECH_DERIVE_FCS",
+        "results": [
+          {
+            "derived": false,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BZQ5"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "B3Z1"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BMPT"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BZ4T"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWMM"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "B427"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWLY"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWLX"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWJN"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BPR3"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWLR"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "B3Z5"
+          },
+          {
+            "derived": true,
+            "quantity": 8,
+            "storageWizardDerivedQuantity": 0,
+            "code": "AVEN"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BNR1"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "BWLT"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "AWF9"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "B426"
+          },
+          {
+            "derived": true,
+            "quantity": 1,
+            "storageWizardDerivedQuantity": 0,
+            "code": "C8WG"
+          }
+        ]
+      }
+    ],
+    "products": [],
+    "hipoDerivedItems": false,
+    "hipoServiceCtoServices": false,
+    "networkDerivedFeatures": {},
+    "selectedTopologies": {},
+    "selectedStorageNetwork": null,
+    "autoDerivedResultId": null,
+    "nodeRole": "",
+    "expansionMessages": [],
+    "voltage": {
+      "level": "Low",
+      "type": "AC",
+      "displayValue": "115V",
+      "actualValue": "115"
+    },
+    "currentPowerPolicy": 1,
+    "loadFactor": 70,
+    "shippingStatus": [
+      "52",
+      "52",
+      "52",
+      "52",
+      "52",
+      "52"
+    ],
+    "showExpressMode": false,
+    "expressModeAvailable": false,
+    "showExpressT2Mode": false,
+    "serviceCtoFlag": {},
+    "storageWizardOption": null,
+    "operationHistories": [],
+    "pinnedList": []
+  },
+  "expectedRequest": {
+    "workspaceInformation": {
+      "configurations": null,
+      "rackData": [],
+      "nonRackData": [
+        {
+          "lock": false,
+          "weight": 23.56,
+          "size": 4,
+          "code": "7DCE100GNA",
+          "name": "Server",
+          "description": "ThinkSystem ST250 V3-3yr Base Warranty",
+          "type": "server",
+          "hardwareType": null,
+          "image": "",
+          "width": 444,
+          "depth": 578,
+          "physicalHeight": 176,
+          "cogHeight": 82,
+          "cogWidth": 280,
+          "cogDepth": 212,
+          "shipUninstalled": false,
+          "uninstalled": false,
+          "shipWeight": 0,
+          "id": "US__fixture-lfo",
+          "position": 1,
+          "highestPosition": null,
+          "lowestPosition": null,
+          "defaultPosition": null,
+          "placementError": [],
+          "sliceCtoCode": "7DCE100GNA",
+          "nodes": [],
+          "capacity": 0,
+          "features": [],
+          "rule": null,
+          "cloneBy": null,
+          "occupiedBay": null,
+          "asVLH": false,
+          "vlhId": null,
+          "newHardwareNumber": 0,
+          "placementInfo": null,
+          "errors": [],
+          "quantity": 0,
+          "lfo": false,
+          "positionForErrorMessage": 2,
+          "chassisModel": "dense",
+          "endPosition": 5,
+          "machineType": "7DCE",
+          "attributes": {},
+          "originalIndex": 0,
+          "pageIndex": 0,
+          "height": 4
+        }
+      ],
+      "cloneDependency": {
+        "US__fixture-lfo": [
+          "US__fixture-lfo"
+        ]
+      },
+      "nonRackVirtualData": [],
+      "rackVirtualData": []
+    },
+    "autoDerivedResults": [],
+    "configurations": [
+      {
+        "workspaceId": "US__fixture-lfo",
+        "sections": [
+          {
+            "name": "BASE",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Base",
+            "results": [
+              {
+                "code": "BZB9",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "ST250 V3 2.5\" Chassis Base(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "",
+                "fixed": true
+              }
+            ]
+          },
+          {
+            "name": "UEFI_OPERATING_MODES",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Base",
+            "results": [
+              {
+                "code": "BFYE",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": ""
+              }
+            ]
+          },
+          {
+            "name": "MB",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Base",
+            "results": [
+              {
+                "code": "BWL8",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "ThinkSystem ST250 V3 Motherboard(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "",
+                "fixed": true
+              }
+            ]
+          },
+          {
+            "name": "PROCESSOR",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Processors",
+            "results": [
+              {
+                "code": "C51Z",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "Intel Xeon 6315P 4C 55W 2.8GHz Processor(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "",
+                "fixed": true
+              }
+            ]
+          },
+          {
+            "name": "MEMORY",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Memory",
+            "results": [
+              {
+                "code": "C527",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "ThinkSystem 16GB TruDDR5 5600MHz (1Rx8) ECC UDIMM(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "4X77A99751"
+              }
+            ]
+          },
+          {
+            "name": "RAID_CONFIG",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "RAID Type",
+            "results": [
+              {
+                "code": "5977",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "Select Storage devices - no configured RAID required(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": ""
+              }
+            ]
+          },
+          {
+            "name": "SAS_SATA_RAID_CONTROLLER",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Controllers",
+            "results": [
+              {
+                "code": "AVV0",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "On Board SATA Software RAID Mode(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": ""
+              }
+            ]
+          },
+          {
+            "name": "BACKPLANE",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Backplane",
+            "results": [
+              {
+                "code": "4XF7A81461",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": null,
+                "description": "ThinkSystem ST250 Series 8x2.5\" Hot Swap SAS/SATA Backplane Kit(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "4XF7A81461"
+              }
+            ]
+          },
+          {
+            "name": "POWERSUPPLY",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Power Supply",
+            "results": [
+              {
+                "code": "BWM5",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "ThinkSystem 800W 230V/115V Platinum CRPS Hot-Swap Power Supply v1.4(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "4P57A87054"
+              }
+            ]
+          },
+          {
+            "name": "LINECORD",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Power Cables",
+            "results": [
+              {
+                "code": "6313",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "2.8m, 10A/120V, C13 to NEMA 5-15P (US) Line Cord(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": "90Y3016"
+              }
+            ]
+          },
+          {
+            "name": "TPM_MODULE",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Security",
+            "results": [
+              {
+                "code": "BPKR",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "TPM 2.0(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": ""
+              }
+            ]
+          },
+          {
+            "name": "IPMI",
+            "multipleSelectable": false,
+            "type": "hardware",
+            "subTabTitle": "Security",
+            "results": [
+              {
+                "code": "B7XZ",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "Disable IPMI-over-LAN(Standard)",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "hardware",
+                "optionCode": ""
+              }
+            ]
+          },
+          {
+            "name": "Lenovo Recommends|Better",
+            "multipleSelectable": false,
+            "type": "servicesAndor",
+            "priceNotAvailable": false,
+            "subTabTitle": "Lenovo Recommends|Better",
+            "source": "Lenovo Recommends",
+            "results": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "3Yr Premier 24x7 4Hr Resp ST250 V3",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Warranty Service Upgrades"
+              },
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "3Yr KYD Add-On ST250 V3",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Keep Your Drive"
+              },
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "CO2 Offset 10 Metric Tonnes",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Sustainability"
+              }
+            ]
+          },
+          {
+            "name": "A la Carte|Column3|3 Year",
+            "multipleSelectable": false,
+            "type": "servicesAndor",
+            "priceNotAvailable": false,
+            "subTabTitle": "A la Carte|Column3",
+            "source": "A la Carte",
+            "results": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "3Yr Premier 24x7 4Hr Resp ST250 V3",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Warranty Service Upgrades"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|Keep Your Drive|3 Year",
+            "multipleSelectable": false,
+            "type": "servicesAndor",
+            "priceNotAvailable": false,
+            "subTabTitle": "Add ons|Keep Your Drive",
+            "description": "Add ons|Keep Your Drive",
+            "source": "Add ons",
+            "results": [
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "3Yr KYD Add-On ST250 V3",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Keep Your Drive"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|CO2 Offset|CO2 Offset",
+            "multipleSelectable": false,
+            "type": "servicesAndor",
+            "priceNotAvailable": false,
+            "subTabTitle": "Add ons|CO2 Offset",
+            "description": "Add ons|CO2 Offset",
+            "source": "Add ons",
+            "results": [
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "derived": false,
+                "ctoCode": "7DCECTO1WW",
+                "description": "CO2 Offset 10 Metric Tonnes",
+                "priceNotAvailable": false,
+                "shippingStatus": [],
+                "autoCorrected": false,
+                "type": "servicesAndor",
+                "optionCode": "",
+                "characterName": "Sustainability"
+              }
+            ]
+          },
+          {
+            "name": "VOLTAGE_MI",
+            "description": "Voltage MI",
+            "results": [
+              {
+                "derived": false,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BK14"
+              }
+            ]
+          },
+          {
+            "name": "MUSTDERIVE",
+            "description": "Must Derived Parts",
+            "results": [
+              {
+                "derived": false,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "AUTA"
+              }
+            ]
+          },
+          {
+            "name": "LPK",
+            "description": "Language Pack Document",
+            "results": [
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWLF"
+              }
+            ]
+          },
+          {
+            "name": "MI_P",
+            "description": "MI_P",
+            "results": [
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "A2HP"
+              }
+            ]
+          },
+          {
+            "name": "POWER_POLICY_MI",
+            "description": "Power Policy MI",
+            "results": [
+              {
+                "derived": false,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BE0B"
+              }
+            ]
+          },
+          {
+            "name": "OTHER_MI",
+            "description": "Other MI",
+            "results": [
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BQ1K"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWMW"
+              }
+            ]
+          },
+          {
+            "name": "SYSTEM_MANAGEMENT_UPGRADE",
+            "description": "System Management Upgrade",
+            "results": [
+              {
+                "derived": false,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BRPJ"
+              }
+            ]
+          },
+          {
+            "name": "MECH_DERIVE_FCS",
+            "description": "Mechanical Derived Parts",
+            "results": [
+              {
+                "derived": false,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BZQ5"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "B3Z1"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BMPT"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BZ4T"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWMM"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "B427"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWLY"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWLX"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWJN"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BPR3"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWLR"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "B3Z5"
+              },
+              {
+                "derived": true,
+                "quantity": 8,
+                "storageWizardDerivedQuantity": 0,
+                "code": "AVEN"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BNR1"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "BWLT"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "AWF9"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "B426"
+              },
+              {
+                "derived": true,
+                "quantity": 1,
+                "storageWizardDerivedQuantity": 0,
+                "code": "C8WG"
+              }
+            ]
+          }
+        ],
+        "products": [],
+        "id": "US__fixture-lfo",
+        "name": "Server",
+        "showPrice": true,
+        "autoDerivedResultId": null,
+        "voltage": {
+          "level": "Low",
+          "type": "AC",
+          "displayValue": "115V",
+          "actualValue": "115"
+        },
+        "currentPowerPolicy": 1,
+        "loadFactor": 70,
+        "solutionMode": "General Purpose",
+        "ctoCode": "7DCECTO1WW",
+        "lfoCode": "7DCE100GNA",
+        "shippingStatus": [
+          "52",
+          "52",
+          "52",
+          "52",
+          "52",
+          "52"
+        ],
+        "showExpressMode": false,
+        "expressModeAvailable": false,
+        "showExpressT2Mode": false,
+        "storageWizardOption": null,
+        "operationHistories": [],
+        "pinnedList": []
+      }
+    ],
+    "operationHistories": [],
+    "controllerExpansionMap": {},
+    "customizingFlags": {
+      "componentRestriction": true,
+      "autoDerive": true,
+      "ctoRules": true,
+      "minMax": true,
+      "placement": true,
+      "fromMemoryWizard": false,
+      "autoVariant": false
+    },
+    "virtualContainerIdMapping": {},
+    "virtualContainerRule2ConfigMapping": {},
+    "virtualContainerInvalidRuleIdMapping": {},
+    "customizingIds": [
+      "US__fixture-lfo"
+    ],
+    "importInformation": [
+      null
+    ]
+  }
+}

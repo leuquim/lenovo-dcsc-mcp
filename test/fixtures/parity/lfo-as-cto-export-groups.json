@@ -1,0 +1,519 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15T15:43:25.586Z",
+    "headless": true,
+    "uiRoute": "#/configuration/lfo-as-cto/7DCE100GNA",
+    "deriveEndpoint": "/ctos/autoDerive",
+    "exportEndpoint": "/ctos/export_zip",
+    "evidence": "artifacts/implementation-2026-10-15/lfo-as-cto-browser-direct/capture.json"
+  },
+  "configurationId": "as-cto-config",
+  "mode": "lfo-as-cto",
+  "raw": {
+    "id": "as-cto-config",
+    "code": "7DCECTO1WW",
+    "ctoCode": "7DCECTO1WW",
+    "sliceCtoCode": "7DCECTO1WW",
+    "lfoCode": "7DCE100GNA",
+    "description": "ThinkSystem ST250 V3-3yr Base Warranty",
+    "quantity": 1,
+    "totalPrice": 6731.525,
+    "totalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 6730.52,
+        "priceNotAvailable": false
+      }
+    ],
+    "showPrice": true,
+    "hipoDerivedItems": [
+      {
+        "targetCtoCode": "7S0XCTO5WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "XClarity Controller Platin-FOD",
+        "ruleHashCode": 111181917,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 209.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SBCV",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T168",
+            "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+            "ctoCode": "7S0XCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 209.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 209.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5374CM1",
+        "subGroup": "N/A",
+        "targetCtoCodeDescription": "Configuration Instruction",
+        "ruleHashCode": 679471990,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": true,
+        "features": [
+          {
+            "featureCode": "AXD0",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "OB SATA RAID mode placement",
+            "ctoCode": "7DCECTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "A2JX",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "Controller 01",
+            "ctoCode": "7DCECTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      }
+    ],
+    "hipoServiceCtoServices": [
+      {
+        "targetCto": "7Q01CTSAWW",
+        "description": "SERVER KEEP YOUR DRIVE ADD-ON",
+        "price": 142,
+        "results": [
+          {
+            "hipoServiceCtoCode": null,
+            "section": "Service",
+            "code": "QAED",
+            "quantity": 1,
+            "description": "ST250 V3"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "KEEP_YOUR_DRIVE",
+            "code": "QAK6",
+            "quantity": 1,
+            "description": "KYD"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "SERVICE_TERM_MONTHS",
+            "code": "QA0Y",
+            "quantity": 36,
+            "description": "Months"
+          }
+        ],
+        "priceNotAvailable": false,
+        "priceNotCredible": false,
+        "cofSubcat": "Keep Your Drive",
+        "costNotAvailable": false,
+        "key": "7Q01CTSAWWSERVICE_TERM_MONTHS|QA0Y|36|Service|QAED|1|KEEP_YOUR_DRIVE|QAK6|1"
+      },
+      {
+        "targetCto": "7Q01CTO2WW",
+        "description": "SERVER CO2 OFFSET",
+        "price": 95,
+        "results": [
+          {
+            "hipoServiceCtoCode": null,
+            "section": "Service",
+            "code": "QABM",
+            "quantity": 1,
+            "description": "CO2 Offset 10 Metric Tonnes"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "CO2_OFFSET",
+            "code": "QABD",
+            "quantity": 1,
+            "description": "CO2 Offset"
+          }
+        ],
+        "priceNotAvailable": false,
+        "priceNotCredible": false,
+        "cofSubcat": "CO2 Offset",
+        "costNotAvailable": false,
+        "key": "7Q01CTO2WWCO2_OFFSET|QABD|1|Service|QABM|1"
+      },
+      {
+        "targetCto": "7Q01CTS4WW",
+        "description": "SERVER PREMIER 24X7 4HR RESP",
+        "price": 1154,
+        "results": [
+          {
+            "hipoServiceCtoCode": null,
+            "section": "SERVICE_TYPE",
+            "code": "QA12",
+            "quantity": 1,
+            "description": "24x7 4hr Resp"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "Service",
+            "code": "QAED",
+            "quantity": 1,
+            "description": "ST250 V3"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "PREMIER",
+            "code": "QA18",
+            "quantity": 1,
+            "description": "Premier"
+          },
+          {
+            "hipoServiceCtoCode": null,
+            "section": "SERVICE_TERM_MONTHS",
+            "code": "QA0Y",
+            "quantity": 36,
+            "description": "Months"
+          }
+        ],
+        "priceNotAvailable": false,
+        "priceNotCredible": false,
+        "cofSubcat": "Warranty Service Upgrades",
+        "costNotAvailable": false,
+        "key": "7Q01CTS4WWSERVICE_TERM_MONTHS|QA0Y|36|SERVICE_TYPE|QA12|1|PREMIER|QA18|1|Service|QAED|1"
+      }
+    ],
+    "tabs": [
+      {
+        "title": "Services",
+        "type": "servicesAndor",
+        "subTabs": [
+          {
+            "title": "Lenovo Recommends|Better",
+            "sections": [
+              {
+                "name": "Lenovo Recommends|Better",
+                "results": [
+                  {
+                    "code": "QA0F",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QAKT",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA08",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA03",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA0A",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QABL",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QA08",
+                    "description": "24x7 4hr"
+                  },
+                  {
+                    "code": "QA03",
+                    "description": "3Yr"
+                  },
+                  {
+                    "code": "QABL",
+                    "description": "CO2 Offset"
+                  },
+                  {
+                    "code": "QAKT",
+                    "description": "Enhanced Warranty"
+                  },
+                  {
+                    "code": "QA0A",
+                    "description": "Keep Your Drive"
+                  },
+                  {
+                    "code": "QA0F",
+                    "description": "Premier"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "title": "A la Carte|Column3",
+            "sections": [
+              {
+                "name": "A la Carte|Column3|3 Years",
+                "results": [
+                  {
+                    "code": "QA0F",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QAKT",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA08",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA03",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QA08",
+                    "description": "24x7 4hr"
+                  },
+                  {
+                    "code": "QA03",
+                    "description": "3Yr"
+                  },
+                  {
+                    "code": "QAKT",
+                    "description": "Enhanced Warranty"
+                  },
+                  {
+                    "code": "QA0F",
+                    "description": "Premier"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Add ons|Keep Your Drive",
+            "sections": [
+              {
+                "name": "Add ons|Keep Your Drive|3 Years",
+                "results": [
+                  {
+                    "code": "QA0A",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QAKT",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  },
+                  {
+                    "code": "QA03",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QA03",
+                    "description": "3Yr"
+                  },
+                  {
+                    "code": "QAKT",
+                    "description": "Enhanced Warranty"
+                  },
+                  {
+                    "code": "QA0A",
+                    "description": "Keep Your Drive"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Add ons|CO2 Offset",
+            "sections": [
+              {
+                "name": "Add ons|CO2 Offset|CO2 Offset",
+                "results": [
+                  {
+                    "code": "QABL",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QABL",
+                    "description": "CO2 Offset"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Unselectable Andor Services",
+            "sections": [
+              {
+                "name": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+                "results": [
+                  {
+                    "code": "QASW",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QASW",
+                    "description": "None"
+                  }
+                ]
+              },
+              {
+                "name": "INSTALLATION_CFC",
+                "results": [
+                  {
+                    "code": "QAB4",
+                    "quantity": 1,
+                    "type": "servicecto"
+                  }
+                ],
+                "features": [
+                  {
+                    "code": "QAB4",
+                    "description": "None"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": [
+    {
+      "code": "7DCECTO1WW",
+      "type": "hardware",
+      "quantity": 1,
+      "price": 5130.01,
+      "unitPrice": 5130.01
+    },
+    {
+      "code": "7S0XCTO5WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 211.5,
+      "unitPrice": 210.5
+    },
+    {
+      "code": "5374CM1",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "7Q01CTSAWW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 142,
+      "unitPrice": 142
+    },
+    {
+      "code": "7Q01CTO2WW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 95,
+      "unitPrice": 95
+    },
+    {
+      "code": "7Q01CTS4WW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 1154,
+      "unitPrice": 1154
+    }
+  ]
+}

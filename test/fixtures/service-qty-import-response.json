@@ -1,0 +1,147 @@
+{
+  "type": "service",
+  "country": "US",
+  "currency": "USD",
+  "language": "en",
+  "summary": [
+    {
+      "id": null,
+      "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+      "unitPrice": 3274,
+      "totalPrice": 9822,
+      "quantity": 3,
+      "errors": null,
+      "results": [
+        {
+          "id": null,
+          "quantity": 2,
+          "unitPrice": 1637,
+          "description": "3Yr Premier NBD Resp SR630 V3",
+          "derived": false,
+          "characterName": null,
+          "category": "STG@Services@NBD@NBD",
+          "noCharge": false,
+          "errors": null,
+          "type": "Warranty Service Upgrades",
+          "priceNotCredible": false,
+          "cost": null,
+          "priceNotAvailable": false,
+          "iad": false,
+          "premier": false,
+          "dummyCost": false,
+          "code": "5WS7B99623"
+        }
+      ],
+      "endOfService": false,
+      "nonPremierInResults": true,
+      "priceNotCredible": false,
+      "code": "7D73CTO1WW"
+    }
+  ],
+  "serviceAndorRequest": {
+    "delta": {
+      "section": "A la Carte",
+      "featureCode": "5WS7B99623",
+      "quantity": 2,
+      "clear": false
+    },
+    "ctoCode": "7D73CTO1WW",
+    "lfoCode": null,
+    "sections": [
+      {
+        "name": "A la Carte|Column2|3 Year",
+        "productNumber": null,
+        "results": [
+          {
+            "description": "3Yr Premier NBD Resp SR630 V3",
+            "quantity": 2,
+            "derived": false,
+            "productNumber": null,
+            "code": "5WS7B99623"
+          }
+        ],
+        "priority": null,
+        "type": "servicesAndor",
+        "description": "A la Carte|Column2",
+        "isMultiCto": null,
+        "isSwType": null
+      }
+    ],
+    "subCategory": "Point of Sale",
+    "showPremier": true
+  },
+  "configuration": [
+    {
+      "code": "7D73CTO1WW",
+      "quantityOptions": null,
+      "description": null,
+      "unitPrice": null,
+      "productNumber": null,
+      "preSelectedQuantity": 0,
+      "deltaQuantity": 0,
+      "base": false,
+      "type": null,
+      "displayCode": null,
+      "deltaTotalPrice": 0,
+      "noCharge": false,
+      "category": null,
+      "shippingStatus": [],
+      "services": [
+        {
+          "code": "5WS7B99623",
+          "id": null,
+          "description": "3Yr Premier NBD Resp SR630 V3",
+          "price": 1637,
+          "category": "STG@Services@NBD@NBD",
+          "announceDate": "2024-10-28",
+          "withdrawnDate": "2999-12-31",
+          "facets": [
+            {
+              "facetName": "Term",
+              "facetValue": "3 Year",
+              "translatedFacetValue": "3 Year",
+              "nameSequence": 1,
+              "valueSequence": 1,
+              "facetID": "WARRANTYPERIOD"
+            },
+            {
+              "facetName": "LONGDESC_WAR",
+              "facetValue": "3Yr Premier NBD",
+              "translatedFacetValue": "3Yr Premier NBD",
+              "nameSequence": null,
+              "valueSequence": 1,
+              "facetID": "LONGDESC_WAR"
+            },
+            {
+              "facetName": "Additional Service Upgrade Options",
+              "facetValue": "Premier",
+              "translatedFacetValue": "Premier",
+              "nameSequence": 6,
+              "valueSequence": 1,
+              "facetID": "SERVICETYPE"
+            },
+            {
+              "facetName": "Service Delivery Type",
+              "facetValue": "NBD",
+              "translatedFacetValue": "NBD",
+              "nameSequence": 2,
+              "valueSequence": 1,
+              "facetID": "WARRANTYTYPE"
+            }
+          ],
+          "type": "Warranty Service Upgrades",
+          "typeSequence": 10,
+          "priceNotAvailable": false,
+          "iaDate": "2024-10-26",
+          "priceNotCredible": false,
+          "iad": false,
+          "premier": true,
+          "sectionName": "NBD"
+        }
+      ],
+      "countryActive": true,
+      "toggleUI": false,
+      "checkedToggleUI": false
+    }
+  ]
+}

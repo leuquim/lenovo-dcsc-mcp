@@ -3,18 +3,21 @@ import { configureLogger } from '../src/http/trace.js';
 import { DcscService } from '../src/mcp/service.js';
 import { buildExportData, buildExportForm, buildGroups } from '../src/domain/reduce.js';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { RackObject } from '../src/domain/rack.js';
-import type { WorkspaceSession } from '../src/session/SessionStore.js';
+import { isolateRuntime } from './lib/isolated-runtime.js';
 
-const OUT = '/tmp/grok-goal-6bd94c1a5fce/implementer';
+const OUT = resolve(process.argv.find(arg => arg.startsWith('--out='))?.slice('--out='.length)
+  ?? 'artifacts/probe-export-dual-shape');
 mkdirSync(OUT, { recursive: true });
 
 /** Convert customize-shape rack (rackItems, 1-based) to SPA local shape (servers, 0-based). */
 function toLocalRack(rack: RackObject): RackObject {
   const items = ((rack['rackItems'] as RackObject[] | undefined) ?? []).map((it) => {
     const pos = typeof it['position'] === 'number' ? it['position'] : Number(it['position']) || 1;
-    const { rackItems: _r, ...rest } = it as RackObject & { rackItems?: unknown };
-    return { ...it, position: Math.max(0, pos - 1) };
+    const copy = { ...it };
+    delete copy['rackItems'];
+    return { ...copy, position: Math.max(0, pos - 1) };
   });
   const featureItems = ((rack['featureItems'] as RackObject[] | undefined) ?? []).map((fi) => {
     const pos = typeof fi['position'] === 'number' ? fi['position'] : undefined;
@@ -63,7 +66,6 @@ async function tryExport(
   sessionHandle: string,
   buildData: () => Record<string, unknown>,
 ) {
-  const session = service.sessions.get(sessionHandle)!;
   const ws = service.sessions.getWorkspace(sessionHandle)!;
   try {
     const data = buildData();
@@ -97,7 +99,7 @@ async function tryExport(
 }
 
 async function main() {
-  const config = loadConfig({ logLevel: 'warn' });
+  const config = isolateRuntime(loadConfig({ logLevel: 'warn' }));
   configureLogger('warn');
   const service = new DcscService(config);
   const ctx = service.newCtx();
@@ -130,9 +132,10 @@ async function main() {
     });
     const localRacks = ws.rackArea.map(toLocalRack);
     const exportRacks = localRacks.map(toExportRackData);
-    (data as any).workspace.rackArea = localRacks;
-    (data as any).workspaceInformation.rackData = exportRacks;
-    delete (data as any).workspaceInformation.configurations;
+    const mutable = mutableExportData(data);
+    mutable.workspace.rackArea = localRacks;
+    mutable.workspaceInformation.rackData = exportRacks;
+    delete mutable.workspaceInformation.configurations;
     return data;
   });
 
@@ -144,9 +147,12 @@ async function main() {
       fileTypes: ['XML', 'RACK_DIAGRAM', 'RACK_REPORT'],
       validationMode: 'guided',
     });
-    (data as any).workspace.rackArea = [];
-    (data as any).workspaceInformation.rackData = ws.rackArea.map((r) => toExportRackData(toLocalRack(r)));
-    delete (data as any).workspaceInformation.configurations;
+    const mutable = mutableExportData(data);
+    mutable.workspace.rackArea = [];
+    mutable.workspaceInformation.rackData = ws.rackArea.map((r) =>
+      toExportRackData(toLocalRack(r)),
+    );
+    delete mutable.workspaceInformation.configurations;
     return data;
   });
 
@@ -158,9 +164,10 @@ async function main() {
       fileTypes: ['XML', 'RACK_DIAGRAM', 'RACK_REPORT'],
       validationMode: 'guided',
     });
-    (data as any).workspace.rackArea = ws.rackArea.map(toLocalRack);
-    (data as any).workspaceInformation.rackData = [];
-    delete (data as any).workspaceInformation.configurations;
+    const mutable = mutableExportData(data);
+    mutable.workspace.rackArea = ws.rackArea.map(toLocalRack);
+    mutable.workspaceInformation.rackData = [];
+    delete mutable.workspaceInformation.configurations;
     return data;
   });
 
@@ -198,14 +205,28 @@ async function main() {
     };
     const local = ws.rackArea.map((r) => slim(toLocalRack(r), 'servers'));
     const exp = ws.rackArea.map((r) => slim(toExportRackData(toLocalRack(r)), 'rackItems'));
-    (data as any).workspace.rackArea = local;
-    (data as any).workspaceInformation.rackData = exp;
-    delete (data as any).workspaceInformation.configurations;
+    const mutable = mutableExportData(data);
+    mutable.workspace.rackArea = local;
+    mutable.workspaceInformation.rackData = exp;
+    delete mutable.workspaceInformation.configurations;
     return data;
   });
 
   await service.close();
 }
+
+interface MutableExportData extends Record<string, unknown> {
+  workspace: Record<string, unknown> & { rackArea: RackObject[] };
+  workspaceInformation: Record<string, unknown> & {
+    rackData: RackObject[];
+    configurations?: unknown;
+  };
+}
+
+function mutableExportData(data: Record<string, unknown>): MutableExportData {
+  return data as MutableExportData;
+}
+
 main().catch((e) => {
   console.error(e);
   process.exit(1);

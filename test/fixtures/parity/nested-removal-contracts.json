@@ -1,0 +1,135 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-16",
+    "sourceFixture": "test/fixtures/parity/xml/nested-racked-browser.xml",
+    "nativeArtifacts": {
+      "deleteChassis": "artifacts/implementation-2026-10-16/nested-removal-chassis-run2",
+      "deleteNode": "artifacts/implementation-2026-10-16/nested-removal-node-run2",
+      "moveNodeToNonRack": "artifacts/implementation-2026-10-16/nested-unplace-node-run2"
+    },
+    "note": "Sanitized structural oracle from the website requests. Earlier node run1 artifacts clicked the parent chassis and are not authoritative."
+  },
+  "identities": {
+    "rack": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+    "chassis": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+    "looseSourceNode": "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+    "copiedNestedNode": "US__-b01d-4208-99bc-55c8cc5464cf1000"
+  },
+  "wireSequence": {
+    "customize": {
+      "path": "/api/ctos/racks/customize",
+      "query": {
+        "autoArrange": true,
+        "autoConnect": true,
+        "cogValidation": true
+      }
+    },
+    "derive": {
+      "path": "/api/ctos/autoDerive",
+      "query": {
+        "guideMode": true
+      }
+    },
+    "finalCustomize": false
+  },
+  "nativeRackedImportShape": {
+    "floorChassisNodesPresent": false,
+    "hierarchyNodeSize": 1,
+    "customizeAcceptedOccupiedBay": 1
+  },
+  "deleteChassis": {
+    "customizeConfigurationIds": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "deriveConfigurationIds": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "exportCloneColorIds": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "derivePhysical": {
+      "rackItems": [],
+      "nonRackIds": ["US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"]
+    }
+  },
+  "deleteNode": {
+    "configurationIds": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "derivePhysical": {
+      "chassis": {
+        "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+        "code": "7DD0CTOLWW",
+        "type": "chassis",
+        "position": 1,
+        "size": 2,
+        "nodes": []
+      },
+      "nonRackIds": ["US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"]
+    },
+    "deriveCloneDependencyIds": [
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "exportCloneColorIds": [
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "commercialConfigurationRetained": true,
+    "physicalNodeDetached": true,
+    "exportConfigurationCount": 4,
+    "reimportConfigurationCount": 3,
+    "roundTripLimitation": "Lenovo import drops the physically detached commercial line."
+  },
+  "moveNodeToNonRack": {
+    "configurationIds": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "derivePhysical": {
+      "chassis": {
+        "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+        "code": "7DD0CTOLWW",
+        "type": "chassis",
+        "position": 1,
+        "size": 2,
+        "nodes": []
+      },
+      "movedNode": {
+        "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+        "type": "node",
+        "position": 1,
+        "size": 0,
+        "occupiedBay": 1
+      },
+      "nonRackIds": [
+        "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+        "US__-b01d-4208-99bc-55c8cc5464cf1000"
+      ]
+    },
+    "deriveCloneDependencyIds": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ],
+    "exportCloneColorIds": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ]
+  }
+}

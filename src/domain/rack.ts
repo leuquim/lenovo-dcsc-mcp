@@ -14,6 +14,35 @@ import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 
 export type RackObject = Record<string, unknown>;
 
+export interface RackConfigurationFeature {
+  code: string;
+  quantity: number;
+  installations: unknown[];
+  description?: string | undefined;
+  type?: string | undefined;
+  forAutoConnect?: boolean | undefined;
+}
+
+export interface RackConfigurationSection {
+  name: string;
+  features: RackConfigurationFeature[];
+}
+
+export interface RackConfigurationWire extends RackObject {
+  id: string;
+  code: string;
+  sections: RackConfigurationSection[];
+  connectors: unknown[];
+  selectedTopologies: RackObject;
+}
+
+/** Full rack workspace payload. Fields owned by other SPA panels pass through. */
+export interface RackCustomizePayload extends RackObject {
+  rackArea: RackObject[];
+  nonRackArea: RackObject[];
+  configurations?: RackConfigurationWire[] | undefined;
+}
+
 export interface RackCabinet {
   code: string;
   description: string;
@@ -67,6 +96,8 @@ export interface LayoutResult {
   rawRackArea: RackObject[];
   rawNonRackArea: RackObject[];
   connections: unknown[];
+  /** Complete endpoint response, including future server fields. */
+  rawState: RackObject;
 }
 
 interface CategoryNode {
@@ -74,15 +105,18 @@ interface CategoryNode {
   children?: CategoryNode[] | null;
 }
 
-/** Rack cabinets available in the current solution mode. */
+/** Rack hardware available in the current solution mode or compatible-parent catalog. */
 export async function fetchRackCabinets(
   http: DcscHttpClient,
   ctx: RequestCtx,
+  masterCode?: string,
+  hardwareType: 'rack' | 'chassis' | 'node' = 'rack',
 ): Promise<RackCabinet[]> {
   const res = await http.send({
     endpoint: 'racks_categories',
     method: 'GET',
-    path: '/ctos/racks/categories',
+    path: masterCode ? '/ctos/racks/compatible_categories' : '/ctos/racks/categories',
+    ...(masterCode ? { query: { masterCode } } : {}),
     responseKind: 'json',
     timeoutClass: 'fast',
     ctx,
@@ -94,9 +128,9 @@ export async function fetchRackCabinets(
       for (const p of node.products ?? []) {
         const code = p['code'];
         if (typeof code !== 'string') continue;
-        // The rack category also carries accessories (console managers, rear
-        // door heat exchangers, UPSes). Only actual cabinets can hold items.
-        if (p['hardwareType'] !== 'rack') continue;
+        // The same endpoint supplies compatible chassis and nested nodes.
+        // Default cabinet discovery continues to exclude other hardware.
+        if (p['hardwareType'] !== hardwareType) continue;
         const description = p['description'];
         const machineType = p['machineType'];
         const price = p['price'];
@@ -157,7 +191,193 @@ export async function fetchEnvelopes(
   return out;
 }
 
+/** Uses DCSC's own product classification when requesting a physical envelope. */
+export function buildEnvelopeRequest(raw: RackObject): { code: string; type: string; asVLH: boolean } {
+  const code = str(raw['sliceCtoCode']) ?? str(raw['code']) ?? str(raw['lfoCode']);
+  if (!code) throw new Error('Cannot request a physical envelope without a product code.');
+  return { code, type: classifyRackHardware(raw), asVLH: raw['asVLH'] === true };
+}
+
+/**
+ * Classifies a rackable product from server-authored values only.
+ *
+ * Live launch evidence returns `server`, `switch`, and `rack` in `type`.
+ * `hardwareType` wins when the rack service has already made it more specific.
+ */
+export function classifyRackHardware(...sources: Array<RackObject | undefined>): string {
+  for (const source of sources) {
+    if (!source) continue;
+    const value = str(source['hardwareType']) ?? str(source['type']);
+    if (value) return value.toLowerCase();
+  }
+  throw new Error('DCSC did not provide a hardware type for this product.');
+}
+
+/** Projects full configuration trees into the compact shape posted by the SPA. */
+export function buildRackConfigurations(configurations: readonly RackObject[]): RackConfigurationWire[] {
+  return configurations.map((configuration) => {
+    const id = str(configuration['id']) ?? str(configuration['configurationId']);
+    const code = str(configuration['code']) ?? str(configuration['sliceCtoCode']) ?? str(configuration['lfoCode']);
+    if (!id || !code) throw new Error('Rack configuration requires both an id and product code.');
+    const sections: RackConfigurationSection[] = [];
+    for (const tab of rows(configuration['tabs'])) {
+      const tabType = str(tab['type']);
+      for (const subTab of rows(tab['subTabs'])) {
+        for (const section of rows(subTab['sections'])) appendSection(sections, section, tabType);
+      }
+    }
+    for (const section of rows(configuration['unSelectableCharacters'])) {
+      appendSection(sections, section);
+    }
+    return {
+      id,
+      code,
+      sections,
+      name: str(configuration['name']) ?? '',
+      description: str(configuration['description']) ?? '',
+      connectors: Array.isArray(configuration['connectors']) ? configuration['connectors'] : [],
+      selectedTopologies: object(configuration['selectedTopologies']),
+      selectedStorageNetwork: configuration['selectedStorageNetwork'],
+      sliceCtoCode: str(configuration['sliceCtoCode']) ?? code,
+      slice: configuration['slice'],
+      asVLH: configuration['asVLH'] === true,
+      vlhId: configuration['vlhId'],
+    };
+  });
+}
+
+/** Adds projected configurations while retaining all caller-owned workspace state. */
+export function buildRackCustomizePayload(
+  state: RackCustomizePayload,
+  configurations: readonly RackObject[],
+): RackCustomizePayload & { configurations: RackConfigurationWire[] } {
+  const compact = buildRackConfigurations(configurations);
+  const byId = new Map(compact.map(configuration => [configuration.id, configuration]));
+  const roots = new Map<string, string>();
+  for (const [root, value] of Object.entries(object(state['cloneDependency']))) {
+    if (Array.isArray(value)) for (const id of value) if (typeof id === 'string') roots.set(id, root);
+  }
+  for (const [root, value] of Object.entries(object(state['cloneDependencyColor']))) {
+    const members = object(value)['dependBy'];
+    if (Array.isArray(members)) for (const id of members) if (typeof id === 'string') roots.set(id, root);
+  }
+  const project = (source: RackObject, racked: boolean, cabinet = false): RackObject => {
+    const item = structuredClone(source);
+    // customizePrepareData unwraps the node bay-size object returned by the
+    // layout service. Sending that response object back fails deserialization.
+    if (item['type'] === 'node' && item['size'] !== null && typeof item['size'] === 'object') {
+      const value = object(item['size'])['value'];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        throw new Error('DCSC node physical size has no usable numeric value.');
+      }
+      item['size'] = value;
+    }
+    const id = str(item['id']);
+    const configuration = id ? byId.get(roots.get(id) ?? id) : undefined;
+    if (configuration) {
+      const previous = rows(item['features']);
+      item['features'] = configuration.sections.filter(section => !section.name.includes('UNCONFIGURED_'))
+        .map(section => ({ name: section.name, results: section.features.map(feature => {
+          // The SPA shares these compact result objects with the physical payload,
+          // including the OR-ed auto-connect flag across linked physical aliases.
+          const result = feature;
+          if (racked) {
+            const old = previous.find(value => value['name'] === section.name);
+            const prior = rows(old?.['results']).find(value => value['code'] === feature.code);
+            if (prior) result.forAutoConnect = result.forAutoConnect === true || prior['forAutoConnect'] === true;
+          }
+          return result;
+        }) }));
+      if (!item['description']) item['description'] = configuration['description'];
+      if (!cabinet || !item['name']) item['name'] = configuration['name'];
+      if (cabinet) item['baseFeatureCode'] = configuration.sections.find(section => section.name === 'BASE')?.features[0]?.code;
+    }
+    for (const key of ['rackItems', 'nodes']) {
+      if (Array.isArray(item[key])) item[key] = rows(item[key]).map(child => project(child, racked));
+    }
+    return item;
+  };
+  return { ...state, configurations: compact,
+    rackArea: state.rackArea.map(rack => project(rack, true, true)),
+    nonRackArea: state.nonRackArea.map(item => project(item, false)) };
+}
+
+/** The SPA applies derive placement metadata to selected results before preparing rack requests. */
+export function withDerivedPlacements<T extends RackObject>(configuration: T, response: unknown): T {
+  const id = str(configuration['workspaceId']) ?? str(configuration['id']) ?? str(configuration['configurationId']);
+  const targets = configuration['updateConfigurationIds'];
+  if (Array.isArray(targets) && !targets.includes(configuration['id'])) return configuration;
+  const placements = rows(object(response)['placementResults']).filter(value => value['workspaceId'] === id);
+  if (placements.length === 0) return configuration;
+  if (placements.length > 1) throw new Error(`DCSC returned ambiguous placement results for ${id}.`);
+  const enriched = structuredClone(configuration);
+  const sections = rows(enriched['tabs']).flatMap(tab => rows(tab['subTabs']))
+    .flatMap(tab => rows(tab['sections'])).concat(rows(enriched['unSelectableCharacters']));
+  for (const placement of rows(placements[0]!['sectionPlacement'])) {
+    for (const section of sections.filter(value => value['name'] === placement['sectionName'])) {
+      for (const feature of rows(placement['featurePlacement'])) {
+        for (const result of rows(section['results']).filter(value => value['code'] === feature['featureCode'])) {
+          result['installations'] = Array.isArray(feature['installations']) ? structuredClone(feature['installations']) : [];
+        }
+      }
+    }
+  }
+  return enriched;
+}
+
+/**
+ * Applies the configuration patch returned by /ctos/autoDerive.
+ *
+ * The endpoint wraps a partial list in `configurations`: live responses omit
+ * configurations that did not change. Match only by the opaque configuration
+ * id and retain every omitted configuration in its original order.
+ */
+export function mergeDerivedConfigurations(
+  current: readonly RackObject[],
+  response: unknown,
+): RackObject[] {
+  const currentById = new Map<string, RackObject>();
+  for (const configuration of current) {
+    const id = configurationId(configuration, 'current');
+    if (currentById.has(id)) {
+      throw new Error(`Duplicate current rack configuration id: ${id}`);
+    }
+    currentById.set(id, configuration);
+  }
+
+  const wrapper = object(response);
+  if (!Array.isArray(wrapper['configurations'])) {
+    throw new Error('Auto-derive response is missing its configurations array.');
+  }
+  const derived = wrapper['configurations'].map((configuration, index) => {
+    if (typeof configuration !== 'object' || configuration === null || Array.isArray(configuration)) {
+      throw new Error(`Auto-derive configuration at index ${index} is not an object.`);
+    }
+    return configuration as RackObject;
+  });
+  const updates = new Map<string, RackObject>();
+  for (const configuration of derived) {
+    const id = configurationId(configuration, 'derived');
+    if (updates.has(id)) {
+      throw new Error(`Duplicate derived rack configuration id: ${id}`);
+    }
+    const existing = currentById.get(id);
+    if (!existing) {
+      throw new Error(`Derived rack configuration has unknown id: ${id}`);
+    }
+    const existingCode = configurationCode(existing);
+    const derivedCode = configurationCode(configuration);
+    if (existingCode && derivedCode && existingCode.toUpperCase() !== derivedCode.toUpperCase()) {
+      throw new Error(`Derived rack configuration ${id} changed product code from ${existingCode} to ${derivedCode}`);
+    }
+    updates.set(id, configuration);
+  }
+
+  return current.map((configuration) => updates.get(configurationId(configuration, 'current')) ?? configuration);
+}
+
 export interface CustomizeOptions {
+  mode?: 'cto' | 'lfo';
   autoArrange?: boolean;
   autoConnect?: boolean;
   cogValidation?: boolean;
@@ -172,13 +392,13 @@ export interface CustomizeOptions {
 export async function customizeLayout(
   http: DcscHttpClient,
   ctx: RequestCtx,
-  payload: { rackArea: RackObject[]; nonRackArea: RackObject[] },
+  payload: RackCustomizePayload,
   opts: CustomizeOptions = {},
 ): Promise<LayoutResult> {
   const res = await http.send({
     endpoint: 'racks_customize',
     method: 'POST',
-    path: '/ctos/racks/customize',
+    path: opts.mode === 'lfo' ? '/lfos/racks/customize' : '/ctos/racks/customize',
     query: {
       autoArrange: opts.autoArrange ?? false,
       autoConnect: opts.autoConnect ?? false,
@@ -190,14 +410,10 @@ export async function customizeLayout(
     ctx,
   });
 
-  const raw = res.raw as {
-    rackArea?: RackObject[] | null;
-    nonRackArea?: RackObject[] | null;
-    connections?: unknown[] | null;
-  };
+  const raw = object(res.raw);
 
-  const rackArea = raw.rackArea ?? [];
-  const nonRackArea = raw.nonRackArea ?? [];
+  const rackArea = Array.isArray(raw['rackArea']) ? raw['rackArea'] as RackObject[] : [];
+  const nonRackArea = Array.isArray(raw['nonRackArea']) ? raw['nonRackArea'] as RackObject[] : [];
   const allErrors: LayoutResult['errors'] = [];
 
   const racks: RackSummary[] = rackArea.map((r) => {
@@ -209,7 +425,8 @@ export async function customizeLayout(
         code: String(it['code'] ?? ''),
         description: str(it['description']),
         position,
-        endPosition: num(it['endPosition']) ?? position + sizeU - 1,
+        // DCSC raw endPosition is exclusive; the public U range is inclusive.
+        endPosition: position + sizeU - 1,
         sizeU,
       };
     });
@@ -243,7 +460,8 @@ export async function customizeLayout(
     errors: allErrors,
     rawRackArea: rackArea,
     rawNonRackArea: nonRackArea,
-    connections: raw.connections ?? [],
+    connections: Array.isArray(raw['connections']) ? raw['connections'] : [],
+    rawState: raw,
   };
 }
 
@@ -290,6 +508,51 @@ function num(v: unknown): number | undefined {
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v !== '' ? v : undefined;
+}
+
+function object(v: unknown): RackObject {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) ? v as RackObject : {};
+}
+
+function rows(v: unknown): RackObject[] {
+  return Array.isArray(v)
+    ? v.filter((item): item is RackObject => typeof item === 'object' && item !== null)
+    : [];
+}
+
+function configurationId(configuration: RackObject, source: 'current' | 'derived'): string {
+  const id = str(configuration['id']) ?? str(configuration['configurationId']);
+  if (!id) throw new Error(`${source === 'current' ? 'Current' : 'Derived'} rack configuration is missing its id.`);
+  return id;
+}
+
+function configurationCode(configuration: RackObject): string | undefined {
+  return str(configuration['code']) ?? str(configuration['sliceCtoCode']) ?? str(configuration['lfoCode']);
+}
+
+function appendSection(
+  target: RackConfigurationSection[],
+  section: RackObject,
+  defaultType?: string,
+): void {
+  const name = str(section['name']) ?? str(section['sectionName']);
+  if (!name) return;
+  const features = rows(section['results']).flatMap((result) => {
+    const code = str(result['code']);
+    if (!code) return [];
+    const feature: RackConfigurationFeature = {
+      code,
+      quantity: num(result['quantity']) ?? 0,
+      installations: Array.isArray(result['installations']) ? result['installations'] : [],
+      description: str(result['description']),
+      type: defaultType ?? str(result['type']),
+      ...(typeof result['forAutoConnect'] === 'boolean'
+        ? { forAutoConnect: result['forAutoConnect'] }
+        : {}),
+    };
+    return [feature];
+  });
+  if (features.length > 0) target.push({ name, features });
 }
 
 function toErrors(v: unknown): Array<{ code?: string | undefined; message: string }> {

@@ -33,9 +33,18 @@ async function main(): Promise<void> {
 
   registerTools(server, service);
 
+  let shuttingDown = false;
   const shutdown = (signal: string): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger().info({ signal }, 'Shutting down');
-    void service.close().finally(() => process.exit(0));
+    void (async () => {
+      await server.close();
+      await service.close();
+    })().then(() => process.exit(0), error => {
+      logger().error({ err: error }, 'Shutdown failed');
+      process.exit(1);
+    });
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));

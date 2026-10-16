@@ -1,0 +1,81 @@
+{
+  "capturedAt": "2026-10-15",
+  "capture": {
+    "browser": "Playwright Chromium",
+    "headless": true,
+    "persistentProfile": false,
+    "product": "7D73CTO1WW"
+  },
+  "hardwareMatrix": [
+    {
+      "requestedQuantity": 1,
+      "exportPayloadConfigurationCount": 1,
+      "rawConfigurationQuantities": [1],
+      "xmlGroup": { "quantity": 6, "unitListPrice": 15650.51 },
+      "products": [
+        { "code": "7D73-CTO1WW", "type": "Hardware", "quantity": 1, "unitListPrice": 15648.51 },
+        { "code": "7S0X-CTO6WW", "type": "Software", "quantity": 1, "unitListPrice": 1, "feature": { "code": "SCJD", "quantity": 1, "unitListPrice": 304.5 } },
+        { "code": "7S0X-CTO5WW", "type": "Software", "quantity": 1, "unitListPrice": 1, "feature": { "code": "SBCV", "quantity": 1, "unitListPrice": 209.5 } },
+        { "code": "7Q01-CTO2WW", "type": "ServiceCTO", "quantity": 1, "unitListPrice": 191 },
+        { "code": "7Q01-CTS4WW", "type": "ServiceCTO", "quantity": 1, "unitListPrice": 1829, "termFeature": { "code": "QA0Y", "quantity": 36 } },
+        { "code": "7Q01-CTSAWW", "type": "ServiceCTO", "quantity": 1, "unitListPrice": 173, "termFeature": { "code": "QA0Y", "quantity": 36 } }
+      ]
+    },
+    {
+      "requestedQuantity": 4,
+      "exportPayloadConfigurationCount": 4,
+      "rawConfigurationQuantities": [1, 1, 1, 1],
+      "xmlGroup": { "quantity": 6, "unitListPrice": 62602.04 },
+      "products": [
+        { "code": "7D73-CTO1WW", "type": "Hardware", "quantity": 4, "unitListPrice": 15648.51 },
+        { "code": "7S0X-CTO6WW", "type": "Software", "quantity": 4, "unitListPrice": 1, "feature": { "code": "SCJD", "quantity": 1, "unitListPrice": 304.5 } },
+        { "code": "7S0X-CTO5WW", "type": "Software", "quantity": 4, "unitListPrice": 1, "feature": { "code": "SBCV", "quantity": 1, "unitListPrice": 209.5 } },
+        { "code": "7Q01-CTO2WW", "type": "ServiceCTO", "quantity": 4, "unitListPrice": 191 },
+        { "code": "7Q01-CTS4WW", "type": "ServiceCTO", "quantity": 4, "unitListPrice": 1829, "termFeature": { "code": "QA0Y", "quantity": 36 } },
+        { "code": "7Q01-CTSAWW", "type": "ServiceCTO", "quantity": 4, "unitListPrice": 173, "termFeature": { "code": "QA0Y", "quantity": 36 } }
+      ]
+    },
+    {
+      "requestedQuantity": 8,
+      "exportPayloadConfigurationCount": 8,
+      "rawConfigurationQuantities": [1, 1, 1, 1, 1, 1, 1, 1],
+      "xmlGroup": { "quantity": 6, "unitListPrice": 125204.08 },
+      "products": [
+        { "code": "7D73-CTO1WW", "type": "Hardware", "quantity": 8, "unitListPrice": 15648.51 },
+        { "code": "7S0X-CTO6WW", "type": "Software", "quantity": 8, "unitListPrice": 1, "feature": { "code": "SCJD", "quantity": 1, "unitListPrice": 304.5 } },
+        { "code": "7S0X-CTO5WW", "type": "Software", "quantity": 8, "unitListPrice": 1, "feature": { "code": "SBCV", "quantity": 1, "unitListPrice": 209.5 } },
+        { "code": "7Q01-CTO2WW", "type": "ServiceCTO", "quantity": 8, "unitListPrice": 191 },
+        { "code": "7Q01-CTS4WW", "type": "ServiceCTO", "quantity": 8, "unitListPrice": 1829, "termFeature": { "code": "QA0Y", "quantity": 36 } },
+        { "code": "7Q01-CTSAWW", "type": "ServiceCTO", "quantity": 8, "unitListPrice": 173, "termFeature": { "code": "QA0Y", "quantity": 36 } }
+      ]
+    }
+  ],
+  "hiddenGroupQuantity4": {
+    "products": [
+      { "code": "7D73CTO1WW", "type": "hardware", "quantity": 4, "price": 51766.04, "unitPrice": 12941.51 },
+      { "code": "7S0XCTO6WW", "type": "hipo", "quantity": 4, "price": 306.5, "unitPrice": 305.5 },
+      { "code": "7S0XCTO5WW", "type": "hipo", "quantity": 4, "price": 211.5, "unitPrice": 210.5 },
+      { "code": "7Q01CTO2WW", "type": "servicectohipo", "quantity": 4, "price": 191, "unitPrice": 191 },
+      { "code": "7Q01CTS4WW", "type": "servicectohipo", "quantity": 4, "price": 1829, "unitPrice": 1829 },
+      { "code": "7Q01CTSAWW", "type": "servicectohipo", "quantity": 4, "price": 173, "unitPrice": 173 }
+    ]
+  },
+  "standaloneSoftwareQuantity3": {
+    "code": "7S1S002WWW",
+    "quantity": 3,
+    "unitPrice": 234.5,
+    "extendedPrice": 703.5,
+    "request": {
+      "standaloneData": { "price": 234.5 },
+      "groupProduct": { "price": 703.5, "unitPrice": 234.5 }
+    },
+    "xml": {
+      "product": { "quantity": 3, "unitListPrice": 234.5 },
+      "configurationGroup": { "quantity": 1, "unitListPrice": 703.5 }
+    },
+    "importResponse": {
+      "standaloneData": { "price": 234.5 },
+      "groupProduct": { "price": 703.5, "unitPrice": 234.5 }
+    }
+  }
+}

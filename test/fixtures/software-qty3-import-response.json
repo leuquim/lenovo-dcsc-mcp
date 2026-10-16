@@ -1,0 +1,86 @@
+{
+  "type": "lfo",
+  "country": "US",
+  "currency": "USD",
+  "language": "en",
+  "configurationMode": {
+    "mode": "General Purpose",
+    "masterSlices": [
+      "GP",
+      "HPCGPALL",
+      "HPCGPRYO"
+    ],
+    "sbSlices": []
+  },
+  "standaloneData": [
+    {
+      "id": "3ae1194f-618c-446d-98a7-d70b8ad0cd2d",
+      "code": "7S1S002WWW",
+      "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (Reseller POS Only)",
+      "price": 234.5,
+      "priceNotAvailable": false,
+      "type": "software",
+      "quantity": 3,
+      "showPrice": true,
+      "prices": [
+        {
+          "priceTypeId": 1,
+          "price": 234.5,
+          "priceNotAvailable": false
+        }
+      ],
+      "shippingStatus": null,
+      "shipDate": null,
+      "covOption": false,
+      "inventory": null,
+      "recommendation": false,
+      "keyWord": null,
+      "cost": null,
+      "eccnRestricted": false,
+      "cto": false,
+      "lfo": false,
+      "service": false,
+      "dummyCost": false,
+      "option": true
+    }
+  ],
+  "groups": [
+    {
+      "id": "100",
+      "name": "Config 1",
+      "index": -1,
+      "depth": 1,
+      "parent": null,
+      "parentGroup": null,
+      "products": [
+        {
+          "id": "3ae1194f-618c-446d-98a7-d70b8ad0cd2d",
+          "code": "7S1S002WWW",
+          "ctoTargetCode": null,
+          "partNumber": null,
+          "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (Reseller POS Only)",
+          "shippingStatus": null,
+          "quantity": 3,
+          "price": 703.5,
+          "groupId": "Config 1",
+          "uuid": "3ae1194f-618c-446d-98a7-d70b8ad0cd2d_7S1S002WWW",
+          "type": "standalone",
+          "unitPrice": 234.5,
+          "priceNotAvailable": false,
+          "prices": [
+            {
+              "priceTypeId": 1,
+              "price": 234.5,
+              "priceNotAvailable": false
+            }
+          ],
+          "asMultiProd": false,
+          "recommendation": false
+        }
+      ],
+      "sequence": 1
+    }
+  ],
+  "summary": null,
+  "configuration": []
+}

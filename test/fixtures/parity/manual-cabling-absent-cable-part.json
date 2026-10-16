@@ -1,0 +1,71 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15T20:02:20.000Z",
+    "artifact": "artifacts/implementation-2026-10-15/manual-cable-browser-absent-part/report.json",
+    "note": "Native browser AVFT to AVFU selection after import settled. AVFU was absent from physical rack features before the targeted derive and present in the browser export afterward."
+  },
+  "configurationId": "US__02579351-49f4-427c-8a57-e472132552740",
+  "physicalDestinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+  "sectionName": "ETHERNET_CABLE",
+  "oldCode": "AVFT",
+  "newCode": "AVFU",
+  "acceptedConfiguration": {
+    "id": "US__02579351-49f4-427c-8a57-e472132552740",
+    "sliceCtoCode": "7D5FCTOFWW",
+    "tabs": [{
+      "title": "Cable Options",
+      "type": "hardware",
+      "subTabs": [{
+        "title": "Cable Options",
+        "sections": [{
+          "name": "ETHERNET_CABLE",
+          "results": [
+            { "code": "3802", "quantity": 1, "description": "1.5m Blue Cat5e Cable" },
+            { "code": "AVFU", "quantity": 1, "description": "1.0m Blue Cat5e Cable" }
+          ]
+        }]
+      }]
+    }]
+  },
+  "deriveResponse": {
+    "placementResults": [{
+      "workspaceId": "US__02579351-49f4-427c-8a57-e472132552740",
+      "sectionPlacement": [{
+        "sectionName": "ETHERNET_CABLE",
+        "errors": [],
+        "featurePlacement": [
+          {
+            "sectionName": "ETHERNET_CABLE",
+            "featureCode": "3802",
+            "installations": [],
+            "placementError": null
+          },
+          {
+            "sectionName": "ETHERNET_CABLE",
+            "featureCode": "AVFU",
+            "installations": [],
+            "placementError": null
+          }
+        ]
+      }]
+    }]
+  },
+  "expectedPhysicalResults": [
+    {
+      "code": "3802",
+      "description": "1.5m Blue Cat5e Cable",
+      "quantity": 1,
+      "forAutoConnect": false,
+      "installations": [],
+      "attributeMap": null
+    },
+    {
+      "code": "AVFU",
+      "description": "1.0m Blue Cat5e Cable",
+      "quantity": 1,
+      "forAutoConnect": true,
+      "installations": [],
+      "attributeMap": null
+    }
+  ]
+}

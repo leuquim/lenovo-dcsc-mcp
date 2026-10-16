@@ -1,0 +1,30 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/rack-clone-browser-delete-root-three-run2",
+    "workflow": "Fresh browser SR630 V3 Clone Multiple with two clones, then delete the original root"
+  },
+  "before": {
+    "cloneDependency": {
+      "rack": ["rack"],
+      "server-root": ["server-root", "server-2", "server-3"]
+    }
+  },
+  "after": {
+    "cloneDependency": {
+      "rack": ["rack"],
+      "server-2": ["server-2", "server-3"]
+    },
+    "cloneDependencyColor": {
+      "server-2": {
+        "color": "#33ebbb",
+        "dependBy": ["server-2", "server-3"]
+      }
+    },
+    "commercialHardware": {
+      "id": "server-2",
+      "quantity": 2,
+      "price": 26931.02
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Native DCSC Summary move after placing the same DS3200 and DB710S storage network twice",
+    "artifact": "artifacts/parity-headless/storage-alias-move-r43",
+    "request": "wire/024-auto-derive-request.json",
+    "response": "wire/024-auto-derive-response.json",
+    "exportForm": "after-move-export-request.json",
+    "exportArchive": "after-move-export.zip"
+  },
+  "current": [
+    {
+      "id": "controller-template",
+      "sliceCtoCode": "7DP4CTO1WW",
+      "description": "Lenovo ThinkSystem DS3200 Storage Array",
+      "type": "storage",
+      "quantity": 1,
+      "totalPrice": 211949.51,
+      "totalPrices": [{ "priceTypeId": 1, "price": 211948.51 }]
+    },
+    {
+      "id": "san-switch-template",
+      "sliceCtoCode": "7DHNCTO1WW",
+      "description": "Lenovo ThinkSystem DB710S",
+      "type": "switch",
+      "quantity": 1,
+      "totalPrice": 10759.01,
+      "totalPrices": [{ "priceTypeId": 1, "price": 10759.01 }]
+    }
+  ],
+  "aliases": {
+    "controller-physical-1": "controller-template",
+    "controller-physical-2": "controller-template",
+    "san-switch-physical-1": "san-switch-template",
+    "san-switch-physical-2": "san-switch-template"
+  },
+  "response": {
+    "configurations": [
+      {
+        "id": "controller-template",
+        "sliceCtoCode": "7DP4CTO1WW",
+        "description": "Lenovo ThinkSystem DS3200 Storage Array",
+        "type": "storage",
+        "quantity": 1,
+        "totalPrice": 330709.01,
+        "totalPrices": [{ "priceTypeId": 1, "price": 330708.01 }],
+        "nonSoftwareTotalPrices": [{ "priceTypeId": 1, "price": 330708.01 }],
+        "tabs": [{
+          "title": "Internal Components",
+          "subTabs": [{
+            "title": "Rack Installation",
+            "sections": [{
+              "name": "Rack_Installation",
+              "results": [
+                { "code": "B6Y6", "quantity": 1 },
+                { "code": "BWUE", "quantity": 1 },
+                { "code": "CCJ1", "quantity": 1 }
+              ]
+            }]
+          }]
+        }],
+        "updateConfigurationIds": ["controller-physical-1", "controller-physical-2"],
+        "capturedFutureField": { "kept": true, "version": 3 }
+      },
+      {
+        "id": "san-switch-template",
+        "sliceCtoCode": "7DHNCTO1WW",
+        "description": "Lenovo ThinkSystem DB710S",
+        "type": "switch",
+        "quantity": 1,
+        "totalPrice": 12012.01,
+        "totalPrices": [{ "priceTypeId": 1, "price": 12012.01 }],
+        "nonSoftwareTotalPrices": [{ "priceTypeId": 1, "price": 12012.01 }],
+        "tabs": [{
+          "title": "Internal Components",
+          "subTabs": [{
+            "title": "Other MI",
+            "sections": [{
+              "name": "OTHER_MI",
+              "results": [{ "code": "2305", "quantity": 1 }]
+            }]
+          }]
+        }],
+        "updateConfigurationIds": ["san-switch-physical-1", "san-switch-physical-2"],
+        "capturedFutureField": { "kept": true, "version": 3 }
+      }
+    ]
+  },
+  "expected": {
+    "ordinaryConfigurationIds": [],
+    "physicalConfigurationIds": [
+      "controller-physical-1",
+      "controller-physical-2",
+      "san-switch-physical-1",
+      "san-switch-physical-2"
+    ],
+    "commercial": [
+      { "templateId": "controller-template", "code": "7DP4CTO1WW", "derivedPrice": 330708.01 },
+      { "templateId": "san-switch-template", "code": "7DHNCTO1WW", "derivedPrice": 12012.01 }
+    ],
+    "afterMoveCommercial": {
+      "controller": [
+        { "code": "7DP4CTO1WW", "type": "hardware", "quantity": 2, "price": 423897.02, "unitPrice": 211948.51 },
+        { "code": "7S1VCTOFWW", "type": "hipo", "quantity": 2, "price": 79272.5, "unitPrice": 79271.5 },
+        { "code": "5PS7C31189", "type": "service", "quantity": 2, "price": 2619, "unitPrice": 2619 },
+        { "code": "5PS7C31387", "type": "service", "quantity": 2458, "price": 36870, "unitPrice": 30 }
+      ],
+      "mainSwitch": [
+        { "code": "7DHNCTO1WW", "type": "hardware", "quantity": 2, "price": 22576.02, "unitPrice": 11288.01 },
+        { "code": "5WS7C21341", "type": "service", "quantity": 2, "price": 629, "unitPrice": 629 },
+        { "code": "5MS7B07545", "type": "service", "quantity": 2, "price": 95, "unitPrice": 95 }
+      ]
+    }
+  }
+}

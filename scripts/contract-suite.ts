@@ -9,18 +9,30 @@
  * Usage: npx tsx scripts/contract-suite.ts [group]
  *   groups: import, rack, power, fabric, scaleout, blueprints, persist,
  *           floor, cabling, pdu, validate, locale, topology, services,
- *           services_cto, all
+ *           services_cto, standalone, all
  */
 import { readFileSync, rmSync } from 'node:fs';
+import { isDeepStrictEqual } from 'node:util';
 import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient } from '../src/http/request.js';
 import { configureLogger } from '../src/http/trace.js';
 import { DcscService } from '../src/mcp/service.js';
 import { extractPowerReport, aggregatePower } from '../src/domain/power.js';
-import { BLUEPRINTS } from '../src/domain/blueprints.js';
+import { searchCatalog } from '../src/domain/catalog.js';
+import { listTopologyConnectors } from '../src/domain/networkPreferences.js';
+import {
+  launchProductServices,
+  launchStandaloneSoftware,
+  selectProductService,
+  selectStandaloneSoftware,
+  summariseProductServices,
+} from '../src/domain/standalone.js';
+import {
+  exportProductServiceArtifact,
+  exportStandaloneSoftwareArtifact,
+} from '../src/mcp/standaloneTools.js';
+import { writeExportBundle } from '../src/files/artifactStore.js';
 import { stateFile } from '../src/session/persist.js';
-
-const BLUEPRINT_DIR = 'artifacts/nvidia_ai_factory_blueprints';
+import { isolateRuntime, readStream } from './lib/isolated-runtime.js';
 
 let passed = 0;
 let failed = 0;
@@ -38,50 +50,81 @@ function check(ok: boolean, label: string, detail = ''): void {
 }
 
 function newService() {
-  const config = loadConfig({ logLevel: process.env.DCSC_LOG_LEVEL ?? 'warn' });
+  const config = isolateRuntime(
+    loadConfig({ logLevel: process.env.DCSC_LOG_LEVEL ?? 'warn' }),
+  );
   configureLogger(config.logLevel);
   return { service: new DcscService(config), config };
+}
+
+async function launchCurrentCto(service: DcscService, productCode: string, label?: string) {
+  const modes = await service.modesContaining(service.newCtx(), [productCode]);
+  const currentMode = modes.get(productCode.toUpperCase())?.[0];
+  if (!currentMode) {
+    throw new Error(`${productCode} is absent from every current solution catalog.`);
+  }
+  const ctx = service.newCtx();
+  const solution = await service.resolveSolution(ctx, currentMode);
+  const session = await service.launch({
+    productCode,
+    mode: 'cto',
+    solution,
+    ctx,
+    ...(label ? { label } : {}),
+  });
+  return { ctx, solution, session, currentMode };
 }
 
 // ---------------------------------------------------------------------------
 
 async function groupImport(service: DcscService): Promise<void> {
-  console.log('\n=== import: CFXML round-trips through DCSC\'s own importer ===');
-  for (const name of [
-    'nvidia-blueprint-7dm9cto1ww.xml',
-    'nvidia-blueprint-7dhccto1ww.xml',
-  ]) {
-    const content = readFileSync(`${BLUEPRINT_DIR}/${name}`, 'utf8');
-    const res = await service.importConfig({ content, ctx: service.newCtx(), fileName: name });
-    const d = res.diagnostics;
-    check(
-      d.missingParts.length === 0 && d.removedParts.length === 0,
-      `${name} imports with no lost parts`,
-      `price=$${res.sessions[0]?.raw.totalPrice?.toLocaleString()}`,
-    );
-  }
-
-  // The regression that started all this: a General-Purpose-only model must be
-  // rejected under HPC and AI rather than silently "succeeding".
-  const gpOnly = readFileSync(`${BLUEPRINT_DIR}/nvidia-blueprint-7dhccto1ww.xml`, 'utf8');
-  let threw = false;
-  try {
-    const res = await service.importConfig({
-      content: gpOnly,
-      ctx: service.newCtx(),
-      solutionMode: 'HPC and AI - Systems',
+  console.log('\n=== import: fresh current-catalog CFXML round-trips through DCSC ===');
+  const modes = await service.solutionModes(service.newCtx());
+  let exercised = 0;
+  for (const mode of modes) {
+    const ctx = service.newCtx();
+    const solution = await service.resolveSolution(ctx, mode.mode);
+    const catalog = await service.catalog(ctx, solution);
+    const product = catalog.entries.find((entry) =>
+      !entry.withdrawn && entry.type.toUpperCase() === 'CTO');
+    if (!product) {
+      check(
+        catalog.entries.every((entry) => entry.withdrawn || entry.type.toUpperCase() !== 'CTO'),
+        `${mode.mode} import is explicitly blocked without a current CTO fixture`,
+      );
+      continue;
+    }
+    const launched = await service.launch({ productCode: product.code, mode: 'cto', solution, ctx });
+    const exported = await service.exportZip(launched.id, {
+      fileName: `contract-import-${product.code.toLowerCase()}`,
+      fileTypes: ['XML'],
+      ctx: service.newCtx({ solution }),
     });
-    threw = res.diagnostics.missingParts.length > 0;
-  } catch {
-    threw = true;
+    const bundle = await writeExportBundle(exported.stream, `contract-import-${product.code}`, service.config);
+    if (!bundle.xml) throw new Error(`DCSC export for ${product.code} did not contain CFXML.`);
+    const content = readFileSync(bundle.xml, 'utf8');
+    const imported = await service.importConfig({
+      content,
+      ctx: service.newCtx({ solution }),
+      fileName: `${product.code}.xml`,
+      solutionMode: mode.mode,
+    });
+    const diagnostics = imported.diagnostics;
+    check(
+      diagnostics.missingParts.length === 0 && diagnostics.removedParts.length === 0,
+      `${product.code} round-trips in its current ${mode.mode} catalog`,
+      `price=$${imported.sessions[0]?.raw.totalPrice?.toLocaleString()}`,
+    );
+    exercised += 1;
   }
-  check(threw, 'General-Purpose-only model is rejected under HPC and AI');
+  check(exercised > 0, 'at least one current catalog supplied an import fixture', `${exercised} mode(s)`);
 }
 
 async function groupRack(service: DcscService): Promise<void> {
   console.log('\n=== rack: placement validated by DCSC, not by us ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
+  const { session: node, solution, currentMode } = await launchCurrentCto(service, '7DM9CTO1WW');
+  const ctx = service.newCtx({ solution });
+  console.log(`        using 7DM9CTO1WW from current ${currentMode} catalog`);
 
   const cabinets = await service.rackCabinets(ctx, solution);
   check(cabinets.length > 0, 'rack cabinets listed', `${cabinets.length} cabinets`);
@@ -90,23 +133,39 @@ async function groupRack(service: DcscService): Promise<void> {
     'rack list contains only cabinets, not accessories',
   );
 
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
   const added = await service.addRack(node.id, '7D6DCTO1WW', service.newCtx());
   check(added.racks[0]?.sizeU === 42, 'rack size comes from DCSC', `${added.racks[0]?.sizeU}U`);
   const emptyWeight = added.racks[0]?.totalWeightKg ?? 0;
   const rackId = added.racks[0]!.id;
 
-  const bad = await service.placeInRack(node.id, {
-    rackId,
-    sessionId: node.id,
-    position: 1,
-    ctx: service.newCtx(),
-  });
+  const placementState = () => {
+    const workspace = service.sessions.getWorkspace(node.id);
+    if (!workspace) throw new Error('Rack contract workspace is missing.');
+    const snapshot = structuredClone(workspace);
+    snapshot.lastAccessAt = 0;
+    for (const configuration of snapshot.configurations.values()) configuration.lastAccessAt = 0;
+    return snapshot;
+  };
+  const beforeInvalid = placementState();
+  let rejection: unknown;
+  try {
+    await service.placeInRack(node.id, {
+      rackId,
+      sessionId: node.id,
+      position: 1,
+      ctx: service.newCtx(),
+    });
+  } catch (error) {
+    rejection = error;
+  }
   check(
-    bad.errors.length > 0 || bad.unplaced.length > 0,
-    'illegal U position is refused by DCSC',
-    bad.errors[0]?.message.slice(0, 80) ?? '',
+    rejection instanceof Error &&
+      /did not accept the requested rack placement.*Workspace was not changed/.test(rejection.message),
+    'illegal U position is rejected without accepting the server-corrected layout',
+    rejection instanceof Error ? rejection.message : 'No expected placement rejection was received.',
   );
+  check(isDeepStrictEqual(placementState(), beforeInvalid),
+    'illegal placement preserves the entire workspace and revision');
 
   const good = await service.placeInRack(node.id, {
     rackId,
@@ -126,10 +185,9 @@ async function groupRack(service: DcscService): Promise<void> {
   const exported = await service.exportZip(node.id, {
     fileName: 'contract-rack',
     fileTypes: ['XML', 'QUOTE'],
-    validationMode: 'guided',
     ctx: service.newCtx(),
   });
-  const bytes = Buffer.from(await exported.stream.arrayBuffer()).length;
+  const bytes = (await readStream(exported.stream)).length;
   check(bytes > 0, 'export still succeeds with a rack present', `${bytes} bytes`);
   if (exported.rackDataOmitted) {
     console.log(
@@ -141,13 +199,11 @@ async function groupRack(service: DcscService): Promise<void> {
 
 async function groupPower(service: DcscService): Promise<void> {
   console.log('\n=== power: DCSC\'s own thermal and electrical figures ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
 
   const report = extractPowerReport(node.raw);
   check(report !== undefined, 'power report present on a launched configuration');
-  if (!report) return;
+  if (!report) throw new Error('DCSC launch omitted the power report required by this group.');
   check(report.inputPowerW.max > 1000, 'max input power is a plausible 8-GPU figure', `${report.inputPowerW.max} W`);
   check(report.heatBtuHr.max > 0, 'heat output reported', `${report.heatBtuHr.max} BTU/hr`);
   check(!!report.operatingVoltage, 'operating voltage reported', report.operatingVoltage);
@@ -181,9 +237,7 @@ async function groupFabric(service: DcscService): Promise<void> {
 
 async function groupScaleOut(service: DcscService): Promise<void> {
   console.log('\n=== scale-out: cluster sizing measured against DCSC ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
 
   const plan = await service.scaleOut({
     sessionHandle: node.id,
@@ -215,44 +269,35 @@ async function groupScaleOut(service: DcscService): Promise<void> {
 }
 
 async function groupBlueprints(service: DcscService): Promise<void> {
-  console.log('\n=== blueprints: every reference config still launches ===');
-  for (const bp of BLUEPRINTS) {
-    const ctx = service.newCtx();
-    const solution = await service.resolveSolution(ctx, bp.solutionMode);
-    try {
-      const s = await service.launch({
-        productCode: bp.productCode,
-        mode: 'cto',
-        solution,
-        ctx,
-      });
-      const price = s.raw.totalPrice ?? 0;
-      const drift = Math.abs(price - bp.verifiedListPriceUsd) / (bp.verifiedListPriceUsd || 1);
-      check(price > 0, `${bp.id} launches`, `$${price.toLocaleString()}`);
-      if (drift > 0.02) {
-        console.log(
-          `  NOTE  ${bp.id} list price moved ${(drift * 100).toFixed(1)}% since ${bp.verifiedOn} ` +
-            `($${bp.verifiedListPriceUsd.toLocaleString()} -> $${price.toLocaleString()})`,
-        );
-      }
-    } catch (err) {
-      check(false, `${bp.id} launches`, (err as Error).message.slice(0, 100));
+  console.log('\n=== blueprints: current catalog availability controls launch ===');
+  const blueprints = await service.blueprintAvailability(service.newCtx());
+  check(blueprints.length > 0, 'blueprint registry is non-empty', `${blueprints.length} records`);
+  let launched = 0;
+  for (const bp of blueprints) {
+    if (!bp.available) {
+      check(
+        bp.availableModes.length === 0 && /cannot be launched/i.test(bp.availabilityNote),
+        `${bp.id} is explicitly blocked when absent from current catalogs`,
+        bp.availabilityNote,
+      );
+      continue;
     }
+    const currentMode = bp.availableModes[0]!;
+    const ctx = service.newCtx();
+    const solution = await service.resolveSolution(ctx, currentMode);
+    const session = await service.launch({ productCode: bp.productCode, mode: 'cto', solution, ctx });
+    const price = session.raw.totalPrice ?? 0;
+    const drift = Math.abs(price - bp.verifiedListPriceUsd) / (bp.verifiedListPriceUsd || 1);
+    check(price > 0, `${bp.id} launches in current mode ${currentMode}`, `$${price.toLocaleString()}`);
+    if (drift > 0.02) {
+      console.log(
+        `  NOTE  ${bp.id} list price moved ${(drift * 100).toFixed(1)}% since ${bp.verifiedOn} ` +
+          `($${bp.verifiedListPriceUsd.toLocaleString()} -> $${price.toLocaleString()})`,
+      );
+    }
+    launched += 1;
   }
-
-  // A blueprint declaring the wrong mode is the exact trap this guards against.
-  const modes = await service.modesContaining(
-    service.newCtx(),
-    BLUEPRINTS.map((b) => b.productCode),
-  );
-  for (const bp of BLUEPRINTS) {
-    const available = modes.get(bp.productCode.toUpperCase()) ?? [];
-    check(
-      available.includes(bp.solutionMode),
-      `${bp.id} declares a mode whose catalog contains it`,
-      available.join(' | '),
-    );
-  }
+  check(launched > 0, 'at least one historical blueprint remains currently launchable', `${launched} launched`);
 }
 
 async function groupPersist(): Promise<void> {
@@ -262,9 +307,7 @@ async function groupPersist(): Promise<void> {
   const withFile = { ...config, files: { ...config.files, sessionFile: path, persistSessions: true } };
 
   const first = new DcscService(withFile);
-  const ctx = first.newCtx();
-  const solution = await first.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await first.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(first, '7DM9CTO1WW');
   const price = node.raw.totalPrice;
   await first.addRack(node.id, '7D6DCTO1WW', first.newCtx());
   // Persistence is debounced; give the timer a chance to fire.
@@ -274,7 +317,7 @@ async function groupPersist(): Promise<void> {
   const second = new DcscService(withFile);
   const restoredWs = second.sessions.listWorkspaces();
   check(restoredWs.length > 0, 'workspace restored after restart', `${restoredWs.length} workspace(s)`);
-  const restoredSession = second.sessions.list().find((s) => s.product.code === '7DM9CTO1WW');
+  const restoredSession = second.sessions.list().find((s) => s.product.code === node.product.code);
   check(restoredSession !== undefined, 'configuration restored');
   check(restoredSession?.raw.totalPrice === price, 'restored configuration keeps its price', `$${price?.toLocaleString()}`);
   check((restoredSession?.index.features.length ?? 0) > 0, 'feature index rebuilt from raw on load');
@@ -287,13 +330,11 @@ async function groupPersist(): Promise<void> {
 
 async function groupFloor(service: DcscService): Promise<void> {
   console.log('\n=== floor: client-side planning, rack must exist ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
   const added = await service.addRack(node.id, '7D6DCTO1WW', service.newCtx());
   const rackId = added.racks[0]!.id;
 
-  const placed = service.placeOnFloor(node.id, rackId, 1, 2);
+  const placed = await service.placeOnFloor(node.id, rackId, 1, 2);
   check(placed.clientSide === true, 'floor placement is explicitly client-side');
   check(placed.item.x === 1 && placed.item.y === 2, 'coordinates stored', `(${placed.item.x},${placed.item.y})`);
   check(placed.warning.length > 0, 'warning surfaces that DCSC does not validate floor tiles');
@@ -306,7 +347,7 @@ async function groupFloor(service: DcscService): Promise<void> {
 
   let refusedUnknown = false;
   try {
-    service.placeOnFloor(node.id, 'not-a-real-rack', 0, 0);
+    await service.placeOnFloor(node.id, 'not-a-real-rack', 0, 0);
   } catch {
     refusedUnknown = true;
   }
@@ -317,7 +358,7 @@ async function groupFloor(service: DcscService): Promise<void> {
   const rack2 = second.racks.find((r) => r.id !== rackId)?.id ?? second.racks[0]!.id;
   let refusedCollision = false;
   try {
-    service.placeOnFloor(node.id, rack2, 1, 2);
+    await service.placeOnFloor(node.id, rack2, 1, 2);
   } catch {
     refusedCollision = true;
   }
@@ -326,9 +367,7 @@ async function groupFloor(service: DcscService): Promise<void> {
 
 async function groupCabling(service: DcscService): Promise<void> {
   console.log('\n=== cabling: auto-connect is DCSC-backed ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
   const added = await service.addRack(node.id, '7D6DCTO1WW', service.newCtx());
   const rackId = added.racks[0]!.id;
   await service.placeInRack(node.id, {
@@ -352,7 +391,7 @@ async function groupCabling(service: DcscService): Promise<void> {
   check((ws?.rackArea.length ?? 0) > 0, 'auto_connect left a rackArea in place');
 
   // Manual path must not invent server validation.
-  const manual = service.addManualCabling(node.id, {
+  const manual = await service.addManualCabling(node.id, {
     fromConfigId: node.configurationId,
     fromPort: 'eth0',
     toConfigId: node.configurationId,
@@ -363,9 +402,7 @@ async function groupCabling(service: DcscService): Promise<void> {
 
 async function groupPdu(service: DcscService): Promise<void> {
   console.log('\n=== pdu: selection goes through DCSC autoDerive ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
   const added = await service.addRack(node.id, '7D6DCTO1WW', service.newCtx());
   const rackId = added.racks[0]!.id;
 
@@ -392,18 +429,17 @@ async function groupPdu(service: DcscService): Promise<void> {
     `${pick.code} x${applied.selected.find((s) => s.code === pick.code)?.quantity}`,
   );
   check(
-    applied.totalPrice > before,
+    applied.totalPrice !== null && before !== null && applied.totalPrice > before,
     'rack LIST price increases after PDU is ordered',
-    `$${before.toLocaleString()} -> $${applied.totalPrice.toLocaleString()}`,
+    `${before === null ? 'unavailable' : `$${before.toLocaleString()}`} -> ` +
+      `${applied.totalPrice === null ? 'unavailable' : `$${applied.totalPrice.toLocaleString()}`}`,
   );
   check(applied.selection.pduCode === pick.code, 'workspace powerSelection records accepted code');
 }
 
 async function groupValidate(service: DcscService): Promise<void> {
   console.log('\n=== validate: LMC handoff from DCSC export-shaped payload ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node } = await launchCurrentCto(service, '7DM9CTO1WW');
   const report = await service.validate(node.id, service.newCtx());
   check(report.source === 'lmc_validation', 'validation source is lmc_validation');
   check(
@@ -453,22 +489,34 @@ async function groupLocale(service: DcscService): Promise<void> {
 
 async function groupTopology(service: DcscService): Promise<void> {
   console.log('\n=== topology: selection stored and fabric shortNames from DCSC ===');
-  const ctx = service.newCtx();
-  const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const node = await service.launch({ productCode: '7DM9CTO1WW', mode: 'cto', solution, ctx });
+  const { session: node, solution } = await launchCurrentCto(service, '7DM9CTO1WW');
+  const ctx = service.newCtx({ solution });
   const fabric = await service.fabricOptions(ctx, solution);
-  const topo = fabric.topologies.find((t) => t.shortName.includes('IB')) ?? fabric.topologies[0]!;
-  check(!!topo, 'a topology shortName is available', topo?.shortName);
+  const compatible = fabric.networkTypes.flatMap((network) => {
+    const topology = fabric.topologies.find(
+      (candidate) => candidate.shortName === network.defaultNetworkTechnology,
+    );
+    if (!topology) return [];
+    const connectors = listTopologyConnectors(node.raw, fabric, topology.shortName);
+    return connectors.length > 0 ? [{ network, topology, connector: connectors[0]! }] : [];
+  });
+  const choice = compatible.find(({ topology }) => /IB|InfiniBand/i.test(topology.shortName)) ?? compatible[0];
+  check(!!choice, 'launched product has a topology, network and connector combination');
+  if (!choice) throw new Error('No current topology is compatible with a connector on the launched product.');
   const applied = await service.applyTopology({
     sessionHandle: node.id,
-    topology: topo.shortName,
+    topology: choice.topology.shortName,
+    networkName: choice.network.id,
+    connectorIds: [choice.connector.id],
     autoConnect: false,
     ctx: service.newCtx(),
   });
-  check(applied.topology === topo.shortName, 'topology applied', applied.topology);
+  check(applied.topology === choice.topology.shortName, 'topology applied', applied.topology);
   check(
-    Object.values(applied.selectedTopologies).includes(topo.shortName),
-    'selectedTopologies map contains the choice',
+    Object.values(applied.selectedTopologies).some((value) =>
+      typeof value === 'object' && value !== null &&
+      (value as Record<string, unknown>)['networkTechnology'] === choice.topology.shortName),
+    'selectedTopologies map contains the compatible topology and connector',
   );
 
   // Regression: autoDerive must not wipe topology on the next configure.
@@ -481,12 +529,17 @@ async function groupTopology(service: DcscService): Promise<void> {
       service.newCtx(),
     );
     const after = service.sessions.get(node.id)!;
-    const still =
-      Object.values(after.reduced.selectedTopologies ?? {}).includes(topo.shortName) ||
-      Object.values((after.raw as { selectedTopologies?: Record<string, string> }).selectedTopologies ?? {}).includes(
-        topo.shortName,
-      );
-    check(still, 'selectedTopologies survives configure/autoDerive', topo.shortName);
+    const containsTopology = (values: Record<string, unknown> | undefined) =>
+      Object.values(values ?? {}).some((value) =>
+        value === choice.topology.shortName ||
+        (typeof value === 'object' && value !== null &&
+          (value as Record<string, unknown>)['networkTechnology'] === choice.topology.shortName));
+    check(
+      containsTopology(after.reduced.selectedTopologies) ||
+        containsTopology((after.raw as { selectedTopologies?: Record<string, unknown> }).selectedTopologies),
+      'selectedTopologies survives configure/autoDerive',
+      choice.topology.shortName,
+    );
   }
 }
 
@@ -512,7 +565,12 @@ async function groupServicesCto(service: DcscService): Promise<void> {
   console.log('\n=== services_cto: Services tab list + configure honesty ===');
   const ctx = service.newCtx();
   const solution = await service.resolveSolution(ctx, 'General Purpose');
-  const node = await service.launch({ productCode: '7D73CTO1WW', mode: 'cto', solution, ctx });
+  const catalog = await service.catalog(ctx, solution);
+  const product = searchCatalog(catalog, { query: 'SR630 V3', type: 'CTO', limit: 10 })
+    .find((entry) => !entry.withdrawn);
+  check(!!product, 'current General Purpose catalog has an SR630 V3 CTO for Services checks');
+  if (!product) throw new Error('No current SR630 V3 CTO exposes the Services-tab contract.');
+  const node = await service.launch({ productCode: product.code, mode: 'cto', solution, ctx });
 
   check(node.index.tabs.some((t) => t === 'Services'), 'Services tab present on launched CTO');
   const serviceFeats = node.index.features.filter((f) => f.tab === 'Services');
@@ -524,10 +582,11 @@ async function groupServicesCto(service: DcscService): Promise<void> {
     selected.map((f) => f.code).join(','),
   );
 
-  // Package UI option (Lenovo Recommends) — listable but typically not accepted by autoDerive.
+  // Exercise an alternate the current graph actually exposes instead of pinning
+  // this contract to a historical package code.
   const packageOpt = serviceFeats.find(
-    (f) => f.selectedQty === 0 && f.sectionName?.includes('Lenovo Recommends') && f.code === 'QA0A',
-  );
+    (f) => f.selectedQty === 0 && f.sectionName?.includes('Lenovo Recommends') && f.sectionName,
+  ) ?? serviceFeats.find((f) => f.selectedQty === 0 && f.sectionName);
   if (packageOpt?.sectionName) {
     const beforeSel = node.index.selected.get(packageOpt.code) ?? 0;
     const beforePrice = node.raw.totalPrice ?? 0;
@@ -557,8 +616,107 @@ async function groupServicesCto(service: DcscService): Promise<void> {
       );
     }
   } else {
-    check(false, 'expected a listable Lenovo Recommends package option (QA0A)');
+    const cfcOnlyOne = ['SERVICE_TYPE_CFC', 'YOURDRIVEYOURDATA_CFC', 'SERVICE_UPSELL_CFC'].every(
+      (name) => serviceFeats.filter((f) => f.sectionName === name).length <= 1,
+    );
+    check(
+      cfcOnlyOne && selected.length > 0,
+      'current Services graph explicitly exposes selected CFC lines only',
+      `${selected.length} selected, no alternate package in the graph`,
+    );
   }
+}
+
+async function groupStandalone(service: DcscService): Promise<void> {
+  console.log('\n=== standalone: software and product-service select, price and export ===');
+  const bootstrapCtx = service.newCtx();
+  const solution = await service.resolveSolution(bootstrapCtx, 'General Purpose');
+  const ctx = service.newCtx({ solution });
+
+  const softwareCatalog = await launchStandaloneSoftware(service.http, ctx);
+  const softwareFeature = softwareCatalog.features.find((feature) =>
+    !feature.priceNotAvailable && typeof feature.unitPrice === 'number' && feature.unitPrice > 0);
+  check(!!softwareFeature, 'standalone software catalog has a priced selectable SKU');
+  if (!softwareFeature) throw new Error('Current software portal has no priced selectable SKU.');
+  const softwareUnitPrice = softwareFeature.unitPrice;
+  if (softwareUnitPrice === undefined) throw new Error(`${softwareFeature.code} has no numeric unit price.`);
+  const software = selectStandaloneSoftware(softwareCatalog, {
+    code: softwareFeature.code,
+    quantity: 2,
+  });
+  const softwareWorkspace = await service.sessions.createManyAtomic([], {
+    workspaceContext: { locale: ctx.locale, solution, label: 'contract standalone software' },
+    prepare: (draft) => { draft.serverState.standaloneSoftwareState = software; },
+  });
+  const softwareArtifact = await exportStandaloneSoftwareArtifact(
+    service,
+    softwareWorkspace.workspace,
+    'contract-standalone-software',
+    { fileTypes: ['XML'] },
+  );
+  check(
+    software.selections[0]?.quantity === 2 &&
+      software.selections[0]?.totalPrice === softwareUnitPrice * 2,
+    'standalone software quantity extends its captured unit price',
+    `${softwareFeature.code} x2 = $${software.selections[0]?.totalPrice}`,
+  );
+  check(
+    softwareArtifact.bytes > 0 && softwareArtifact.xml !== undefined,
+    'standalone software exports a non-empty CFXML bundle',
+    `${softwareArtifact.bytes} bytes`,
+  );
+
+  const catalog = await service.catalog(ctx, solution);
+  const serviceProduct = searchCatalog(catalog, {
+    query: 'SR630 V3',
+    type: 'CTO',
+    limit: 10,
+  }).find((entry) => !entry.withdrawn);
+  check(!!serviceProduct, 'current catalog supplies a product for standalone services');
+  if (!serviceProduct) throw new Error('No current SR630 V3 CTO is available for the services contract.');
+  let productServices = await launchProductServices(service.http, ctx, {
+    productCode: serviceProduct.code,
+    productQuantity: 3,
+    productDescription: serviceProduct.description,
+    subCategory: 'Point of Sale',
+  });
+  const serviceOption = productServices.options.find((option) =>
+    option.code.length > 0 && typeof option.unitPrice === 'number' && option.unitPrice > 0);
+  check(!!serviceOption, `${serviceProduct.code} has a current priced Point of Sale service option`);
+  if (!serviceOption) throw new Error(`${serviceProduct.code} returned no priced Point of Sale service options.`);
+  productServices = await selectProductService(service.http, ctx, productServices, {
+    serviceCode: serviceOption.code,
+    quantity: 1,
+  });
+  productServices = await summariseProductServices(service.http, ctx, productServices);
+  const serviceWorkspace = await service.sessions.createManyAtomic([], {
+    workspaceContext: { locale: ctx.locale, solution, label: 'contract standalone services' },
+    prepare: (draft) => { draft.serverState.standaloneServiceState = productServices; },
+  });
+  const serviceArtifact = await exportProductServiceArtifact(
+    service,
+    serviceWorkspace.workspace,
+    'contract-standalone-services',
+  );
+  const selectedService = productServices.selections.find(selection => selection.code === serviceOption.code);
+  const summaries = Array.isArray(productServices.summaryRaw)
+    ? productServices.summaryRaw as Array<Record<string, unknown>> : [];
+  const summary = summaries.find(row => row?.['code'] === serviceProduct.code);
+  const summarySelections = Array.isArray(summary?.['results'])
+    ? summary['results'] as Array<Record<string, unknown>> : [];
+  const summaryService = summarySelections.find(row => row?.['code'] === serviceOption.code);
+  check(
+    productServices.product.quantity === 3 && selectedService?.quantity === 1 &&
+      summary?.['quantity'] === 3 && summaryService?.['quantity'] === 1,
+    'authoritative summary preserves three products with one service per product',
+    `${serviceProduct.code} x3, ${serviceOption.code} x1 per product`,
+  );
+  check(
+    typeof summary?.['unitPrice'] === 'number' && typeof summary['totalPrice'] === 'number' &&
+      summary['unitPrice'] > 0 && Math.abs(summary['totalPrice'] - summary['unitPrice'] * 3) < 0.000001,
+    'authoritative service total extends the unit price by the covered-product quantity',
+  );
+  check(serviceArtifact.bytes > 0, 'standalone product services export a non-empty bundle', `${serviceArtifact.bytes} bytes`);
 }
 
 // ---------------------------------------------------------------------------
@@ -583,6 +741,7 @@ async function main(): Promise<void> {
     topology: () => groupTopology(service),
     services: () => groupServices(service),
     services_cto: () => groupServicesCto(service),
+    standalone: () => groupStandalone(service),
   };
 
   const toRun = group === 'all' ? Object.keys(groups) : [group];

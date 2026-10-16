@@ -1,0 +1,33 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "Anonymous DCSC browser Lock requests and export form, artifacts/implementation-2026-10-15/rack-lock-browser-run2",
+    "product": "ThinkSystem SR630 V3 (7D73CTO1WW)",
+    "rack": "ThinkSystem 42U Onyx Heavy Duty Rack Cabinet (7D6DCTO1WW)",
+    "scope": "Direct item Lock at U1 and empty-space Lock at U42; nested item locks are not represented"
+  },
+  "canonical": {
+    "rackArea": [
+      {
+        "id": "rack-1",
+        "size": 42,
+        "lockedSpace": [42],
+        "rackItems": [
+          { "id": "server-1", "position": 1, "size": 1, "lock": true }
+        ]
+      }
+    ]
+  },
+  "customizeRequest": {
+    "lockedSpace": [42],
+    "itemLock": true
+  },
+  "deriveAndExportRackData": {
+    "lockedSpace": [41],
+    "itemLock": true
+  },
+  "exportHierarchy": {
+    "lockedSpace": [42],
+    "derivedFeatureCode": "3242"
+  }
+}

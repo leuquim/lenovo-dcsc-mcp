@@ -1,0 +1,152 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15T15:31:46.655Z",
+    "headless": true,
+    "locale": "US/en/USD",
+    "solutionMode": "General Purpose",
+    "product": "7DCE100GNA",
+    "underlyingCto": "7DCECTO1WW",
+    "section": "UEFI_OPERATING_MODES",
+    "before": "BFYE",
+    "selected": "BFYB",
+    "evidence": "artifacts/implementation-2026-10-15/software-mixed-lfo-hardware-edit-final/report.json",
+    "reportSha256": "21a25b3b288f0ac222dfa8e5c8023ca5baafc23f7839aa72d765bd04466b588c"
+  },
+  "query": {
+    "configurationId": "US__fb5d592f-c9ef-48f8-bc6b-ed32779b73a90",
+    "entranceFlag": "customize",
+    "isLfo": true,
+    "scope": "HW"
+  },
+  "browser": {
+    "request": {
+      "topLevelKeys": [
+        "workspaceInformation",
+        "autoDerivedResults",
+        "configurations",
+        "operationHistories",
+        "controllerExpansionMap",
+        "customizingFlags",
+        "virtualContainerIdMapping",
+        "virtualContainerRule2ConfigMapping",
+        "virtualContainerInvalidRuleIdMapping",
+        "customizingIds",
+        "importInformation"
+      ],
+      "customizingFlags": {
+        "componentRestriction": true,
+        "autoDerive": true,
+        "ctoRules": true,
+        "minMax": true,
+        "placement": true,
+        "fromMemoryWizard": false,
+        "autoVariant": true
+      },
+      "delta": {
+        "section": "UEFI_OPERATING_MODES",
+        "featureCode": "BFYB",
+        "quantity": 1,
+        "isClear": false,
+        "type": "hardware"
+      },
+      "importInformationCount": 0,
+      "shippingStatusCount": 0,
+      "selection": [
+        {
+          "code": "BFYB",
+          "quantity": 1,
+          "type": "hardware"
+        }
+      ]
+    },
+    "response": {
+      "selection": [
+        {
+          "code": "BFYB",
+          "quantity": 1,
+          "type": null
+        }
+      ],
+      "price": 3934.5,
+      "totalPrice": 5325.5,
+      "quantity": 1,
+      "tabCount": 9
+    }
+  },
+  "mcp": {
+    "request": {
+      "topLevelKeys": [
+        "workspaceInformation",
+        "autoDerivedResults",
+        "configurations",
+        "operationHistories",
+        "controllerExpansionMap",
+        "customizingFlags",
+        "virtualContainerIdMapping",
+        "virtualContainerRule2ConfigMapping",
+        "virtualContainerInvalidRuleIdMapping",
+        "customizingIds",
+        "importInformation"
+      ],
+      "customizingFlags": {
+        "componentRestriction": true,
+        "autoDerive": true,
+        "ctoRules": true,
+        "minMax": true,
+        "placement": true,
+        "fromMemoryWizard": false,
+        "autoVariant": false
+      },
+      "delta": {
+        "section": "UEFI_OPERATING_MODES",
+        "featureCode": "BFYB",
+        "quantity": 1,
+        "isClear": false,
+        "type": "hardware",
+        "previousFeatureCode": "BFYE",
+        "previousQuantity": 1
+      },
+      "importInformationCount": 1,
+      "shippingStatusCount": 6,
+      "selection": [
+        {
+          "code": "BFYB",
+          "quantity": 1,
+          "type": "hardware"
+        }
+      ]
+    },
+    "response": {
+      "selection": [
+        {
+          "code": "BFYB",
+          "quantity": 1,
+          "type": null
+        }
+      ],
+      "price": 3934.5,
+      "totalPrice": 5325.5,
+      "quantity": 1,
+      "tabCount": 9
+    }
+  },
+  "commercialParity": {
+    "groupsSha256": "0f2e34137be0e7b924ab24e0699efded49c26c95a51d05bff9fc7cceb89ba733",
+    "xmlBomSha256": "01963b8a9ff4ce5ed61e1f8e79f4711add92214d529f936a16f8899674bd5999",
+    "grandTotal": 6263.5,
+    "families": [
+      "added-options",
+      "hardware",
+      "standalone"
+    ]
+  },
+  "observedDifferences": {
+    "functionalImpactObserved": false,
+    "requestEnvelopeExactMatch": false,
+    "browserAutoVariant": true,
+    "mcpAutoVariant": false,
+    "browserImportInformationCount": 0,
+    "mcpImportInformationCount": 1,
+    "mcpCarriesPreviousFeatureDelta": true
+  }
+}

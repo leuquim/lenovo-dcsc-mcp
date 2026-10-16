@@ -1,0 +1,17 @@
+{
+  "capturedAt": "2026-10-15",
+  "source": "Anonymous DCSC SPA GET /api/category_hierarchies in General Purpose mode",
+  "solutionMode": "General Purpose",
+  "product": {
+    "code": "7D76CTO1WW",
+    "description": "ThinkSystem SR650 V3-3yr Base Warranty",
+    "hardwareType": "server",
+    "slice": "GP",
+    "withdrawnDate": "2999-12-31",
+    "rackless": false
+  },
+  "notes": [
+    "Sanitized from artifacts/rack_probe/capture.json; generated identifiers, unrelated catalog products, and response metadata are omitted.",
+    "The product is selected because DCSC's physical envelope reports a 2U height; the maintained live gate verifies that server-owned physical fact before testing boundaries."
+  ]
+}

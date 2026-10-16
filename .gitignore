@@ -13,3 +13,20 @@ scratch/
 
 .env
 .env.local
+
+# Keep workstation state and generated packages out of shared clones.
+.env.*
+!.env.example
+.playwright-cli/
+playwright-report/
+test-results/
+coverage/
+*.tgz
+.DS_Store
+.mcp.json
+.codex/
+.claude/
+
+# Project handoffs are shared, even when a developer globally ignores .docs.
+!.docs/
+!.docs/**

@@ -1,0 +1,66 @@
+{
+  "capturedAt": "2026-10-15",
+  "environment": {
+    "site": "https://dcsc.lenovo.com/",
+    "solutionMode": "General Purpose",
+    "country": "US",
+    "currency": "USD",
+    "headless": true
+  },
+  "source": {
+    "kind": "CFXML import",
+    "fixture": "test/fixtures/parity/xml/one-rack-sr630-v3.xml",
+    "rackCode": "7D6DCTO1WW",
+    "provenance": "Anonymous production-browser workflow; no cookies, authorization data, or account data retained."
+  },
+  "requestContract": {
+    "method": "POST",
+    "path": "/api/ctos/autoDerive",
+    "query": {
+      "entranceFlag": "customize",
+      "_request": "web",
+      "guideMode": "true",
+      "configurationId": "the rack configuration id"
+    },
+    "selectionPath": "tabs[Power].subTabs[Power].sections[].results[]",
+    "selectionIdentity": "result.characterName plus result.code"
+  },
+  "browserActions": [
+    { "section": "PDU", "code": "CE6L", "quantity": 1, "unitPrice": 174.5 },
+    { "section": "LINECORD", "code": "6275", "quantity": 1, "unitPrice": 34.5 },
+    { "section": "PDU", "code": "CE6L", "quantity": 0 },
+    { "section": "PDU", "code": "C0D8", "quantity": 1, "unitPrice": 1649.5 },
+    { "section": "LINECORD", "code": "6275", "quantity": 0 },
+    { "section": "LINECORD", "code": "6500", "quantity": 1, "unitPrice": 129.5 }
+  ],
+  "browserResult": {
+    "totalPrice": 15074.51,
+    "selected": [
+      { "section": "PDU", "code": "C0D8", "quantity": 1 },
+      { "section": "LINECORD", "code": "6500", "quantity": 1 }
+    ],
+    "derivedRackLines": [
+      { "code": "4275", "quantity": 8, "description": "5U black plastic filler panel" },
+      { "code": "4271", "quantity": 1, "description": "1U black plastic filler panel" },
+      { "code": "BNVL", "quantity": 1, "description": "42U Rear Cable Management Bracket Kit for 0U PDUs" }
+    ],
+    "exportImportPreserved": true
+  },
+  "currentMcpRegression": {
+    "totalPrice": 13865.01,
+    "selectedCodesMatch": true,
+    "missingDerivedResults": ["4275", "4271"],
+    "priceDifference": 1209.5,
+    "status": "red until imported rack recustomization is lossless"
+  },
+  "evidence": [
+    "artifacts/implementation-2026-10-15/rack-power-run3/browser-rack-power.xml",
+    "artifacts/implementation-2026-10-15/rack-power-mcp-run1/mcp-state.json",
+    "artifacts/implementation-2026-10-15/rack-power-mcp-run1.log"
+  ],
+  "notes": [
+    "PDU and facility line cord are independent quantity selections.",
+    "Changing models requires setting the old code to zero and the new code to the desired quantity.",
+    "The authoritative total includes server-derived rack lines; it cannot be reconstructed from visible option prices."
+  ]
+}

@@ -1,0 +1,680 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15T19:24:25.309Z",
+    "source": "headless native DCSC existing-row Edit -> U5 -> Save -> workspace export",
+    "websiteExportRetainsStaleDistance": true,
+    "arraysCompacted": "compatibleCables retains captured AVFT and 3802 representatives"
+  },
+  "configurations": [
+    {
+      "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sliceCtoCode": "7D73CTOHWW",
+      "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "connectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet",
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+      "sliceCtoCode": "7D5FCTOFWW",
+      "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+      "connectors": [
+        {
+          "portNumber": "2",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__02579351-49f4-427c-8a57-e472132552740",
+      "sliceCtoCode": "7D5FCTOFWW",
+      "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+      "connectors": [
+        {
+          "portNumber": "2",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
+  "rackArea": [
+    {
+      "lockedSpace": [],
+      "height": null,
+      "width": null,
+      "depth": 1200,
+      "uheight": 44.45,
+      "size": 0,
+      "facing": "N",
+      "type": "rack",
+      "id": "US__b9b9a362-6e80-4781-932c-6612197fcf450",
+      "color": "#21bbbb",
+      "code": "",
+      "rackItems": [
+        {
+          "code": "7D73CTOHWW",
+          "sliceCtoCode": "7D73CTOHWW",
+          "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "position": 1,
+          "size": 1,
+          "type": "server",
+          "color": "#c4bbb6",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "nodes": []
+        },
+        {
+          "code": "7D5FCTOFWW",
+          "sliceCtoCode": "7D5FCTOFWW",
+          "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+          "position": 5,
+          "size": 1,
+          "type": "switch",
+          "color": "#78b1bb",
+          "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+          "nodes": []
+        },
+        {
+          "code": "7D5FCTOFWW",
+          "sliceCtoCode": "7D5FCTOFWW",
+          "id": "US__02579351-49f4-427c-8a57-e472132552740",
+          "position": 6,
+          "size": 1,
+          "type": "switch",
+          "color": "#d4bb9b",
+          "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+          "nodes": []
+        }
+      ]
+    }
+  ],
+  "floorItems": [
+    {
+      "row": 0,
+      "col": 0,
+      "aisle": null,
+      "rackItem": {
+        "items": [
+          {
+            "code": "7D73CTOHWW",
+            "sliceCtoCode": "7D73CTOHWW",
+            "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+            "position": 1,
+            "size": 1,
+            "type": "server",
+            "color": "#c4bbb6",
+            "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+            "nodes": []
+          },
+          {
+            "code": "7D5FCTOFWW",
+            "sliceCtoCode": "7D5FCTOFWW",
+            "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+            "position": 5,
+            "size": 1,
+            "type": "switch",
+            "color": "#78b1bb",
+            "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+            "nodes": []
+          },
+          {
+            "code": "7D5FCTOFWW",
+            "sliceCtoCode": "7D5FCTOFWW",
+            "id": "US__02579351-49f4-427c-8a57-e472132552740",
+            "position": 6,
+            "size": 1,
+            "type": "switch",
+            "color": "#d4bb9b",
+            "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+            "nodes": []
+          }
+        ],
+        "lockedSpace": [],
+        "height": null,
+        "width": null,
+        "depth": 1200,
+        "uheight": 44.45,
+        "size": 0,
+        "facing": "N",
+        "type": "rack",
+        "id": "US__b9b9a362-6e80-4781-932c-6612197fcf450",
+        "color": "#21bbbb",
+        "code": ""
+      }
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "aisle": null,
+      "rackItem": {}
+    },
+    {
+      "row": 0,
+      "col": 2,
+      "aisle": null,
+      "rackItem": {}
+    },
+    {
+      "row": 0,
+      "col": 3,
+      "aisle": null,
+      "rackItem": {}
+    },
+    {
+      "row": 0,
+      "col": 4,
+      "aisle": null,
+      "rackItem": {}
+    },
+    {
+      "row": 1,
+      "col": 0,
+      "aisle": "H",
+      "rackItem": {}
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "aisle": "H",
+      "rackItem": {}
+    },
+    {
+      "row": 1,
+      "col": 2,
+      "aisle": "H",
+      "rackItem": {}
+    },
+    {
+      "row": 1,
+      "col": 3,
+      "aisle": "H",
+      "rackItem": {}
+    },
+    {
+      "row": 1,
+      "col": 4,
+      "aisle": "H",
+      "rackItem": {}
+    }
+  ],
+  "floorPreference": {
+    "growthRatioHorizontal": 1,
+    "growthRatioVertical": 1,
+    "rackDist": 0.01,
+    "vertDist": 0.5,
+    "coldDist": 3,
+    "hotDist": 2,
+    "slackDist": 0,
+    "useTrayCabling": false
+  },
+  "beforeConnection": {
+    "network": "Management",
+    "topology": "1GbE_Copper",
+    "cablePart": "AVFT",
+    "cableOption": "00WE111",
+    "cablePrice": 9.5,
+    "cableType": "0.75m Blue Cat5e Cable",
+    "totalDistance": 0.62225,
+    "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+    "sourcePart": "7D73CTOHWW",
+    "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+    "sourceLocation": "A1/U1/RJ45 mgmt",
+    "sourcePortNumber": "1",
+    "sourcePortName": "RJ45 mgmt",
+    "destinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+    "destinationPart": "7D5FCTOFWW",
+    "destinationItem": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+    "destinationLocation": "A1/U6/RJ45",
+    "destinationPortNumber": "2",
+    "destinationPortName": "RJ45",
+    "cableDistance": {
+      "from": {
+        "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "position": 1,
+        "coordinate": "A1",
+        "codeAndLocation": "7D73CTOHWW - A1/U1"
+      },
+      "to": {
+        "itemId": "US__02579351-49f4-427c-8a57-e472132552740",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "position": 6,
+        "coordinate": "A1",
+        "codeAndLocation": "7D5FCTOFWW - A1/U6"
+      },
+      "totalScale": 7,
+      "cableDistances": [
+        {
+          "distance": 0.2,
+          "increment": 0.2
+        },
+        {
+          "distance": 0.42225,
+          "increment": 0.22225
+        },
+        {
+          "distance": 0.62225,
+          "increment": 0.2
+        }
+      ],
+      "totalDistance": 0.62225,
+      "type": "network",
+      "compatibleCables": [
+        {
+          "category": "Cable",
+          "featureCode": "AVFT",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Blue Cat5e Cable",
+          "optionCode": "00WE111",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        }
+      ]
+    },
+    "cableFeature": {
+      "category": "Cable",
+      "featureCode": "AVFT",
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.75m Blue Cat5e Cable",
+      "optionCode": "00WE111",
+      "price": 9.5,
+      "length": null,
+      "selectionGroups": [
+        "ETHERNET_CABLE"
+      ]
+    },
+    "preferredCable": null,
+    "type": "AUTO",
+    "subType": "NETWORK",
+    "divider": 1,
+    "category": "P2P"
+  },
+  "edit": {
+    "connectionId": null,
+    "destination": {
+      "configurationId": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+      "portName": "RJ45",
+      "portNumber": "2"
+    }
+  },
+  "distanceRequest": {
+    "floorPreference": {
+      "growthRatioHorizontal": 1,
+      "growthRatioVertical": 1,
+      "rackDist": 0.01,
+      "vertDist": 0.5,
+      "coldDist": 3,
+      "hotDist": 2,
+      "slackDist": 0,
+      "useTrayCabling": false
+    },
+    "floorItems": [
+      {
+        "row": 0,
+        "col": 0,
+        "aisle": null,
+        "rackItem": {
+          "items": [
+            {
+              "code": "7D73CTOHWW",
+              "sliceCtoCode": "7D73CTOHWW",
+              "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+              "position": 1,
+              "size": 1,
+              "type": "server",
+              "color": "#c4bbb6",
+              "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+              "nodes": []
+            },
+            {
+              "code": "7D5FCTOFWW",
+              "sliceCtoCode": "7D5FCTOFWW",
+              "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+              "position": 5,
+              "size": 1,
+              "type": "switch",
+              "color": "#78b1bb",
+              "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+              "nodes": []
+            },
+            {
+              "code": "7D5FCTOFWW",
+              "sliceCtoCode": "7D5FCTOFWW",
+              "id": "US__02579351-49f4-427c-8a57-e472132552740",
+              "position": 6,
+              "size": 1,
+              "type": "switch",
+              "color": "#d4bb9b",
+              "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+              "nodes": []
+            }
+          ],
+          "lockedSpace": [],
+          "height": null,
+          "width": null,
+          "depth": 1200,
+          "uheight": 44.45,
+          "size": 0,
+          "facing": "N",
+          "type": "rack",
+          "id": "US__b9b9a362-6e80-4781-932c-6612197fcf450",
+          "color": "#21bbbb",
+          "code": ""
+        }
+      },
+      {
+        "row": 0,
+        "col": 1,
+        "aisle": null,
+        "rackItem": {}
+      },
+      {
+        "row": 0,
+        "col": 2,
+        "aisle": null,
+        "rackItem": {}
+      },
+      {
+        "row": 0,
+        "col": 3,
+        "aisle": null,
+        "rackItem": {}
+      },
+      {
+        "row": 0,
+        "col": 4,
+        "aisle": null,
+        "rackItem": {}
+      },
+      {
+        "row": 1,
+        "col": 0,
+        "aisle": "H",
+        "rackItem": {}
+      },
+      {
+        "row": 1,
+        "col": 1,
+        "aisle": "H",
+        "rackItem": {}
+      },
+      {
+        "row": 1,
+        "col": 2,
+        "aisle": "H",
+        "rackItem": {}
+      },
+      {
+        "row": 1,
+        "col": 3,
+        "aisle": "H",
+        "rackItem": {}
+      },
+      {
+        "row": 1,
+        "col": 4,
+        "aisle": "H",
+        "rackItem": {}
+      }
+    ],
+    "from": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+    "to": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+    "network": "1GbE_Copper"
+  },
+  "distanceResponse": {
+    "from": {
+      "row": 0,
+      "col": 0,
+      "position": 1,
+      "conn": "",
+      "subIndex": -1,
+      "parentContainerSlot": -1,
+      "grandparentContainerSlot": -1,
+      "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "code": "7D73CTOHWW",
+      "type": "server",
+      "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "coordinate": "A1",
+      "codeAndLocation": "7D73CTOHWW - A1/U1"
+    },
+    "to": {
+      "row": 0,
+      "col": 0,
+      "position": 5,
+      "conn": "",
+      "subIndex": -1,
+      "parentContainerSlot": -1,
+      "grandparentContainerSlot": -1,
+      "itemId": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+      "code": "7D5FCTOFWW",
+      "type": "switch",
+      "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+      "coordinate": "A1",
+      "codeAndLocation": "7D5FCTOFWW - A1/U5"
+    },
+    "totalScale": 7,
+    "cableDistances": [
+      {
+        "distance": 0.2,
+        "increment": 0.2,
+        "comment": null
+      },
+      {
+        "distance": 0.3778,
+        "increment": 0.1778,
+        "comment": null
+      },
+      {
+        "distance": 0.5778000000000001,
+        "increment": 0.2,
+        "comment": null
+      }
+    ],
+    "totalDistance": 0.5778000000000001,
+    "type": "",
+    "compatibleCables": [
+      {
+        "category": "Cable",
+        "featureCode": "AVFT",
+        "ctoCode": "7D73CTOHWW",
+        "description": "0.75m Blue Cat5e Cable",
+        "optionCode": "00WE111",
+        "price": 9.5,
+        "length": 0.75,
+        "selectionGroups": []
+      },
+      {
+        "category": "Cable",
+        "featureCode": "3802",
+        "ctoCode": "7D73CTOHWW",
+        "description": "1.5m Blue Cat5e Cable",
+        "optionCode": "40K8785",
+        "price": 9.5,
+        "length": 1.5,
+        "selectionGroups": []
+      }
+    ]
+  },
+  "websiteExportConnection": {
+    "network": "Management",
+    "topology": "1GbE_Copper",
+    "cablePart": "AVFT",
+    "cableOption": "00WE111",
+    "cablePrice": 9.5,
+    "cableType": "0.75m Blue Cat5e Cable",
+    "totalDistance": 0.62225,
+    "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+    "sourcePart": "7D73CTOHWW",
+    "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+    "sourceLocation": "A1/U1/RJ45 mgmt",
+    "sourcePortNumber": "1",
+    "sourcePortName": "RJ45 mgmt",
+    "destinationId": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+    "destinationPart": "7D5FCTOFWW",
+    "destinationItem": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+    "destinationLocation": "A1/U5/RJ45",
+    "destinationPortNumber": "2",
+    "destinationPortName": "RJ45",
+    "cableDistance": {
+      "from": {
+        "row": 0,
+        "col": 0,
+        "position": 1,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+        "coordinate": "A1",
+        "codeAndLocation": "7D73CTOHWW - A1/U1"
+      },
+      "to": {
+        "row": 0,
+        "col": 0,
+        "position": 5,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+        "coordinate": "A1",
+        "codeAndLocation": "7D5FCTOFWW - A1/U5"
+      },
+      "totalScale": 7,
+      "cableDistances": [
+        {
+          "distance": 0.2,
+          "increment": 0.2,
+          "comment": "Distance for leaving the source item"
+        },
+        {
+          "distance": 0.42225,
+          "increment": 0.22225,
+          "comment": "Crossed over 5 slots to destination"
+        },
+        {
+          "distance": 0.62225,
+          "increment": 0.2,
+          "comment": "Distance for entering the destination item"
+        }
+      ],
+      "totalDistance": 0.62225,
+      "type": "network",
+      "compatibleCables": [
+        {
+          "category": "Cable",
+          "featureCode": "AVFT",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Blue Cat5e Cable",
+          "optionCode": "00WE111",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3802",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Blue Cat5e Cable",
+          "optionCode": "40K8785",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        }
+      ]
+    },
+    "cableFeature": {
+      "category": "Cable",
+      "featureCode": "AVFT",
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.75m Blue Cat5e Cable",
+      "optionCode": "00WE111",
+      "price": 9.5,
+      "length": null,
+      "selectionGroups": [
+        "ETHERNET_CABLE"
+      ]
+    },
+    "preferredCable": null,
+    "type": "MANUAL",
+    "subType": "NETWORK",
+    "divider": 1,
+    "category": "P2P"
+  }
+}

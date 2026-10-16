@@ -1,0 +1,87 @@
+{
+  "capturedAt": "2026-10-15",
+  "source": "Anonymous headless POST /api/multiple/cfxml_import responses for browser-authored CFXML",
+  "interpretation": {
+    "configuration": "The immediate import response contains one unit configuration (quantity 1).",
+    "groupProducts": "Every hardware/HIPO/service product in Config 1 uses the same configuration id and carries the requested sales quantity.",
+    "workspace": "The immediate envelope compresses physical copies into one non-rack item with originalIds. After the SPA settles, its customize and autoDerive requests contain one distinct configuration and non-rack item per original id. These are physical clones, not only a sales-quantity overlay."
+  },
+  "cases": [
+    {
+      "requestedQuantity": 4,
+      "configuration": [
+        { "id": "config-primary", "code": "7D73CTO1WW", "quantity": 1, "totalPrice": 15650.51 }
+      ],
+      "group": {
+        "id": "100",
+        "name": "Config 1",
+        "products": [
+          { "id": "config-primary", "code": "7D73CTO1WW", "quantity": 4, "price": 51766.04, "unitPrice": 12941.51, "type": "hardware" },
+          { "id": "config-primary", "code": "7S0XCTO6WW", "quantity": 4, "price": 306.5, "unitPrice": 305.5, "type": "hipo" },
+          { "id": "config-primary", "code": "7S0XCTO5WW", "quantity": 4, "price": 211.5, "unitPrice": 210.5, "type": "hipo" },
+          { "id": "config-primary", "code": "7Q01CTO2WW", "quantity": 4, "price": 191, "unitPrice": 191, "type": "servicectohipo" },
+          { "id": "config-primary", "code": "7Q01CTS4WW", "quantity": 4, "price": 1829, "unitPrice": 1829, "type": "servicectohipo" },
+          { "id": "config-primary", "code": "7Q01CTSAWW", "quantity": 4, "price": 173, "unitPrice": 173, "type": "servicectohipo" }
+        ]
+      },
+      "workspace": {
+        "nonRackArea": [
+          {
+            "id": "config-primary",
+            "configurationId": "config-primary",
+            "type": "server",
+            "quantity": 4,
+            "originalIds": ["config-primary", "config-clone-2", "config-clone-3", "config-clone-4"]
+          }
+        ],
+        "rackArea": [],
+        "cloneRackMapping": {}
+      },
+      "settledCustomizeRequest": {
+        "configurationIds": ["config-primary", "config-clone-2", "config-clone-3", "config-clone-4"],
+        "configurationCount": 4,
+        "nonRackIds": ["config-primary", "config-clone-2", "config-clone-3", "config-clone-4"],
+        "nonRackCount": 4,
+        "query": { "autoArrange": false, "autoConnect": false, "cogValidation": true }
+      }
+    },
+    {
+      "requestedQuantity": 8,
+      "configuration": [
+        { "id": "config-primary", "code": "7D73CTO1WW", "quantity": 1, "totalPrice": 15650.51 }
+      ],
+      "group": {
+        "id": "100",
+        "name": "Config 1",
+        "products": [
+          { "id": "config-primary", "code": "7D73CTO1WW", "quantity": 8, "price": 103532.08, "unitPrice": 12941.51, "type": "hardware" },
+          { "id": "config-primary", "code": "7S0XCTO6WW", "quantity": 8, "price": 306.5, "unitPrice": 305.5, "type": "hipo" },
+          { "id": "config-primary", "code": "7S0XCTO5WW", "quantity": 8, "price": 211.5, "unitPrice": 210.5, "type": "hipo" },
+          { "id": "config-primary", "code": "7Q01CTO2WW", "quantity": 8, "price": 191, "unitPrice": 191, "type": "servicectohipo" },
+          { "id": "config-primary", "code": "7Q01CTS4WW", "quantity": 8, "price": 1829, "unitPrice": 1829, "type": "servicectohipo" },
+          { "id": "config-primary", "code": "7Q01CTSAWW", "quantity": 8, "price": 173, "unitPrice": 173, "type": "servicectohipo" }
+        ]
+      },
+      "workspace": {
+        "nonRackArea": [
+          {
+            "id": "config-primary",
+            "configurationId": "config-primary",
+            "type": "server",
+            "quantity": 8,
+            "originalIds": [
+              "config-primary", "config-clone-2", "config-clone-3", "config-clone-4",
+              "config-clone-5", "config-clone-6", "config-clone-7", "config-clone-8"
+            ]
+          }
+        ],
+        "rackArea": [],
+        "cloneRackMapping": {}
+      },
+      "priorBrowserExportEvidence": {
+        "configurationCount": 8,
+        "configurationQuantities": [1, 1, 1, 1, 1, 1, 1, 1]
+      }
+    }
+  ]
+}

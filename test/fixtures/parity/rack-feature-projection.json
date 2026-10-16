@@ -1,0 +1,1969 @@
+{
+  "source": "Native r44 editor derive 025 request/response to Back switch calculation 027 request, 2026-10-15",
+  "configuration": {
+    "id": "US__c3a595d0-1210-4a34-95ef-8aa196255bba",
+    "code": "7DP4CTO1WW",
+    "sliceCtoCode": "7DP4CTO1WW",
+    "name": "Controller",
+    "description": "Lenovo ThinkSystem DS3200 Storage Array",
+    "updateConfigurationIds": [
+      "US__c3a595d0-1210-4a34-95ef-8aa196255bba"
+    ],
+    "tabs": [
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "BASE",
+                "results": [
+                  {
+                    "code": "BF3C",
+                    "quantity": 1,
+                    "description": "Lenovo ThinkSystem Storage 2U NVMe Chassis"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "BUNDLE_SW",
+                "results": [
+                  {
+                    "code": "CCQ9",
+                    "quantity": 1,
+                    "description": "Storage All SAN Complete Bundle Offering"
+                  }
+                ]
+              },
+              {
+                "name": "CONTL_MODULE",
+                "results": [
+                  {
+                    "code": "CCTR",
+                    "quantity": 2,
+                    "description": "Lenovo ThinkSystem DS3200 Series Controller, 64GB"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "2.5_HARD_DRIVE",
+                "results": [
+                  {
+                    "code": "C3XK",
+                    "quantity": 4,
+                    "description": "Lenovo ThinkSystem 30.7TB (2x 15.36TB NVMe SED) Drive Pack"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "CLUSTER_ADAPTER",
+                "results": [
+                  {
+                    "code": "C4AC",
+                    "quantity": 2,
+                    "description": "Lenovo ThinkSystem Storage 10/25Gb 4 port Ethernet"
+                  }
+                ]
+              },
+              {
+                "name": "NETWORK_ADAPTER",
+                "results": [
+                  {
+                    "code": "C4A8",
+                    "quantity": 2,
+                    "description": "Lenovo ThinkSystem Storage 64/32Gb 4 Port Fiber Channel Adapter"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "sections": [
+              {
+                "name": "CLUSTER_TRANSCEIVER",
+                "results": []
+              },
+              {
+                "name": "MECH_TRANSCEIVER",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "DAC_QSFP28_CABLE",
+                "results": []
+              },
+              {
+                "name": "DAC_SFP28_CABLE",
+                "results": [
+                  {
+                    "code": "AV1W",
+                    "quantity": 2,
+                    "description": "Lenovo 1m Passive 25G SFP28 DAC Cable"
+                  }
+                ]
+              },
+              {
+                "name": "DAC_QSFP_CABLE",
+                "results": []
+              },
+              {
+                "name": "FIBER_EXTERNAL_CABLE",
+                "results": []
+              },
+              {
+                "name": "DAC_SFP_CABLE",
+                "results": []
+              },
+              {
+                "name": "MPO_OPTICAL_CABLES",
+                "results": []
+              },
+              {
+                "name": "EXTERNAL_CABLES",
+                "results": []
+              },
+              {
+                "name": "USB_CABLE",
+                "results": [
+                  {
+                    "code": "BY6K",
+                    "quantity": 1,
+                    "description": "USB-A to USB-C Cable"
+                  }
+                ]
+              },
+              {
+                "name": "ETHERNET_CABLE",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "RACK_POWERCABLE",
+                "results": [
+                  {
+                    "code": "6400",
+                    "quantity": 2,
+                    "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord"
+                  }
+                ]
+              },
+              {
+                "name": "LINECORD",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "VAO_UID",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "STORAGE_SW",
+                "results": [
+                  {
+                    "code": "CF4S",
+                    "quantity": 1,
+                    "description": "Lenovo ThinkSystem Storage ONTAP 9.18 Software Encryption"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "HANA_MODEL",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "hardware",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "WARRANTY_PERIOD",
+                "results": [
+                  {
+                    "code": "B0W1",
+                    "quantity": 1,
+                    "description": "3 Years"
+                  }
+                ]
+              },
+              {
+                "name": "WARRANTY_TYPE",
+                "results": [
+                  {
+                    "code": "C6S2",
+                    "quantity": 1,
+                    "description": "Premier 24x7 4hr Response and KYD"
+                  }
+                ]
+              },
+              {
+                "name": "ADD_ONS",
+                "results": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "servicesAndor",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "Deployment Recommends|Best",
+                "results": []
+              }
+            ]
+          },
+          {
+            "sections": [
+              {
+                "name": "Add ons|CO2 Offset|CO2 Offset",
+                "results": []
+              }
+            ]
+          },
+          {
+            "sections": [
+              {
+                "name": "Add ons|Health Check|1Yr Semi-Annual",
+                "results": []
+              },
+              {
+                "name": "Add ons|Health Check|3Yr Semi-Annual",
+                "results": []
+              },
+              {
+                "name": "Add ons|Health Check|5Yr Semi-Annual",
+                "results": []
+              }
+            ]
+          },
+          {
+            "sections": [
+              {
+                "name": "Warranty Service Upgrades",
+                "results": [
+                  {
+                    "code": "5PS7C31189",
+                    "quantity": 1,
+                    "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD",
+                    "type": "service"
+                  }
+                ]
+              },
+              {
+                "name": "Warranty Service Upgrades - Drivepack",
+                "results": [
+                  {
+                    "code": "5PS7C31387",
+                    "quantity": 1229,
+                    "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)",
+                    "type": "service"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "software",
+        "subTabs": [
+          {
+            "sections": [
+              {
+                "name": "T1GT",
+                "results": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "unSelectableCharacters": [
+      {
+        "name": "CONTL_CONFIG",
+        "results": [
+          {
+            "code": "CCE3",
+            "quantity": 1,
+            "description": "Configured with Lenovo ThinkSystem DS3200",
+            "installations": [],
+            "forAutoConnect": false
+          }
+        ]
+      },
+      {
+        "name": "OTHER_MI",
+        "results": [
+          {
+            "code": "BWUE",
+            "quantity": 2,
+            "description": "Storage Encryption Bundle License Key - RoW",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "CCJ1",
+            "quantity": 2,
+            "description": "Storage All SAN Complete Bundle License Key",
+            "installations": [],
+            "forAutoConnect": false
+          }
+        ]
+      },
+      {
+        "name": "LPK",
+        "results": [
+          {
+            "code": "CCTV",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem DS Series Saturn All Flash Ship Kit - Multi-Language",
+            "installations": [],
+            "forAutoConnect": false
+          }
+        ]
+      },
+      {
+        "name": "RAIL_KIT",
+        "results": [
+          {
+            "code": "B6Y6",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem NVMe Rail Kit 4 post",
+            "installations": [],
+            "forAutoConnect": false
+          }
+        ]
+      },
+      {
+        "name": "MECH_DERIVE_FCS",
+        "results": [
+          {
+            "code": "B738",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem NVMe Accessory",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C48X",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem DM/DG/DS Jupiter/Saturn 2U24 NVMe Bezel",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C8V9",
+            "quantity": 1,
+            "description": "7-segment LED cover Label",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C498",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem Storage Controller 2U24 NVMe Agency Label",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "CCE7",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem DS3200 Model Name Label",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "B4E7",
+            "quantity": 1,
+            "description": "EIA NamePlate",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C5H3",
+            "quantity": 1,
+            "description": "Lenovo ThinkSystem Storage NVMe Packaging 2U",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C48W",
+            "quantity": 4,
+            "description": "I/O Slot Cover",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "B6Y5",
+            "quantity": 16,
+            "description": "Lenovo ThinkSystem NVMe SFF Filler",
+            "installations": [],
+            "forAutoConnect": false
+          },
+          {
+            "code": "C3HV",
+            "quantity": 1,
+            "description": "Lenovo Logo nameplate",
+            "installations": [],
+            "forAutoConnect": false
+          }
+        ]
+      },
+      {
+        "name": "MI_P",
+        "results": []
+      }
+    ]
+  },
+  "placementResults": [
+    {
+      "workspaceId": "US__c3a595d0-1210-4a34-95ef-8aa196255bba",
+      "resourceTrackers": [
+        {
+          "description": "Disk Drive",
+          "type": "HDD_B",
+          "key": "hdd_b",
+          "unit": "Bays",
+          "resources": [
+            {
+              "label": "Total Drive Bays",
+              "value": "24"
+            },
+            {
+              "label": "Available Drive Bays",
+              "value": "20"
+            },
+            {
+              "label": "Total Ordered",
+              "value": "122800.0GB"
+            }
+          ]
+        },
+        {
+          "description": "PCI Slot",
+          "type": "PCI_S",
+          "key": "pci_s",
+          "unit": "Slots",
+          "resources": [
+            {
+              "label": "Total Slots",
+              "value": "8"
+            },
+            {
+              "label": "Available Slots",
+              "value": "4"
+            }
+          ]
+        }
+      ],
+      "sectionPlacement": [
+        {
+          "sectionName": "USB_CABLE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "USB_CABLE",
+              "featureCode": "BY6K",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "CONTL_CONFIG",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "CONTL_CONFIG",
+              "featureCode": "CCE3",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "LPK",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "LPK",
+              "featureCode": "CCTV",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "BUNDLE_SW",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "BUNDLE_SW",
+              "featureCode": "CCQ9",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "DAC_SFP28_CABLE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "DAC_SFP28_CABLE",
+              "featureCode": "AV1W",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "RAIL_KIT",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "RAIL_KIT",
+              "featureCode": "B6Y6",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "CLUSTER_ADAPTER",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "CLUSTER_ADAPTER",
+              "featureCode": "C4AC",
+              "installations": [
+                {
+                  "targetFeatureCode": "C4AC",
+                  "targetSpaceConnector": "PCI_S",
+                  "installSequence": "6",
+                  "spaceConnectorDescription": "PCI Slot",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "C4AC",
+                  "targetSpaceConnector": "PCI_S",
+                  "installSequence": "7",
+                  "spaceConnectorDescription": "PCI Slot",
+                  "virtualSequence": 0
+                }
+              ],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "RACK_POWERCABLE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "RACK_POWERCABLE",
+              "featureCode": "6400",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "WARRANTY_TYPE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "WARRANTY_TYPE",
+              "featureCode": "C6S2",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "2.5_HARD_DRIVE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "2.5_HARD_DRIVE",
+              "featureCode": "C3XK",
+              "installations": [
+                {
+                  "targetFeatureCode": "C3XK",
+                  "targetSpaceConnector": "HDD_B",
+                  "installSequence": "0",
+                  "spaceConnectorDescription": "Hard Disk Drive Bay",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "C3XK",
+                  "targetSpaceConnector": "HDD_B",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "Hard Disk Drive Bay",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "C3XK",
+                  "targetSpaceConnector": "HDD_B",
+                  "installSequence": "2",
+                  "spaceConnectorDescription": "Hard Disk Drive Bay",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "C3XK",
+                  "targetSpaceConnector": "HDD_B",
+                  "installSequence": "3",
+                  "spaceConnectorDescription": "Hard Disk Drive Bay",
+                  "virtualSequence": 0
+                }
+              ],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "BASE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "BASE",
+              "featureCode": "BF3C",
+              "installations": [
+                {
+                  "targetFeatureCode": "BF3C",
+                  "targetSpaceConnector": "IA",
+                  "installSequence": "0",
+                  "spaceConnectorDescription": "Primary Interface",
+                  "virtualSequence": 0
+                }
+              ],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "WARRANTY_PERIOD",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "WARRANTY_PERIOD",
+              "featureCode": "B0W1",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "NETWORK_ADAPTER",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "NETWORK_ADAPTER",
+              "featureCode": "C4A8",
+              "installations": [
+                {
+                  "targetFeatureCode": "C4A8",
+                  "targetSpaceConnector": "PCI_S",
+                  "installSequence": "0",
+                  "spaceConnectorDescription": "PCI Slot",
+                  "virtualSequence": 0
+                },
+                {
+                  "targetFeatureCode": "C4A8",
+                  "targetSpaceConnector": "PCI_S",
+                  "installSequence": "1",
+                  "spaceConnectorDescription": "PCI Slot",
+                  "virtualSequence": 0
+                }
+              ],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "OTHER_MI",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "OTHER_MI",
+              "featureCode": "BWUE",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "OTHER_MI",
+              "featureCode": "CCJ1",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "MECH_DERIVE_FCS",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "B738",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C48X",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C8V9",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C498",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "CCE7",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "B4E7",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C5H3",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C48W",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "B6Y5",
+              "installations": [],
+              "placementError": null
+            },
+            {
+              "sectionName": "MECH_DERIVE_FCS",
+              "featureCode": "C3HV",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "STORAGE_SW",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "STORAGE_SW",
+              "featureCode": "CF4S",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        },
+        {
+          "sectionName": "CONTL_MODULE",
+          "errors": [],
+          "featurePlacement": [
+            {
+              "sectionName": "CONTL_MODULE",
+              "featureCode": "CCTR",
+              "installations": [],
+              "placementError": null
+            }
+          ]
+        }
+      ],
+      "connectors": [
+        {
+          "portNumber": "0",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "10GbE_Copper",
+            "25GbE_Copper",
+            "40GbE_Copper",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74,65,29,67,68",
+          "transceiverCompatibility": "FC:C4K4,B4K9",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4AC",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "SFP+",
+          "port": "SFP+",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Fiber",
+            "25GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:46,74",
+          "transceiverCompatibility": "FC:C4AF,B4B3,BF5V",
+          "useCableAsDAC": false,
+          "sourceFeature": "C4A8",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
+  "physicalBefore": {
+    "id": "US__555f797d-2594-4026-815a-99b7739c8762",
+    "code": "7DP4CTO1WW",
+    "features": [
+      {
+        "name": "BASE",
+        "results": [
+          {
+            "code": "BF3C",
+            "description": "Lenovo ThinkSystem Storage 2U NVMe Chassis",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [
+              {
+                "targetFeatureCode": "BF3C",
+                "targetSpaceConnector": "IA",
+                "installSequence": "0",
+                "spaceConnectorDescription": "Primary Interface",
+                "virtualSequence": 0
+              }
+            ],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "BUNDLE_SW",
+        "results": [
+          {
+            "code": "CCQ9",
+            "description": "Storage All SAN Complete Bundle Offering",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "CONTL_MODULE",
+        "results": [
+          {
+            "code": "CCTR",
+            "description": "Lenovo ThinkSystem DS3200 Series Controller, 64GB",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "2.5_HARD_DRIVE",
+        "results": [
+          {
+            "code": "C3XK",
+            "description": "Lenovo ThinkSystem 30.7TB (2x 15.36TB NVMe SED) Drive Pack",
+            "quantity": 4,
+            "forAutoConnect": false,
+            "installations": [
+              {
+                "targetFeatureCode": "C3XK",
+                "targetSpaceConnector": "HDD_B",
+                "installSequence": "0",
+                "spaceConnectorDescription": "Hard Disk Drive Bay",
+                "virtualSequence": 0
+              },
+              {
+                "targetFeatureCode": "C3XK",
+                "targetSpaceConnector": "HDD_B",
+                "installSequence": "1",
+                "spaceConnectorDescription": "Hard Disk Drive Bay",
+                "virtualSequence": 0
+              },
+              {
+                "targetFeatureCode": "C3XK",
+                "targetSpaceConnector": "HDD_B",
+                "installSequence": "2",
+                "spaceConnectorDescription": "Hard Disk Drive Bay",
+                "virtualSequence": 0
+              },
+              {
+                "targetFeatureCode": "C3XK",
+                "targetSpaceConnector": "HDD_B",
+                "installSequence": "3",
+                "spaceConnectorDescription": "Hard Disk Drive Bay",
+                "virtualSequence": 0
+              }
+            ],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "CLUSTER_ADAPTER",
+        "results": [
+          {
+            "code": "C4AC",
+            "description": "Lenovo ThinkSystem Storage 10/25Gb 4 port Ethernet",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [
+              {
+                "targetFeatureCode": "C4AC",
+                "targetSpaceConnector": "PCI_S",
+                "installSequence": "6",
+                "spaceConnectorDescription": "PCI Slot",
+                "virtualSequence": 0
+              },
+              {
+                "targetFeatureCode": "C4AC",
+                "targetSpaceConnector": "PCI_S",
+                "installSequence": "7",
+                "spaceConnectorDescription": "PCI Slot",
+                "virtualSequence": 0
+              }
+            ],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "DAC_SFP28_CABLE",
+        "results": [
+          {
+            "code": "AV1W",
+            "description": "Lenovo 1m Passive 25G SFP28 DAC Cable",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "USB_CABLE",
+        "results": [
+          {
+            "code": "BY6K",
+            "description": "USB-A to USB-C Cable",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "RACK_POWERCABLE",
+        "results": [
+          {
+            "code": "6400",
+            "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "STORAGE_SW",
+        "results": [
+          {
+            "code": "CF4S",
+            "description": "Lenovo ThinkSystem Storage ONTAP 9.18 Software Encryption",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "WARRANTY_PERIOD",
+        "results": [
+          {
+            "code": "B0W1",
+            "description": "3 Years",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "WARRANTY_TYPE",
+        "results": [
+          {
+            "code": "C6S2",
+            "description": "Premier 24x7 4hr Response and KYD",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "Warranty Service Upgrades",
+        "results": [
+          {
+            "code": "5PS7C31189",
+            "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "Warranty Service Upgrades - Drivepack",
+        "results": [
+          {
+            "code": "5PS7C31387",
+            "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)",
+            "quantity": 1229,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "CONTL_CONFIG",
+        "results": [
+          {
+            "code": "CCE3",
+            "description": "Configured with Lenovo ThinkSystem DS3200",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "OTHER_MI",
+        "results": [
+          {
+            "code": "BWUE",
+            "description": "Storage Encryption Bundle License Key - RoW",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "CCJ1",
+            "description": "Storage All SAN Complete Bundle License Key",
+            "quantity": 2,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "LPK",
+        "results": [
+          {
+            "code": "CCTV",
+            "description": "Lenovo ThinkSystem DS Series Saturn All Flash Ship Kit - Multi-Language",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "RAIL_KIT",
+        "results": [
+          {
+            "code": "B6Y6",
+            "description": "Lenovo ThinkSystem NVMe Rail Kit 4 post",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      },
+      {
+        "name": "MECH_DERIVE_FCS",
+        "results": [
+          {
+            "code": "B738",
+            "description": "Lenovo ThinkSystem NVMe Accessory",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C48X",
+            "description": "Lenovo ThinkSystem DM/DG/DS Jupiter/Saturn 2U24 NVMe Bezel",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C8V9",
+            "description": "7-segment LED cover Label",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C498",
+            "description": "Lenovo ThinkSystem Storage Controller 2U24 NVMe Agency Label",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "CCE7",
+            "description": "Lenovo ThinkSystem DS3200 Model Name Label",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "B4E7",
+            "description": "EIA NamePlate",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C5H3",
+            "description": "Lenovo ThinkSystem Storage NVMe Packaging 2U",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C48W",
+            "description": "I/O Slot Cover",
+            "quantity": 6,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "B6Y5",
+            "description": "Lenovo ThinkSystem NVMe SFF Filler",
+            "quantity": 16,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          },
+          {
+            "code": "C3HV",
+            "description": "Lenovo Logo nameplate",
+            "quantity": 1,
+            "forAutoConnect": false,
+            "installations": [],
+            "attributeMap": null
+          }
+        ]
+      }
+    ]
+  },
+  "cloneDependency": {
+    "US__c3a595d0-1210-4a34-95ef-8aa196255bba": [
+      "US__c3a595d0-1210-4a34-95ef-8aa196255bba",
+      "US__555f797d-2594-4026-815a-99b7739c8762"
+    ]
+  },
+  "expectedFeatures": [
+    {
+      "name": "BASE",
+      "results": [
+        {
+          "code": "BF3C",
+          "quantity": 1,
+          "installations": [
+            {
+              "targetFeatureCode": "BF3C",
+              "targetSpaceConnector": "IA",
+              "installSequence": "0",
+              "spaceConnectorDescription": "Primary Interface",
+              "virtualSequence": 0
+            }
+          ],
+          "description": "Lenovo ThinkSystem Storage 2U NVMe Chassis",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "BUNDLE_SW",
+      "results": [
+        {
+          "code": "CCQ9",
+          "quantity": 1,
+          "installations": [],
+          "description": "Storage All SAN Complete Bundle Offering",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "CONTL_MODULE",
+      "results": [
+        {
+          "code": "CCTR",
+          "quantity": 2,
+          "installations": [],
+          "description": "Lenovo ThinkSystem DS3200 Series Controller, 64GB",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "2.5_HARD_DRIVE",
+      "results": [
+        {
+          "code": "C3XK",
+          "quantity": 4,
+          "installations": [
+            {
+              "targetFeatureCode": "C3XK",
+              "targetSpaceConnector": "HDD_B",
+              "installSequence": "0",
+              "spaceConnectorDescription": "Hard Disk Drive Bay",
+              "virtualSequence": 0
+            },
+            {
+              "targetFeatureCode": "C3XK",
+              "targetSpaceConnector": "HDD_B",
+              "installSequence": "1",
+              "spaceConnectorDescription": "Hard Disk Drive Bay",
+              "virtualSequence": 0
+            },
+            {
+              "targetFeatureCode": "C3XK",
+              "targetSpaceConnector": "HDD_B",
+              "installSequence": "2",
+              "spaceConnectorDescription": "Hard Disk Drive Bay",
+              "virtualSequence": 0
+            },
+            {
+              "targetFeatureCode": "C3XK",
+              "targetSpaceConnector": "HDD_B",
+              "installSequence": "3",
+              "spaceConnectorDescription": "Hard Disk Drive Bay",
+              "virtualSequence": 0
+            }
+          ],
+          "description": "Lenovo ThinkSystem 30.7TB (2x 15.36TB NVMe SED) Drive Pack",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "CLUSTER_ADAPTER",
+      "results": [
+        {
+          "code": "C4AC",
+          "quantity": 2,
+          "installations": [
+            {
+              "targetFeatureCode": "C4AC",
+              "targetSpaceConnector": "PCI_S",
+              "installSequence": "6",
+              "spaceConnectorDescription": "PCI Slot",
+              "virtualSequence": 0
+            },
+            {
+              "targetFeatureCode": "C4AC",
+              "targetSpaceConnector": "PCI_S",
+              "installSequence": "7",
+              "spaceConnectorDescription": "PCI Slot",
+              "virtualSequence": 0
+            }
+          ],
+          "description": "Lenovo ThinkSystem Storage 10/25Gb 4 port Ethernet",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "NETWORK_ADAPTER",
+      "results": [
+        {
+          "code": "C4A8",
+          "quantity": 2,
+          "installations": [
+            {
+              "targetFeatureCode": "C4A8",
+              "targetSpaceConnector": "PCI_S",
+              "installSequence": "0",
+              "spaceConnectorDescription": "PCI Slot",
+              "virtualSequence": 0
+            },
+            {
+              "targetFeatureCode": "C4A8",
+              "targetSpaceConnector": "PCI_S",
+              "installSequence": "1",
+              "spaceConnectorDescription": "PCI Slot",
+              "virtualSequence": 0
+            }
+          ],
+          "description": "Lenovo ThinkSystem Storage 64/32Gb 4 Port Fiber Channel Adapter",
+          "type": "hardware"
+        }
+      ]
+    },
+    {
+      "name": "DAC_SFP28_CABLE",
+      "results": [
+        {
+          "code": "AV1W",
+          "quantity": 2,
+          "installations": [],
+          "description": "Lenovo 1m Passive 25G SFP28 DAC Cable",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "USB_CABLE",
+      "results": [
+        {
+          "code": "BY6K",
+          "quantity": 1,
+          "installations": [],
+          "description": "USB-A to USB-C Cable",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "RACK_POWERCABLE",
+      "results": [
+        {
+          "code": "6400",
+          "quantity": 2,
+          "installations": [],
+          "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "STORAGE_SW",
+      "results": [
+        {
+          "code": "CF4S",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem Storage ONTAP 9.18 Software Encryption",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "WARRANTY_PERIOD",
+      "results": [
+        {
+          "code": "B0W1",
+          "quantity": 1,
+          "installations": [],
+          "description": "3 Years",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "WARRANTY_TYPE",
+      "results": [
+        {
+          "code": "C6S2",
+          "quantity": 1,
+          "installations": [],
+          "description": "Premier 24x7 4hr Response and KYD",
+          "type": "hardware",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "Warranty Service Upgrades",
+      "results": [
+        {
+          "code": "5PS7C31189",
+          "quantity": 1,
+          "installations": [],
+          "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD",
+          "type": "servicesAndor",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "Warranty Service Upgrades - Drivepack",
+      "results": [
+        {
+          "code": "5PS7C31387",
+          "quantity": 1229,
+          "installations": [],
+          "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)",
+          "type": "servicesAndor",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "CONTL_CONFIG",
+      "results": [
+        {
+          "code": "CCE3",
+          "quantity": 1,
+          "installations": [],
+          "description": "Configured with Lenovo ThinkSystem DS3200",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "OTHER_MI",
+      "results": [
+        {
+          "code": "BWUE",
+          "quantity": 2,
+          "installations": [],
+          "description": "Storage Encryption Bundle License Key - RoW",
+          "forAutoConnect": false
+        },
+        {
+          "code": "CCJ1",
+          "quantity": 2,
+          "installations": [],
+          "description": "Storage All SAN Complete Bundle License Key",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "LPK",
+      "results": [
+        {
+          "code": "CCTV",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem DS Series Saturn All Flash Ship Kit - Multi-Language",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "RAIL_KIT",
+      "results": [
+        {
+          "code": "B6Y6",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem NVMe Rail Kit 4 post",
+          "forAutoConnect": false
+        }
+      ]
+    },
+    {
+      "name": "MECH_DERIVE_FCS",
+      "results": [
+        {
+          "code": "B738",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem NVMe Accessory",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C48X",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem DM/DG/DS Jupiter/Saturn 2U24 NVMe Bezel",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C8V9",
+          "quantity": 1,
+          "installations": [],
+          "description": "7-segment LED cover Label",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C498",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem Storage Controller 2U24 NVMe Agency Label",
+          "forAutoConnect": false
+        },
+        {
+          "code": "CCE7",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem DS3200 Model Name Label",
+          "forAutoConnect": false
+        },
+        {
+          "code": "B4E7",
+          "quantity": 1,
+          "installations": [],
+          "description": "EIA NamePlate",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C5H3",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo ThinkSystem Storage NVMe Packaging 2U",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C48W",
+          "quantity": 4,
+          "installations": [],
+          "description": "I/O Slot Cover",
+          "forAutoConnect": false
+        },
+        {
+          "code": "B6Y5",
+          "quantity": 16,
+          "installations": [],
+          "description": "Lenovo ThinkSystem NVMe SFF Filler",
+          "forAutoConnect": false
+        },
+        {
+          "code": "C3HV",
+          "quantity": 1,
+          "installations": [],
+          "description": "Lenovo Logo nameplate",
+          "forAutoConnect": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,861 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Anonymous headless AI/HPC: configure SR630 V3 with ATZV HBA, add rack, create storage definition, select DM3200F controller, click the controller Edit Item action",
+    "artifacts": [
+      "artifacts/parity-headless/storage-controller-assignment-r26-2026-10-15",
+      "artifacts/parity-headless/storage-controller-assignment-r27-2026-10-15",
+      "artifacts/parity-headless/storage-direct-attach-r28-2026-10-15",
+      "artifacts/parity-headless/storage-controller-edit-r29-2026-10-15",
+      "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15",
+      "artifacts/parity-headless/storage-controller-default-feature-r31-2026-10-15",
+      "artifacts/parity-headless/storage-san-postplacement-r48",
+      "artifacts/parity-headless/storage-populated-fc-r49"
+    ],
+    "scope": "Controller selection, customization launch and server assignment are verified. Populated storage cabling is intentionally not claimed by this fixture."
+  },
+  "serverHba": {
+    "serverCode": "7D73CTOHWW",
+    "deriveEndpoint": "/api/ctos/autoDerive",
+    "selection": {
+      "code": "ATZV",
+      "quantity": 1,
+      "type": "hardware",
+      "description": "Emulex 16Gb Gen6 FC Dual-port HBA"
+    },
+    "installation": {
+      "targetFeatureCode": "ATZV",
+      "targetSpaceConnector": "PCI_S",
+      "installSequence": "2",
+      "spaceConnectorDescription": "PCI Slot",
+      "virtualSequence": 0
+    },
+    "connectors": [
+      {
+        "portNumber": "1",
+        "portDescription": "SFP+,LC-Fiber",
+        "port": "SFP+,LC-Fiber",
+        "topologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ],
+        "connectorFunction": "Network",
+        "cableCompatible": "Group: 17,46,74",
+        "transceiverCompatibility": "",
+        "useCableAsDAC": false,
+        "sourceFeature": "ATZV",
+        "quantity": 1
+      },
+      {
+        "portNumber": "2",
+        "portDescription": "SFP+,LC-Fiber",
+        "port": "SFP+,LC-Fiber",
+        "topologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ],
+        "connectorFunction": "Network",
+        "cableCompatible": "Group: 17,46,74",
+        "transceiverCompatibility": "",
+        "useCableAsDAC": false,
+        "sourceFeature": "ATZV",
+        "quantity": 1
+      }
+    ]
+  },
+  "storageDefinitionAfterControllerSelection": {
+    "name": "Parity Storage Assigned",
+    "maximumExpansions": 0,
+    "type": "General Storage",
+    "layout": "Fully Redundant",
+    "controller": {
+      "option": "7DJ0CTO1WW",
+      "featureCode": "",
+      "id": "storage-controller-id",
+      "hardwareType": "storage"
+    },
+    "expansion": {},
+    "mainSwitch": {
+      "hardwareType": "switch"
+    }
+  },
+  "controllerLaunch": {
+    "action": "first Edit Item link in the storage editor",
+    "endpoint": "/api/ctos/7DJ0CTO1WW/launch",
+    "method": "POST",
+    "status": 200,
+    "query": {
+      "serviceCto": "true",
+      "serviceType": "servicecto",
+      "controlExpressModal": "false"
+    },
+    "route": "#/configuration/cto/7DJ0CTO1WW?configurationId=storage-controller-id&from=rack-configuration&mode=cto&recustomize=true",
+    "configuration": {
+      "code": "7DJ0CTO1WW",
+      "type": "storage",
+      "description": "Lenovo ThinkSystem DM3200F All Flash Array",
+      "quantity": 1,
+      "unitPrice": 0.01,
+      "totalPriceAtCapture": 355958.01,
+      "connectorCount": 12
+    },
+    "networkConnectorFamilies": [
+      {
+        "count": 2,
+        "portDescription": "RJ45 mgmt",
+        "topologies": [
+          "Management_Ethernet"
+        ],
+        "connectorFunction": "Network"
+      },
+      {
+        "count": 8,
+        "portDescription": "SFP28",
+        "topologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber",
+          "10GbE_Copper",
+          "25GbE_Copper",
+          "40GbE_Copper",
+          "100GbE_Copper"
+        ],
+        "connectorFunction": "Network",
+        "cableCompatible": "Group:46,74,65,29,67,68",
+        "transceiverCompatibility": "FC:C4K4,B4K9",
+        "sourceFeature": "C4AC"
+      }
+    ],
+    "powerConnectorFamily": {
+      "count": 2,
+      "portDescription": "C14",
+      "connectorFunction": "Power",
+      "sourceFeature": "6400"
+    }
+  },
+  "workspaceCustomizeTriggeredByEdit": {
+    "endpoint": "/api/ctos/racks/customize",
+    "method": "POST",
+    "configurationProjectionCodes": [
+      "7D73CTOHWW",
+      "7D6DCTO1WW",
+      "7DJ0CTO1WW"
+    ],
+    "controllerIdMatches": [
+      "storageConnectionNetworks[0].controller.id",
+      "configurations[2].id",
+      "controller configuration route configurationId"
+    ],
+    "serverSelectedStorageNetwork": null,
+    "response": {
+      "keys": [
+        "connections",
+        "nonRackArea",
+        "rackArea"
+      ],
+      "controllerIsNotYetReturnedAsPhysicalItem": true
+    }
+  },
+  "serverAssignment": {
+    "control": "Network > Manage storage networks > Parity Storage Assigned",
+    "endpoint": "/api/ctos/autoDerive",
+    "method": "POST",
+    "query": {
+      "configurationId": "server-id",
+      "guideMode": "true"
+    },
+    "request": {
+      "customizingIds": [
+        "server-id"
+      ],
+      "configurationCodes": [
+        "7D73CTOHWW",
+        "7D6DCTO1WW",
+        "7DJ0CTO1WW"
+      ],
+      "serverSelectedStorageNetwork": "Parity Storage Assigned",
+      "rackSelectedStorageNetwork": null,
+      "controllerSelectedStorageNetwork": null,
+      "workspaceInformationSelectedStorageNetwork": null
+    },
+    "response": {
+      "configurationCount": 1,
+      "code": "7D73CTOHWW",
+      "selectedStorageNetwork": "Parity Storage Assigned",
+      "hbaConnectorCount": 2
+    },
+    "wireRule": "The selection is carried by the raw server configuration. The browser does not send a workspace selectedStorageNetwork map in this request."
+  },
+  "managedControllerPlacement": {
+    "summaryProductCard": false,
+    "manualMoveControl": false,
+    "configurationProjectionPresent": true,
+    "storageDefinitionReferencePresent": true,
+    "rackItemPresent": false,
+    "nonRackItemPresent": false,
+    "rule": "The browser manages this controller through configurations plus storageConnectionNetworks. It does not expose or synthesize an ordinary physical rack item."
+  },
+  "directAttachAttempt": {
+    "serverPlacement": {
+      "rack": "A1",
+      "position": 1
+    },
+    "controllerPhysicalPlacement": null,
+    "switchCalculation": {
+      "endpoint": "/api/switch_calculation",
+      "status": 200,
+      "response": []
+    },
+    "rackCustomize": {
+      "endpoint": "/api/ctos/racks/customize",
+      "status": 200,
+      "connections": [],
+      "errors": null
+    },
+    "autoConnectEndpointCalledAfterToggle": false,
+    "outcome": "The browser produced no storage connection for this ATZV plus DM3200F direct-attached combination. This is an authoritative empty workflow, not evidence that populated storage cabling is implemented.",
+    "controllerAv1wQuantity": 4,
+    "secondAttempt": {
+      "serverAssigned": true,
+      "serverRackPosition": 1,
+      "managedControllerPhysicalItem": false,
+      "switchCalculationResponse": [],
+      "rackCustomizeConnections": [],
+      "outcome": "Changing the controller AV1W cable option from 2 to 4 did not make this ATZV plus DM3200F direct-attached workflow produce a connection."
+    }
+  },
+  "controllerOptionEdit": {
+    "control": "Cable Options > Lenovo 1m Passive 25G SFP28 DAC Cable (AV1W), quantity 2 to 4",
+    "endpoint": "/api/ctos/autoDerive",
+    "query": {
+      "configurationId": "storage-controller-id",
+      "guideMode": "true"
+    },
+    "request": {
+      "configurationCount": 3,
+      "customizingIds": [
+        "storage-controller-id"
+      ],
+      "targetProjection": {
+        "code": "7DJ0CTO1WW",
+        "selectedStorageNetwork": null
+      },
+      "sectionResult": {
+        "section": "DAC_SFP28_CABLE",
+        "code": "AV1W",
+        "quantity": 4,
+        "type": "hardware"
+      },
+      "delta": {
+        "section": "DAC_SFP28_CABLE",
+        "featureCode": "AV1W",
+        "quantity": 4,
+        "isClear": false,
+        "type": "hardware"
+      }
+    },
+    "response": {
+      "configurationCount": 1,
+      "code": "7DJ0CTO1WW",
+      "type": "storage",
+      "selectedStorageNetwork": null,
+      "connectorCount": 12,
+      "av1wQuantity": 4,
+      "av1wMin": 0,
+      "av1wMax": 32
+    },
+    "backToWorkspaceSequence": [
+      "/api/switch_calculation",
+      "/api/ctos/racks/customize"
+    ],
+    "managedPhysicalItemAfterReturn": false,
+    "rawEvidence": {
+      "request": "artifacts/parity-headless/storage-controller-edit-r29-2026-10-15/wire/036-req.txt",
+      "response": "artifacts/parity-headless/storage-controller-edit-r29-2026-10-15/wire/036-res.txt",
+      "switchCalculation": "artifacts/parity-headless/storage-controller-edit-r29-2026-10-15/wire/038-req.txt",
+      "rackCustomize": "artifacts/parity-headless/storage-controller-edit-r29-2026-10-15/wire/039-req.txt"
+    }
+  },
+  "configuredControllerLifecycle": {
+    "reopen": {
+      "secondLaunchRequest": false,
+      "configurationIdRetained": true,
+      "av1wQuantityRetained": 4,
+      "networkRefreshRequestsObserved": [
+        "product_functions",
+        "hardware/autoFix/config",
+        "memory_wizard/productCode",
+        "Base/staticFeatures",
+        "findPart",
+        "featureDetails",
+        "Cable Options/staticFeatures"
+      ],
+      "backToWorkspaceSequence": [
+        "/api/switch_calculation",
+        "/api/ctos/racks/customize"
+      ]
+    },
+    "configuredExport": {
+      "configuration": {
+        "code": "7DJ0CTO1WW",
+        "type": "storage",
+        "quantity": 1,
+        "physicalRackItem": false,
+        "physicalNonRackItem": false,
+        "selectedStorageNetwork": null,
+        "av1wQuantity": 4
+      },
+      "groupProducts": [
+        {
+          "code": "7DJ0CTO1WW",
+          "type": "hardware",
+          "quantity": 0,
+          "price": 0,
+          "prices": [
+            {
+              "priceTypeId": 1,
+              "price": 356036.01,
+              "priceNotAvailable": false
+            }
+          ],
+          "unitPrice": 203887.51
+        },
+        {
+          "code": "7S0SCTOKWW",
+          "type": "hipo",
+          "quantity": 0,
+          "price": 97707.5,
+          "unitPrice": 97706.5,
+          "targetCtoUnitPrice": 1
+        }
+      ],
+      "rule": "Managed controller raw configuration quantity remains one. Browser groups use zero physical sales quantity and contain only its hardware plus HIPO product; controller service and servicectohipo rows are omitted.",
+      "omittedManagedControllerGroupTypes": [
+        "service",
+        "servicectohipo"
+      ],
+      "groupProductCodes": [
+        "7DJ0CTO1WW",
+        "7S0SCTOKWW"
+      ]
+    },
+    "remove": {
+      "confirmation": "Are you sure you want to remove this?",
+      "confirmLabel": "OK",
+      "remoteDeleteEndpoint": false,
+      "layoutRequestBeforeLocalRemoval": {
+        "stillContainsControllerConfiguration": true,
+        "stillContainsStorageDefinition": true
+      },
+      "afterLocalRemoval": {
+        "storageDefinitionCount": 0,
+        "controllerConfigurationPresent": false,
+        "controllerSummaryCardPresent": false,
+        "controllerGroupProductsPresent": false
+      },
+      "assignmentCaseCaptured": false,
+      "rule": "Removing an unassigned configured definition locally cascades its managed controller configuration and commercial groups. Assigned-server removal was not captured; callers must still clear assignments explicitly."
+    },
+    "rawEvidence": {
+      "root": "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15",
+      "configuredExportRequest": "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15/configured-controller-export-request.txt",
+      "removedExportRequest": "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15/removed-controller-export-request.txt",
+      "layoutRequestDuringRemove": "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15/wire/051-req.txt"
+    }
+  },
+  "defaultControllerFeatureSelection": {
+    "definition": {
+      "option": "7D4FCTO6WW",
+      "featureCode": "BCBN",
+      "maximumExpansions": 1
+    },
+    "editItem": {
+      "launchEndpoint": "/api/ctos/7D4FCTO6WW/launch",
+      "launchBody": {},
+      "featureDeriveEndpointCalled": false,
+      "then": "/api/ctos/racks/customize"
+    },
+    "launch": {
+      "type": "storage",
+      "quantity": 1,
+      "unitPrice": 0.01,
+      "totalPriceAtCapture": 84815.51,
+      "connectorCount": 0,
+      "selectedResultPath": "unSelectableCharacters[0].results[0]",
+      "selectedResult": {
+        "code": "BCBN",
+        "quantity": 1,
+        "derived": true
+      }
+    },
+    "customizeProjection": {
+      "section": "BASE",
+      "feature": {
+        "code": "BCBN",
+        "quantity": 1
+      },
+      "managedPhysicalItem": false
+    },
+    "rule": "A nonempty definition feature is accepted only when the launch already returns that exact feature as a selected result with positive quantity. Availability metadata alone is insufficient; no separate feature derive occurs.",
+    "rawEvidence": {
+      "launch": "artifacts/parity-headless/storage-controller-default-feature-r31-2026-10-15/wire/026-res.txt",
+      "customizeRequest": "artifacts/parity-headless/storage-controller-default-feature-r31-2026-10-15/wire/027-req.txt",
+      "customizeResponse": "artifacts/parity-headless/storage-controller-default-feature-r31-2026-10-15/wire/027-res.txt"
+    }
+  },
+  "freshBrowserReimport": {
+    "inputs": {
+      "browserOwnConfiguredControllerExport": "artifacts/parity-headless/storage-controller-lifecycle-r30-2026-10-15/configured-controller-export.xml",
+      "mcpManagedControllerExport": "artifacts/implementation-2026-10-15/storage-lifecycle-live-run4/exports/2026-10-15/managed-controller-6267ec84-ff37-48a8-abba-42c22540c329/extracted/managed-controller.xml"
+    },
+    "endpoint": "/multiple/cfxml_import",
+    "status": {
+      "browserOwn": 200,
+      "mcp": 200
+    },
+    "route": "#/rack-configuration?from=rack-summary",
+    "browserOwn": {
+      "configurationCodes": [
+        "7D6DCTO1WW",
+        "7D73CTOHWW"
+      ],
+      "storageNetworkNames": [
+        "Parity Storage Assigned"
+      ],
+      "summaryCodes": [
+        "7D6DCTO1WW",
+        "7D73CTOHWW"
+      ],
+      "managedControllerGroup": {
+        "code": "7DJ0CTO1WW",
+        "quantity": 0,
+        "price": 0,
+        "unitPrice": 203887.51,
+        "priceType1": 356036.01
+      },
+      "managedControllerHipoGroup": {
+        "code": "7S0SCTOKWW",
+        "quantity": 0,
+        "price": 97707.5,
+        "unitPrice": 97706.5,
+        "priceType1": 1
+      }
+    },
+    "mcp": {
+      "configurationCodes": [
+        "7D6DCTO1WW",
+        "7D73CTOHWW"
+      ],
+      "storageNetworkNames": [
+        "Live Storage"
+      ],
+      "summaryCodes": [
+        "7D6DCTO1WW",
+        "7D73CTOHWW"
+      ],
+      "managedControllerGroup": {
+        "code": "7DJ0CTO1WW",
+        "quantity": 0,
+        "price": 0,
+        "unitPrice": 203887.51,
+        "priceType1": 356036.01
+      },
+      "managedControllerHipoGroup": {
+        "code": "7S0SCTOKWW",
+        "quantity": 0,
+        "price": 97707.5,
+        "unitPrice": 97706.5,
+        "priceType1": 1
+      }
+    },
+    "sharedObservedBehavior": {
+      "storageDefinitionPreserved": true,
+      "managedControllerConfigurationHydrated": false,
+      "managedControllerSummaryCard": false,
+      "managedControllerPhysicalPlacement": false,
+      "managedControllerCommercialRowsPreserved": true,
+      "assignmentGraphParity": "not-tested"
+    },
+    "interpretation": "The MCP export matches the website-own export on fresh browser import for this unassigned, empty-graph case. Both imports preserve the storage definition and zero-quantity controller HW/HIPO commercial rows, but the website importer does not hydrate the managed controller configuration. This verifies editable-controller loss as website-own behavior; assignment and cable-graph preservation are not tested by these inputs.",
+    "rawEvidence": "artifacts/parity-headless/storage-managed-reimport-r32-2026-10-15"
+  },
+  "sanSwitchLifecycle": {
+    "definition": {
+      "name": "Parity Storage Assigned",
+      "controller": {
+        "option": "7DJ0CTO1WW",
+        "featureCode": "",
+        "hardwareType": "storage",
+        "id": "managed-controller-id"
+      },
+      "mainSwitch": {
+        "option": "7DHNCTO1WW",
+        "featureCode": "C1FM",
+        "hardwareType": "switch",
+        "id": "managed-switch-id"
+      },
+      "expansion": {},
+      "maximumExpansions": 0,
+      "layout": "Fully Redundant",
+      "type": "General Storage"
+    },
+    "switchEdit": {
+      "endpoint": "/api/ctos/7DHNCTO1WW/launch",
+      "method": "POST",
+      "body": {},
+      "status": 200,
+      "raw": {
+        "code": "7DHNCTO1WW",
+        "type": "switch",
+        "quantity": 1,
+        "unitPrice": 0.01,
+        "totalPrice": 11483.01,
+        "connectorCount": 50
+      },
+      "selectedCatalogFeature": {
+        "section": "BASE",
+        "code": "C1FM",
+        "quantity": 1
+      },
+      "returnToWorkspace": [
+        "/api/switch_calculation",
+        "/api/ctos/racks/customize"
+      ]
+    },
+    "managedPlacement": {
+      "configurationProjectionPresent": true,
+      "storageDefinitionReferencePresent": true,
+      "rackItemPresent": false,
+      "nonRackItemPresent": false,
+      "switchMapEntryPresent": false,
+      "rule": "The user-selected storage SAN switch is managed through storageConnectionNetworks and its compact configuration. It is not an automatically generated network switch and does not use switchMap or a synthetic physical item."
+    },
+    "assignedAttempt": {
+      "serverCode": "7D73CTOHWW",
+      "serverHba": "ATZV",
+      "selectedStorageNetwork": "Parity Storage Assigned",
+      "serverPlacedInRack": true,
+      "switchCalculationResult": [],
+      "rackCustomizeConnections": [],
+      "autoConnectEndpointCalled": false,
+      "connectionCount": 0,
+      "incompatibilityEvidence": {
+        "controllerPorts": "DM3200F data ports are SFP28 Ethernet topologies",
+        "switchPorts": "DB710S data ports include 8/16/32/64Gb Fibre plus Ethernet topologies",
+        "serverHbaCatalogLabel": "Emulex 16Gb Gen6 FC Dual-port HBA",
+        "serverHbaWireTopologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ]
+      },
+      "interpretation": "The site accepted controller, switch, assignment and rack placement but returned an empty switch calculation/customize graph and did not invoke cabling auto_connect. This is a verified unsuccessful combination and does not establish populated storage cabling."
+    },
+    "rawEvidence": "artifacts/parity-headless/storage-san-switch-r34-2026-10-15",
+    "configuredLifecycle": {
+      "reopen": {
+        "secondLaunch": false,
+        "sameConfigurationId": true,
+        "selectionsRetained": true
+      },
+      "configuredExport": {
+        "rawConfigurations": [
+          {
+            "code": "7DP4CTO1WW",
+            "type": "storage",
+            "quantity": 1,
+            "physicalPlacement": false
+          },
+          {
+            "code": "7DHNCTO1WW",
+            "type": "switch",
+            "quantity": 1,
+            "physicalPlacement": false
+          }
+        ],
+        "groupProducts": [
+          {
+            "code": "7DP4CTO1WW",
+            "type": "hardware",
+            "quantity": 0,
+            "price": 0,
+            "unitPrice": 211948.51,
+            "priceType1": 330708.01
+          },
+          {
+            "code": "7S1VCTOFWW",
+            "type": "hipo",
+            "quantity": 0,
+            "price": 79272.5,
+            "unitPrice": 79271.5,
+            "priceType1": 1,
+            "targetCtoUnitPrice": 1
+          },
+          {
+            "code": "7DHNCTO1WW",
+            "type": "hardware",
+            "quantity": 0,
+            "price": 0,
+            "unitPrice": 10759.01,
+            "priceType1": 11483.01
+          }
+        ],
+        "switchServiceRows": [],
+        "definitionMainSwitchReference": true,
+        "switchMapEntry": false
+      },
+      "removeUnassignedDefinition": {
+        "dialog": "Are you sure you want to remove this?",
+        "wireCustomizeStillContainsOldDefinitionAndComponents": true,
+        "localResult": {
+          "definitionPresent": false,
+          "controllerConfigurationPresent": false,
+          "switchConfigurationPresent": false,
+          "componentGroupRowsPresent": false
+        },
+        "ownership": "Removing the only unassigned definition locally removes both exclusively referenced managed component configurations. Shared-component removal behavior was not tested."
+      },
+      "rawEvidence": "artifacts/parity-headless/storage-san-lifecycle-r37-2026-10-15"
+    },
+    "fcAdapterCaptureGate": {
+      "controller": "7DP4CTO1WW",
+      "defaultAdapter": {
+        "code": "C4AC",
+        "description": "Lenovo ThinkSystem Storage 10/25Gb 4 port Ethernet",
+        "quantityControlValue": 0
+      },
+      "availableFibreAdapter": {
+        "code": "C4A8",
+        "description": "Lenovo ThinkSystem Storage 64/32Gb 4 Port Fiber Channel Adapter",
+        "quantityOptions": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "minimumPositiveQuantity": 2
+      },
+      "status": "C4A8 quantity-2 derive and post-placement /api/auto_connect verified; this exact ATZV/C4A8/DB710S combination returns no storage links",
+      "nextEvidenceRequired": "Replace the controller default C4AC adapters with C4A8 (C4AC=0, C4A8=2), retaining B4B3=8 and server BJ3H=1, then require a non-empty storage graph. If still empty, inspect whether the definition/controller family is storage-cabling eligible before changing another product.",
+      "priorProbeDefect": "The probe searched the C4A8 dropdown for quantity 1, which the live control does not offer; the resulting page/target closure did not test C4A8 support.",
+      "validQuantityTwoDerive": {
+        "status": 200,
+        "selectedResult": {
+          "code": "C4A8",
+          "quantity": 2
+        },
+        "connectorCount": 8,
+        "connectorPortNumbers": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "port": "SFP+",
+        "topologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ],
+        "cableCompatible": "Group:46,74",
+        "sourceFeature": "C4A8"
+      },
+      "serverHbaConnectorProof": {
+        "code": "ATZV",
+        "quantity": 1,
+        "connectorCount": 2,
+        "topologies": [
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ],
+        "cableCompatible": "Group: 17,46,74",
+        "sourceFeature": "ATZV"
+      },
+      "run38": {
+        "assigned": true,
+        "serverMovedIntoRack": true,
+        "prePlacementAutoConnectConnectionCount": 0,
+        "postPlacementAutoConnectEndpointCalled": false,
+        "postPlacementSwitchCalculationResult": [],
+        "postPlacementCustomizeConnectionCount": 0,
+        "evidence": "artifacts/parity-headless/storage-fc-adapter-valid-r38-2026-10-15"
+      },
+      "run47": {
+        "serverAssigned": true,
+        "serverPlacedInRack": true,
+        "storageComponentsPlacedInRack": true,
+        "autoConnectEndpointCalled": true,
+        "autoConnectStatus": 200,
+        "managementConnectionCount": 1,
+        "storageConnectionCount": 0,
+        "settings": {
+          "autoAddPDU": false,
+          "autoAddSwitch": true,
+          "p2pCabling": true
+        },
+        "evidence": "artifacts/parity-headless/storage-populated-fc-r47"
+      },
+      "run49": {
+        "serverAssigned": true,
+        "serverPlacedInRack": true,
+        "storageComponentsPlacedInRack": true,
+        "controllerSelections": {
+          "C4A8": 2,
+          "B4B3": 8,
+          "C4AC": "retained-default"
+        },
+        "serverSelections": {
+          "BJ3H": 1,
+          "ATZV": 0
+        },
+        "autoConnectStatus": 200,
+        "managementConnectionCount": 1,
+        "storageConnectionCount": 0,
+        "errors": [],
+        "interpretation": "Adding matching 32Gb controller optics and replacing the 16Gb server HBA with a 32Gb dual-port HBA was still insufficient. The controller retained its default C4AC Ethernet adapters alongside C4A8, which is the next bounded replacement diagnostic.",
+        "evidence": "artifacts/parity-headless/storage-populated-fc-r49"
+      },
+      "run50": {
+        "attemptedReplacement": {
+          "featureCode": "C4AC",
+          "section": "CLUSTER_ADAPTER",
+          "selectedQuantity": 2,
+          "requestedQuantity": 0
+        },
+        "duplicateControl": {
+          "section": "NETWORK_ADAPTER",
+          "selectedQuantity": 0
+        },
+        "visibleClusterChoices": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "mutationSent": false,
+        "interpretation": "The configured BF3C bundle renders C4AC twice. CLUSTER_ADAPTER is the selected quantity-two control; NETWORK_ADAPTER is already zero. The selected cluster control's dropdown offers quantities one through eight and no zero, so this fixture cannot remove its mandatory Ethernet adapters through the captured Guided-mode UI. A different controller bundle or a verified Expert-mode path is required before another FC auto-connect attempt.",
+        "evidence": "artifacts/parity-headless/storage-populated-fc-r50"
+      }
+    },
+    "postPlacementOptionEdit": {
+      "product": "7DHNCTO1WW",
+      "selection": {
+        "code": "C1FP",
+        "quantity": 1,
+        "description": "Lenovo DB710S 8 Port ON DEMAND License with 8x 32G SWL SFP"
+      },
+      "editorAutoDerive": {
+        "endpoint": "/api/ctos/autoDerive",
+        "status": 200,
+        "responseVariants": [
+          {
+            "identity": "editable-template",
+            "rawId": "template-id",
+            "updateConfigurationIds": [
+              "template-id"
+            ],
+            "totalPrice": 19232.51
+          },
+          {
+            "identity": "physical-alias",
+            "rawId": "template-id",
+            "updateConfigurationIds": [
+              "physical-alias-id"
+            ],
+            "totalPrice": 19761.51
+          }
+        ]
+      },
+      "backSequence": [
+        "/api/switch_calculation",
+        "/api/ctos/racks/customize",
+        "/api/ctos/autoDerive"
+      ],
+      "acceptedState": {
+        "templateC1fpQuantity": 1,
+        "physicalAliasC1fpQuantity": 1
+      },
+      "exportGroup": [
+        {
+          "code": "7DHNCTO1WW",
+          "type": "hardware",
+          "quantity": 1,
+          "price": 19037.51,
+          "unitPrice": 19037.51
+        },
+        {
+          "code": "5WS7C21341",
+          "type": "service",
+          "quantity": 1,
+          "price": 629,
+          "unitPrice": 629
+        },
+        {
+          "code": "5MS7B07545",
+          "type": "service",
+          "quantity": 1,
+          "price": 95,
+          "unitPrice": 95
+        }
+      ]
+    },
+    "replaceConfiguredSanWithDirectAttached": {
+      "selectedMainSwitch": {
+        "hardwareType": "switch",
+        "option": "",
+        "featureCode": ""
+      },
+      "requestSequence": [
+        "/api/switch_calculation",
+        "/api/ctos/racks/customize"
+      ],
+      "followupAutoDerive": false,
+      "componentLaunch": false,
+      "oldSwitchRetained": {
+        "templateConfiguration": true,
+        "physicalAliasAtU4": true,
+        "c1fpSelection": true,
+        "cloneDependency": true
+      },
+      "retainedConnectionNetworks": [
+        "Management"
+      ],
+      "exportGroup": [
+        {
+          "code": "7DHNCTO1WW",
+          "type": "hardware",
+          "quantity": 2,
+          "price": 38075.02,
+          "unitPrice": 19037.51
+        },
+        {
+          "code": "5WS7C21341",
+          "type": "service",
+          "quantity": 2,
+          "price": 629,
+          "unitPrice": 629
+        },
+        {
+          "code": "5MS7B07545",
+          "type": "service",
+          "quantity": 2,
+          "price": 95,
+          "unitPrice": 95
+        }
+      ],
+      "interpretation": "The browser detaches the definition reference but retains the prior editable template and placed physical alias. Commercial export then counts the loose template plus the alias. Storage graph replacement is not tested because the captured graph had no storage links.",
+      "evidence": "artifacts/parity-headless/storage-san-postplacement-r48"
+    }
+  }
+}

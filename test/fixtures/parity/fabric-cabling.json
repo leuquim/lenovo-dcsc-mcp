@@ -1,0 +1,22 @@
+{
+  "topology": {
+    "networkTopology": [{"shortName":"1GbE_Copper","description":"1 Gb Ethernet","futureTopologyField":true}],
+    "networkDevices": [{"option":"7D5FCTOFWW","feature":"BPC7","description":"NVIDIA SN2201","topologies":["1GbE_Copper"],"maxConnectors":48,"topologyConnectors":{"1GbE_Copper":48},"slice":"HPCGPALL"}],
+    "networkType": [{"name":"Management","defaultNetworkTechnology":"1GbE_Copper","defaultLayout":"Centralized","defaultMainSwitch":"BPC7","defaultMainSwitchOption":"7D5FCTOFWW","defaultCableType":"Cat5E","defaultCableColor":"Green","mainSwitchTrunks":1}],
+    "cables": [{"featureCode":"3760","description":"1.8m Black Cat5e Cable","color":"Black","category":"Cat5E","compatibility":["7D5FCTOFWW"],"topologies":["1GbE_Copper"],"customCable":false}],
+    "selectedServices": [{"featureCode":"2321","description":"Custom MFG SVCS Fee","compatibility":["7D5FCTOFWW"]}]
+  },
+  "roles": [{"role":"Compute","description":"Compute node","futureRoleField":"kept"}],
+  "storage": {
+    "switches": [{"option":"7DHNCTO1WW","featureCode":"C1FM","description":"DB710S","price":0.01,"futureSwitchField":"kept"}],
+    "controllers": [{"option":"4587LC2","featureCode":"","description":"D1224","price":0.01,"expansions":[{"option":"4587LC2","maximum":8}],"futureControllerField":"kept"}]
+  },
+  "autoConnectResponse": {
+    "rackArea": [{"id":"rack-1","errors":[{"code":"102","message":"Review cable routing"}]}],
+    "nonRackArea": [],
+    "connections": [{"sourceId":"server-1","destinationId":"switch-1","sourcePortName":"RJ45 mgmt","sourcePortNumber":"1","destinationPortName":"RJ45","destinationPortNumber":"12","sourceLocation":"Rack A/1","destinationLocation":"Rack A/5","sourcePart":"7D73CTO1WW","destinationPart":"7D5FCTOFWW","sourceItem":"SR630 V3","destinationItem":"SN2201","cablePart":"3760","cableType":"Cat5E","network":"Management","topology":"1GbE_Copper","type":"AUTO","futureConnectionField":"kept"}],
+    "errors": [{"code":"FABRIC_WARNING","message":"example"}],
+    "selectedTopologies": {"server-1":{"Management":{"selectedConnectors":[]}}},
+    "futureResponseField": {"kept":true}
+  }
+}

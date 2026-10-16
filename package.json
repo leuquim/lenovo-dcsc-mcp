@@ -10,32 +10,69 @@
   "bin": {
     "lenovo-dcsc-mcp": "./dist/mcp/server.js"
   },
-  "exports": {
-    ".": "./dist/index.js"
-  },
   "files": [
     "dist",
-    "fixtures"
+    "docs/client-setup.md",
+    "examples/client-configs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "start": "node dist/mcp/server.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "mine": "tsx scripts/mine-bundle.ts",
     "contract": "vitest run --config vitest.contract.config.ts",
-    "contract:live": "tsx scripts/contract-suite.ts"
+    "contract:live": "tsx scripts/contract-suite.ts",
+    "parity:headless": "tsx scripts/parity-headless.ts --suite=all --fresh-catalog --rack-code=7D6DCTO1WW --switch-code=7D5FCTOFWW --automatic-switch-flow",
+    "parity:offline": "tsx scripts/parity-headless.ts --suite=offline",
+    "parity:recovery": "tsx scripts/parity-recovery.ts --suite=all",
+    "parity:projections": "tsx scripts/parity-projections.ts",
+    "parity:software": "tsx scripts/parity-software.ts",
+    "parity:software-export": "tsx scripts/parity-software-export.ts",
+    "parity:software-mixed": "tsx scripts/parity-software-mixed.ts",
+    "parity:software-lfo": "tsx scripts/parity-software-lfo.ts",
+    "parity:lfo-as-cto": "tsx scripts/parity-lfo-as-cto.ts",
+    "parity:rack-lifecycle": "tsx scripts/parity-rack-lifecycle.ts",
+    "parity:rack-multiu": "tsx scripts/parity-rack-multiu.ts",
+    "parity:rack-power": "tsx scripts/parity-rack-power.ts",
+    "parity:rack-lock": "tsx scripts/parity-rack-lock.ts",
+    "parity:network": "tsx scripts/parity-network.ts",
+    "parity:network-leaf": "tsx scripts/parity-network-leaf.ts",
+    "parity:storage": "tsx scripts/parity-storage.ts",
+    "parity:storage-placement": "tsx scripts/parity-storage-placement.ts",
+    "parity:storage-placement-reimport": "tsx scripts/parity-storage-placement-reimport.ts",
+    "parity:storage-fc": "tsx scripts/parity-storage-fc.ts",
+    "parity:manual-cabling": "tsx scripts/parity-manual-cabling.ts",
+    "parity:manual-cabling:shared": "tsx scripts/parity-manual-cabling.ts --shared",
+    "parity:manual-cabling:collision": "tsx scripts/parity-manual-cabling.ts --collision",
+    "parity:controls-locale": "tsx scripts/parity-controls-locale.ts",
+    "parity:catalogs": "tsx scripts/parity-catalogs.ts",
+    "parity:services": "tsx scripts/parity-services.ts",
+    "parity:storage-reimport": "tsx scripts/parity-storage-reimport.ts",
+    "parity:rack-clone": "tsx scripts/parity-rack-clone.ts",
+    "parity:nested-vlh": "tsx scripts/parity-nested-vlh.ts",
+    "parity:nested-stdio": "tsx scripts/parity-nested-stdio.ts",
+    "parity:nested-removal": "tsx scripts/parity-nested-removal.ts",
+    "parity:nested-remove-chassis": "tsx scripts/parity-nested-removal.ts --action=remove-chassis",
+    "parity:nested-detach": "tsx scripts/parity-nested-removal.ts --action=remove-node",
+    "parity:nested-unplace": "tsx scripts/parity-nested-removal.ts --action=unplace-node",
+    "parity:validation": "tsx scripts/parity-validation.ts",
+    "parity:blueprints": "npm run build && tsx scripts/conformance.ts --blueprints-only",
+    "release:checkpoint": "tsx scripts/release-checkpoint.ts",
+    "prepack": "npm run build",
+    "smoke:stdio": "tsx scripts/smoke-stdio.ts",
+    "check": "npm run typecheck && npm run lint && npm test && npm run contract && npm run build && npm run smoke:stdio"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "content-disposition": "^0.5.4",
     "fast-xml-parser": "^5.2.5",
     "pino": "^9.6.0",
     "ulid": "^3.0.0",
-    "undici": "^7.10.0",
+    "undici": "^7.30.1",
     "yauzl": "^3.2.0",
     "zod": "^3.24.1"
   },
@@ -49,6 +86,12 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.0",
-    "vitest": "^3.0.5"
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
+  },
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leuquim/lenovo-dcsc-mcp.git"
   }
 }

@@ -1,0 +1,98 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15",
+    "mode": "HPC and AI - Systems",
+    "workflow": "Place the same DS3200/DB710S storage network twice, open Summary, use the grouped DS3200 card Move to action, select Non Rack Items, then export",
+    "artifact": "artifacts/parity-headless/storage-alias-move-r43",
+    "statuses": {
+      "customize": 200,
+      "autoDerive": 200,
+      "export": 200
+    }
+  },
+  "action": {
+    "summaryCard": {
+      "code": "7DP4CTO1WW",
+      "description": "Lenovo ThinkSystem DS3200 Storage Array",
+      "physicalAliasCount": 2,
+      "displayedPrice": 330709.01
+    },
+    "destination": "Non Rack Items",
+    "scope": "all physical aliases in the managed-template dependency group"
+  },
+  "requestSequence": [
+    "POST /ctos/racks/customize",
+    "POST /recommendations/summary",
+    "POST /ctos/serviceSaving",
+    "POST /ctos/autoDerive?guideMode=true",
+    "POST /recommendations/summary",
+    "POST /ctos/serviceSaving",
+    "POST /ctos/export_zip"
+  ],
+  "autoDerive": {
+    "entranceFlag": null,
+    "customizingIds": null,
+    "configurationIds": [
+      "rack-template",
+      "server-template",
+      "management-switch-1",
+      "management-switch-2",
+      "controller-template",
+      "san-switch-template"
+    ],
+    "managedResults": [
+      {
+        "id": "controller-template",
+        "code": "7DP4CTO1WW",
+        "updateConfigurationIds": ["controller-physical-1", "controller-physical-2"],
+        "totalPrice": 330709.01,
+        "price": 330708.01,
+        "rail": "B6Y6",
+        "otherMi": ["BWUE", "CCJ1"]
+      },
+      {
+        "id": "san-switch-template",
+        "code": "7DHNCTO1WW",
+        "updateConfigurationIds": ["san-switch-physical-1", "san-switch-physical-2"],
+        "totalPrice": 12012.01,
+        "price": 12012.01,
+        "rail": null,
+        "otherMi": ["2305"]
+      }
+    ],
+    "duplicateTemplateIds": false
+  },
+  "acceptedLayout": {
+    "rack": [
+      { "id": "san-switch-physical-1", "code": "7DHNCTO1WW", "position": 2, "size": 1, "quantity": 0 },
+      { "id": "san-switch-physical-2", "code": "7DHNCTO1WW", "position": 3, "size": 1, "quantity": 0 }
+    ],
+    "nonRack": [
+      { "id": "controller-physical-1", "code": "7DP4CTO1WW", "position": 1, "size": 2, "quantity": 0 },
+      { "id": "controller-physical-2", "code": "7DP4CTO1WW", "position": 1, "size": 2, "quantity": 0 }
+    ]
+  },
+  "export": {
+    "templateConfigurations": [
+      { "id": "controller-template", "code": "7DP4CTO1WW", "quantity": 1, "rail": "B6Y6", "otherMi": ["BWUE", "CCJ1"] },
+      { "id": "san-switch-template", "code": "7DHNCTO1WW", "quantity": 1, "rail": null, "otherMi": [] }
+    ],
+    "physicalFeaturesRemainCustomizeLayoutFeatures": true,
+    "physicalDerivedResultsAreSeparateFromEditableTemplates": true,
+    "commercial": [
+      { "id": "controller-template", "code": "7DP4CTO1WW", "type": "hardware", "quantity": 2, "price": 423897.02, "unitPrice": 211948.51, "derivedPrice": 330708.01 },
+      { "id": "san-switch-template", "code": "7DHNCTO1WW", "type": "hardware", "quantity": 2, "price": 22576.02, "unitPrice": 11288.01, "derivedPrice": 12012.01 }
+    ],
+    "cloneDependency": {
+      "controller-template": ["controller-template", "controller-physical-1", "controller-physical-2"],
+      "san-switch-template": ["san-switch-template", "san-switch-physical-1", "san-switch-physical-2"]
+    }
+  },
+  "verifiedRules": [
+    "The website Summary action targets the whole managed-template group: selecting the DS3200 card moved both controller aliases together.",
+    "The website move autoDerive request omits entranceFlag and customizingIds. Adding template IDs to customizingIds produces extra divergent template responses and is not browser parity.",
+    "The autoDerive response binds one physical-derived configuration to every alias through updateConfigurationIds; it does not replace the separately retained editable template.",
+    "Export configurations remain templates only. Physical-derived totals affect Summary/commercial projection, while exported rack/non-rack item feature arrays remain the accepted customize-layout features.",
+    "Dependency and color groups retain the template root and both aliases when the group moves between rack and non-rack areas."
+  ]
+}

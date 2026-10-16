@@ -3,16 +3,16 @@
  *
  * Architects do not start from a blank configurator; they start from a
  * reference architecture and adjust. Each entry here is a product code that has
- * been verified to launch, price, export and re-import cleanly, together with
- * the solution mode it actually belongs to — which is not always the one you
- * would guess (SR685a V3 is General Purpose only).
+ * historical launch, price, export and re-import evidence dated per entry.
+ * The MCP checks current catalog availability before presenting or launching
+ * them; these historical modes are preferred defaults, not exclusivity claims.
  */
 
 export interface Blueprint {
   id: string;
   name: string;
   productCode: string;
-  /** The mode whose catalog contains this model. Launching elsewhere breaks import. */
+  /** Historically verified preferred mode; recheck current catalog membership. */
   solutionMode: string;
   accelerator: string;
   cooling: 'air' | 'direct water';
@@ -20,6 +20,17 @@ export interface Blueprint {
   /** Approximate list price in USD as verified on the date below. */
   verifiedListPriceUsd: number;
   verifiedOn: string;
+  /**
+   * What the launched configuration does NOT include.
+   *
+   * The launch price looks like a working node and is not one — these models
+   * come up with the GPU baseboard, CPUs and memory populated but no boot
+   * device, no local storage and no fabric adapters. Reading the price without
+   * reading this is how a node gets under-configured.
+   */
+  shipsWithout: string[];
+  /** Rough per-node max draw, for density sizing before a session exists. */
+  approxMaxKWPerNode?: number | undefined;
 }
 
 export const BLUEPRINTS: Blueprint[] = [
@@ -35,6 +46,12 @@ export const BLUEPRINTS: Blueprint[] = [
       '8U air-cooled, the general-purpose AI training and inference node.',
     verifiedListPriceUsd: 953271.51,
     verifiedOn: '2026-08-08',
+    shipsWithout: [
+      'local storage (no boot device, no NVMe drives)',
+      'fabric adapters (no InfiniBand or Ethernet NICs)',
+      'OS and NVIDIA AI Enterprise licensing',
+    ],
+    approxMaxKWPerNode: 11.2,
   },
   {
     id: 'b200-hdx-dwc',
@@ -48,12 +65,18 @@ export const BLUEPRINTS: Blueprint[] = [
       'room cooling makes an air-cooled 8-GPU node impractical.',
     verifiedListPriceUsd: 980719.51,
     verifiedOn: '2026-08-08',
+    shipsWithout: [
+      'local storage (no boot device, no NVMe drives)',
+      'fabric adapters (no InfiniBand or Ethernet NICs)',
+      'OS and NVIDIA AI Enterprise licensing',
+    ],
+    approxMaxKWPerNode: 11.5,
   },
   {
     id: 'mi300x-epyc',
     name: 'AMD EPYC + MI300X 8-GPU Node',
     productCode: '7DHCCTO1WW',
-    // Verified: this model is absent from the HPC and AI catalog entirely.
+    // Historical catalog context; current availability is checked at runtime.
     solutionMode: 'General Purpose',
     accelerator: 'AMD Instinct MI300X 192GB 8-GPU',
     cooling: 'air',
@@ -62,6 +85,12 @@ export const BLUEPRINTS: Blueprint[] = [
       'accelerator option, typically for inference and memory-bound workloads.',
     verifiedListPriceUsd: 668234.01,
     verifiedOn: '2026-08-08',
+    shipsWithout: [
+      'local storage (no boot device, no NVMe drives)',
+      'fabric adapters (no InfiniBand or Ethernet NICs)',
+      'OS and ROCm software licensing',
+    ],
+    approxMaxKWPerNode: 10.2,
   },
   {
     id: 'gb300-nvl72-tray',
@@ -75,6 +104,12 @@ export const BLUEPRINTS: Blueprint[] = [
       'block of an NVL72 rack; size these against the MGX rack (7DJVCTO2WW), not a standard cabinet.',
     verifiedListPriceUsd: 452860.5,
     verifiedOn: '2026-08-08',
+    shipsWithout: [
+      'local storage beyond the tray boot device',
+      'the MGX rack, NVLink spine and power shelves (order 7DJVCTO2WW separately)',
+      'OS and NVIDIA AI Enterprise licensing',
+    ],
+    approxMaxKWPerNode: 5.6,
   },
 ];
 

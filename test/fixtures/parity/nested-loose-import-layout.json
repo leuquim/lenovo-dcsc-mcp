@@ -1,0 +1,147 @@
+{
+  "country": "US",
+  "language": "en",
+  "currency": "USD",
+  "configurationMode": {
+    "mode": "HPC and AI - Systems",
+    "masterSlices": [
+      "HPCGP",
+      "HPCRYO",
+      "HPCGPALL",
+      "HPCGPRYO"
+    ],
+    "sbSlices": []
+  },
+  "configuration": [
+    {
+      "id": "US__3009f65b-3ed0-4224-a585-09693b898adc2",
+      "code": "7D6DCTO1WW",
+      "sliceCtoCode": "7D6DCTO1WW",
+      "name": "Rack",
+      "quantity": 1,
+      "totalPrice": 11497.01,
+      "autoDerivedResultId": null,
+      "expansionMessages": []
+    },
+    {
+      "id": "US__e6b74296-7cc5-4e2b-9cb7-c3d51224e4141",
+      "code": "7DD1CTOLWW",
+      "sliceCtoCode": "7DD1CTOLWW",
+      "name": "Node",
+      "quantity": 1,
+      "totalPrice": 21042.51,
+      "autoDerivedResultId": null,
+      "expansionMessages": []
+    },
+    {
+      "id": "US__461cd0f2-54f6-43d2-9fcf-22136b0870d10",
+      "code": "7DD0CTOLWW",
+      "sliceCtoCode": "7DD0CTOLWW",
+      "name": "Chassis",
+      "quantity": 1,
+      "totalPrice": 2305.51,
+      "autoDerivedResultId": null,
+      "expansionMessages": []
+    },
+    {
+      "id": "US__-2257-4792-b07e-bf5c6d814da41000",
+      "code": "7DD1CTOLWW",
+      "sliceCtoCode": "7DD1CTOLWW",
+      "name": "Copy_Node",
+      "quantity": 1,
+      "totalPrice": 21042.51,
+      "autoDerivedResultId": null,
+      "expansionMessages": []
+    }
+  ],
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "US__3009f65b-3ed0-4224-a585-09693b898adc2",
+        "configurationId": "US__3009f65b-3ed0-4224-a585-09693b898adc2",
+        "quantity": 1,
+        "type": "rack",
+        "size": 42,
+        "originalIds": [
+          "US__3009f65b-3ed0-4224-a585-09693b898adc2"
+        ],
+        "derivedResults": [],
+        "removedResults": [],
+        "asVLH": false,
+        "lockedSpace": [],
+        "children": []
+      }
+    ],
+    "nonRackArea": [
+      {
+        "id": "US__e6b74296-7cc5-4e2b-9cb7-c3d51224e4141",
+        "configurationId": "US__e6b74296-7cc5-4e2b-9cb7-c3d51224e4141",
+        "quantity": 1,
+        "type": "node",
+        "size": 1,
+        "originalIds": [
+          "US__e6b74296-7cc5-4e2b-9cb7-c3d51224e4141"
+        ],
+        "derivedResults": [],
+        "removedResults": [],
+        "asVLH": false,
+        "lockedSpace": [],
+        "children": []
+      },
+      {
+        "id": "US__461cd0f2-54f6-43d2-9fcf-22136b0870d10",
+        "configurationId": "US__461cd0f2-54f6-43d2-9fcf-22136b0870d10",
+        "quantity": 1,
+        "type": "chassis",
+        "size": 2,
+        "originalIds": [
+          "US__461cd0f2-54f6-43d2-9fcf-22136b0870d10"
+        ],
+        "derivedResults": [
+          {
+            "featureCode": "BWJQ",
+            "quantity": "3",
+            "name": null,
+            "description": null
+          }
+        ],
+        "removedResults": [],
+        "asVLH": false,
+        "lockedSpace": [],
+        "children": [
+          {
+            "id": "US__-2257-4792-b07e-bf5c6d814da41000",
+            "configurationId": "US__-2257-4792-b07e-bf5c6d814da41000",
+            "quantity": 1,
+            "type": "node",
+            "size": 1,
+            "originalIds": [
+              "US__-2257-4792-b07e-bf5c6d814da41000"
+            ],
+            "derivedResults": [],
+            "removedResults": [],
+            "asVLH": false,
+            "lockedSpace": [],
+            "children": []
+          }
+        ]
+      }
+    ],
+    "floorItems": []
+  },
+  "floorInformation": {
+    "floorGrid": [
+      {
+        "id": "US__3009f65b-3ed0-4224-a585-09693b898adc2",
+        "sourceId": "US__3009f65b-3ed0-4224-a585-09693b898adc2",
+        "type": "rack",
+        "size": null,
+        "lockedSpace": [],
+        "items": [],
+        "row": 0,
+        "col": 0,
+        "coordinate": "A1"
+      }
+    ]
+  }
+}

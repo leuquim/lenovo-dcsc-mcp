@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-10-15T20:38:00.000Z",
+  "sourceArtifact": "artifacts/implementation-2026-10-15/manual-cable-browser-collision/report.json",
+  "edit": {
+    "side": "destination",
+    "configurationId": "US__02579351-49f4-427c-8a57-e472132552740",
+    "fromPortName": "RJ45",
+    "fromPortNumber": "2",
+    "toPortName": "RJ45",
+    "toPortNumber": "3"
+  },
+  "before": [
+    { "sourceLocation": "A1/U2/RJ45 mgmt", "destinationPortNumber": "2", "cablePart": "3791" },
+    { "sourceLocation": "A1/U1/RJ45 mgmt", "destinationPortNumber": "3", "cablePart": "AVFT" }
+  ],
+  "after": [
+    { "sourceLocation": "A1/U2/RJ45 mgmt", "destinationPortNumber": "3", "cablePart": "3791", "type": "MANUAL", "totalDistance": 0.5778 },
+    { "sourceLocation": "A1/U1/RJ45 mgmt", "destinationPortNumber": "2", "cablePart": "AVFT", "type": "MANUAL", "totalDistance": 0.62225 }
+  ],
+  "calculateDistanceCalls": 0
+}

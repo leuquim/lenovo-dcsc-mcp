@@ -1,0 +1,72 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15",
+    "mode": "HPC and AI - Systems",
+    "workflow": "Place one DS3200/DB710S storage network, reopen its managed controller, select C4A8 quantity 2, return to Workspace, open Summary, export",
+    "artifact": "artifacts/parity-headless/storage-postplacement-edit-r44"
+  },
+  "editorAutoDerive": {
+    "query": {
+      "configurationId": "controller-template",
+      "guideMode": true,
+      "entranceFlag": null
+    },
+    "customizingIds": ["controller-physical-1", "controller-template"],
+    "requestUsesAllTemplateConfigurations": true,
+    "response": [
+      {
+        "id": "controller-template",
+        "code": "7DP4CTO1WW",
+        "updateConfigurationIds": ["controller-template"],
+        "totalPrice": 332839.01,
+        "rail": "B6Y6",
+        "c4a8Quantity": 2
+      },
+      {
+        "id": "controller-template",
+        "code": "7DP4CTO1WW",
+        "updateConfigurationIds": ["controller-physical-1"],
+        "totalPrice": 333408.01,
+        "rail": "B6Y7",
+        "c4a8Quantity": 2
+      },
+      {
+        "id": "san-switch-template",
+        "code": "7DHNCTO1WW",
+        "updateConfigurationIds": ["san-switch-physical-1"],
+        "totalPrice": 12012.01
+      }
+    ]
+  },
+  "backToWorkspace": {
+    "requests": [
+      { "method": "POST", "path": "/api/switch_calculation", "status": 200, "response": [] },
+      { "method": "POST", "path": "/api/ctos/racks/customize", "status": 200 }
+    ],
+    "autoDeriveCount": 0,
+    "switchCalculationHasRefreshedTemplateFeature": true,
+    "switchCalculationHasRefreshedPhysicalFeature": true,
+    "customizeHasRefreshedTemplateFeature": true,
+    "customizeHasRefreshedPhysicalFeature": true,
+    "acceptedPhysicalFeature": { "code": "C4A8", "quantity": 2 },
+    "acceptedConnections": [
+      { "network": "Management", "sourcePart": "7D73CTOHWW", "destinationPart": "7D5FCTOFWW" }
+    ],
+    "storageConnections": 0
+  },
+  "export": {
+    "physicalControllerHasC4A8Quantity": 2,
+    "templateControllerHasC4A8Quantity": 2,
+    "commercial": [
+      { "code": "7DP4CTO1WW", "type": "hardware", "quantity": 1, "price": 214647.51, "unitPrice": 214647.51 },
+      { "code": "7DHNCTO1WW", "type": "hardware", "quantity": 1, "price": 11288.01, "unitPrice": 11288.01 }
+    ]
+  },
+  "verifiedRules": [
+    "A managed template edit targets both the editable template and every placed physical alias in customizingIds.",
+    "The editor autoDerive response can contain a template patch and a divergent rack-context physical variant with the same root id; updateConfigurationIds distinguishes them.",
+    "Returning to Workspace synchronizes template and physical feature snapshots before switch calculation and rack customization.",
+    "The Back sequence does not issue another autoDerive; the previously returned physical variant is the authoritative source for the physical rack item.",
+    "This capture retains one existing Management connection and produces no storage connection, so it is not a populated storage-cabling success."
+  ]
+}

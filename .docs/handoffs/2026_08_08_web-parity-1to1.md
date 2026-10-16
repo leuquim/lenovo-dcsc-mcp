@@ -2,7 +2,7 @@
 
 > Historical handoff, superseded by [current context](../context.md) and the October finding audit. The next steps and blocked rack-export claim below describe the earlier state.
 
-**Created:** 2026-08-08  
+**Created:** 2026-08-08
 **Status:** Anonymous confident coverage + hygiene pass (export still blocked)
 
 ## Next task

@@ -1,0 +1,144 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-16",
+    "solutionMode": "HPC and AI - Systems",
+    "report": "/tmp/storage-populated-fc-r51/report.json",
+    "request": "/tmp/storage-populated-fc-r51/wire/053-req.json",
+    "response": "/tmp/storage-populated-fc-r51/wire/053-res.json",
+    "fixture": "test/fixtures/parity/xml/storage-fc-zero-graph.xml",
+    "fixtureSha256": "6ed4e6720354b851fa6ae8847f9f23190efb79b043e1af64473c74df07c46343",
+    "note": "Anonymous website, headless browser. Product and feature selections were made through native UI controls; this is a zero-storage result, not a populated FC graph fixture."
+  },
+  "workflow": {
+    "placementStatus": 200,
+    "controllerDeriveStatuses": [
+      200,
+      200,
+      200
+    ],
+    "backSequence": [
+      {
+        "endpoint": "/api/switch_calculation",
+        "status": 200
+      },
+      {
+        "endpoint": "/api/ctos/racks/customize",
+        "status": 200
+      }
+    ],
+    "serverAssignmentDeriveStatus": 200,
+    "autoConnectStatus": 200
+  },
+  "storageDefinition": {
+    "name": "Parity Postplacement Edit",
+    "type": "General Storage",
+    "layout": "Fully Redundant",
+    "controller": {
+      "code": "7Y70CTOHWW",
+      "selectedFeatures": {
+        "B4DA": 1,
+        "B4B7": 2,
+        "B4B2": 8
+      },
+      "connectors": {
+        "sourceFeature": "B4B7",
+        "count": 8,
+        "topologies": [
+          "1GbE_Copper",
+          "10GbE_Copper",
+          "1GbE_Fiber",
+          "10GbE_Fiber"
+        ],
+        "cableCompatible": "Group: 27,29,46,74",
+        "transceiverCompatibility": "FC: B4B2,B4K7",
+        "useCableAsDAC": false
+      }
+    },
+    "mainSwitch": {
+      "code": "7D8PCTO1WW",
+      "featureCode": "BLAC",
+      "connectors": {
+        "count": 24,
+        "topologies": [
+          "8Gb_Fibre",
+          "16Gb_Fibre",
+          "1GbE_Fiber",
+          "10GbE_Fiber",
+          "25GbE_Fiber"
+        ],
+        "cableCompatible": "",
+        "useCableAsDAC": true
+      }
+    }
+  },
+  "assignedServer": {
+    "code": "7D73CTOHWW",
+    "selectedStorageNetwork": "Parity Postplacement Edit",
+    "adapter": {
+      "featureCode": "ATZV",
+      "quantity": 1,
+      "connectorCount": 2,
+      "topologies": [
+        "1GbE_Fiber",
+        "10GbE_Fiber",
+        "25GbE_Fiber"
+      ],
+      "cableCompatible": "Group: 17,46,74"
+    }
+  },
+  "request": {
+    "autoConnectSettings": {
+      "autoAddPDU": false,
+      "autoAddSwitch": true,
+      "p2pCabling": true
+    },
+    "storageConnectionNetworksCount": 1,
+    "serverSelectedStorageNetworkPresent": true
+  },
+  "response": {
+    "status": 200,
+    "storageConnectionNetworks": [],
+    "storageConnectionCount": 0,
+    "totalConnectionCount": 1,
+    "connections": [
+      {
+        "network": "Management",
+        "topology": "1GbE_Copper",
+        "sourceCode": "7D73CTOHWW",
+        "destinationCode": "7D5FCTOFWW",
+        "cableFeatureCode": "3791"
+      }
+    ],
+    "errors": []
+  },
+  "directAttachedIsolation": {
+    "runner": "scripts/parity-storage-fc.ts",
+    "status": "blocked",
+    "importStatus": 200,
+    "importRoute": "#/rack-summary/rack-cto",
+    "selectedConnection": "Direct Attached Connection",
+    "requestMainSwitchOption": "",
+    "requestSelections": {
+      "ATZV": 1,
+      "B4DA": 1,
+      "B4B7": 2,
+      "B4B2": 8
+    },
+    "autoConnectStatus": 200,
+    "storageConnectionCount": 0,
+    "totalConnectionCount": 1,
+    "onlyConnection": {
+      "network": "Management",
+      "topology": "1GbE_Copper",
+      "sourceCode": "7D73CTOHWW",
+      "destinationCode": "7D5FCTOFWW",
+      "cableFeatureCode": "3791"
+    },
+    "errors": []
+  },
+  "classification": {
+    "supported": false,
+    "reason": "The website sent complete SAN-switched and Direct Attached named storage definitions with the assigned server and exact FC selections to /api/auto_connect. Both returned HTTP 200 without errors but generated no storage connection. Each returned only the pre-existing Management link.",
+    "boundary": "Populated FC storage cabling remains unverified because the current anonymous website/backend did not generate it for this fully configured native workflow. This is an upstream/native capability limitation for the captured catalog and must not be reported as MCP graph parity."
+  }
+}

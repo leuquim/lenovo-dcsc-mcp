@@ -1,0 +1,140 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Fresh anonymous AI/HPC server, rack and manually-added SN2201; configure Management preference, disable Automated Rack PDU, place both products, toggle Auto Connect to run automatic-switch orchestration, then enable P2P Cabling",
+    "source": "artifacts/parity-headless/discovery-hpc-fresh-r25-auto-switch-2026-10-15",
+    "scope": "One populated Management connection; dynamic browser IDs replaced with stable fixture aliases"
+  },
+  "orchestration": [
+    { "endpoint": "/api/switch_calculation", "status": 200 },
+    { "endpoint": "/api/ctos/7D5FCTOFWW/launch", "status": 200 },
+    { "endpoint": "/api/ctos/racks/customize", "status": 200 },
+    { "endpoint": "/api/ctos/autoDerive", "status": 200 },
+    { "endpoint": "/api/auto_connect", "status": 200, "connections": 1 }
+  ],
+  "switchCalculation": [
+    {
+      "rackId": "rack-1",
+      "items": [
+        {
+          "option": "7D5FCTOFWW",
+          "type": "switch",
+          "network": "Management",
+          "usage": "main",
+          "quantity": 1,
+          "requestedPosition": 22
+        }
+      ]
+    }
+  ],
+  "physicalResult": {
+    "rackId": "rack-1",
+    "items": [
+      { "id": "server-1", "code": "7D73CTOHWW", "position": 1 },
+      { "id": "manual-switch-1", "code": "7D5FCTOFWW", "position": 5 },
+      { "id": "generated-switch-1", "code": "7D5FCTOFWW", "position": 6 }
+    ]
+  },
+  "switchMap": [
+    {
+      "id": "generated-switch-1",
+      "network": "Management",
+      "type": "main",
+      "code": "7D5FCTOFWW"
+    }
+  ],
+  "prices": {
+    "launch": {
+      "7D73CTOHWW": 19693.51,
+      "7D5FCTOFWW": 6221.51
+    },
+    "finalAfterPlacementAndAutoConnect": {
+      "7D73CTOHWW": [20217.51],
+      "7D6DCTO1WW": [13321.01],
+      "7D5FCTOFWW": [6760.51, 6770.01]
+    },
+    "evidence": {
+      "serverPlacementDerive": "wire/033-response.txt",
+      "manualSwitchPlacementDerive": "wire/039-response.txt",
+      "generatedSwitchDerive": "wire/049-response.txt"
+    }
+  },
+  "connection": {
+    "network": "Management",
+    "topology": "1GbE_Copper",
+    "sourceId": "server-1",
+    "sourcePart": "7D73CTOHWW",
+    "sourceLocation": "A1/U1/RJ45 mgmt",
+    "sourcePortNumber": "1",
+    "sourcePortName": "RJ45 mgmt",
+    "destinationId": "generated-switch-1",
+    "destinationPart": "7D5FCTOFWW",
+    "destinationLocation": "A1/U6/RJ45",
+    "destinationPortNumber": "2",
+    "destinationPortName": "RJ45",
+    "totalDistance": 0.62225,
+    "cableDistance": {
+      "from": {
+        "itemId": "server-1",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "position": 1,
+        "coordinate": "A1",
+        "codeAndLocation": "7D73CTOHWW - A1/U1"
+      },
+      "to": {
+        "itemId": "generated-switch-1",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "position": 6,
+        "coordinate": "A1",
+        "codeAndLocation": "7D5FCTOFWW - A1/U6"
+      },
+      "totalScale": 7,
+      "cableDistances": [
+        { "distance": 0.2, "increment": 0.2 },
+        { "distance": 0.42225, "increment": 0.22225 },
+        { "distance": 0.62225, "increment": 0.2 }
+      ],
+      "totalDistance": 0.62225,
+      "type": "network",
+      "compatibleCables": [
+        {
+          "category": "Cable",
+          "featureCode": "AVFT",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Blue Cat5e Cable",
+          "optionCode": "00WE111",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": ["ETHERNET_CABLE"]
+        }
+      ]
+    },
+    "cablePart": "AVFT",
+    "cableOption": "00WE111",
+    "cableType": "0.75m Blue Cat5e Cable",
+    "cablePrice": 9.5,
+    "cableFeature": {
+      "category": "Cable",
+      "featureCode": "AVFT",
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.75m Blue Cat5e Cable",
+      "optionCode": "00WE111",
+      "price": 9.5,
+      "length": null,
+      "selectionGroups": ["ETHERNET_CABLE"]
+    },
+    "preferredCable": null,
+    "type": "AUTO",
+    "subType": "NETWORK",
+    "divider": 1,
+    "category": "P2P"
+  },
+  "export": {
+    "autoConnectResults": 1,
+    "cables": [
+      { "code": "AVFT", "description": "0.75m Blue Cat5e Cable", "quantity": 1 }
+    ]
+  }
+}

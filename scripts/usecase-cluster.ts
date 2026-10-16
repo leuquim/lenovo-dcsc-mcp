@@ -9,6 +9,7 @@
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { isolatedChildEnv } from './lib/isolated-runtime.js';
 
 const NODES = 8;
 
@@ -16,7 +17,7 @@ async function main(): Promise<void> {
   const transport = new StdioClientTransport({
     command: 'node',
     args: ['dist/mcp/server.js'],
-    env: { ...process.env, DCSC_LOG_LEVEL: 'error' } as Record<string, string>,
+    env: isolatedChildEnv({ DCSC_LOG_LEVEL: 'error' }),
   });
   const client = new Client({ name: 'usecase', version: '1.0.0' });
   await client.connect(transport);

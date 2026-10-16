@@ -1,0 +1,121 @@
+{
+  "capturedAt": "2026-10-15T20:18:33.304Z",
+  "sourceArtifact": "artifacts/implementation-2026-10-15/manual-cable-browser-shared/report.json",
+  "physicalDestinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+  "initialGraph": [
+    {
+      "source": "U2",
+      "part": "3791"
+    },
+    {
+      "source": "U1",
+      "part": "AVFT"
+    }
+  ],
+  "sharePhase": {
+    "requestResults": [
+      {
+        "code": "3802",
+        "quantity": 1,
+        "description": "1.5m Blue Cat5e Cable"
+      },
+      {
+        "code": "AVFT",
+        "quantity": 1,
+        "forAutoConnect": true,
+        "description": "0.75m Blue Cat5e Cable"
+      },
+      {
+        "code": "AVFT",
+        "quantity": 1
+      }
+    ],
+    "acceptedResults": [
+      {
+        "code": "3802",
+        "quantity": 1,
+        "description": "1.5m Blue Cat5e Cable"
+      },
+      {
+        "code": "AVFT",
+        "quantity": 1,
+        "forAutoConnect": true,
+        "description": "0.75m Blue Cat5e Cable"
+      }
+    ],
+    "acceptedTotalPrice": 6770.01
+  },
+  "finalPhase": {
+    "requestResults": [
+      {
+        "code": "3802",
+        "quantity": 1,
+        "description": "1.5m Blue Cat5e Cable"
+      },
+      {
+        "code": "AVFU",
+        "quantity": 1
+      }
+    ],
+    "acceptedResults": [
+      {
+        "code": "3802",
+        "quantity": 1,
+        "description": "1.5m Blue Cat5e Cable"
+      },
+      {
+        "code": "AVFU",
+        "quantity": 1,
+        "description": "1.0m Blue Cat5e Cable"
+      }
+    ],
+    "acceptedTotalPrice": 6770.01
+  },
+  "finalGraph": [
+    {
+      "sourceId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+      "destinationPortNumber": "2",
+      "cablePart": "AVFU",
+      "type": "MANUAL"
+    },
+    {
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "destinationPortNumber": "3",
+      "cablePart": "AVFT",
+      "type": "AUTO"
+    }
+  ],
+  "exportConfigurationResults": [
+    {
+      "code": "3802",
+      "quantity": 1,
+      "description": "1.5m Blue Cat5e Cable"
+    },
+    {
+      "code": "AVFU",
+      "quantity": 1,
+      "description": "1.0m Blue Cat5e Cable"
+    }
+  ],
+  "exportPhysicalResults": [
+    {
+      "code": "3802",
+      "quantity": 1,
+      "forAutoConnect": false,
+      "description": "1.5m Blue Cat5e Cable"
+    },
+    {
+      "code": "AVFU",
+      "quantity": 1,
+      "forAutoConnect": true,
+      "description": "1.0m Blue Cat5e Cable"
+    },
+    {
+      "code": "AVFT",
+      "quantity": 1,
+      "forAutoConnect": true,
+      "description": "0.75m Blue Cat5e Cable"
+    }
+  ],
+  "expectedSafety": "fail-closed: native canonical configuration omits AVFT still used by the untouched graph row"
+}

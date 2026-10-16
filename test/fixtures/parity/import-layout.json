@@ -1,0 +1,93 @@
+{
+  "country": "US",
+  "language": "en",
+  "currency": "USD",
+  "configurationMode": {
+    "mode": "General Purpose",
+    "masterSlices": ["GP", "HPCGPALL", "HPCGPRYO"],
+    "sbSlices": []
+  },
+  "configuration": [
+    {
+      "id": "US__rack-1",
+      "lfoCode": "",
+      "sliceCtoCode": "7D6DCTO1WW",
+      "code": "7D6DCTO1WW",
+      "type": "rack"
+    },
+    {
+      "id": "US__server-1",
+      "lfoCode": "",
+      "sliceCtoCode": "7D73CTO1WW",
+      "code": "7D73CTO1WW",
+      "type": "server"
+    }
+  ],
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "US__rack-1",
+        "configurationId": "US__rack-1",
+        "quantity": 1,
+        "type": "rack",
+        "children": [
+          {
+            "id": "US__server-1",
+            "configurationId": "US__server-1",
+            "quantity": 2,
+            "type": "server",
+            "children": [],
+            "asVLH": false,
+            "vlhId": null,
+            "derivedResults": [{ "featureCode": "3201", "quantity": "1" }]
+          }
+        ],
+        "asVLH": false,
+        "vlhId": null,
+        "lockedSpace": []
+      }
+    ],
+    "nonRackArea": [],
+    "floorItems": [
+      {
+        "rackItem": { "facing": "N", "id": "US__rack-1" },
+        "row": 0,
+        "col": 0,
+        "rackPosition": "A1",
+        "rack": true
+      }
+    ],
+    "cloneRackMapping": { "opaque": "preserved" }
+  },
+  "floorInformation": {
+    "floorGrid": [
+      {
+        "id": "US__rack-1",
+        "sourceId": "US__rack-1",
+        "facing": "N",
+        "type": "rack",
+        "col": 0,
+        "row": 0,
+        "coordinate": "A1",
+        "items": [
+          {
+            "code": "7D73CTO1WW",
+            "id": "US__server-1",
+            "position": 3,
+            "size": 1,
+            "type": "server",
+            "description": "ThinkSystem SR630 V3"
+          }
+        ],
+        "lockedSpace": []
+      }
+    ],
+    "floorGridSettings": { "colCount": 5, "rowCount": 2 },
+    "floorPreference": { "rackDist": 0.01 }
+  },
+  "networkingInformation": {
+    "clusterPreference": [{ "name": "Management" }],
+    "futureNetworkField": { "preserved": true }
+  },
+  "futureImportField": { "preserved": true }
+}

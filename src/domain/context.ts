@@ -8,6 +8,8 @@ export interface SolutionModeInfo {
   mode: string;
   masterSlices: string[];
   description?: string | undefined;
+  /** Website feature switches for this mode, not a guarantee about API endpoint availability. */
+  websiteFunctions?: Record<string, boolean> | undefined;
 }
 
 /**
@@ -43,7 +45,8 @@ export async function fetchSolutionModes(
   return parsed.map((m) => ({
     mode: m.mode,
     masterSlices: m.masterSlices ?? [...DEFAULT_MASTER_SLICES],
-    ...(m.description != null ? { description: m.description } : {}),
+    ...(m.modeDescription != null || m.description != null ? { description: m.modeDescription ?? m.description! } : {}),
+    ...(m.systemFunctionList != null ? { websiteFunctions: m.systemFunctionList } : {}),
   }));
 }
 
@@ -52,10 +55,20 @@ export function toSolutionContext(
   modes: SolutionModeInfo[],
   preferred?: string,
 ): SolutionContext {
-  const chosen =
-    (preferred ? modes.find((m) => m.mode === preferred) : undefined) ??
-    modes.find((m) => m.mode === 'General Purpose') ??
-    modes[0];
+  let chosen: SolutionModeInfo | undefined;
+  if (preferred !== undefined) {
+    const requested = preferred.trim();
+    chosen = modes.find((m) => m.mode.toLocaleLowerCase() === requested.toLocaleLowerCase());
+    if (!chosen) {
+      const available = modes.map((m) => `"${m.mode}"`).join(', ');
+      throw new Error(
+        `Unknown solution mode "${preferred}". ` +
+          (available ? `Valid modes: ${available}.` : 'DCSC returned no available solution modes.'),
+      );
+    }
+  } else {
+    chosen = modes.find((m) => m.mode === 'General Purpose') ?? modes[0];
+  }
 
   if (!chosen) {
     return {

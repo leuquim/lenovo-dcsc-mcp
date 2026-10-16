@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "lenovo-dcsc": {
+      "type": "stdio",
+      "command": "/absolute/path/to/node",
+      "args": [
+        "/absolute/path/to/lenovo-dcsc-mcp/dist/mcp/server.js"
+      ],
+      "env": {
+        "DCSC_SESSION_FILE": "/absolute/path/to/state/claude-code-sessions.json",
+        "DCSC_ARTIFACT_DIR": "/absolute/path/to/state/claude-code-artifacts"
+      }
+    }
+  }
+}

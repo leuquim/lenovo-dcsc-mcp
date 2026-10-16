@@ -1,0 +1,1540 @@
+{
+  "physical": [
+    {
+      "id": "US__a7b25a3f-7700-438e-9eb9-57a3742684a0",
+      "code": "7D6DCTO1WW",
+      "machineType": "7D6D",
+      "description": "Lenovo ThinkSystem 42U Onyx Heavy Duty Rack Cabinet",
+      "name": "Rack",
+      "type": "rack",
+      "height": 2011,
+      "width": 600,
+      "outriggersWidth": 600,
+      "depth": 1200,
+      "size": 42,
+      "lockedSpace": [],
+      "errors": [],
+      "sidewall": [
+        {
+          "name": "a",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 29,
+          "endSpaceLocation": 38,
+          "side": "left"
+        },
+        {
+          "name": "b",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 29,
+          "endSpaceLocation": 38,
+          "side": "right"
+        },
+        {
+          "name": "c",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 17,
+          "endSpaceLocation": 26,
+          "side": "left"
+        },
+        {
+          "name": "d",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 17,
+          "endSpaceLocation": 26,
+          "side": "right"
+        },
+        {
+          "name": "e",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 5,
+          "endSpaceLocation": 14,
+          "side": "left"
+        },
+        {
+          "name": "f",
+          "availableBays": [
+            1,
+            2
+          ],
+          "bays": 1,
+          "startSpaceLocation": 5,
+          "endSpaceLocation": 14,
+          "side": "right"
+        }
+      ],
+      "features": [
+        {
+          "name": "BASE",
+          "results": [
+            {
+              "code": "BHC3",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "Lenovo ThinkSystem 42U Onyx Heavy Duty Rack Cabinet",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "REAR_DOOR",
+          "results": [
+            {
+              "code": "BJPA",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "ThinkSystem 42U Onyx Heavy Duty Rack Rear Door",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "SIDE_PANEL",
+          "results": [
+            {
+              "code": "BHC7",
+              "quantity": 2,
+              "quantityChanged": false,
+              "description": "ThinkSystem 42U Onyx Heavy Duty Rack Side Panel",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "SIDE_PANEL_LEFT_INSTALL",
+          "results": [
+            {
+              "code": "BJPB",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "Side Panel Left Installation",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "SIDE_PANEL_RIGHT_INSTALL",
+          "results": [
+            {
+              "code": "BJPC",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "Side Panel Right Installation",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "Lenovo Recommends|Better",
+          "results": [
+            {
+              "code": "5WS7B98700",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "3Yr Premier 24x7 4Hr Resp 42U Rack",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "A la Carte|Column3|3 Years",
+          "results": [
+            {
+              "code": "5WS7B98700",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "3Yr Premier 24x7 4Hr Resp 42U Rack",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "OTHER_MI",
+          "results": [
+            {
+              "code": "2304",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "Integration Prep",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "MECH_DERIVE_FCS",
+          "results": [
+            {
+              "code": "4275",
+              "quantity": 8,
+              "quantityChanged": false,
+              "description": "5U black plastic filler panel",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            },
+            {
+              "code": "4271",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "1U black plastic filler panel",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "SOLUTION_MI",
+          "results": [
+            {
+              "code": "8971",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "Integrate in manufacturing",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            },
+            {
+              "code": "9123",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "2-bay arrangement",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            },
+            {
+              "code": "9134",
+              "quantity": 1,
+              "quantityChanged": false,
+              "description": "use 200V (high voltage)",
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C1EM",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C1EL",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C513",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C514",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C515",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C1EJ",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C1EH",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C1EX",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C9JN",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C9JN",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C9JN",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        },
+        {
+          "name": "PDU",
+          "results": [
+            {
+              "code": "C9JN",
+              "quantity": 0,
+              "quantityChanged": true,
+              "description": null,
+              "featureGroup": null,
+              "forAutoConnect": false,
+              "installations": []
+            }
+          ]
+        }
+      ],
+      "emptyRackWeight": 241,
+      "totalWeight": 261.2,
+      "stableStatus": "WARNING",
+      "compartment": {
+        "availableBays": [
+          1,
+          2
+        ],
+        "bays": 2
+      },
+      "featureItems": [],
+      "pduPlacementRules": {
+        "totalCombined": 24,
+        "pduTypeRules": [
+          {
+            "groupName": "Kratos PDU SWB",
+            "features": [
+              "C0DB",
+              "C0DC",
+              "C0DD",
+              "CE6L",
+              "CJVY"
+            ],
+            "pduSizeMax": {},
+            "sideWallPlacement": [
+              {
+                "mt": "7D6D",
+                "cto": "ALL",
+                "lfo": "ALL",
+                "productType": "Kratos PDU SWB",
+                "pduSize": "1U - Full Width",
+                "fc": "ALL",
+                "option": "ALL",
+                "rearBay1": 1,
+                "rearBay2": 1,
+                "rearBay3": 0,
+                "rearBay4": 0,
+                "totalQuantity": 1,
+                "spaceConnector": "S_Wall_Bay"
+              }
+            ],
+            "uspacePlacement": [
+              {
+                "productType": "Kratos PDU SWB",
+                "pduSize": "ALL",
+                "fc": "ALL",
+                "option": "ALL",
+                "front": false,
+                "rear": true,
+                "left": 0,
+                "center": 1,
+                "right": 0,
+                "totalQuantity": 1,
+                "spaceConnector": "EIA_U_Space"
+              }
+            ]
+          },
+          {
+            "groupName": "0U PDU - Switched and Monitored",
+            "features": [
+              "C0CS",
+              "C0D5",
+              "C0D6",
+              "C0D7",
+              "C0D8",
+              "CD15",
+              "CD17",
+              "CD18"
+            ],
+            "pduSizeMax": {},
+            "sideWallPlacement": [
+              {
+                "mt": "7D6D",
+                "cto": "ALL",
+                "lfo": "ALL",
+                "productType": "0U PDU - Switched and Monitored",
+                "pduSize": "0U - Narrow",
+                "fc": "ALL",
+                "option": "ALL",
+                "rearBay1": 1,
+                "rearBay2": 1,
+                "rearBay3": 1,
+                "rearBay4": 1,
+                "totalQuantity": 4,
+                "spaceConnector": "0U_PDU_Bay"
+              }
+            ],
+            "uspacePlacement": []
+          },
+          {
+            "groupName": "0U PDU Basic",
+            "features": [
+              "C0D9",
+              "C0DA"
+            ],
+            "pduSizeMax": {},
+            "sideWallPlacement": [
+              {
+                "mt": "7D6D",
+                "cto": "ALL",
+                "lfo": "ALL",
+                "productType": "0U PDU Basic",
+                "pduSize": "0U - Narrow",
+                "fc": "ALL",
+                "option": "ALL",
+                "rearBay1": 1,
+                "rearBay2": 1,
+                "rearBay3": 1,
+                "rearBay4": 1,
+                "totalQuantity": 4,
+                "spaceConnector": "0U_PDU_Bay"
+              }
+            ],
+            "uspacePlacement": []
+          }
+        ],
+        "pduSize": {
+          "C0D6": "0U - Narrow",
+          "C0D5": "0U - Narrow",
+          "C0CS": "0U - Narrow",
+          "CE6L": "1U - Full Width",
+          "C0DD": "1U - Full Width",
+          "C0DC": "1U - Full Width",
+          "C0DB": "1U - Full Width",
+          "CJVY": "1U - Full Width",
+          "C0DA": "0U - Narrow",
+          "CD18": "0U - Narrow",
+          "CD17": "0U - Narrow",
+          "CD15": "0U - Narrow",
+          "C0D9": "0U - Narrow",
+          "C0D8": "0U - Narrow",
+          "C0D7": "0U - Narrow"
+        },
+        "connectors": [
+          {
+            "name": "S_Wall_Bay",
+            "description": "Side Wall Bay",
+            "sequences": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E",
+              "F"
+            ]
+          },
+          {
+            "name": "EIA_U_Space",
+            "description": "EIA U Space",
+            "sequences": [
+              "1",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "17",
+              "18",
+              "19",
+              "2",
+              "20",
+              "21",
+              "22",
+              "23",
+              "24",
+              "25",
+              "26",
+              "27",
+              "28",
+              "29",
+              "3",
+              "30",
+              "31",
+              "32",
+              "33",
+              "34",
+              "35",
+              "36",
+              "37",
+              "38",
+              "39",
+              "4",
+              "40",
+              "41",
+              "42",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9"
+            ]
+          },
+          {
+            "name": "0U_PDU_Bay",
+            "description": "0U PDU Bay",
+            "sequences": [
+              "Y",
+              "Z"
+            ]
+          },
+          {
+            "name": "RJ45",
+            "description": "RJ45",
+            "sequences": [
+              "1",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "17",
+              "18",
+              "19",
+              "2",
+              "20",
+              "21",
+              "22",
+              "23",
+              "24",
+              "25",
+              "26",
+              "27",
+              "28",
+              "29",
+              "3",
+              "30",
+              "31",
+              "32",
+              "33",
+              "34",
+              "35",
+              "36",
+              "37",
+              "38",
+              "39",
+              "4",
+              "40",
+              "41",
+              "42",
+              "43",
+              "44",
+              "45",
+              "46",
+              "47",
+              "48",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9"
+            ]
+          }
+        ]
+      },
+      "featureItemSize": {},
+      "cogHeight": 865,
+      "cogWidth": 299,
+      "cogDepth": 559,
+      "asVLH": false,
+      "vlhId": null,
+      "sliceCtoCode": "7D6DCTO1WW",
+      "validateLeROM": false,
+      "calculatorTilt": true,
+      "baseFeatureCode": "BHC3",
+      "staticFeatures": [],
+      "tilt": {
+        "mtiltPivotLR": "15.5",
+        "mtiltPivotFR": "17",
+        "stiltPivotLR": "13",
+        "stiltPivotFR": "25"
+      },
+      "gapDistance": 0.01,
+      "uheight": 44.45,
+      "isStatic": false,
+      "filler": [
+        {
+          "position": 1,
+          "size": 5
+        },
+        {
+          "position": 6,
+          "size": 5
+        },
+        {
+          "position": 11,
+          "size": 5
+        },
+        {
+          "position": 16,
+          "size": 5
+        },
+        {
+          "position": 21,
+          "size": 5
+        },
+        {
+          "position": 26,
+          "size": 5
+        },
+        {
+          "position": 31,
+          "size": 5
+        },
+        {
+          "position": 36,
+          "size": 5
+        },
+        {
+          "position": 41,
+          "size": 1
+        }
+      ],
+      "thinkAgileMIFeatures": [],
+      "rackItems": [
+        {
+          "lock": false,
+          "weight": 20.2,
+          "size": 1,
+          "code": "7D73CTO1WW",
+          "name": "Server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+          "type": "server",
+          "hardwareType": "server",
+          "image": "",
+          "width": 434.4,
+          "depth": 781.2,
+          "physicalHeight": 43,
+          "cogHeight": 40,
+          "cogWidth": 217,
+          "cogDepth": 370,
+          "shipUninstalled": false,
+          "uninstalled": false,
+          "shipWeight": 0,
+          "id": "US__af7c77e1-d3a9-40c6-b3d8-43bcb283e6cb0",
+          "position": 1,
+          "highestPosition": 42,
+          "lowestPosition": 1,
+          "defaultPosition": 1,
+          "placementError": [],
+          "sliceCtoCode": "7D73CTO1WW",
+          "nodes": [],
+          "capacity": 0,
+          "features": [
+            {
+              "name": "US_SHIPMENT_INDICATOR",
+              "results": [
+                {
+                  "code": "CA0Z",
+                  "description": "Variable Supply Choice for Motherboard Country of Origin",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "BASE",
+              "results": [
+                {
+                  "code": "BLK4",
+                  "description": "ThinkSystem V3 1U 10x2.5\" Chassis",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "UEFI_OPERATING_MODES",
+              "results": [
+                {
+                  "code": "BFYE",
+                  "description": "Operating mode selection for: \"Efficiency - Favoring Performance Mode\"",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "HIGH_TDP_TEMPERATURE",
+              "results": [
+                {
+                  "code": "BVGL",
+                  "description": "Data Center Environment 30 Degree Celsius / 86 Degree Fahrenheit",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "PROCESSOR",
+              "results": [
+                {
+                  "code": "BYW3",
+                  "description": "Intel Xeon Silver 4509Y 8C 125W 2.6GHz Processor",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [
+                    {
+                      "targetFeatureCode": "BYW3",
+                      "targetSpaceConnector": "CPU_S",
+                      "installSequence": "1",
+                      "spaceConnectorDescription": "CPU Slot",
+                      "virtualSequence": 0
+                    }
+                  ],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "MEMORY",
+              "results": [
+                {
+                  "code": "BWHS",
+                  "description": "ThinkSystem 64GB TruDDR5 5600MHz (2Rx4) RDIMM",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [
+                    {
+                      "targetFeatureCode": "BWHS",
+                      "targetSpaceConnector": "Memory_D",
+                      "installSequence": "1",
+                      "spaceConnectorDescription": "Memory Dimm",
+                      "virtualSequence": 0
+                    }
+                  ],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "RAID_CONFIG",
+              "results": [
+                {
+                  "code": "5977",
+                  "description": "Select Storage devices - no configured RAID required",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "POWERSUPPLY",
+              "results": [
+                {
+                  "code": "BNFG",
+                  "description": "ThinkSystem 750W 230V/115V Platinum Hot-Swap Gen2 Power Supply v3",
+                  "quantity": 2,
+                  "forAutoConnect": false,
+                  "installations": [
+                    {
+                      "targetFeatureCode": "BNFG",
+                      "targetSpaceConnector": "Power_B",
+                      "installSequence": "1",
+                      "spaceConnectorDescription": "Power Supply Bay",
+                      "virtualSequence": 0
+                    },
+                    {
+                      "targetFeatureCode": "BNFG",
+                      "targetSpaceConnector": "Power_B",
+                      "installSequence": "2",
+                      "spaceConnectorDescription": "Power Supply Bay",
+                      "virtualSequence": 0
+                    }
+                  ],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "RACK_POWERCABLE",
+              "results": [
+                {
+                  "code": "6400",
+                  "description": "2.8m, 13A/100-250V, C13 to C14 Jumper Cord",
+                  "quantity": 2,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "MECH_FRONT_IO",
+              "results": [
+                {
+                  "code": "BLKD",
+                  "description": "ThinkSystem 1U V3 10x2.5\" Media Bay w/ Ext. Diagnostics Port",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "FAN",
+              "results": [
+                {
+                  "code": "BH9M",
+                  "description": "ThinkSystem V3 1U Performance Fan Option Kit v2",
+                  "quantity": 6,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "RAIL_KIT",
+              "results": [
+                {
+                  "code": "B8LA",
+                  "description": "ThinkSystem Toolless Slide Rail Kit v2",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "TPM_MODULE",
+              "results": [
+                {
+                  "code": "BPKR",
+                  "description": "TPM 2.0",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "IPMI",
+              "results": [
+                {
+                  "code": "B7XZ",
+                  "description": "Disable IPMI-over-LAN",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "Lenovo Recommends|Better",
+              "results": [
+                {
+                  "code": "QA0F",
+                  "description": "Premier",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QAKT",
+                  "description": "Enhanced Warranty",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA08",
+                  "description": "24x7 4hr",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA03",
+                  "description": "3Yr",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA0A",
+                  "description": "Keep Your Drive",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QABL",
+                  "description": "CO2 Offset",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "A la Carte|Column3|3 Years",
+              "results": [
+                {
+                  "code": "QA0F",
+                  "description": "Premier",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QAKT",
+                  "description": "Enhanced Warranty",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA08",
+                  "description": "24x7 4hr",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA03",
+                  "description": "3Yr",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "Add ons|Keep Your Drive|3 Years",
+              "results": [
+                {
+                  "code": "QA0A",
+                  "description": "Keep Your Drive",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QAKT",
+                  "description": "Enhanced Warranty",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "QA03",
+                  "description": "3Yr",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "Add ons|CO2 Offset|CO2 Offset",
+              "results": [
+                {
+                  "code": "QABL",
+                  "description": "CO2 Offset",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+              "results": [
+                {
+                  "code": "QASW",
+                  "description": "None",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "INSTALLATION_CFC",
+              "results": [
+                {
+                  "code": "QAB4",
+                  "description": "None",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "T1GT",
+              "results": [
+                {
+                  "code": "SCJD",
+                  "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "T167",
+              "results": [
+                {
+                  "code": "SBCV",
+                  "description": "Lenovo XClarity XCC2 Platinum Upgrade (FOD)",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "MB",
+              "results": [
+                {
+                  "code": "C9RM",
+                  "description": "ThinkSystem SR630 V3 MB w/IO VN",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "OTHER_MI",
+              "results": [
+                {
+                  "code": "8072",
+                  "description": "General Racking Solution",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "8971",
+                  "description": "Integrate in manufacturing",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "2305",
+                  "description": "Integration 1U Component",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BVMC",
+                  "description": "Trigger MFG to scan the SN from the CPU Board via this MI",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "C8WP",
+                  "description": "SR630 V3 Laser service indicator",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "SYSTEM_MANAGEMENT_UPGRADE",
+              "results": [
+                {
+                  "code": "BRPJ",
+                  "description": "XCC Platinum",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "POWER_POLICY_MI",
+              "results": [
+                {
+                  "code": "BE0E",
+                  "description": "N+N Redundancy With Over-Subscription",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "MECH_DERIVE_FCS",
+              "results": [
+                {
+                  "code": "BQBP",
+                  "description": "ThinkSystem MCC CPU Clip",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BPFK",
+                  "description": "ThinkSystem SR850 V3/SR630 V3/SR630 V4 Standard Heatsink",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B984",
+                  "description": "ThinkSystem 1U PLV Top Cover Sponge",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "C9RN",
+                  "description": "ThinkSystem SR630V3/SR650V3 Root of Trust Module Absolut-LV-VN",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "DERIVE_FILLERS_DUMMY",
+              "results": [
+                {
+                  "code": "BEYJ",
+                  "description": "ThinkSystem MS Height CPU Dummy",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8NM",
+                  "description": "ThinkSystem 1U MS Air Duct",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BCEB",
+                  "description": "ThinkSystem 1U V2 2x3 2.5\" HDD Dummy",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "AVEN",
+                  "description": "ThinkSystem 1x1 2.5\" HDD Filler",
+                  "quantity": 4,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8NK",
+                  "description": "ThinkSystem 1U Super Cap Holder Dummy",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8NA",
+                  "description": "ThinkSystem 1U MS LP+LP Riser Filler",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8NB",
+                  "description": "ThinkSystem 1U MS LP Riser Filler",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8NJ",
+                  "description": "ThinkSystem 1U MS Fan Dummy",
+                  "quantity": 2,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "AUWG",
+                  "description": "Lenovo ThinkSystem 1U VGA Filler",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BPP5",
+                  "description": "OCP3.0 Filler with screw",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "VOLTAGE_MI",
+              "results": [
+                {
+                  "code": "BK14",
+                  "description": "Low voltage (100V+)",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "LPK",
+              "results": [
+                {
+                  "code": "BPK3",
+                  "description": "ThinkSystem WW Lenovo LPK",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            },
+            {
+              "name": "DERIVE_LABELS",
+              "results": [
+                {
+                  "code": "B97B",
+                  "description": "XCC Label",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "B8JV",
+                  "description": "ThinkSystem 750W Pt Power Rating Label WW",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BPD7",
+                  "description": "ThinkSystem SR630 V3 Service Label for WW",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BPD6",
+                  "description": "ThinkSystem SR630 V3 Model Name Label",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "AWF9",
+                  "description": "ThinkSystem Response time Service Label LI",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "AUTQ",
+                  "description": "ThinkSystem small Lenovo Label for 24x2.5\"/12x3.5\"/10x2.5\"",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "BQPS",
+                  "description": "ThinkSystem logo Label",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "CJ1L",
+                  "description": "ThinkSystem SR630 V3 Agency Label, no ES Mark without CECP",
+                  "quantity": 1,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            }
+          ],
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": null
+          },
+          "cloneBy": null,
+          "occupiedBay": null,
+          "asVLH": false,
+          "vlhId": null,
+          "newHardwareNumber": 0,
+          "placementInfo": {
+            "sequence": "",
+            "spaceConnector": null
+          },
+          "errors": [],
+          "quantity": 0,
+          "lfo": false,
+          "positionForErrorMessage": 2,
+          "chassisModel": "dense",
+          "endPosition": 2,
+          "machineType": "7D73",
+          "attributes": {},
+          "pageIndex": 0,
+          "originalIndex": 0,
+          "height": 1,
+          "thinkAgileMIFeatures": []
+        }
+      ]
+    }
+  ],
+  "hierarchy": [
+    {
+      "id": "US__a7b25a3f-7700-438e-9eb9-57a3742684a0",
+      "originalIds": [
+        "US__a7b25a3f-7700-438e-9eb9-57a3742684a0"
+      ],
+      "quantity": 1,
+      "type": "rack",
+      "size": 42,
+      "lockedSpace": [],
+      "derivedResults": [
+        {
+          "featureCode": "3101",
+          "name": "MI_P",
+          "quantity": 1
+        }
+      ],
+      "removedResults": [],
+      "children": [
+        {
+          "id": "US__af7c77e1-d3a9-40c6-b3d8-43bcb283e6cb0",
+          "quantity": 1,
+          "size": 1,
+          "type": "server",
+          "originalIds": [
+            "US__af7c77e1-d3a9-40c6-b3d8-43bcb283e6cb0"
+          ],
+          "derivedResults": [
+            {
+              "featureCode": "3101",
+              "quantity": 1
+            },
+            {
+              "featureCode": "3201",
+              "name": "MI_P",
+              "quantity": 1
+            }
+          ],
+          "removedResults": []
+        }
+      ]
+    }
+  ]
+}

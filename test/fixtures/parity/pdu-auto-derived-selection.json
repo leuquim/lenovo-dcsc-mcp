@@ -1,0 +1,50 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/pdu-auto-derived-probe-full/captured.json response 4",
+    "workflow": "One-rack GP import; select C0D8 after CE6L/6275 replacement sequence",
+    "sanitization": "Unrelated configuration fields and server records removed; stable fixture IDs retained"
+  },
+  "configuration": {
+    "id": "rack-1",
+    "unSelectableCharacters": [
+      {
+        "name": "ETHERNET_CABLE",
+        "results": [
+          { "code": "A1MT", "quantity": 1, "derived": false, "forAutoConnect": false }
+        ]
+      }
+    ],
+    "tabs": []
+  },
+  "autoDerivedResults": [
+    {
+      "id": "rack-1@rule@rack-1",
+      "firstUsed": true,
+      "updated": false,
+      "invalid": false,
+      "derivePartType": "FC",
+      "derivePart": {
+        "targetWorkspaceId": "rack-1",
+        "targetSectionName": "ETHERNET_CABLE",
+        "featureCode": "A1MT",
+        "quantity": 1,
+        "targetServiceCTO": null,
+        "sectionNameCorrected": false
+      },
+      "appliedConfigurations": ["rack-1"],
+      "overrideBy": null,
+      "override": false,
+      "crossSystemDerived": false,
+      "feature": {
+        "code": "A1MT",
+        "description": "10m Green Cat6 Cable",
+        "priceNotAvailable": false,
+        "unitPrice": 19.5,
+        "productNumber": "7D6DCTO1WW",
+        "type": "hardware"
+      },
+      "opaqueFutureField": { "retained": true }
+    }
+  ]
+}

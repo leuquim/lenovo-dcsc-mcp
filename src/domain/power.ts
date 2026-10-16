@@ -1,11 +1,12 @@
 import type { RawConfiguration } from '../model/types.js';
 
 /**
- * Power and thermal figures, which DCSC returns with every configuration.
+ * Power and thermal figures, when DCSC supplies a numeric report.
  *
  * There is a /powercalculation/powercalculate endpoint, but it is not needed:
- * launch and autoDerive already carry a fully computed `powerReportResponse`
- * for the configuration as selected. For AI factory work these numbers are the
+ * supported launch and autoDerive responses carry a computed
+ * `powerReportResponse` for the configuration as selected. Some current
+ * products omit that report; callers must preserve unavailable metrics. For AI factory work these numbers are the
  * binding design constraint long before price is — a single 8-GPU node draws
  * more than 10 kW, so rack and room capacity, not budget, decides the layout.
  */
@@ -34,18 +35,19 @@ export interface PowerReport {
 
 type Obj = Record<string, unknown>;
 
-function band(v: unknown): PowerBand {
-  const o = (typeof v === 'object' && v !== null ? v : {}) as Obj;
-  return {
-    idle: num(o['idle']) ?? 0,
-    max: num(o['max']) ?? 0,
-    loadFactor: num(o['loadFactorResult']) ?? 0,
-    worst: num(o['worst']) ?? 0,
-  };
+function band(v: unknown): PowerBand | undefined {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined;
+  const o = v as Obj;
+  const idle = num(o['idle']);
+  const max = num(o['max']);
+  const loadFactor = num(o['loadFactorResult']);
+  const worst = num(o['worst']);
+  if (idle === undefined || max === undefined || loadFactor === undefined || worst === undefined) return undefined;
+  return { idle, max, loadFactor, worst };
 }
 
 function num(v: unknown): number | undefined {
-  const n = typeof v === 'string' ? Number(v) : v;
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
   return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
 }
 
@@ -58,16 +60,24 @@ export function extractPowerReport(raw: RawConfiguration): PowerReport | undefin
   const r = report as Obj;
   if (r['empty'] === true) return undefined;
 
+  const inputPowerW = band(r['inputPower']);
+  const inputCurrentA = band(r['inputCurrent']);
+  const apparentPowerVA = band(r['apparentPower']);
+  const heatBtuHr = band(r['heatGeneration']);
+  // The public report is fully numeric: a partial report must not invent zero
+  // heat/current/power values that would then be used in aggregate sizing.
+  if (!inputPowerW || !inputCurrentA || !apparentPowerVA || !heatBtuHr) return undefined;
+
   const policy = r['powerPolicy'];
   const warnings = Array.isArray(r['warningMessages'])
     ? r['warningMessages'].filter((m): m is string => typeof m === 'string')
     : [];
 
   return {
-    inputPowerW: band(r['inputPower']),
-    inputCurrentA: band(r['inputCurrent']),
-    apparentPowerVA: band(r['apparentPower']),
-    heatBtuHr: band(r['heatGeneration']),
+    inputPowerW,
+    inputCurrentA,
+    apparentPowerVA,
+    heatBtuHr,
     operatingVoltage: typeof r['operatingVoltage'] === 'string' ? r['operatingVoltage'] : undefined,
     loadFactorPct: num(r['loadFactor']),
     powerPolicy:
@@ -114,6 +124,60 @@ export interface AggregatedPower {
  * Currents are summed too, which is only meaningful when everything sits on the
  * same voltage — callers should report the voltage alongside.
  */
+export interface DensityAdvisory {
+  maxKW: number;
+  level: 'standard' | 'high-density' | 'containment-required' | 'liquid-recommended';
+  message: string;
+}
+
+/**
+ * Flags rack power density that a room cannot actually cool.
+ *
+ * DCSC prices and places a rack it has no intention of cooling: four 8-GPU
+ * air-cooled nodes fit a 42U cabinet and draw ~47 kW, which is roughly double
+ * what a conventional hot-aisle/cold-aisle room removes with air. Nothing in
+ * the configurator says so, and the number that decides feasibility is this
+ * one, not the price.
+ *
+ * Bands are industry-typical rather than Lenovo-published, so this advises and
+ * never blocks. Liquid-cooled hardware carries its own heat out and is exempt.
+ */
+export function assessRackDensity(
+  maxKW: number,
+  cooling: 'air' | 'direct water' | 'unknown' = 'unknown',
+): DensityAdvisory | undefined {
+  if (cooling === 'direct water') return undefined;
+  if (maxKW <= 15) {
+    return { maxKW, level: 'standard', message: 'Within conventional air-cooled rack density.' };
+  }
+  if (maxKW <= 30) {
+    return {
+      maxKW,
+      level: 'high-density',
+      message:
+        `~${maxKW} kW per rack is high density for air. Expect to need hot-aisle or cold-aisle ` +
+        'containment and verified per-rack airflow; many general-purpose halls cap out below this.',
+    };
+  }
+  if (maxKW <= 50) {
+    return {
+      maxKW,
+      level: 'containment-required',
+      message:
+        `~${maxKW} kW per rack exceeds what conventional air cooling removes (typically 15-30 kW). ` +
+        'A rear-door heat exchanger or full containment is required, and many sites cannot supply ' +
+        'this per rack at all. Compare a direct-water-cooled node before committing.',
+    };
+  }
+  return {
+    maxKW,
+    level: 'liquid-recommended',
+    message:
+      `~${maxKW} kW per rack is beyond practical air cooling. Direct water cooling is the realistic ` +
+      'option; if the site is air-only, spread the nodes across more racks instead.',
+  };
+}
+
 export function aggregatePower(
   entries: Array<{ report: PowerReport; quantity: number }>,
 ): AggregatedPower {

@@ -25,10 +25,11 @@ function attach(page: Page) {
   page.on('request', (req) => {
     const url = req.url();
     if (!/export_zip|export|p2p-report/i.test(url)) return;
+    const postData = req.postData();
     captured.push({
       url,
       method: req.method(),
-      postData: req.postData() ?? undefined,
+      ...(postData === null ? {} : { postData }),
     });
     console.log('REQ', req.method(), url.slice(0, 120), 'bodyLen=', (req.postData() ?? '').length);
   });

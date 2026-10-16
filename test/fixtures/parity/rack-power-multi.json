@@ -1,0 +1,48 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "source": "artifacts/implementation-2026-10-15/rack-power-multi-browser-run2",
+    "workflow": "Fresh browser rack Customize > Power, four sequential quantity edits, export, fresh-browser import"
+  },
+  "raw": {
+    "id": "rack",
+    "code": "7D6DCTO1WW",
+    "sliceCtoCode": "7D6DCTO1WW",
+    "quantity": 1,
+    "tabs": [{
+      "title": "Power",
+      "type": "hardware",
+      "subTabs": [{
+        "title": "Power",
+        "sections": [{
+          "name": "PDU",
+          "singleEntry": false,
+          "features": [
+            { "code": "CE6L", "description": "1U Basic 16A 1 Phase PDU" },
+            { "code": "C0D8", "description": "0U 20 C13 and 4 C19 Switched and Monitored 32A 1 Phase PDU v2" }
+          ],
+          "results": []
+        }, {
+          "name": "LINECORD",
+          "singleEntry": false,
+          "features": [
+            { "code": "6275", "description": "4.3m, 16A/208V, C19 to NEMA L6-20P (US) Line Cord" },
+            { "code": "6500", "description": "4.3m, 30A/208V, EPDU to NEMA L6-30P (US) Line Cord" }
+          ],
+          "results": []
+        }]
+      }]
+    }]
+  },
+  "edits": [
+    { "sectionName": "PDU", "code": "CE6L", "quantity": 2 },
+    { "sectionName": "PDU", "code": "C0D8", "quantity": 3 },
+    { "sectionName": "LINECORD", "code": "6275", "quantity": 4 },
+    { "sectionName": "LINECORD", "code": "6500", "quantity": 2 }
+  ],
+  "expected": {
+    "totalPrice": 18459.51,
+    "PDU": [{ "code": "CE6L", "quantity": 2 }, { "code": "C0D8", "quantity": 3 }],
+    "LINECORD": [{ "code": "6275", "quantity": 4 }, { "code": "6500", "quantity": 2 }]
+  }
+}

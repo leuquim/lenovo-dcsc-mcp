@@ -1,0 +1,683 @@
+{
+  "source": "Headless website storage-physical-placement-r40 first/second export forms; launch responses 015/016. Only service sections retained; hardware pricing uses the captured inclusive total.",
+  "components": [
+    {
+      "role": "controller",
+      "raw": {
+        "code": "7DP4CTO1WW",
+        "sliceCtoCode": "7DP4CTO1WW",
+        "type": "storage",
+        "description": "Lenovo ThinkSystem DS3200 Storage Array",
+        "quantity": 1,
+        "totalPrice": 330709.01,
+        "priceNotAvailable": false,
+        "showPrice": true,
+        "hipoDerivedItems": [
+          {
+            "targetCtoCode": "7S1VCTOFWW",
+            "subGroup": "xSeries",
+            "targetCtoCodeDescription": "ThinkSystem DS SW License",
+            "ruleHashCode": 1085948496,
+            "targetCtoQuantity": 1,
+            "targetCtoPrice": 79270.5,
+            "targetCtoUnitPrice": 1,
+            "targetCTOPrices": [
+              {
+                "priceTypeId": 1,
+                "price": 1,
+                "priceNotAvailable": false
+              }
+            ],
+            "priceNotAvailable": false,
+            "featurePriceNotAvailable": false,
+            "derivedByHw": true,
+            "features": [
+              {
+                "featureCode": "SED0",
+                "subCategory": "FlatFee",
+                "licenseType": "",
+                "swSubCategory": null,
+                "description": "Lenovo ThinkSystem DS3200 NVMe TLC All SAN Complete Bundle SW License with 3 Years Support, Per 0.1TB",
+                "ctoCode": "7DP4CTO1WW",
+                "quantity": 1229,
+                "integrated": false,
+                "unitPrice": 64.5,
+                "cost": null,
+                "priceNotAvailable": false,
+                "costNotAvailable": false,
+                "noCharge": false,
+                "userChanged": false,
+                "installations": [],
+                "errorMessages": [],
+                "prices": [
+                  {
+                    "priceTypeId": 1,
+                    "price": 64.5,
+                    "priceNotAvailable": false
+                  }
+                ],
+                "eccnRestricted": false,
+                "totalQuantity": false
+              }
+            ]
+          }
+        ],
+        "hipoServiceCtoServices": [],
+        "id": "controller-template",
+        "tabs": [
+          {
+            "title": "Captured services",
+            "subTabs": [
+              {
+                "title": "Services",
+                "sections": [
+                  {
+                    "name": "Warranty Service Upgrades",
+                    "results": [
+                      {
+                        "ctoCode": "7DP4CTO1WW",
+                        "quantity": 1,
+                        "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD",
+                        "price": 2619,
+                        "type": "service",
+                        "deSelectable": true,
+                        "serviceVariant": true,
+                        "cost": 0,
+                        "characterName": "Warranty Service Upgrades",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5PS7C31189"
+                      }
+                    ],
+                    "features": [
+                      {
+                        "code": "5PS7C31189",
+                        "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD",
+                        "announceDate": "2025-11-11",
+                        "withdrawnDate": "2999-12-31",
+                        "unitPrice": 2619,
+                        "productNumber": "7DP4CTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Warranty Service Upgrades",
+                        "displayCode": "5PS7C31189",
+                        "category": "STG@Services@24x7x4+KYD@24x7x4",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 2619,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "24x7x4+KYD",
+                            "translatedFacetValue": "24x7x4+KYD"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "Premier",
+                            "translatedFacetValue": "Premier"
+                          },
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": "3 Year",
+                            "translatedFacetValue": "3 Year"
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "3Yr Premier 24x7 4Hr+KYD",
+                            "translatedFacetValue": "3Yr Premier 24x7 4Hr+KYD"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5PS7C31189",
+                          "#PN": null,
+                          "#PRICE": "2619.0",
+                          "description": "3Yr Premier 24x7 4Hr Resp DS3200+KYD"
+                        },
+                        "premier": true,
+                        "eccnRestricted": false,
+                        "characterName": "Warranty Service Upgrades",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Warranty Service Upgrades - Drivepack",
+                    "results": [
+                      {
+                        "ctoCode": "7DP4CTO1WW",
+                        "quantity": 1229,
+                        "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)",
+                        "price": 36870,
+                        "type": "service",
+                        "deSelectable": true,
+                        "serviceVariant": true,
+                        "cost": 0,
+                        "characterName": "Warranty Service Upgrades - Drivepack",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5PS7C31387"
+                      }
+                    ],
+                    "features": [
+                      {
+                        "code": "5PS7C31387",
+                        "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)",
+                        "announceDate": "2025-11-11",
+                        "withdrawnDate": "2999-12-31",
+                        "unitPrice": 30,
+                        "productNumber": "7DP4CTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Warranty Service Upgrades - Drivepack",
+                        "displayCode": "5PS7C31387",
+                        "category": "STG@Services@24x7x4+KYD@24x7x4",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 30,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "24x7x4+KYD",
+                            "translatedFacetValue": "24x7x4+KYD"
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "3Yr Premier 24x7 4Hr+KYD",
+                            "translatedFacetValue": "3Yr Premier 24x7 4Hr+KYD"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "Premier",
+                            "translatedFacetValue": "Premier"
+                          },
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": "3 Year",
+                            "translatedFacetValue": "3 Year"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5PS7C31387",
+                          "#PN": null,
+                          "#PRICE": "30.0",
+                          "description": "3Yr Premier 24x7 4Hr Resp+KYD (0.1TB NVMe TLC)"
+                        },
+                        "premier": true,
+                        "eccnRestricted": false,
+                        "characterName": "Warranty Service Upgrades - Drivepack",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "onePlacement": [
+        {
+          "code": "7DP4CTO1WW",
+          "type": "hardware",
+          "quantity": 1,
+          "price": 211948.51,
+          "unitPrice": 211948.51
+        },
+        {
+          "code": "7S1VCTOFWW",
+          "type": "hipo",
+          "quantity": 1,
+          "price": 79272.5,
+          "unitPrice": 79271.5
+        },
+        {
+          "code": "5PS7C31189",
+          "type": "service",
+          "quantity": 1,
+          "price": 2619,
+          "unitPrice": 2619
+        },
+        {
+          "code": "5PS7C31387",
+          "type": "service",
+          "quantity": 1229,
+          "price": 36870,
+          "unitPrice": 30
+        }
+      ],
+      "twoPlacements": [
+        {
+          "code": "7DP4CTO1WW",
+          "type": "hardware",
+          "quantity": 2,
+          "price": 423897.02,
+          "unitPrice": 211948.51
+        },
+        {
+          "code": "7S1VCTOFWW",
+          "type": "hipo",
+          "quantity": 2,
+          "price": 79272.5,
+          "unitPrice": 79271.5
+        },
+        {
+          "code": "5PS7C31189",
+          "type": "service",
+          "quantity": 2,
+          "price": 2619,
+          "unitPrice": 2619
+        },
+        {
+          "code": "5PS7C31387",
+          "type": "service",
+          "quantity": 2458,
+          "price": 36870,
+          "unitPrice": 30
+        }
+      ]
+    },
+    {
+      "role": "mainSwitch",
+      "raw": {
+        "code": "7DHNCTO1WW",
+        "sliceCtoCode": "7DHNCTO1WW",
+        "type": "switch",
+        "description": "Lenovo ThinkSystem DB710S, 8-port license, 8 x 32GB SWL SFPs, Enterprise Bundle, rail kit, Lifetime HW warranty & FW maintenance",
+        "quantity": 1,
+        "totalPrice": 11483.01,
+        "priceNotAvailable": false,
+        "showPrice": true,
+        "hipoDerivedItems": [],
+        "hipoServiceCtoServices": [],
+        "id": "mainSwitch-template",
+        "tabs": [
+          {
+            "title": "Captured services",
+            "subTabs": [
+              {
+                "title": "Services",
+                "sections": [
+                  {
+                    "name": "Lenovo Recommends|Better",
+                    "results": [
+                      {
+                        "ctoCode": "7DHNCTO1WW",
+                        "quantity": 1,
+                        "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW",
+                        "price": 629,
+                        "type": "service",
+                        "deSelectable": true,
+                        "cost": 0,
+                        "characterName": "Warranty Service Upgrades",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5WS7C21341"
+                      },
+                      {
+                        "ctoCode": "7DHNCTO1WW",
+                        "quantity": 1,
+                        "description": "CO2 Offset 10 Metric Tonnes",
+                        "price": 95,
+                        "type": "service",
+                        "deSelectable": true,
+                        "cost": 0,
+                        "characterName": "Sustainability",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5MS7B07545"
+                      }
+                    ],
+                    "features": [
+                      {
+                        "code": "5WS7C21341",
+                        "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW",
+                        "announceDate": "2025-04-23",
+                        "withdrawnDate": "2030-12-31",
+                        "unitPrice": 629,
+                        "productNumber": "7DHNCTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Warranty Service Upgrades",
+                        "displayCode": "5WS7C21341",
+                        "category": "STG@Services@24x7x4@24x7x4",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 629,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": "3 Year",
+                            "translatedFacetValue": "3 Year"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "Premier",
+                            "translatedFacetValue": "Premier"
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "3Yr Premier 24x7 4Hr",
+                            "translatedFacetValue": "3Yr Premier 24x7 4Hr"
+                          },
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "24x7x4",
+                            "translatedFacetValue": "24x7x4"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5WS7C21341",
+                          "#PN": null,
+                          "#PRICE": "629.0",
+                          "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW"
+                        },
+                        "premier": true,
+                        "eccnRestricted": false,
+                        "characterName": "Warranty Service Upgrades",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      },
+                      {
+                        "code": "5MS7B07545",
+                        "description": "CO2 Offset 10 Metric Tonnes",
+                        "announceDate": "2022-03-22",
+                        "withdrawnDate": "2999-12-31",
+                        "unitPrice": 95,
+                        "productNumber": "7DHNCTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Sustainability",
+                        "displayCode": "5MS7B07545",
+                        "category": "STG@Services@Add On@Add On",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 95,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": " ",
+                            "translatedFacetValue": " "
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "CO2_Offset",
+                            "translatedFacetValue": "CO2_Offset"
+                          },
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "Add On",
+                            "translatedFacetValue": "Add On"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "CO2_Offset",
+                            "translatedFacetValue": "CO2_Offset"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5MS7B07545",
+                          "#PN": null,
+                          "#PRICE": "95.0",
+                          "description": "CO2 Offset 10 Metric Tonnes"
+                        },
+                        "eccnRestricted": false,
+                        "characterName": "Sustainability",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      }
+                    ]
+                  },
+                  {
+                    "name": "A la Carte|Column3|3 Years",
+                    "results": [
+                      {
+                        "ctoCode": "7DHNCTO1WW",
+                        "quantity": 1,
+                        "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW",
+                        "price": 629,
+                        "type": "service",
+                        "deSelectable": true,
+                        "cost": 0,
+                        "characterName": "Warranty Service Upgrades",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5WS7C21341"
+                      }
+                    ],
+                    "features": [
+                      {
+                        "code": "5WS7C21341",
+                        "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW",
+                        "announceDate": "2025-04-23",
+                        "withdrawnDate": "2030-12-31",
+                        "unitPrice": 629,
+                        "productNumber": "7DHNCTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Warranty Service Upgrades",
+                        "displayCode": "5WS7C21341",
+                        "category": "STG@Services@24x7x4@24x7x4",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 629,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": "3 Year",
+                            "translatedFacetValue": "3 Year"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "Premier",
+                            "translatedFacetValue": "Premier"
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "3Yr Premier 24x7 4Hr",
+                            "translatedFacetValue": "3Yr Premier 24x7 4Hr"
+                          },
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "24x7x4",
+                            "translatedFacetValue": "24x7x4"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5WS7C21341",
+                          "#PN": null,
+                          "#PRICE": "629.0",
+                          "description": "3Yr Premier 24x7 4Hr Resp DB710S 8x LW"
+                        },
+                        "premier": true,
+                        "eccnRestricted": false,
+                        "characterName": "Warranty Service Upgrades",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Add ons|CO2 Offset|CO2 Offset",
+                    "results": [
+                      {
+                        "ctoCode": "7DHNCTO1WW",
+                        "quantity": 1,
+                        "description": "CO2 Offset 10 Metric Tonnes",
+                        "price": 95,
+                        "type": "service",
+                        "deSelectable": true,
+                        "cost": 0,
+                        "characterName": "Sustainability",
+                        "eccnRestricted": false,
+                        "storageWizardDerived": false,
+                        "storageWizardDerivedQuantity": 0,
+                        "code": "5MS7B07545"
+                      }
+                    ],
+                    "features": [
+                      {
+                        "code": "5MS7B07545",
+                        "description": "CO2 Offset 10 Metric Tonnes",
+                        "announceDate": "2022-03-22",
+                        "withdrawnDate": "2999-12-31",
+                        "unitPrice": 95,
+                        "productNumber": "7DHNCTO1WW",
+                        "preSelectedQuantity": 1,
+                        "type": "Sustainability",
+                        "displayCode": "5MS7B07545",
+                        "category": "STG@Services@Add On@Add On",
+                        "prices": [
+                          {
+                            "priceTypeId": 1,
+                            "price": 95,
+                            "priceNotAvailable": false
+                          }
+                        ],
+                        "greyOnPage": true,
+                        "facets": [
+                          {
+                            "facetID": "WARRANTYPERIOD",
+                            "facetName": "Term",
+                            "facetValue": " ",
+                            "translatedFacetValue": " "
+                          },
+                          {
+                            "facetID": "LONGDESC_WAR",
+                            "facetName": "LONGDESC_WAR",
+                            "facetValue": "CO2_Offset",
+                            "translatedFacetValue": "CO2_Offset"
+                          },
+                          {
+                            "facetID": "WARRANTYTYPE",
+                            "facetName": "Service Delivery Type",
+                            "facetValue": "Add On",
+                            "translatedFacetValue": "Add On"
+                          },
+                          {
+                            "facetID": "SERVICETYPE",
+                            "facetName": "Additional Service Upgrade Options",
+                            "facetValue": "CO2_Offset",
+                            "translatedFacetValue": "CO2_Offset"
+                          }
+                        ],
+                        "typeSequence": 10,
+                        "attributeMap": {
+                          "#FC": "5MS7B07545",
+                          "#PN": null,
+                          "#PRICE": "95.0",
+                          "description": "CO2 Offset 10 Metric Tonnes"
+                        },
+                        "eccnRestricted": false,
+                        "characterName": "Sustainability",
+                        "audienceOnly": false,
+                        "tceAudience": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "onePlacement": [
+        {
+          "code": "7DHNCTO1WW",
+          "type": "hardware",
+          "quantity": 1,
+          "price": 10759.01,
+          "unitPrice": 10759.01
+        },
+        {
+          "code": "5WS7C21341",
+          "type": "service",
+          "quantity": 1,
+          "price": 629,
+          "unitPrice": 629
+        },
+        {
+          "code": "5MS7B07545",
+          "type": "service",
+          "quantity": 1,
+          "price": 95,
+          "unitPrice": 95
+        }
+      ],
+      "twoPlacements": [
+        {
+          "code": "7DHNCTO1WW",
+          "type": "hardware",
+          "quantity": 2,
+          "price": 21518.02,
+          "unitPrice": 10759.01
+        },
+        {
+          "code": "5WS7C21341",
+          "type": "service",
+          "quantity": 2,
+          "price": 629,
+          "unitPrice": 629
+        },
+        {
+          "code": "5MS7B07545",
+          "type": "service",
+          "quantity": 2,
+          "price": 95,
+          "unitPrice": 95
+        }
+      ]
+    }
+  ]
+}

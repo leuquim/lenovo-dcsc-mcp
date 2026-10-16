@@ -1,8 +1,8 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { loadConfig } from '../src/config/load.js';
-import { DcscHttpClient, RequestBudget } from '../src/http/request.js';
-import { configureLogger, newCorrId } from '../src/http/trace.js';
+import { configureLogger } from '../src/http/trace.js';
 import { DcscService } from '../src/mcp/service.js';
+import { isolateRuntime, readStream } from './lib/isolated-runtime.js';
 
 interface BlueprintResult {
   name: string;
@@ -23,10 +23,9 @@ async function main(): Promise<void> {
   const outDir = 'artifacts/nvidia_ai_factory_blueprints';
   mkdirSync(outDir, { recursive: true });
 
-  const config = loadConfig({ logLevel: process.env.DCSC_LOG_LEVEL ?? 'info' });
+  const config = isolateRuntime(loadConfig({ logLevel: process.env.DCSC_LOG_LEVEL ?? 'info' }));
   configureLogger(config.logLevel);
-  const http = new DcscHttpClient(config);
-  const service = new DcscService(config, http);
+  const service = new DcscService(config);
   const ctx = service.newCtx();
 
   console.log('================================================================');
@@ -124,13 +123,12 @@ async function main(): Promise<void> {
       const exportRes = await service.exportZip(session.id, {
         fileName: zipFileName,
         fileTypes: ['XML', 'QUOTE', 'SUMMARY'],
-        validationMode: 'guided',
         ctx,
       });
 
       const yauzl = await import('yauzl');
       let extractedXml = '';
-      const zipBuf = Buffer.from(await exportRes.stream.arrayBuffer());
+      const zipBuf = await readStream(exportRes.stream);
       const zipPath = `${outDir}/${zipFileName}.zip`;
       writeFileSync(zipPath, zipBuf);
       console.log(`  Exported package to ${zipPath} (${zipBuf.length.toLocaleString()} bytes)`);
@@ -173,7 +171,7 @@ async function main(): Promise<void> {
 
         if (importRes.sessions.length > 0) {
           reimportSuccess = true;
-          reimportedPrice = importRes.sessions[0]?.raw.totalPrice;
+          reimportedPrice = importRes.sessions[0]?.raw.totalPrice ?? undefined;
           console.log(`  Re-import SUCCESS! Re-imported Price: $${reimportedPrice?.toLocaleString()} USD`);
         }
       }
@@ -189,12 +187,15 @@ async function main(): Promise<void> {
         exportZipPath: `${outDir}/${zipFileName}.zip`,
         xmlPath: `${outDir}/${zipFileName}.xml`,
         reimportSuccess,
-        reimportedPrice,
+        ...(reimportedPrice === undefined ? {} : { reimportedPrice }),
         sampleOptions,
       });
 
-    } catch (err: any) {
-      console.error(`  ERROR building ${bp.name}:`, err?.message || err);
+    } catch (err: unknown) {
+      console.error(
+        `  ERROR building ${bp.name}:`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

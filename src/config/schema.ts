@@ -90,11 +90,12 @@ const WafSchema = z.object({
 
 const FilesSchema = z.object({
   artifactDir: z.string().optional(),
-  artifactTtlDays: z.number().int().default(30),
-  maxDownloadBytes: z.number().int().default(200 * 1024 * 1024),
-  maxUnzipBytes: z.number().int().default(500 * 1024 * 1024),
-  maxUnzipEntries: z.number().int().default(500),
-  maxCompressionRatio: z.number().default(100),
+  /** Completed MCP-owned export bundles older than this are removed. Zero expires prior runs. */
+  artifactTtlDays: z.number().int().nonnegative().default(30),
+  maxDownloadBytes: z.number().int().positive().default(200 * 1024 * 1024),
+  maxUnzipBytes: z.number().int().positive().default(500 * 1024 * 1024),
+  maxUnzipEntries: z.number().int().positive().default(500),
+  maxCompressionRatio: z.number().positive().default(100),
   exportEncoding: z.enum(['urlencoded', 'multipart']).default('urlencoded'),
   /** Sessions survive a restart unless this is turned off. */
   persistSessions: z.boolean().default(true),

@@ -2,7 +2,7 @@
 
 For current handoff, repository delivery and removed temporary evidence paths, see [current context](../context.md). Raw `artifacts/` references below are local evidence locators; maintained fixtures are included in Git.
 
-**Date:** 2026-10-16  
+**Date:** 2026-10-16
 **Status:** Final frozen evidence audit for the implemented scope; full website-parity closure remains blocked by finding 15's populated-storage requirement.
 **Baseline:** Materialized snapshot `20261016T041423Z`, verified unchanged before and after its terminal 54-command run.
 
@@ -73,4 +73,3 @@ focused tests and maintained evidence described in the progress ledger.
    no total/cursor. Correct unavailable-result behavior is a pass, the missing
    capability is not.
 6. **Single-snapshot release — closed:** snapshot `20261016T041423Z` was materialized in a detached worktree, installed from the lockfile, verified against tracked/untracked/ignored-document hashes before and after, and ran all 54 commands serially. The terminal result is 52 passed, zero failed and the two declared capability blocks described above.
-

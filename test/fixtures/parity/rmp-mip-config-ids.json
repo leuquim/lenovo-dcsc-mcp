@@ -1,0 +1,188 @@
+{
+  "endpoint": "GET /api/rmp/mip",
+  "capturedAt": "2026-10-15",
+  "configurationIds": [
+    {
+      "featureCode": "A2HP",
+      "description": "Configuration ID 01 test"
+    },
+    {
+      "featureCode": "A2HQ",
+      "description": "Configuration ID 02"
+    },
+    {
+      "featureCode": "A2HR",
+      "description": "Configuration ID 03"
+    },
+    {
+      "featureCode": "A2HS",
+      "description": "Configuration ID 04"
+    },
+    {
+      "featureCode": "A2HT",
+      "description": "Configuration ID 05"
+    },
+    {
+      "featureCode": "A2HU",
+      "description": "Configuration ID 06"
+    },
+    {
+      "featureCode": "A2HV",
+      "description": "Configuration ID 07"
+    },
+    {
+      "featureCode": "A2HW",
+      "description": "Configuration ID 08"
+    },
+    {
+      "featureCode": "A2HX",
+      "description": "Configuration ID 09"
+    },
+    {
+      "featureCode": "A2HY",
+      "description": "Configuration ID 10"
+    },
+    {
+      "featureCode": "A2HZ",
+      "description": "Configuration ID 11"
+    },
+    {
+      "featureCode": "A2J0",
+      "description": "Configuration ID 12"
+    },
+    {
+      "featureCode": "A2J1",
+      "description": "Configuration ID 13"
+    },
+    {
+      "featureCode": "A2J2",
+      "description": "Configuration ID 14"
+    },
+    {
+      "featureCode": "A2J3",
+      "description": "Configuration ID 15"
+    },
+    {
+      "featureCode": "A2J4",
+      "description": "Configuration ID 16"
+    },
+    {
+      "featureCode": "A2J5",
+      "description": "Configuration ID 17"
+    },
+    {
+      "featureCode": "A2J6",
+      "description": "Configuration ID 18"
+    },
+    {
+      "featureCode": "A2J7",
+      "description": "Configuration ID 19"
+    },
+    {
+      "featureCode": "A2J8",
+      "description": "Configuration ID 20"
+    },
+    {
+      "featureCode": "A2J9",
+      "description": "Configuration ID 21"
+    },
+    {
+      "featureCode": "A2JA",
+      "description": "Configuration ID 22"
+    },
+    {
+      "featureCode": "A2JB",
+      "description": "Configuration ID 23"
+    },
+    {
+      "featureCode": "A2JC",
+      "description": "Configuration ID 24"
+    },
+    {
+      "featureCode": "A2JD",
+      "description": "Configuration ID 25"
+    },
+    {
+      "featureCode": "A2JE",
+      "description": "Configuration ID 26"
+    },
+    {
+      "featureCode": "A2JF",
+      "description": "Configuration ID 27"
+    },
+    {
+      "featureCode": "A2JG",
+      "description": "Configuration ID 28"
+    },
+    {
+      "featureCode": "A2JH",
+      "description": "Configuration ID 29"
+    },
+    {
+      "featureCode": "A2JJ",
+      "description": "Configuration ID 30"
+    },
+    {
+      "featureCode": "A2JK",
+      "description": "Configuration ID 31"
+    },
+    {
+      "featureCode": "A2JL",
+      "description": "Configuration ID 32"
+    },
+    {
+      "featureCode": "A2JM",
+      "description": "Configuration ID 33"
+    },
+    {
+      "featureCode": "A2JN",
+      "description": "Configuration ID 34"
+    },
+    {
+      "featureCode": "A2JP",
+      "description": "Configuration ID 35"
+    },
+    {
+      "featureCode": "A2JQ",
+      "description": "Configuration ID 36"
+    },
+    {
+      "featureCode": "A2JR",
+      "description": "Configuration ID 37"
+    },
+    {
+      "featureCode": "A2JS",
+      "description": "Configuration ID 38"
+    },
+    {
+      "featureCode": "A2JT",
+      "description": "Configuration ID 39"
+    },
+    {
+      "featureCode": "A2JU",
+      "description": "Configuration ID 40"
+    },
+    {
+      "featureCode": "A2JV",
+      "description": "Configuration ID 41"
+    },
+    {
+      "featureCode": "A2JW",
+      "description": "Configuration ID 42"
+    }
+  ],
+  "ulocation": [
+    {
+      "featureCode": "ATC5",
+      "ulocation": "50"
+    },
+    {
+      "featureCode": "ATC6",
+      "ulocation": "51"
+    },
+    {
+      "featureCode": "ATC7",
+      "ulocation": "52"
+    }
+  ]
+}

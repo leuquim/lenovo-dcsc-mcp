@@ -1,0 +1,153 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15T15:43:25.586Z",
+    "headless": true,
+    "locale": "US/en/USD",
+    "solutionMode": "General Purpose",
+    "categoryRoute": "#/categories/STG@Servers@Tower Server@ThinkSystem ST250 V3",
+    "action": "Customize7DCE100GNA",
+    "finalRoute": "https://dcsc.lenovo.com/#/rack-summary/rack-cto"
+  },
+  "launch": {
+    "endpoint": "/lfos/7DCE100GNA/as_cto_launch",
+    "response": {
+      "code": "7DCECTO1WW",
+      "ctoCode": null,
+      "lfoCode": "7DCE100GNA"
+    }
+  },
+  "edit": {
+    "endpoint": "/ctos/autoDerive",
+    "query": {
+      "configurationId": "US__ae6552b5-751d-448d-9b39-2d98913fe3aa0",
+      "entranceFlag": "customize",
+      "guideMode": "true"
+    },
+    "request": {
+      "topLevelKeys": [
+        "workspaceInformation",
+        "autoDerivedResults",
+        "configurations",
+        "operationHistories",
+        "controllerExpansionMap",
+        "customizingFlags",
+        "virtualContainerIdMapping",
+        "virtualContainerRule2ConfigMapping",
+        "virtualContainerInvalidRuleIdMapping",
+        "callServiceVarintOnly",
+        "statusRelatedResult",
+        "customizingIds",
+        "importInformation"
+      ],
+      "customizingFlags": {
+        "componentRestriction": true,
+        "autoDerive": true,
+        "ctoRules": true,
+        "minMax": true,
+        "placement": true,
+        "fromMemoryWizard": false,
+        "autoVariant": true
+      },
+      "delta": {
+        "section": "UEFI_OPERATING_MODES",
+        "featureCode": "BFYB",
+        "quantity": 1,
+        "isClear": false,
+        "type": "hardware"
+      },
+      "configuration": {
+        "ctoCode": "7DCECTO1WW",
+        "lfoCode": "7DCE100GNA",
+        "sliceCtoCode": "7DCECTO1WW"
+      },
+      "importInformationCount": 0
+    },
+    "response": {
+      "selection": {
+        "section": "UEFI_OPERATING_MODES",
+        "code": "BFYB",
+        "quantity": 1
+      },
+      "code": "7DCECTO1WW",
+      "lfoCode": "7DCE100GNA",
+      "totalPrice": 6731.525,
+      "totalPrices": [
+        {
+          "priceTypeId": 1,
+          "price": 6730.52,
+          "priceNotAvailable": false
+        }
+      ]
+    }
+  },
+  "export": {
+    "endpoint": "/ctos/export_zip",
+    "configuration": {
+      "code": "7DCECTO1WW",
+      "sliceCtoCode": "7DCECTO1WW",
+      "lfoCode": "7DCE100GNA",
+      "quantity": 1
+    },
+    "products": [
+      {
+        "code": "7DCECTO1WW",
+        "type": "hardware",
+        "quantity": 1,
+        "price": 5130.01,
+        "unitPrice": 5130.01
+      },
+      {
+        "code": "7S0XCTO5WW",
+        "type": "hipo",
+        "quantity": 1,
+        "price": 211.5,
+        "unitPrice": 210.5
+      },
+      {
+        "code": "5374CM1",
+        "type": "hipo",
+        "quantity": 1,
+        "price": 0.02,
+        "unitPrice": 0.01
+      },
+      {
+        "code": "7Q01CTSAWW",
+        "type": "servicectohipo",
+        "quantity": 1,
+        "price": 142,
+        "unitPrice": 142
+      },
+      {
+        "code": "7Q01CTO2WW",
+        "type": "servicectohipo",
+        "quantity": 1,
+        "price": 95,
+        "unitPrice": 95
+      },
+      {
+        "code": "7Q01CTS4WW",
+        "type": "servicectohipo",
+        "quantity": 1,
+        "price": 1154,
+        "unitPrice": 1154
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "path": "artifacts/implementation-2026-10-15/lfo-as-cto-browser-direct/capture.json",
+      "bytes": 2588643,
+      "sha256": "a8846f65ab26048d6fadaa896d02696888c8b4dabe80665c1fe5500b37950405"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/lfo-as-cto-browser-direct/browser-edit-request.json",
+      "bytes": 40499,
+      "sha256": "c6286bceba3b85ec0fc56b9ffbf6d32f2689449e6ea49d599bf94ba3991ac2a2"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/lfo-as-cto-browser-direct/browser-edit-response.json",
+      "bytes": 2458544,
+      "sha256": "dd75203d9393c1072f3fc99ffe540c37f38ef1c25dd43ec3bfb9486b3e3f7a77"
+    }
+  ]
+}

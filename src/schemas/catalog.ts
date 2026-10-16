@@ -68,6 +68,8 @@ export const SolutionModeSchema = z
   .object({
     /** The human-readable string the API expects for `solutionMode`. */
     mode: z.string(),
+    modeDescription: z.string().nullish(),
+    systemFunctionList: z.record(z.boolean()).nullish(),
     masterSlices: z.array(z.string()).nullish(),
     description: z.string().nullish(),
   })

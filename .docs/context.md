@@ -8,7 +8,11 @@ This is a local stdio MCP server for anonymous Lenovo DCSC workflows, with 72 re
 
 The parity implementation and final frozen verification are finished for the implemented scope, but full website parity is **not complete**. The implementation goal is **blocked**, not achieved. Sharing the usable MCP with colleagues does not close its remaining parity gates.
 
-Private repository delivery under `leuquim/lenovo-dcsc-mcp` is authorized and being prepared. Installation, packaging and fresh-checkout validation must be completed before pushing. No npm registry publication or colleague invitations were requested.
+The private distribution home is [leuquim/lenovo-dcsc-mcp](https://github.com/leuquim/lenovo-dcsc-mcp). Repository creation and pushing the MCP were explicitly authorized. Use the [client setup guide](../docs/client-setup.md) for Claude Code, Claude Desktop and Codex, and [contribution guide](../CONTRIBUTING.md) for checks. Access remains private; no npm registry publication or colleague invitations were requested.
+
+The distribution preparation passed a fresh staged-file checkout: `npm ci`, typecheck, lint, all 846 unit tests / 114 files, 17 offline contracts, build, and real stdio startup with 72 tools and isolated health. A packed tarball installed with production dependencies only passed the same startup check from a different working directory. The fresh dependency audit reported zero vulnerabilities. These packaging checks used Node 24; GitHub CI is configured for Node 22 and 24, with no live Lenovo requests. Protocol behavior is unchanged by the distribution cleanup. The package advertises only its executable, not the previously nonexistent library entry point.
+
+All source, maintained scripts, test fixtures and current context are versioned together. Raw captures and the cleanup archive remain local. The client examples use distinct session/artifact paths because concurrent processes must not write the same session file. The old setup command with a maintainer-specific home path is superseded by the portable client guide.
 
 ## Verified baseline
 

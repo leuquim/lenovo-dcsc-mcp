@@ -1,0 +1,63 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "access": "anonymous",
+    "catalogEndpoint": "/api/getStoragePreferences",
+    "rawEvidence": "artifacts/parity-headless/storage-expansion-catalog-gate-2026-10-15",
+    "uiEvidence": "artifacts/parity-headless/storage-san-lifecycle-r37-2026-10-15/after-controller-selection.txt:146"
+  },
+  "supportedModes": {
+    "General Purpose": {
+      "controllerCount": 31,
+      "controllersWithExpansions": 0,
+      "expansionOptionCount": 0,
+      "maximumAdvertised": 0
+    },
+    "HPC and AI - Systems": {
+      "controllerCount": 31,
+      "controllersWithExpansions": 0,
+      "expansionOptionCount": 0,
+      "maximumAdvertised": 0
+    }
+  },
+  "verifiedUi": {
+    "controller": {
+      "option": "7DP4CTO1WW",
+      "featureCode": "BF3C"
+    },
+    "expansionSelection": "Select an Option",
+    "maximum": 0,
+    "labels": [
+      "Expansion",
+      "Select an Option",
+      "(max: 0)",
+      "Edit Item"
+    ]
+  },
+  "spaContract": {
+    "optionSource": "selected controller.expansions",
+    "selectionFields": [
+      "option",
+      "featureCode"
+    ],
+    "quantityFields": [
+      "expansion.quantity",
+      "maximumExpansions"
+    ],
+    "minimumQuantity": 0,
+    "maximumQuantitySource": "selected expansion.maximum",
+    "controllerChangeDefault": "Select the first expansion with quantity one; when none exists, save an empty expansion and quantity zero."
+  },
+  "captureGate": {
+    "status": "blocked-by-live-catalog",
+    "prerequisite": "At least one controllers[].expansions[] descriptor from /api/getStoragePreferences.",
+    "notEstablished": [
+      "launch request and raw product name",
+      "managed or physical placement",
+      "commercial group quantity and service behavior",
+      "shared or exclusive ownership on removal",
+      "populated storage cabling"
+    ],
+    "warning": "Standalone catalog products whose descriptions contain Expansion Enclosure are not proof that the Storage preference UI offers them for a controller."
+  }
+}

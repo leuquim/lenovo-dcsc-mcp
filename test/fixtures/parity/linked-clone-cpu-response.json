@@ -1,0 +1,35 @@
+{
+  "id": "US__source",
+  "workspaceId": "US__source",
+  "name": "Server",
+  "sliceCtoCode": "7D73CTO1WW",
+  "quantity": 1,
+  "totalPrice": 26415.51,
+  "updateConfigurationIds": [
+    "US__source",
+    "US__clone"
+  ],
+  "tabs": [
+    {
+      "title": "Hardware",
+      "subTabs": [
+        {
+          "title": "Processors",
+          "sections": [
+            {
+              "name": "PROCESSOR",
+              "results": [
+                {
+                  "code": "BYW3",
+                  "quantity": 2,
+                  "type": "hardware",
+                  "ctoCode": "7D73CTO1WW"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

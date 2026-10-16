@@ -1,0 +1,47 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Headless fresh AI/HPC, Preference > Storage; create, open, rename, reopen and remove an unassigned storage definition",
+    "sources": [
+      "discovery-hpc-fresh-r19-2026-10-15/preference-storage-edit.png",
+      "discovery-hpc-fresh-r23-storage-2026-10-15/preference-storage-renamed-text.txt",
+      "discovery-hpc-fresh-r23-storage-2026-10-15/preference-storage-remove-dialog.txt",
+      "discovery-hpc-fresh-r23-storage-2026-10-15/preference-storage-removed-text.txt"
+    ],
+    "scope": "Definition lifecycle only; selectedStorageNetwork remained null and no storage cable graph was generated"
+  },
+  "create": {
+    "prompt": "Please enter a unique name for the new storage",
+    "name": "Parity Storage",
+    "remoteRequests": 0
+  },
+  "editPanel": {
+    "types": ["Balance Warehouse", "General Storage"],
+    "selectedType": "General Storage",
+    "controller": {
+      "option": "7D4FCTO6WW",
+      "featureCode": "BCBN",
+      "description": "Lenovo ThinkSystem DM Drive Pack Upgrade for DM3200/DM5200/DM7200",
+      "editAction": "Starts a separate Preparing product launch/configuration workflow"
+    },
+    "expansion": {
+      "selected": null,
+      "maximum": 0
+    },
+    "layouts": ["Fully Redundant", "Minimal Cabling"],
+    "selectedLayout": "Fully Redundant",
+    "connectionChoices": ["SAN Switch", "Direct Attached Connection"],
+    "selectedConnection": "Direct Attached Connection"
+  },
+  "rename": {
+    "from": "Parity Storage",
+    "to": "Parity Storage Renamed",
+    "remoteRequests": 0
+  },
+  "remove": {
+    "prompt": "Are you sure you want to remove this?",
+    "actions": ["Cancel", "OK"],
+    "remoteRequests": 0,
+    "remainingDefinitions": []
+  }
+}

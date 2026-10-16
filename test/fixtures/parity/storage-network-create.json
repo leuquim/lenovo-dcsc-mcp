@@ -1,0 +1,27 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-15",
+    "workflow": "Headless fresh AI/HPC, Preference > Storage > Add Storage > Parity Storage > OK; no remote request during definition creation; later /api/auto_connect serializes the definition",
+    "source": "discovery-hpc-fresh-r18-2026-10-15/wire/044-request.json",
+    "scope": "Unassigned default storage definition; not a populated storage graph"
+  },
+  "storageConnectionNetworks": [
+    {
+      "name": "Parity Storage",
+      "maximumExpansions": 1,
+      "type": "General Storage",
+      "layout": "Fully Redundant",
+      "controller": {
+        "hardwareType": "storage",
+        "option": "7D4FCTO6WW",
+        "featureCode": "BCBN"
+      },
+      "expansion": {
+        "hardwareType": "storage"
+      },
+      "mainSwitch": {
+        "hardwareType": "switch"
+      }
+    }
+  ]
+}

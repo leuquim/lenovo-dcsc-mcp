@@ -1,0 +1,6 @@
+{
+  "server": {"id":"server-1","sliceCtoCode":"7D73CTO1WW","type":"server","name":"Server","description":"SR630 V3","connectors":[{"port":"RJ45"}],"selectedTopologies":{"Management":{"selectedConnectors":[]}},"selectedStorageNetwork":null,"slice":"GP","asVLH":false,"tabs":[{"type":"hardware","subTabs":[{"sections":[{"name":"NETWORK","results":[{"code":"BPC0","quantity":2,"description":"Ethernet adapter","installations":[{"targetSpaceConnector":"PCIe"}],"forAutoConnect":true}]}]}]}],"unSelectableCharacters":[{"name":"OTHER_MI","results":[{"code":"2304","quantity":1,"description":"Integration Prep"}]}]},
+  "switch": {"id":"switch-1","sliceCtoCode":"7D5FCTOFWW","type":"switch","name":"Server","description":"NVIDIA SN2201","asVLH":false,"tabs":[],"unSelectableCharacters":[]},
+  "rack": {"id":"rack-1","sliceCtoCode":"7D6DCTO1WW","type":"rack","name":"Server","description":"42U rack","asVLH":false,"tabs":[],"unSelectableCharacters":[]},
+  "customizeResponse": {"rackArea":[{"id":"rack-1","code":"7D6DCTO1WW","size":42,"rackItems":[{"id":"server-1","code":"7D73CTO1WW","type":"server","position":3,"size":1,"endPosition":3}],"errors":[]}],"nonRackArea":[{"id":"switch-1","code":"7D5FCTOFWW","type":"switch"}],"connections":[],"futureLayoutField":{"kept":true}}
+}

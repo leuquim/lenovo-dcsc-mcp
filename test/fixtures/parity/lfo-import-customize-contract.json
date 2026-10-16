@@ -1,0 +1,1007 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15T15:03:51.020Z",
+    "headless": true,
+    "locale": "US/en/USD",
+    "solutionMode": "General Purpose",
+    "product": {
+      "code": "7DCE100GNA",
+      "underlyingCto": "7DCECTO1WW",
+      "description": "ThinkSystem ST250 V3-3yr Base Warranty"
+    },
+    "software": {
+      "code": "7S1S002WWW",
+      "quantity": 3,
+      "unitPrice": 234.5,
+      "extendedPrice": 703.5
+    }
+  },
+  "import": {
+    "endpoint": {
+      "method": "POST",
+      "path": "/multiple/cfxml_import",
+      "query": {
+        "entranceFlag": "homePage",
+        "serviceCto": "true",
+        "controlExpressModal": "true"
+      }
+    },
+    "status": 200,
+    "response": {
+      "type": "lfo",
+      "configurationMode": {
+        "mode": "General Purpose",
+        "masterSlices": [
+          "GP",
+          "HPCGPALL",
+          "HPCGPRYO"
+        ],
+        "sbSlices": []
+      },
+      "configuration": {
+        "code": "7DCE100GNA",
+        "ctoCode": "7DCECTO1WW",
+        "type": "server",
+        "quantity": 1,
+        "price": 3934.5,
+        "totalPrice": 5325.5
+      },
+      "standaloneData": {
+        "code": "7S1S002WWW",
+        "type": "software",
+        "quantity": 3,
+        "priceIsUnit": 234.5
+      },
+      "workspace": {
+        "rackAreaCount": 0,
+        "nonRackAreaCount": 1
+      }
+    }
+  },
+  "physicalEnvelope": {
+    "endpoint": {
+      "method": "POST",
+      "path": "/ctos/racks/customize/non_rack",
+      "query": {}
+    },
+    "status": 200,
+    "request": [
+      {
+        "type": "server",
+        "code": "7DCE100GNA"
+      }
+    ],
+    "response": {
+      "count": 1,
+      "code": "7DCE100GNA",
+      "type": "server",
+      "size": 4,
+      "weight": 23.56
+    }
+  },
+  "layoutCustomize": {
+    "endpoint": {
+      "method": "POST",
+      "path": "/lfos/racks/customize",
+      "query": {
+        "autoArrange": "false",
+        "autoConnect": "true",
+        "cogValidation": "true"
+      }
+    },
+    "status": 200,
+    "request": {
+      "topLevelKeys": [
+        "rackArea",
+        "nonRackArea",
+        "configurations",
+        "controllerExpansionMap",
+        "floorPreference",
+        "floorItems",
+        "clusterPreference",
+        "powerPreference",
+        "storageConnectionNetworks",
+        "cloneRackMapping",
+        "connections",
+        "autoConnectSettings",
+        "switchMap",
+        "virtualContainerIdMapping",
+        "virtualContainerRule2ConfigMapping",
+        "virtualContainerInvalidRuleIdMapping",
+        "vlhItems",
+        "cloneDependency"
+      ],
+      "rackAreaCount": 0,
+      "nonRackAreaCount": 1,
+      "configuration": {
+        "code": "7DCE100GNA",
+        "sectionCount": 24,
+        "sections": [
+          {
+            "name": "BASE",
+            "items": [
+              {
+                "code": "BZB9",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "UEFI_OPERATING_MODES",
+            "items": [
+              {
+                "code": "BFYE",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "MB",
+            "items": [
+              {
+                "code": "BWL8",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "PROCESSOR",
+            "items": [
+              {
+                "code": "C51Z",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "MEMORY",
+            "items": [
+              {
+                "code": "C527",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "RAID_CONFIG",
+            "items": [
+              {
+                "code": "5977",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "SAS_SATA_RAID_CONTROLLER",
+            "items": [
+              {
+                "code": "AVV0",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "BACKPLANE",
+            "items": [
+              {
+                "code": "4XF7A81461",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "POWERSUPPLY",
+            "items": [
+              {
+                "code": "BWM5",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "LINECORD",
+            "items": [
+              {
+                "code": "6313",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "TPM_MODULE",
+            "items": [
+              {
+                "code": "BPKR",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "IPMI",
+            "items": [
+              {
+                "code": "B7XZ",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "Lenovo Recommends|Better",
+            "items": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "type": "servicesAndor"
+              },
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "type": "servicesAndor"
+              },
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "A la Carte|Column3|3 Year",
+            "items": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|Keep Your Drive|3 Year",
+            "items": [
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|CO2 Offset|CO2 Offset",
+            "items": [
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "VOLTAGE_MI",
+            "items": [
+              {
+                "code": "BK14",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MUSTDERIVE",
+            "items": [
+              {
+                "code": "AUTA",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "LPK",
+            "items": [
+              {
+                "code": "BWLF",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MI_P",
+            "items": [
+              {
+                "code": "A2HP",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "POWER_POLICY_MI",
+            "items": [
+              {
+                "code": "BE0B",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "OTHER_MI",
+            "items": [
+              {
+                "code": "BQ1K",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWMW",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "SYSTEM_MANAGEMENT_UPGRADE",
+            "items": [
+              {
+                "code": "BRPJ",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MECH_DERIVE_FCS",
+            "items": [
+              {
+                "code": "BZQ5",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B3Z1",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BMPT",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BZ4T",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWMM",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B427",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLY",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLX",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWJN",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BPR3",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLR",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B3Z5",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "AVEN",
+                "quantity": 8,
+                "type": null
+              },
+              {
+                "code": "BNR1",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLT",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "AWF9",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B426",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "C8WG",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "response": {
+      "topLevelKeys": [
+        "rackArea",
+        "nonRackArea",
+        "connections"
+      ],
+      "rackAreaCount": 0,
+      "nonRackAreaCount": 1,
+      "connectionsCount": 0
+    }
+  },
+  "summaryRecommendations": {
+    "endpoint": {
+      "method": "POST",
+      "path": "/recommendations/summary",
+      "query": {
+        "type": "lfo",
+        "mode": "lfo"
+      }
+    },
+    "status": 200,
+    "requestTopLevelKeys": [
+      "selectedProductDataLists",
+      "customizeSelectedOptionCodes",
+      "customizeSelectedServiceCodes",
+      "selectedStandaloneCodes"
+    ]
+  },
+  "hardwareCustomizeDerive": {
+    "endpoint": {
+      "method": "POST",
+      "path": "/lfos/autoDerive",
+      "query": {
+        "configurationId": "US__c049d6cc-b3ae-42f1-93c0-03cf9525b65f0",
+        "isLfo": "true",
+        "entranceFlag": "customize",
+        "scope": "HW"
+      }
+    },
+    "status": 200,
+    "request": {
+      "topLevelKeys": [
+        "workspaceInformation",
+        "autoDerivedResults",
+        "configurations",
+        "operationHistories",
+        "controllerExpansionMap",
+        "customizingFlags",
+        "virtualContainerIdMapping",
+        "virtualContainerRule2ConfigMapping",
+        "virtualContainerInvalidRuleIdMapping",
+        "customizingIds",
+        "importInformation"
+      ],
+      "workspaceInformation": {
+        "rackDataCount": 0,
+        "nonRackDataCount": 1,
+        "cloneDependencySelf": true
+      },
+      "customizingFlags": {
+        "componentRestriction": true,
+        "autoDerive": true,
+        "ctoRules": true,
+        "minMax": true,
+        "placement": true,
+        "fromMemoryWizard": false,
+        "autoVariant": false
+      },
+      "customizingIdCount": 1,
+      "configuration": {
+        "ctoCode": "7DCECTO1WW",
+        "lfoCode": "7DCE100GNA",
+        "solutionMode": "General Purpose",
+        "sectionCount": 24,
+        "sections": [
+          {
+            "name": "BASE",
+            "items": [
+              {
+                "code": "BZB9",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "UEFI_OPERATING_MODES",
+            "items": [
+              {
+                "code": "BFYE",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "MB",
+            "items": [
+              {
+                "code": "BWL8",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "PROCESSOR",
+            "items": [
+              {
+                "code": "C51Z",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "MEMORY",
+            "items": [
+              {
+                "code": "C527",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "RAID_CONFIG",
+            "items": [
+              {
+                "code": "5977",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "SAS_SATA_RAID_CONTROLLER",
+            "items": [
+              {
+                "code": "AVV0",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "BACKPLANE",
+            "items": [
+              {
+                "code": "4XF7A81461",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "POWERSUPPLY",
+            "items": [
+              {
+                "code": "BWM5",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "LINECORD",
+            "items": [
+              {
+                "code": "6313",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "TPM_MODULE",
+            "items": [
+              {
+                "code": "BPKR",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "IPMI",
+            "items": [
+              {
+                "code": "B7XZ",
+                "quantity": 1,
+                "type": "hardware"
+              }
+            ]
+          },
+          {
+            "name": "Lenovo Recommends|Better",
+            "items": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "type": "servicesAndor"
+              },
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "type": "servicesAndor"
+              },
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "A la Carte|Column3|3 Year",
+            "items": [
+              {
+                "code": "5WS7C02329",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|Keep Your Drive|3 Year",
+            "items": [
+              {
+                "code": "5PS7C02338",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "Add ons|CO2 Offset|CO2 Offset",
+            "items": [
+              {
+                "code": "5MS7B07545",
+                "quantity": 1,
+                "type": "servicesAndor"
+              }
+            ]
+          },
+          {
+            "name": "VOLTAGE_MI",
+            "items": [
+              {
+                "code": "BK14",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MUSTDERIVE",
+            "items": [
+              {
+                "code": "AUTA",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "LPK",
+            "items": [
+              {
+                "code": "BWLF",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MI_P",
+            "items": [
+              {
+                "code": "A2HP",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "POWER_POLICY_MI",
+            "items": [
+              {
+                "code": "BE0B",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "OTHER_MI",
+            "items": [
+              {
+                "code": "BQ1K",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWMW",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "SYSTEM_MANAGEMENT_UPGRADE",
+            "items": [
+              {
+                "code": "BRPJ",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          },
+          {
+            "name": "MECH_DERIVE_FCS",
+            "items": [
+              {
+                "code": "BZQ5",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B3Z1",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BMPT",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BZ4T",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWMM",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B427",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLY",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLX",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWJN",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BPR3",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLR",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B3Z5",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "AVEN",
+                "quantity": 8,
+                "type": null
+              },
+              {
+                "code": "BNR1",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "BWLT",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "AWF9",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "B426",
+                "quantity": 1,
+                "type": null
+              },
+              {
+                "code": "C8WG",
+                "quantity": 1,
+                "type": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "response": {
+      "topLevelKeys": [
+        "configurations",
+        "autoDerivedResults",
+        "placementResults",
+        "ctoIdErrorMessageMapping"
+      ],
+      "configurationCount": 1,
+      "placementResultCount": 1,
+      "configuration": {
+        "code": "7DCE100GNA",
+        "ctoCode": "7DCECTO1WW",
+        "type": "server",
+        "quantity": 1,
+        "price": 3934.5,
+        "totalPrice": 5325.5,
+        "customized": true,
+        "allCustomized": true,
+        "tabCount": 9,
+        "warningCount": 0
+      }
+    }
+  },
+  "mixedExport": {
+    "endpoint": "/lfos/export_zip",
+    "formFields": [
+      "data",
+      "crnId",
+      "userGeneratedConfigId",
+      "lfoCode",
+      "cancelDownload",
+      "multipleProductData",
+      "excelData",
+      "groups",
+      "integrationParams",
+      "image",
+      "user",
+      "dcsc-isFromIntegration",
+      "serviceAndorRequest",
+      "uuid"
+    ],
+    "exportFileTypes": [
+      "QUOTE",
+      "QUOTE_SUPPLYINFO",
+      "QUOTE_GROUP",
+      "SUMMARY",
+      "POWER_REPORT",
+      "QUOTE_CSV",
+      "EPRICE_CSV",
+      "XML"
+    ],
+    "products": [
+      {
+        "code": "7DCE100GNA",
+        "type": "hardware",
+        "quantity": 1,
+        "price": 3934.5,
+        "unitPrice": 3934.5
+      },
+      {
+        "code": "5WS7C02329",
+        "type": "added-options",
+        "quantity": 1,
+        "price": 1154,
+        "unitPrice": 1154
+      },
+      {
+        "code": "5PS7C02338",
+        "type": "added-options",
+        "quantity": 1,
+        "price": 142,
+        "unitPrice": 142
+      },
+      {
+        "code": "5MS7B07545",
+        "type": "added-options",
+        "quantity": 1,
+        "price": 95,
+        "unitPrice": 95
+      },
+      {
+        "code": "7S1S002WWW",
+        "type": "standalone",
+        "quantity": 3,
+        "price": 703.5,
+        "unitPrice": 234.5
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/01-import.json",
+      "bytes": 15168117,
+      "sha256": "08410ff800e5fa3db9709b5f7c283fe3e5da8c58973dbf8effff960e94c52ef7"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/02-non-rack-envelope.json",
+      "bytes": 2138,
+      "sha256": "df0cdf0688d8f0ad8f8cb57668328649c5eb2655d553d811e9df90d110e28f03"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/03-lfo-rack-customize.json",
+      "bytes": 30291,
+      "sha256": "0c6ba3d40745a23c7555805b8c6780012d002c0f0d9f8e1013589ea977cf1598"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/04-lfo-summary-recommendations.json",
+      "bytes": 3700,
+      "sha256": "27229c945e2e404f1bdf30dd0d979663091b6dda7a939fb67965e919bdd3f12a"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/05-lfo-auto-derive.json",
+      "bytes": 2997546,
+      "sha256": "8c9f2b2a1c1b21d2fa46e4e8718cd64ef46ae41c8596bedf4617b5ccb07040db"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/03-lfo-rack-customize-request.json",
+      "bytes": 21678,
+      "sha256": "a61e4f68159bd20f60cf2e819f312d677cfe91c04b310056895fa069e60bf5dd"
+    },
+    {
+      "path": "artifacts/implementation-2026-10-15/software-mixed-lfo-run1/browser-customize-contract/05-lfo-auto-derive-request.json",
+      "bytes": 20107,
+      "sha256": "7cda246913167fb70915a6233a01ee5b0e8a96bdd050f763805fc78a0ea37de4"
+    }
+  ]
+}

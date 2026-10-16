@@ -1,0 +1,87 @@
+{
+  "capturedAt": "2026-10-15",
+  "environment": {
+    "site": "https://dcsc.lenovo.com/",
+    "solutionMode": "General Purpose",
+    "country": "US",
+    "currency": "USD",
+    "headless": true
+  },
+  "source": {
+    "kind": "CFXML import",
+    "fixture": "test/fixtures/parity/xml/one-rack-sr630-v3.xml",
+    "provenance": "Anonymous General Purpose one-rack export accepted by the production browser importer on 2026-10-15; contains no account or personal data.",
+    "rackCode": "7D6DCTO1WW",
+    "serverCode": "7D73CTO1WW"
+  },
+  "verifiedActions": [
+    {
+      "action": "add second rack",
+      "endpoints": [
+        "/api/ctos/7D6DCTO1WW/launch",
+        "/api/ctos/racks/7D6DCTO1WW/launch",
+        "/api/ctos/racks/customize",
+        "/api/ctos/autoDerive"
+      ],
+      "rackCoordinates": ["A1", "A2"]
+    },
+    {
+      "action": "move A1 to A2",
+      "customizeCalls": 2,
+      "autoDeriveCalls": 1,
+      "autoArrange": false,
+      "acceptedRack": "A2",
+      "acceptedPosition": 1
+    },
+    {
+      "action": "move A2 to A1",
+      "customizeCalls": 2,
+      "autoDeriveCalls": 1,
+      "autoArrange": false,
+      "acceptedRack": "A1",
+      "acceptedPosition": 1
+    },
+    {
+      "action": "unplace",
+      "customizeCalls": 2,
+      "autoDeriveCalls": 1,
+      "acceptedLocation": "nonRackArea"
+    },
+    {
+      "action": "enable Auto Arrange and place in A2",
+      "autoArrange": true,
+      "acceptedRack": "A2",
+      "acceptedPosition": 1
+    }
+  ],
+  "history": {
+    "afterAcceptedMoves": "History is clear",
+    "undoEnabled": false,
+    "redoEnabled": false
+  },
+  "exportImport": {
+    "configurationCount": 3,
+    "rackCount": 2,
+    "nonRackCount": 0,
+    "rackCoordinates": ["A1", "A2"],
+    "placedProduct": {
+      "code": "7D73CTO1WW",
+      "rackCoordinate": "A2",
+      "position": 1,
+      "size": 1
+    },
+    "configurationPrices": [
+      { "code": "7D6DCTO1WW", "price": 11497.01 },
+      { "code": "7D6DCTO1WW", "price": 12706.51 },
+      { "code": "7D73CTO1WW", "price": 16174.51 }
+    ],
+    "grandTotal": 40378.03,
+    "currency": "USD",
+    "identityPreserved": true
+  },
+  "notes": [
+    "This fixture is a sanitized semantic oracle. It contains no cookies, authorization headers, generated identifiers, or raw product payloads.",
+    "The website stores imported rack membership in floorInformation.floorGrid.items; workspace.rackArea is a slim hierarchy containing rack identifiers.",
+    "Undo and Redo were unavailable for this imported-workspace browser flow, so MCP history is an independent extension rather than a verified manual-site equivalent here."
+  ]
+}

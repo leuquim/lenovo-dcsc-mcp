@@ -1,0 +1,204 @@
+{
+  "source": {
+    "capturedAt": "2026-10-15",
+    "mode": "HPC and AI - Systems",
+    "workflow": "Import verified HPC rack workspace, create DS3200/DB710S definition, disable Automated Rack PDU, select + Storage Network twice",
+    "artifact": "artifacts/parity-headless/storage-physical-placement-r40",
+    "statuses": [200, 200]
+  },
+  "precondition": {
+    "blockedMessage": "You cannot move hardware to this rack as PDU preferences have not been set",
+    "resolution": "Disable Automated Rack PDU when anonymous Power preferences are empty"
+  },
+  "network": {
+    "name": "Parity Physical Storage",
+    "maximumExpansions": 0,
+    "type": "General Storage",
+    "layout": "Fully Redundant",
+    "controller": {
+      "option": "7DP4CTO1WW",
+      "featureCode": "BF3C",
+      "id": "controller-template",
+      "hardwareType": "storage"
+    },
+    "expansion": {},
+    "mainSwitch": {
+      "option": "7DHNCTO1WW",
+      "featureCode": "C1FM",
+      "id": "switch-template",
+      "hardwareType": "switch"
+    }
+  },
+  "components": {
+    "controller": {
+      "id": "controller-template",
+      "code": "7DP4CTO1WW",
+      "sliceCtoCode": "7DP4CTO1WW",
+      "type": "storage",
+      "name": "Controller",
+      "description": "Lenovo ThinkSystem DS3200 Storage Array",
+      "tabs": [{
+        "title": "Base",
+        "type": "hardware",
+        "subTabs": [{
+          "title": "Base",
+          "sections": [{
+            "name": "BASE",
+            "results": [{
+              "code": "BF3C",
+              "quantity": 1,
+              "installations": [],
+              "description": "Lenovo ThinkSystem Storage 2U NVMe Chassis",
+              "type": "hardware"
+            }]
+          }]
+        }]
+      }],
+      "connectors": [],
+      "selectedTopologies": {}
+    },
+    "mainSwitch": {
+      "id": "switch-template",
+      "code": "7DHNCTO1WW",
+      "sliceCtoCode": "7DHNCTO1WW",
+      "type": "switch",
+      "name": "Switch",
+      "description": "Lenovo ThinkSystem DB710S",
+      "tabs": [{
+        "title": "Base",
+        "type": "hardware",
+        "subTabs": [{
+          "title": "Base",
+          "sections": [{
+            "name": "BASE",
+            "results": [{
+              "code": "C1FM",
+              "quantity": 1,
+              "installations": [],
+              "description": "DB710S 8-port base",
+              "type": "hardware"
+            }]
+          }]
+        }]
+      }],
+      "connectors": [],
+      "selectedTopologies": {}
+    }
+  },
+  "first": {
+    "physicalIds": {
+      "controller": "controller-physical-1",
+      "mainSwitch": "switch-physical-1"
+    },
+    "dependency": {
+      "rack-1": ["rack-1"],
+      "controller-template": ["controller-template", "controller-physical-1"],
+      "switch-template": ["switch-template", "switch-physical-1"]
+    },
+    "colorDependency": {
+      "controller-template": {
+        "color": "#c6a5bb",
+        "darkColor": "#74a6a4",
+        "colorRGB": { "r": 198, "g": 165, "b": 187 },
+        "darkColorRGB": { "r": 116, "g": 166, "b": 164 },
+        "dependBy": ["controller-template", "controller-physical-1"]
+      },
+      "switch-template": {
+        "color": "#bb3384",
+        "darkColor": "#a2b774",
+        "colorRGB": { "r": 187, "g": 51, "b": 132 },
+        "darkColorRGB": { "r": 162, "g": 183, "b": 116 },
+        "dependBy": ["switch-template", "switch-physical-1"]
+      }
+    },
+    "accepted": {
+      "controller": { "position": 1, "size": 2, "quantity": 0 },
+      "mainSwitch": { "position": 3, "size": 1, "quantity": 0 }
+    }
+  },
+  "second": {
+    "physicalIds": {
+      "controller": "controller-physical-2",
+      "mainSwitch": "switch-physical-2"
+    },
+    "dependency": {
+      "rack-1": ["rack-1"],
+      "controller-template": ["controller-template", "controller-physical-1", "controller-physical-2"],
+      "switch-template": ["switch-template", "switch-physical-1", "switch-physical-2"]
+    },
+    "colorDependency": {
+      "controller-template": {
+        "color": "#c6a5bb",
+        "darkColor": "#74a6a4",
+        "colorRGB": { "r": 198, "g": 165, "b": 187 },
+        "darkColorRGB": { "r": 116, "g": 166, "b": 164 },
+        "dependBy": ["controller-template", "controller-physical-1", "controller-physical-2"]
+      },
+      "switch-template": {
+        "color": "#bb3384",
+        "darkColor": "#a2b774",
+        "colorRGB": { "r": 187, "g": 51, "b": 132 },
+        "darkColorRGB": { "r": 162, "g": 183, "b": 116 },
+        "dependBy": ["switch-template", "switch-physical-1", "switch-physical-2"]
+      }
+    },
+    "accepted": {
+      "controller": { "position": 3, "size": 2, "quantity": 0 },
+      "mainSwitch": { "position": 6, "size": 1, "quantity": 0 }
+    }
+  },
+  "commercialExport": {
+    "templateConfigurationQuantity": 1,
+    "onePlacement": {
+      "controller": { "hardwareQuantity": 1, "price": 211948.51, "unitPrice": 211948.51 },
+      "mainSwitch": { "hardwareQuantity": 1, "price": 10759.01, "unitPrice": 10759.01 },
+      "controllerHipoQuantity": 1,
+      "controllerServiceQuantity": 1,
+      "controllerCapacityServiceQuantity": 1229,
+      "switchServiceQuantity": 1
+    },
+    "twoPlacements": {
+      "controller": { "hardwareQuantity": 2, "price": 423897.02, "unitPrice": 211948.51 },
+      "mainSwitch": { "hardwareQuantity": 2, "price": 21518.02, "unitPrice": 10759.01 },
+      "controllerHipoQuantity": 2,
+      "controllerServiceQuantity": 2,
+      "controllerCapacityServiceQuantity": 2458,
+      "switchServiceQuantity": 2
+    },
+    "priceRule": "Hardware price is extended by placed alias count. Captured HIPO and service price fields remain their one-placement values while their quantities scale."
+  },
+  "repeatedPlacementRoundTrip": {
+    "importStatus": 200,
+    "summaryGrandTotal": 0,
+    "goToWorkspaceEnabled": false,
+    "ordinaryConfigurationCount": 4,
+    "managedTemplateConfigurationsPreserved": false,
+    "storageDefinitionOptionsPreserved": true,
+    "storageDefinitionIdsPreserved": false,
+    "commercialGroupsPreserved": true,
+    "cloneDependencyColorPreserved": true,
+    "hierarchyProjection": {
+      "controllerRepresentatives": 1,
+      "controllerRepresentativeQuantity": 2,
+      "mainSwitchRepresentatives": 1,
+      "mainSwitchRepresentativeQuantity": 2
+    },
+    "floorProjection": {
+      "controllerAliases": 2,
+      "mainSwitchAliases": 2,
+      "secondAliasPosition": 1,
+      "secondAliasSize": null
+    },
+    "cause": "The second customize response returned authoritative sizes and arranged positions, but the subsequent browser export retained stale requested metadata for the new aliases. Website-own reimport is therefore not an editable round trip."
+  },
+  "verifiedRules": [
+    "The first action launches each missing managed template, then customizes the rack.",
+    "The second action reuses template configurations and launches nothing.",
+    "Customize configurations contain template IDs only; physical IDs occur only in rack items and cloneDependency.",
+    "Each physical request item starts at position 1 with no size or quantity; DCSC supplies authoritative placement, size and quantity 0.",
+    "Storage definitions keep template IDs after every physical placement.",
+    "Browser export cloneDependencyColor has one stable root per managed template and its dependBy list exactly mirrors cloneDependency, including the template identity and every physical alias.",
+    "Export keeps template configurations at quantity one and derives all controller/SAN-switch commercial row quantities from the number of physical aliases.",
+    "The captured immediate second-placement export is not a valid editable import oracle: its floor projection is stale even though the preceding customize response was authoritative."
+  ]
+}

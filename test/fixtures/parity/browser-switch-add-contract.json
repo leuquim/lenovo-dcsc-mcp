@@ -1,0 +1,39 @@
+{
+  "capturedAt": "2026-10-15",
+  "source": "Anonymous headless UI: Networking > Fabric Switches > NVIDIA Networking - Ethernet > double-click 7D5FCTOFWW",
+  "actions": [
+    "POST /api/ctos/racks/customize/non_rack with [{\"type\":\"switch\",\"code\":\"7D5FCTOFWW\"}]",
+    "POST /api/ctos/7D5FCTOFWW/launch",
+    "POST /api/ctos/racks/customize with the server and switch configurations",
+    "POST /api/ctos/autoDerive with the server and switch configurations"
+  ],
+  "customizeRequest": {
+    "configurationCount": 2,
+    "configurations": [
+      { "id": "server-1", "code": "7D73CTO1WW", "sectionsCount": 31 },
+      { "id": "switch-1", "code": "7D5FCTOFWW", "sectionsCount": 6 }
+    ],
+    "nonRackArea": [
+      { "id": "server-1", "code": "7D73CTO1WW", "type": "server", "size": 1 },
+      { "id": "switch-1", "code": "7D5FCTOFWW", "type": "switch", "size": 1 }
+    ],
+    "switchMap": [],
+    "storageConnectionNetworks": [],
+    "autoConnectSettings": { "autoAddPDU": true, "autoAddSwitch": true, "p2pCabling": true }
+  },
+  "customizeResponse": {
+    "rackArea": [],
+    "nonRackArea": [
+      { "id": "server-1", "code": "7D73CTO1WW", "type": "server", "size": 1 },
+      {
+        "id": "switch-1",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "size": 1,
+        "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)"
+      }
+    ],
+    "connections": []
+  },
+  "limits": "This proves UI switch launch, classification, placement, customize, and derive. It does not prove populated auto-connect; network preferences and switchMap remain unset in this state."
+}

@@ -23,6 +23,13 @@ function envInt(name: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function envNumber(name: string): number | undefined {
+  const v = envStr(name);
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 /** Drops keys whose value is undefined so zod defaults still apply. */
 function defined<T extends object>(obj: T): Partial<T> {
   return Object.fromEntries(
@@ -84,16 +91,22 @@ export function loadConfig(overrides: Record<string, unknown> = {}): Config {
   });
 
   const files = defined({
+    persistSessions: envBool('PERSIST_SESSIONS'),
+    sessionFile: envStr('SESSION_FILE'),
     artifactDir: envStr('ARTIFACT_DIR'),
     artifactTtlDays: envInt('ARTIFACT_TTL_DAYS'),
+    maxDownloadBytes: envInt('MAX_DOWNLOAD_BYTES'),
+    maxUnzipBytes: envInt('MAX_UNZIP_BYTES'),
+    maxUnzipEntries: envInt('MAX_UNZIP_ENTRIES'),
+    maxCompressionRatio: envNumber('MAX_COMPRESSION_RATIO'),
     exportEncoding: envStr('EXPORT_ENCODING'),
   });
 
   // Sub-objects are only included when they carry at least one key, otherwise
   // an empty object would shadow the zod default rather than merge into it.
-  const localeMerged = { ...fileLocale, ...localeFromEnv };
-  const pacingMerged = { ...((fileObj.pacing ?? {}) as object), ...pacing };
-  const filesMerged = { ...((fileObj.files ?? {}) as object), ...files };
+  const localeMerged = { ...fileLocale, ...localeFromEnv, ...((overrides.locale ?? {}) as object) };
+  const pacingMerged = { ...((fileObj.pacing ?? {}) as object), ...pacing, ...((overrides.pacing ?? {}) as object) };
+  const filesMerged = { ...((fileObj.files ?? {}) as object), ...files, ...((overrides.files ?? {}) as object) };
 
   const merged = {
     ...fileObj,

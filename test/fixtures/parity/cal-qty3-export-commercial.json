@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-15T14:43:29.042Z",
+  "source": "Fresh headless Lenovo browser export compared with MCP configuration/workspace exports",
+  "product": "7D73CTO1WW",
+  "currency": "USD",
+  "total": 29615.02,
+  "groups": [
+    {
+      "code": "7D73CTO1WW",
+      "type": "hardware",
+      "quantity": 1,
+      "price": 12941.51,
+      "unitPrice": 12941.51
+    },
+    {
+      "code": "5372SWX",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "7S0XCTO5WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 211.5,
+      "unitPrice": 210.5
+    },
+    {
+      "code": "7S0XCTO6WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 306.5,
+      "unitPrice": 305.5
+    },
+    {
+      "code": "7S1SCTOAWW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 13965.5,
+      "unitPrice": 13964.5
+    },
+    {
+      "code": "7Q01CTO2WW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 191,
+      "unitPrice": 191
+    },
+    {
+      "code": "7Q01CTS4WW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 1829,
+      "unitPrice": 1829
+    },
+    {
+      "code": "7Q01CTSAWW",
+      "type": "servicectohipo",
+      "quantity": 1,
+      "price": 173,
+      "unitPrice": 173
+    }
+  ],
+  "softwareXmlLines": [
+    {
+      "code": "5372SWX",
+      "type": "Software",
+      "quantity": 1,
+      "unitPrice": 0.01,
+      "children": [
+        {
+          "code": "SDH2",
+          "quantity": 3,
+          "unitPrice": 0
+        }
+      ]
+    },
+    {
+      "code": "7S0XCTO5WW",
+      "type": "Software",
+      "quantity": 1,
+      "unitPrice": 1,
+      "children": [
+        {
+          "code": "SBCV",
+          "quantity": 1,
+          "unitPrice": 0
+        }
+      ]
+    },
+    {
+      "code": "7S0XCTO6WW",
+      "type": "Software",
+      "quantity": 1,
+      "unitPrice": 1,
+      "children": [
+        {
+          "code": "SCJD",
+          "quantity": 1,
+          "unitPrice": 0
+        }
+      ]
+    },
+    {
+      "code": "7S1SCTOAWW",
+      "type": "Software",
+      "quantity": 1,
+      "unitPrice": 1,
+      "children": [
+        {
+          "code": "SDDZ",
+          "quantity": 3,
+          "unitPrice": 0
+        }
+      ]
+    }
+  ],
+  "assertions": {
+    "configurationGroupsMatchBrowser": true,
+    "workspaceGroupsMatchBrowser": true,
+    "configurationXmlMatchesBrowser": true,
+    "workspaceXmlMatchesBrowser": true,
+    "pricedCalQuantity": 3,
+    "derivedCompanionQuantity": 3,
+    "companionXmlParent": "5372SWX",
+    "unrelatedFamiliesPreserved": [
+      "hardware",
+      "hipo",
+      "servicectohipo"
+    ]
+  }
+}
