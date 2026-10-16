@@ -1,13 +1,7 @@
-# Recon / one-off scripts
+# Historical reconnaissance scripts
 
-Historical Playwright probes, export bisects, and import experiments.
-Not part of the supported MCP surface.
+One-off browser probes, export bisects and import experiments are retained as development history. They are outside the maintained typecheck/lint and release surface; some require ignored local captures and are not reproducible from a fresh clone.
 
-**Keep using from repo root:**
+Use the maintained `contract:live`, `parity:*` and `release:checkpoint` scripts in `package.json` for current checks. Browser runs must be headless. Historical rack export failures are superseded by the verified October workflow.
 
-- `../contract-suite.ts` — live contract suite
-- `../capture-rack-export-attempt.ts` — P1 rack export capture attempts
-- `../probe-export-dual-shape.ts` — dual-shape export probe (still fails live)
-
-Everything else here is obsolete for day-to-day work. Prefer reading
-`.docs/handoffs/2026_08_08_web-parity-1to1.md` for current gaps.
+See [current context](../../.docs/context.md) for remaining gates and the authoritative evidence locations.
