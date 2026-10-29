@@ -1320,13 +1320,15 @@ export function registerTools(server: McpServer, service: DcscService): void {
         }
         if (resolved.kind === 'workspace' && resolved.workspace.configurations.size === 0) {
           const kind = workspace.serverState.standaloneServiceState ? 'service'
-            : workspace.serverState.standaloneSoftwareState ? 'software' : 'empty';
+            : workspace.serverState.standaloneSoftwareState ? 'software'
+              : workspace.serverState.standaloneHardwareState ? 'hardware' : 'empty';
           return { workspace: workspace.id, revision: workspace.revision, workspaceRevision: workspace.revision, revisionScope: 'workspace', kind,
             configurations: [],
             ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
               arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision } }),
             currency: workspace.locale.currency, country: workspace.locale.country,
-            ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect' : 'dcsc_software_inspect',
+            ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect'
+              : kind === 'hardware' ? 'dcsc_standalone_hardware_inspect' : 'dcsc_software_inspect',
               arguments: { workspace: workspace.id } } } : {}),
           };
         }
@@ -1891,7 +1893,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
       description:
         'Sets the number of identical units — use this for "8 of these nodes" rather than launching eight sessions. ' +
         'Applies locally (no rules round trip) and updates the extended price and the exported line. ' +
-        'Note DCSC caps quantity at 99.',
+        'Note DCSC caps quantity at 99, and a configuration with quantity above 1 must be placed in a rack to export.',
       inputSchema: {
         expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision.'),
         session: z.string(),
@@ -2032,8 +2034,9 @@ export function registerTools(server: McpServer, service: DcscService): void {
         const workspaceScope = args.scope === 'workspace' || (args.scope !== 'configuration' && args.session === workspace?.id);
         if (workspaceScope && workspace) {
           const software = workspace.serverState.standaloneSoftwareState as { selections?: unknown[] } | undefined;
+          const hardware = workspace.serverState.standaloneHardwareState as { selections?: unknown[] } | undefined;
           const services = workspace.serverState.standaloneServiceState as { selections?: unknown[] } | undefined;
-          const softwareSelected = (software?.selections?.length ?? 0) > 0;
+          const softwareSelected = (software?.selections?.length ?? 0) > 0 || (hardware?.selections?.length ?? 0) > 0;
           const servicesSelected = (services?.selections?.length ?? 0) > 0;
           if (servicesSelected && (softwareSelected || workspace.configurations.size > 0)) {
             throw new Error('Combined independent service and hardware/software export is not yet verified. Export independent services with dcsc_services_export; no products have been silently omitted.');

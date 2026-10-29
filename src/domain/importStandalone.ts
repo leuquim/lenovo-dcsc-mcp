@@ -7,6 +7,7 @@ import type {
   StandaloneSoftwareSelection,
   StandaloneSoftwareState,
 } from './standalone.js';
+import { isStandaloneHardwareRow, parseStandaloneHardwareRows, type StandaloneHardwareState } from './standaloneHardware.js';
 
 type Obj = Record<string, unknown>;
 
@@ -21,6 +22,8 @@ export interface StandaloneImportDiagnostics {
 export interface ImportedSoftwareState {
   kind: 'software';
   state: StandaloneSoftwareState;
+  /** Part Search hardware rows imported alongside the software, if any. */
+  hardware?: StandaloneHardwareState | undefined;
   /** Complete object returned by /multiple/cfxml_import. */
   envelope: Obj;
   diagnostics: StandaloneImportDiagnostics;
@@ -34,7 +37,15 @@ export interface ImportedProductServiceState {
   diagnostics: StandaloneImportDiagnostics;
 }
 
-export type StandaloneImportResult = ImportedSoftwareState | ImportedProductServiceState;
+export interface ImportedHardwareState {
+  kind: 'hardware';
+  state: StandaloneHardwareState;
+  /** Complete object returned by /multiple/cfxml_import. */
+  envelope: Obj;
+  diagnostics: StandaloneImportDiagnostics;
+}
+
+export type StandaloneImportResult = ImportedSoftwareState | ImportedProductServiceState | ImportedHardwareState;
 
 /**
  * Adds the live browse hierarchy to imported software without silently
@@ -83,8 +94,17 @@ export function parseStandaloneImportResponse(raw: unknown): StandaloneImportRes
   if (envelope['type'] === 'service') return parseService(envelope);
 
   const standaloneData = objects(envelope['standaloneData']);
-  if (standaloneData.length > 0) return parseSoftware(envelope, standaloneData);
-  return undefined;
+  if (standaloneData.length === 0) return undefined;
+  const groupProducts = objects(envelope['groups']).flatMap((group) => objects(group['products']));
+  const hardware = parseStandaloneHardwareRows(standaloneData, groupProducts);
+  const softwareRows = standaloneData.filter((row) => !isStandaloneHardwareRow(row));
+  if (softwareRows.length > 0) return { ...parseSoftware(envelope, softwareRows), ...(hardware ? { hardware } : {}) };
+  return {
+    kind: 'hardware',
+    state: hardware!,
+    envelope: structuredClone(envelope),
+    diagnostics: diagnostics(envelope, []),
+  };
 }
 
 function parseSoftware(envelope: Obj, rows: Obj[]): ImportedSoftwareState {

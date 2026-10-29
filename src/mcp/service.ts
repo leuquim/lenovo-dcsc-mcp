@@ -509,7 +509,7 @@ export interface ImportResult {
   workspaceId: string;
   sessions: ConfigSession[];
   diagnostics: ImportDiagnostics;
-  standaloneKind?: 'software' | 'service';
+  standaloneKind?: 'software' | 'service' | 'hardware';
 }
 
 /** The subset of /multiple/cfxml_import's response that we depend on. */
@@ -2737,10 +2737,18 @@ export class DcscService {
         if (standalone?.kind === 'software' && workspace.serverState.standaloneSoftwareState) {
           throw new Error('This workspace already contains standalone software. Import into a new workspace to preserve both baskets.');
         }
+        const importedHardware = standalone?.kind === 'hardware' ? standalone.state
+          : standalone?.kind === 'software' ? standalone.hardware : undefined;
+        if (importedHardware && workspace.serverState.standaloneHardwareState) {
+          throw new Error('This workspace already contains standalone hardware. Import into a new workspace to preserve both baskets.');
+        }
         mergeImportedState(workspace, payload);
-        if (standalone) {
+        if (importedHardware) workspace.serverState.standaloneHardwareState = importedHardware;
+        if (standalone && standalone.kind !== 'hardware') {
           const key = standalone.kind === 'software' ? 'standaloneSoftwareState' : 'standaloneServiceState';
           workspace.serverState[key] = standalone.state;
+        }
+        if (standalone) {
           workspace.integrityWarnings.push(...standalone.diagnostics.warnings);
         }
         await hydrateImportedLayout(this.http, { ...ctx, locale: workspace.locale, solution }, workspace, payload);
