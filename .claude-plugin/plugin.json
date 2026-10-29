@@ -1,0 +1,11 @@
+{
+  "name": "lenovo-dcsc",
+  "description": "MCP server for the Lenovo Data Center Solution Configurator. Prices are anonymous list prices, not a quote.",
+  "author": { "name": "leuquim" },
+  "mcpServers": {
+    "lenovo-dcsc": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp/server.js"]
+    }
+  }
+}
