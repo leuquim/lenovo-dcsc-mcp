@@ -684,3 +684,10 @@ Nested menu recheck64860 terminal PASS exit0: unchanged frozen script completed 
 Exec79661 TERMINAL exit1 because original matrix retains command80 native nested-menu failure. All90commands ran:85pass/1fail/4declared upstream blocks. Final headless passed; beforeVerification and afterVerification both pass. Dates21:14:39→23:35:01UTC (~140min). Command80 unchanged frozen rerun64860 terminal pass, nested-vlh-recheck/result.json and resolution.json; no other live jobs. No runtime defect found or fix applied. Do not restart matrix.
 
 Authoritative working-tree comparison against frozen checkout: only README, context, roadmap and test/storage-wizard.test.ts + new test/fixtures/parity/storage-raid-populated.json differ. Runtime/package/scripts byte-identical. Evidence working-tree-differences.json in release artifact folder. Added regression14/14pass and typecheck/lint previously pass; documentation updated to90-run qualified result, not falsely green. Next: package/deliver reviewed changes within existing authorization; inspect git state/history and publication authorization first. Broader goal still active, access/legacy gaps unresolved; no new variant suite.
+
+
+### Private PR delivery and CI timing correction (2026-10-31)
+
+Branch feat/dcsc-website-parity-20261031 pushed; draft PR https://github.com/leuquim/lenovo-dcsc-mcp/pull/2. Implementation/tests4e40425 and docs a47acec. Existing private-push authorization confirmed in historical context; CONTRIBUTING requires PR to main. No merge or npm publish. Production package `/tmp/dcsc-delivery-20261031/lenovo-dcsc-mcp-0.1.0.tgz`613418bytes installs123prod packages and startup85tools/health passes (28983).
+
+Initial CI41145617654: Node22pass; Node24failed1/997 in existing session-lifecycle restore capacity test. Both workspaces can be created in same millisecond; runtime intentionally ties on lexicographic ID, so test incorrectly assumes distinct recency. Set explicit Date.now values1second apart for the two capacity tests and restore mocks afterward. Focused71141PASS5tests+eslint. Runtime unchanged; no full live rerun warranted. Follow up PR CI after pushing this fix.

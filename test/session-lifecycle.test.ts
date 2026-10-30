@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigSchema, type Config } from '../src/config/schema.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
@@ -16,6 +16,7 @@ import {
 const roots: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -98,12 +99,14 @@ describe('durable session lifecycle', () => {
   });
 
   it('persists capacity eviction in the same snapshot as the replacement workspace', async () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
     const config = persistenceConfig();
     const store = new SessionStore(1);
     store.setPersistenceWriter(createPersistenceWriter(config));
     const first = await store.createManyAtomic([input('US__capacity_old')], {
       newWorkspaceId: 'ws_capacity_old',
     });
+    clock.mockReturnValue(1_800_000_001_000);
     const second = await store.createManyAtomic([input('US__capacity_new')], {
       newWorkspaceId: 'ws_capacity_new',
     });
@@ -117,12 +120,15 @@ describe('durable session lifecycle', () => {
   });
 
   it('rewrites an over-capacity persisted snapshot after restore', async () => {
+    // Establish actual recency; equal timestamps use the workspace-ID tie-breaker.
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
     const config = persistenceConfig();
     const source = new SessionStore(2);
     source.setPersistenceWriter(createPersistenceWriter(config));
     await source.createManyAtomic([input('US__restore_old')], {
       newWorkspaceId: 'ws_restore_old',
     });
+    clock.mockReturnValue(1_800_000_001_000);
     await source.createManyAtomic([input('US__restore_new')], {
       newWorkspaceId: 'ws_restore_new',
     });
