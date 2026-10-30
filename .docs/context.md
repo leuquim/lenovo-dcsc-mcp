@@ -38,6 +38,23 @@ release folder. Packaged artifact: `/tmp/dcsc-delivery-20261031/lenovo-dcsc-mcp-
 Broader parity remains unproven. Follow the roadmap action inventory and Claude
 advisor stop rule: no speculative features or new variant suites.
 
+## Delivery and next actionable input (2026-10-31)
+
+PR #2 is ready for review: https://github.com/leuquim/lenovo-dcsc-mcp/pull/2.
+Node 22 and 24 CI passed at f808aaf (run41145920648). No merge or registry
+publication has occurred. The test-only session-capacity fix makes timestamps
+deterministic; it does not change the runtime verified by the frozen run.
+
+Claude follow-up completed in session1e68a66d-031c-4272-a7f0-77c3b8608f00;
+local response `/tmp/codex-claude-dcsc-scope-20261030/delivery-answer.md`.
+It identifies no concrete implementable missing action in the current evidence.
+Do not add variant suites or repeat unavailable-catalog surveys. Account access
+and a genuine populated legacy workbook remain requested inputs. A new concrete
+website action/defect can reopen implementation. The action inventory is not an
+exhaustive menu census, so complete parity remains unproven. No live jobs remain.
+The canonical finding-audit opening now records85tools/90commands and the
+qualified matrix outcome, replacing its stale81tools/82commands summary.
+
 ## Historical verification checkpoints (superseded by the current result)
 
 | Check | Evidence and current disposition |

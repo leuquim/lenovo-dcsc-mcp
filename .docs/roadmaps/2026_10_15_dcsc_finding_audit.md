@@ -5,16 +5,22 @@ For current handoff, repository delivery and removed temporary evidence paths, s
 
 ## Current answer: MCP gaps versus native limitations
 
-The MCP does **not** yet establish complete website parity. Its 81 tools and passing
-unit tests are not a coverage percentage. The current frozen build completed all82 commands:78passed,0failed,4declared
-capability blocks, with source integrity verified before/after. The authoritative result is
-`artifacts/release-2026-10-30-integrated/results/report.json`. The table below separates
-implemented improvements from upstream observations and missing evidence.
+The MCP does **not** yet establish complete website parity. Its 85 tools and passing
+unit tests are not a coverage percentage. The latest frozen build completed all
+90 commands: 85 passed, 4 declared upstream blocks and 1 native Add Node menu
+failure. An unchanged targeted rerun passed placement/export/fresh import; the
+original matrix failure remains recorded. Source integrity passed before/after.
+Authoritative results: `artifacts/release-2026-10-30-wizards-source-swap/results/report.json`
+and `nested-vlh-recheck/resolution.json` in that release folder.
+[PR #2](https://github.com/leuquim/lenovo-dcsc-mcp/pull/2) is ready for review;
+Node 22 and 24 CI passed at `f808aaf`. The table below separates implemented
+improvements from upstream observations and missing evidence.
 
 | Website capability or reported gap | Current classification | Evidence / remaining action |
 |---|---|---|
 | Manual cable creation and replacement | MCP integration gap addressed for documented Management,100GbE and DAC storage cases | Combined shared-storage public gate passes24 calls, replacement before/after import, retained spares, restart, re-export and website graph/price comparison. Frozen rerun also passed24 calls: `artifacts/parity-manual-cabling/2026-10-30T18-23-48-053Z/report.json` in the frozen checkout. |
 | Managed/linked storage cable ownership | MCP integration gap addressed | Template/physical aliases resolve to native editing groups; explicit paired quantities and rollback are verified. Additional hardware combinations remain unverified. |
+| PCI and storage wizard editing | APIs support these; MCP integrations added | Option/component selection, whole storage-option clearing and CTO RAID switching have native and MCP evidence. LFO mode restoration remains unverified without an enabled native case; see the roadmap. |
 | Native power controls, reference solutions and modern Excel import | APIs support these; MCP integrations added | Their current frozen release gates passed, including native byte comparison for one reference-template download. Coverage remains bounded to documented cases. |
 | Four-way breakout website import | Observed native import limitation | Native CFXML import changes BREAKOUT4 to P2P/divider1. MCP recovery retains the demonstrated shape; broader breakout shapes remain unverified. |
 | Power load-factor XML round trip | Observed native import limitation | Native and MCP SR630 V3 exports at100% reimport at70%; voltage/policy survive. MCP saved sessions retain the setting; export warns and the setting can be reapplied. |

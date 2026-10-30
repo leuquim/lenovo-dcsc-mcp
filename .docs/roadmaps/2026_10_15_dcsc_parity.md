@@ -37,8 +37,7 @@ current gap table below retains the supporting native evidence and limitations.
 | Import/export and recovery | Modern XML/Excel and local recovery implemented; authentic legacy companion-workbook contract remains unverified. Native breakout import defect remains scoped. |
 | Account saves, partner/bid pricing | Access-dependent and unverified; not proven unsupported by APIs. |
 
-**Next milestone:** prepare the verified improvements for delivery; the frozen
-release run is complete with the qualified outcome recorded above. Keep the broader parity objective open. Add implementation
+**Delivery:** [PR #2](https://github.com/leuquim/lenovo-dcsc-mcp/pull/2) is ready for review; Node 22 and 24 CI passed at `f808aaf`. The frozen release run is complete with the qualified outcome recorded above. Keep the broader parity objective open. Add implementation
 work for a demonstrated missing user action or reproducible defect. Additional
 product variants get targeted evidence when needed; they do not automatically add
 a full lifecycle command. Do not repeat unavailable-catalog surveys without a
