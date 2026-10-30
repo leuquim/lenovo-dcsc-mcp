@@ -199,9 +199,20 @@ describe('browser-authoritative manual cable row edits', () => {
     const aliasConnection = aliasValue.connections[0] as Obj;
     const aliasConfig = aliasValue.configurations[1]!;
     aliasConfig.tabs = structuredClone(config.tabs);
+    const sibling = { ...aliasConnection, destinationId: 'generated-switch-1', sourcePortNumber: '2' };
+    aliasValue.connections = [...aliasValue.connections, sibling];
+    const sharedReplacement = stageManualConnectionEdit(aliasValue, {
+      connectionId: manualConnectionId(aliasConnection), cablePart: '3802',
+      cableQuantities: { oldPart: 2, newPart: 2 },
+    });
+    expect(sharedReplacement.cableReplacement).toMatchObject({
+      sharedSelection: { configurationIds: ['switch-template'], physicalDestinationIds: ['generated-switch-1', 'manual-switch-1'] },
+      targetQuantities: { oldCode: 2, newCode: 2 }, wireMode: 'quantity-preserving',
+    });
     expect(() => stageManualConnectionEdit(aliasValue, {
       connectionId: manualConnectionId(aliasConnection), cablePart: '3802',
-    })).toThrow(/managed physical alias.*not supported/);
+      cableQuantities: { oldPart: 0, newPart: 2 },
+    })).toThrow(/covering every physical instance/);
     rackItem['features'] = [{ name: 'ETHERNET_CABLE', results: [{ code: 'AVFT', quantity: 1 }] }];
     expect(() => stageManualConnectionEdit(value, {
       connectionId: manualConnectionId(connection), cablePart: '3802',
@@ -427,4 +438,74 @@ describe('browser-authoritative manual cable row edits', () => {
     })).toThrow(/not one selectable/);
     expect(() => commitManualConnectionEdit(value.connections.slice(0, 1), plan)).toThrow(/collision row changed/);
   });
+});
+
+it('exposes native breakout shape so clients can identify a shared destination', () => {
+  const native = JSON.parse(readFileSync(new URL('./fixtures/parity/breakout-native.json', import.meta.url), 'utf8'));
+  expect(projectManualConnection(native.connections[0])).toMatchObject({ category: 'BREAKOUT', divider: 4 });
+});
+
+it('replaces every branch of one physical breakout cable and preserves other cables and spares', () => {
+  const native = JSON.parse(readFileSync(new URL('./fixtures/parity/breakout-replacement-input.json', import.meta.url), 'utf8'));
+  const branches = native.connections as Obj[];
+  const first = branches[0]!;
+  const make = (): ManualCablingInput => ({ connections: structuredClone(branches), configurations: [{
+    id: String(first['destinationId']), code: String(first['destinationPart']), type: 'switch',
+    tabs: [{ type: 'hardware', subTabs: [{ sections: [{ name: 'QSFP+_AND_DAC_CABLES', type: 'hardware',
+      features: [{ code: 'AV22' }, { code: 'AV23' }], results: [{ code: 'AV22', quantity: 1 }] }] }] }],
+  }], rackArea: [{ id: 'rack', rackItems: [{ id: first['destinationId'], code: first['destinationPart'],
+    features: [{ name: 'QSFP+_AND_DAC_CABLES', results: [{ code: 'AV22', quantity: 1 }] }] }] }] });
+  const withoutGroups = make();
+  for (const value of withoutGroups.connections) {
+    const branch = value as Obj;
+    (branch['cableFeature'] as Obj)['selectionGroups'] = [];
+    for (const choice of (branch['cableDistance'] as Obj)['compatibleCables'] as Obj[]) choice['selectionGroups'] = [];
+  }
+  expect(stageManualConnectionEdit(withoutGroups, { connectionId: manualConnectionId(first), cablePart: 'AV23' }).relatedChanges).toHaveLength(3);
+  const section = withoutGroups.configurations[0]!.tabs![0]!.subTabs![0]!.sections![0]!;
+  withoutGroups.configurations[0]!.tabs![0]!.subTabs![0]!.sections!.push({ ...structuredClone(section), name: 'AMBIGUOUS' });
+  expect(() => stageManualConnectionEdit(withoutGroups, { connectionId: manualConnectionId(first), cablePart: 'AV23' })).toThrow(/one configuration selection group/);
+  const value = make(); const before = structuredClone(value);
+  const edit = { connectionId: manualConnectionId(first), cablePart: 'AV23' };
+  const plan = stageManualConnectionEdit(value, edit);
+  expect(plan.relatedChanges).toHaveLength(3);
+  expect(plan.cableReplacement).toMatchObject({ graphUsage: { oldCode: 1, newCode: 0 }, targetQuantities: { oldCode: 0, newCode: 1 } });
+  const result = commitManualConnectionEdit(value.connections, plan) as Obj[];
+  expect(result.every(r => r['cablePart'] === 'AV23' && r['category'] === 'BREAKOUT' && r['divider'] === 4 && r['type'] === 'MANUAL')).toBe(true);
+  expect(value).toEqual(before);
+  value.connections = [...value.connections, { ...first, sourcePortNumber: '5', destinationPortNumber: '50' }];
+  value.configurations[0]!.tabs![0]!.subTabs![0]!.sections![0]!.results = [{ code: 'AV22', quantity: 4 }];
+  const shared = stageManualConnectionEdit(value, edit);
+  expect(shared.cableReplacement).toMatchObject({ graphUsage: { oldCode: 2, newCode: 0 }, targetQuantities: { oldCode: 3, newCode: 1 } });
+  expect((commitManualConnectionEdit(value.connections, shared)[4] as Obj)['cablePart']).toBe('AV22');
+  (value.connections[1] as Obj)['cableDistance'] = { compatibleCables: [] };
+  expect(() => stageManualConnectionEdit(value, edit)).toThrow(/compatible choice/);
+});
+
+
+it('atomically swaps occupied source ports instead of reproducing the native duplicate-endpoint defect', () => {
+  const native = JSON.parse(readFileSync(new URL('./fixtures/parity/manual-cabling-source-collision.json', import.meta.url), 'utf8')) as {
+    before: Obj[]; websiteExport: Obj[]; apiAccepted: Obj[]; configurations: RawConfiguration[];
+    edit: { configurationId: string; portName: string; portNumber: string };
+  };
+  expect(native.before.map(r => r['sourcePortNumber'])).toEqual(['1', '2']);
+  expect(native.websiteExport.map(r => r['sourcePortNumber'])).toEqual(['2', '2']);
+  const value: ManualCablingInput = { connections: structuredClone(native.before), configurations: native.configurations,
+    rackArea: [{ id: 'rack', rackItems: native.configurations.map(c => ({ id: c.id, code: c.sliceCtoCode, position: 1 })) }] };
+  const snapshot = structuredClone(value.connections);
+  const plan = stageManualConnectionEdit(value, { connectionId: manualConnectionId(native.before[0]!), source: native.edit });
+  expect(plan.collisionSwaps).toHaveLength(1);
+  expect(plan.distanceRequest).toBeUndefined();
+  const accepted = commitManualConnectionEdit(value.connections, plan) as Obj[];
+  expect(accepted.map(r => r['sourcePortNumber'])).toEqual(['2', '1']);
+  const endpoints = (graph: Obj[]) => graph.map(r => ['sourceId', 'sourcePortName', 'sourcePortNumber',
+    'destinationId', 'destinationPortName', 'destinationPortNumber', 'cablePart', 'type'].map(k => r[k]));
+  expect(endpoints(accepted)).toEqual(endpoints(native.apiAccepted));
+  expect(accepted.map(r => r['destinationPortNumber'])).toEqual(native.before.map(r => r['destinationPortNumber']));
+  expect(accepted.map(r => r['totalDistance'])).toEqual(native.before.map(r => r['totalDistance']));
+  expect(() => commitManualConnectionEdit(value.connections.slice(0, 1), plan)).toThrow(/collision row changed/);
+  expect(value.connections).toEqual(snapshot);
+  (value.connections[1] as Obj)['network'] = 'another-network';
+  expect(() => stageManualConnectionEdit(value, { connectionId: manualConnectionId(native.before[0]!), source: native.edit }))
+    .toThrow(/Source-port swaps require/);
 });

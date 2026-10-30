@@ -274,3 +274,25 @@ it('supports the captured category-only cable selection by explicitly clearing t
   expect(() => buildWorkspaceNetworkPreferences(fabric, [{ ...selection, cableColor: 'Orange' }])).toThrow('Unknown cableColor');
   expect(() => buildWorkspaceNetworkPreferences(fabric, [{ ...selection, leafCableColor: '' }])).toThrow('Centralized');
 });
+
+it.each([{ ports: [] }, { connectorIds: [] }])('clears a network only when an empty selection is explicit: %j', selectors => {
+  const selected = buildSelectedTopologies(rawConfiguration, baseFabric, {
+    topology: '1GbE_Copper', networkName: 'Management', ...selectors,
+  });
+  expect(selected.Storage).toEqual(rawConfiguration.selectedTopologies.Storage);
+  expect(selected.Management).toMatchObject({ selectedConnectors: [], connectors: 0, maxConnectors: 0 });
+  const single = { ...rawConfiguration, connectors: [rawConfiguration.connectors[0]!] };
+  expect(buildSelectedTopologies(single, baseFabric, { topology: '1GbE_Copper', networkName: 'Management' }).Management)
+    .toMatchObject({ selectedConnectors: single.connectors });
+});
+
+it('selects compatible ports for an explicitly assigned storage definition without inventing a fabric network', () => {
+  const raw = { ...rawConfiguration, selectedStorageNetwork: 'Direct Storage' };
+  const request = { topology: '1GbE_Copper', networkName: 'Direct Storage', ports: ['RJ45:1'] };
+  expect(buildSelectedTopologies(raw, baseFabric, request, ['Direct Storage'])['Direct Storage'])
+    .toMatchObject({ networkTechnology: '1GbE_Copper', selectedConnectors: [raw.connectors[0]] });
+  expect(() => buildSelectedTopologies(rawConfiguration, baseFabric, request, ['Direct Storage'])).toThrow(/assigned/);
+  expect(() => buildSelectedTopologies(raw, baseFabric, request, ['Direct Storage', 'Direct Storage'])).toThrow(/uniquely/);
+  expect(() => buildSelectedTopologies(raw, baseFabric, request, [])).toThrow(/network/i);
+  expect(() => buildSelectedTopologies(raw, baseFabric, { ...request, ports: ['QSFP:1'] }, ['Direct Storage'])).toThrow(/Unknown connector/);
+});

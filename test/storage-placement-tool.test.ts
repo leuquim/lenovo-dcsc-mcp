@@ -183,12 +183,27 @@ describe('dcsc_place_storage_network', () => {
     roots.push(root);
     const config = ConfigSchema.parse({ files: { persistSessions: true,
       sessionFile: join(root, 'sessions.json') }, logLevel: 'silent' });
+    const before = value.service.sessions.getWorkspace(value.workspace.id)!;
+    const beforeDependencies = before.serverState.cloneDependency as Record<string, string[]>;
+    before.cables = [{ id: 'managed-physical-cable',
+      fromConfigId: beforeDependencies['controller-template']![1]!,
+      toConfigId: beforeDependencies['switch-template']![1]!,
+      fromPort: '1', toPort: '2', cableCode: '3801' }];
     saveSessions(value.service.sessions, config);
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
     const workspace = restored.listWorkspaces()[0]!;
     expect([...workspace.configurations.values()].map(session => session.configurationId))
       .toEqual(expect.arrayContaining(['controller-template', 'switch-template']));
+    expect(workspace.cables).toEqual(before.cables);
+    expect(workspace.integrity).not.toBe('damaged');
+    before.cables.push({ ...before.cables[0]!, id: 'missing-physical-cable', fromConfigId: 'unplaced-alias' });
+    saveSessions(value.service.sessions, config);
+    const rejected = new SessionStore();
+    expect(loadSessions(rejected, config)).toBe(1);
+    expect(rejected.listWorkspaces()[0]!.cables).toEqual(workspace.cables);
+    expect(rejected.listWorkspaces()[0]!.integrity).toBe('damaged');
+
     const dependencies = workspace.serverState.cloneDependency as Record<string, string[]>;
     expect(dependencies['controller-template']).toHaveLength(2);
     expect(dependencies['switch-template']).toHaveLength(2);

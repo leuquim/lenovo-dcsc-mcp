@@ -1,0 +1,70 @@
+{
+  "source": "DCSC auto_connect and workspace autoDerive captured 2026-10-30; BPPW four SFP28 ports to SN3420 QSFP28 using AV22",
+  "connections": [
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "1",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "49",
+      "category": "BREAKOUT",
+      "divider": 4,
+      "type": "AUTO",
+      "subType": "NETWORK"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "2",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "49",
+      "category": "BREAKOUT",
+      "divider": 4,
+      "type": "AUTO",
+      "subType": "NETWORK"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "3",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "49",
+      "category": "BREAKOUT",
+      "divider": 4,
+      "type": "AUTO",
+      "subType": "NETWORK"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "4",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "49",
+      "category": "BREAKOUT",
+      "divider": 4,
+      "type": "AUTO",
+      "subType": "NETWORK"
+    }
+  ],
+  "selection": {
+    "section": "QSFP+_AND_DAC_CABLES",
+    "code": "AV22",
+    "quantity": 1
+  }
+}

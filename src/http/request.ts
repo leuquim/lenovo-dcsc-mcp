@@ -24,13 +24,13 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD';
 /** One part of a multipart/form-data body: either a plain field or a file. */
 export type MultipartPart =
   | { name: string; value: string }
-  | { name: string; filename: string; contentType: string; content: string };
+  | { name: string; filename: string; contentType: string; content: string | Uint8Array };
 
 export type ReqBody =
   | { kind: 'json'; value: unknown }
   /** Reproduces the SPA's hidden-iframe form POST used for exports. */
   | { kind: 'form'; fields: Record<string, string> }
-  /** Reproduces the SPA's file upload used for CFXML import. */
+  /** Reproduces the SPA's file uploads, including CFXML and binary Excel workbooks. */
   | { kind: 'multipart'; parts: MultipartPart[] };
 
 export interface RequestCtx {
@@ -273,7 +273,7 @@ export class DcscHttpClient {
 
     const url = `https://${this.config.host}${API_PREFIX}${input.path}?${params.toString()}`;
     const headers: Record<string, string> = composeHeaders(input.ctx.locale);
-    let payload: string | undefined;
+    let payload: string | Buffer | undefined;
 
     if (input.body?.kind === 'json') {
       headers['content-type'] = 'application/json';
@@ -389,22 +389,25 @@ export class DcscHttpClient {
  * DCSC's import endpoint is strict about CRLF line endings and about the file
  * part carrying an explicit Content-Type; omitting either yields an HTTP 500.
  */
-function serialiseMultipart(boundary: string, parts: MultipartPart[]): string {
-  let out = '';
+export function serialiseMultipart(boundary: string, parts: MultipartPart[]): Buffer {
+  const chunks: Uint8Array[] = [];
+  const append = (value: string | Uint8Array): void => {
+    chunks.push(typeof value === 'string' ? Buffer.from(value, 'utf8') : value);
+  };
   for (const part of parts) {
-    out += `--${boundary}\r\n`;
+    append(`--${boundary}\r\n`);
     if ('filename' in part) {
-      out += `Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n`;
-      out += `Content-Type: ${part.contentType}\r\n\r\n`;
-      out += part.content;
+      append(`Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n`);
+      append(`Content-Type: ${part.contentType}\r\n\r\n`);
+      append(part.content);
     } else {
-      out += `Content-Disposition: form-data; name="${part.name}"\r\n\r\n`;
-      out += part.value;
+      append(`Content-Disposition: form-data; name="${part.name}"\r\n\r\n`);
+      append(part.value);
     }
-    out += '\r\n';
+    append('\r\n');
   }
-  out += `--${boundary}--\r\n`;
-  return out;
+  append(`--${boundary}--\r\n`);
+  return Buffer.concat(chunks);
 }
 
 function flattenHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {

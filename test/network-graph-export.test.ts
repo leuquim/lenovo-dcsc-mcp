@@ -103,3 +103,27 @@ it('reports local planning links excluded from a Lenovo workspace export without
   expect(result.manualPlanningLinksOmitted).toBe(1);
   expect(workspace.cables).toContainEqual(manual);
 });
+it('reports the observed website import risk without altering exported breakout rows', async () => {
+  const { service, workspace, exportData } = setup();
+  const graph = JSON.parse(readFileSync(new URL('./fixtures/parity/breakout-native.json', import.meta.url), 'utf8')).connections;
+  workspace.serverState.connections = graph;
+  vi.spyOn(service.http, 'send').mockResolvedValue({ stream: Readable.from(['fixture']) } as never);
+  const result = await service.exportZip(workspace.id, { fileTypes: ['XML'], fileName: 'breakout', ctx: service.newCtx() });
+  expect(result.breakoutBranchesAtRisk).toBe(4);
+  expect(exportData().autoConnectResults).toEqual(graph);
+});
+
+it('exports current network definitions without requiring a mirrored import envelope', () => {
+  const { workspace, exportData } = setup();
+  const cluster = [{ name: 'Management', networkType: '1GbE_Copper' }];
+  const storage = [{ name: 'SAN', controller: {}, mainSwitch: {} }];
+  workspace.serverState = { clusterPreference: cluster, storageConnectionNetworks: storage };
+  expect(exportData().networkingInformation).toMatchObject({ clusterPreference: cluster, storageNetworks: storage });
+  workspace.serverState.networkingInformation = { clusterPreference: cluster, storageNetworks: storage, futureField: 1 };
+  workspace.serverState.clusterPreference = [];
+  workspace.serverState.storageConnectionNetworks = [];
+  expect(exportData().networkingInformation).toMatchObject({ clusterPreference: [], storageNetworks: [], futureField: 1 });
+  delete workspace.serverState.clusterPreference;
+  delete workspace.serverState.storageConnectionNetworks;
+  expect(exportData().networkingInformation).toMatchObject({ clusterPreference: cluster, storageNetworks: storage });
+});

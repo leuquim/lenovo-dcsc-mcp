@@ -328,3 +328,85 @@ describe('linked Clone Multiple configuration edits', () => {
     expect(canonicalSnapshot(service, workspace.id)).toEqual(before);
   });
 });
+
+
+it.each(['node', 'storage'])('uses native root-only HPC requests while editing from a linked %s member', async type => {
+  const { service, workspace, source, clone, sourceRaw } = setup();
+  workspace.solution.solutionMode = 'HPC and AI - Systems';
+  for (const raw of [sourceRaw, source.raw, clone.raw]) raw.type = type;
+  const { calls } = installAcceptedEdit(service, sourceRaw);
+  await service.configure(clone, [{ section: 'PROCESSOR', code: 'BYW3', quantity: 2 }], service.newCtx(), clone.revision);
+  expect(selection(source)).toBe(2);
+  expect(selection(clone)).toBe(2);
+  expect(calls).toHaveLength(1);
+  expect(calls[0]!.query).not.toHaveProperty('entranceFlag');
+  expect(calls[0]!.query?.['configurationId']).toBe('server-1');
+  const body = calls[0]!.body?.kind === 'json' ? calls[0]!.body.value as Obj : {};
+  expect((body['configurations'] as Obj[]).map(c => c['id'])).toEqual(['server-1', 'rack-1']);
+  expect(body['customizingIds']).toEqual(['server-1', 'server-2']);
+});
+
+
+it('commits dependent HPC parent updates with nodes and requires workspace undo', async () => {
+  const { service, workspace, source, clone, sourceRaw } = setup();
+  workspace.solution.solutionMode = 'HPC and AI - Systems';
+  for (const raw of [sourceRaw, source.raw, clone.raw]) raw.type = 'node';
+  const parent = [...workspace.configurations.values()].find(c => c.configurationId === 'rack-1')!;
+  parent.raw.type = 'chassis';
+  workspace.nonRackArea = [{ id: 'rack-1', type: 'chassis', nodes: [{ id: 'server-1' }, { id: 'server-2' }] }];
+  vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [
+    { ...parent.raw, totalPrice: 20, updateConfigurationIds: ['rack-1'] },
+    acceptedResponse(sourceRaw, 'server-1'),
+  ] } } as never);
+  await service.configure(clone, [{ section: 'PROCESSOR', code: 'BYW3', quantity: 2 }], service.newCtx(), clone.revision);
+  expect(parent.raw.totalPrice).toBe(20);
+  expect(selection(source)).toBe(2);
+  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/workspace_history/);
+  expect(await service.sessions.undoWorkspace(workspace.id, workspace.revision)).toBe(true);
+  expect(workspace.configurations.get(parent.id)!.raw.totalPrice).toBe(10);
+  expect(selection(workspace.configurations.get(source.id)!)).toBe(1);
+});
+
+it('edits a linked HPC chassis from a member and commits its dependent child update', async () => {
+  const { service, workspace, source, clone, sourceRaw } = setup();
+  workspace.solution.solutionMode = 'HPC and AI - Systems';
+  for (const raw of [sourceRaw, source.raw, clone.raw]) raw.type = 'chassis';
+  const child = [...workspace.configurations.values()].find(c => c.configurationId === 'rack-1')!;
+  child.raw.type = 'node';
+  workspace.nonRackArea = [{ id: 'server-1', type: 'chassis', nodes: [{ id: 'rack-1' }] }, { id: 'server-2', type: 'chassis', nodes: [] }];
+  const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [
+    acceptedResponse(sourceRaw, 'server-1'), { ...child.raw, totalPrice: 25, updateConfigurationIds: ['rack-1'] },
+  ] } } as never);
+  await service.configure(clone, [{ section: 'PROCESSOR', code: 'BYW3', quantity: 2 }], service.newCtx(), clone.revision);
+  expect(selection(source)).toBe(2); expect(selection(clone)).toBe(2);
+  expect(child.raw.totalPrice).toBe(25);
+  expect(send.mock.calls[0]![0].query).toMatchObject({ configurationId: 'server-1' });
+  expect(send.mock.calls[0]![0].query).not.toHaveProperty('entranceFlag');
+  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/workspace_history/);
+  await service.sessions.undoWorkspace(workspace.id, workspace.revision);
+  expect(workspace.configurations.get(child.id)!.raw.totalPrice).toBe(10);
+});
+
+it.each(['switch', 'storage'])('edits a linked HPC %s member and couples containing-rack updates to workspace history', async type => {
+  const { service, workspace, source, clone, sourceRaw } = setup();
+  workspace.solution.solutionMode = 'HPC and AI - Systems';
+  for (const raw of [sourceRaw, source.raw, clone.raw]) raw.type = type;
+  const rack = [...workspace.configurations.values()].find(c => c.configurationId === 'rack-1')!;
+  workspace.rackArea = [{ id: 'rack-1', type: 'rack', size: 42, rackItems: [
+    { id: 'server-1', type, size: 1, position: 1 }, { id: 'server-2', type, size: 1, position: 2 },
+  ] }];
+  const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [
+    acceptedResponse(sourceRaw, 'server-1'), { ...rack.raw, totalPrice: 20, updateConfigurationIds: ['rack-1'] },
+  ] } } as never);
+  await service.configure(clone, [{ section: 'PROCESSOR', code: 'BYW3', quantity: 2 }], service.newCtx(), clone.revision);
+  expect(selection(source)).toBe(2); expect(selection(clone)).toBe(2); expect(rack.raw.totalPrice).toBe(20);
+  const request = send.mock.calls[0]![0];
+  expect(request.query).not.toHaveProperty('entranceFlag');
+  expect(request.query?.['configurationId']).toBe('server-1');
+  const body = request.body?.kind === 'json' ? request.body.value as Obj : {};
+  expect(body['customizingIds']).toEqual(['server-1', 'server-2']);
+  expect((body['configurations'] as Obj[]).map(c => c['id'])).toEqual(['server-1', 'rack-1']);
+  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/workspace/i);
+  await service.sessions.undoWorkspace(workspace.id, workspace.revision);
+  expect(selection(source)).toBe(1); expect(selection(clone)).toBe(1); expect(rack.raw.totalPrice).toBe(10);
+});

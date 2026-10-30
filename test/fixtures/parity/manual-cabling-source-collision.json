@@ -1,0 +1,5305 @@
+{
+  "scope": "Native source-port collision on same SR630 V3 QSFP56 adapter; UI exposes occupied option and export duplicates source port instead of swapping.",
+  "interaction": "Dropdown item activated through DOM click because native To card overlays dropdown; native Save then export.",
+  "before": [
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "1",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "coordinate": "A1",
+          "codeAndLocation": "7D73CTOHWW - A1/U1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "coordinate": "A1",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QR",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14183",
+            "price": 249.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "BF6W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 200G QSFP56 Ethernet DAC Cable",
+            "optionCode": "",
+            "price": 239.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QS",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14184",
+            "price": 274.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QT",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14185",
+            "price": 299.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 89.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 184.5,
+            "length": 5,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "2",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "60",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "coordinate": "A1",
+          "codeAndLocation": "7D73CTOHWW - A1/U1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "coordinate": "A1",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "A1DL",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7886",
+            "price": 189.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DP",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m QSFP to QSFP+ Cable",
+            "optionCode": "49Y7890",
+            "price": 89.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PH",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9427",
+            "price": 39.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2R",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Active DAC SFP+ Cable",
+            "optionCode": "00VX111",
+            "price": 74.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYX",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL634",
+            "price": 64.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03557",
+            "price": 39.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 119.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B2UZ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 100G QSFP28 Active Optical Cable",
+            "optionCode": "4X97A94703",
+            "price": 129.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A51N",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Passive DAC SFP+ Cable",
+            "optionCode": "00AY764",
+            "price": 44.5,
+            "length": 1.5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A51P",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Passive DAC SFP+ Cable",
+            "optionCode": "00AY765",
+            "price": 44.5,
+            "length": 2,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DM",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7887",
+            "price": 254.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DQ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m QSFP+ to QSFP+ Cable",
+            "optionCode": "49Y7891",
+            "price": 139.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PJ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9430",
+            "price": 34.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2S",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Active DAC SFP+ Cable",
+            "optionCode": "00VX114",
+            "price": 74.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYY",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL637",
+            "price": 64.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1X",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03558",
+            "price": 49.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 99.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 204.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DN",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7888",
+            "price": 314.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A2X8",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m QSFP+ to QSFP+ Cable",
+            "optionCode": "00D5810",
+            "price": 194.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PK",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9433",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2T",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Active DAC SFP+ Cable",
+            "optionCode": "00VX117",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYZ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL640",
+            "price": 69.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1Y",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03559",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 194.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV24",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03566",
+            "price": 304.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1M",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m 100G QSFP28 Active Optical Cable",
+            "optionCode": "4X97A94015",
+            "price": 189.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A3RH",
+            "ctoCode": "7D73CTOHWW",
+            "description": "7m Passive DAC SFP+ Cable",
+            "optionCode": "00D6151",
+            "price": 109.5,
+            "length": 7,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ0",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 7m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL643",
+            "price": 74.5,
+            "length": 7,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ1",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 15m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL646",
+            "price": 99.5,
+            "length": 15,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ6",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 15m 40G QSFP+ to QSFP+ Active Optical Cable",
+            "optionCode": "00YL661",
+            "price": 369.5,
+            "length": 15,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ2",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 20m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL649",
+            "price": 99.5,
+            "length": 20,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ7",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 20m 40G QSFP+ to QSFP+ Active Optical Cable",
+            "optionCode": "00YL664",
+            "price": 399.5,
+            "length": 20,
+            "selectionGroups": []
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D73CTOHWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": 1,
+        "selectionGroups": []
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    }
+  ],
+  "websiteExport": [
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "2",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "coordinate": "A1",
+          "codeAndLocation": "7D73CTOHWW - A1/U1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "coordinate": "A1",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": "Distance for leaving the source item"
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": "Crossed over 4 slots to destination"
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": "Distance for entering the destination item"
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "BF6W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 200G QSFP56 Ethernet DAC Cable",
+            "optionCode": "",
+            "price": 239.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QR",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14183",
+            "price": 249.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4R1",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14193",
+            "price": 274.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2M",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16872",
+            "price": 179.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QS",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14184",
+            "price": 274.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4R2",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14194",
+            "price": 294.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2N",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1.5m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16873",
+            "price": 194.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B68L",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A11477",
+            "price": 349.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QT",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14185",
+            "price": 299.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2P",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 2m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16874",
+            "price": 279.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 89.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2Q",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16875",
+            "price": 309.5,
+            "length": 3,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 184.5,
+            "length": 5,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "2",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "60",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "coordinate": "A1",
+          "codeAndLocation": "7D73CTOHWW - A1/U1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "coordinate": "A1",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": "Distance for leaving the source item"
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": "Crossed over 4 slots to destination"
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": "Distance for entering the destination item"
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "BF6W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 200G QSFP56 Ethernet DAC Cable",
+            "optionCode": "",
+            "price": 239.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QR",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14183",
+            "price": 249.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4R1",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14193",
+            "price": 274.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2M",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16872",
+            "price": 179.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QS",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14184",
+            "price": 274.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4R2",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14194",
+            "price": 294.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2N",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1.5m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16873",
+            "price": 194.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B68L",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB to 2x HDR100 Splitter Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A11477",
+            "price": 349.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QT",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14185",
+            "price": 299.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2P",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 2m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16874",
+            "price": 279.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 89.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "CK2Q",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m 400GbE QSFP-DD to 4x100GbE QSFP56 DAC Cable",
+            "optionCode": "4X97B16875",
+            "price": 309.5,
+            "length": 3,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 184.5,
+            "length": 5,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    }
+  ],
+  "configurations": [
+    {
+      "id": "US__b9b9a362-6e80-4781-932c-6612197fcf450",
+      "code": "7D6DCTO1WW",
+      "sliceCtoCode": "7D6DCTO1WW",
+      "connectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "9",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "10",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "11",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "12",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "13",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "14",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "15",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "16",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "17",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "18",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "19",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "20",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "21",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "22",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "23",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "24",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "25",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "26",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "27",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "28",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "29",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "30",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "31",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "32",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "33",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "34",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "35",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "36",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "37",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "38",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "39",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "40",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "41",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "42",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "43",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "44",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "45",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "46",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "47",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "48",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:1,27,90",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "code": "7D73CTOHWW",
+      "sliceCtoCode": "7D73CTOHWW",
+      "connectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet",
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "VGA",
+          "port": "VGA",
+          "topologies": [
+            "Console"
+          ],
+          "connectorFunction": "Console",
+          "cableCompatible": "",
+          "transceiverCompatibility": "FC:3756,3757,5340,5341",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "QSFP56",
+          "port": "QSFP56",
+          "topologies": [
+            "40GbE_Fiber",
+            "40GbE_Copper",
+            "100GbE_Copper",
+            "100GbE_Fiber",
+            "IB_HDR200",
+            "IB_HDR100",
+            "IB_EDR",
+            "IB_HDR",
+            "200GbE_Copper",
+            "200GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:52,66,69,70,75,76,79",
+          "transceiverCompatibility": "FC: AV1D,BFH1,BVA4,B306",
+          "useCableAsDAC": false,
+          "sourceFeature": "BPPX",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "QSFP56",
+          "port": "QSFP56",
+          "topologies": [
+            "40GbE_Fiber",
+            "40GbE_Copper",
+            "100GbE_Copper",
+            "100GbE_Fiber",
+            "IB_HDR200",
+            "IB_HDR100",
+            "IB_EDR",
+            "IB_HDR",
+            "200GbE_Copper",
+            "200GbE_Fiber"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "Group:52,66,69,70,75,76,79",
+          "transceiverCompatibility": "FC: AV1D,BFH1,BVA4,B306",
+          "useCableAsDAC": false,
+          "sourceFeature": "BPPX",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+      "code": "7D73CTOHWW",
+      "sliceCtoCode": "7D73CTOHWW",
+      "connectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet",
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "VGA",
+          "port": "VGA",
+          "topologies": [
+            "Console"
+          ],
+          "connectorFunction": "Console",
+          "cableCompatible": "",
+          "transceiverCompatibility": "FC:3756,3757,5340,5341",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6400",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+      "code": "7D5FCTOFWW",
+      "sliceCtoCode": "7D5FCTOFWW",
+      "connectors": [
+        {
+          "portNumber": "49",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "50",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "51",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "52",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "9",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "10",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "11",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "12",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "13",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "14",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "15",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "16",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "17",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "18",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "19",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "20",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "21",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "22",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "23",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "24",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "25",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "26",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "27",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "28",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "29",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "30",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "31",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "32",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "33",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "34",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "35",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "36",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "37",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "38",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "39",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "40",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "41",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "42",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "43",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "44",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "45",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "46",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "47",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "48",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__02579351-49f4-427c-8a57-e472132552740",
+      "code": "7D5FCTOFWW",
+      "sliceCtoCode": "7D5FCTOFWW",
+      "connectors": [
+        {
+          "portNumber": "49",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "50",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "51",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "52",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "9",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "10",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "11",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "12",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "13",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "14",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "15",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "16",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "17",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "18",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "19",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "20",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "21",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "22",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "23",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "24",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "25",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "26",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "27",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "28",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "29",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "30",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "31",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "32",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "33",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "34",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "35",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "36",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "37",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "38",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "39",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "40",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "41",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "42",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "43",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "44",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "45",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "46",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "47",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "48",
+          "portDescription": "RJ45",
+          "port": "RJ45",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "code": "7D5FCTOKWW",
+      "sliceCtoCode": "7D5FCTOKWW",
+      "connectors": [
+        {
+          "portNumber": "49",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "50",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "51",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "52",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "53",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "54",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "55",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "56",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "57",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "58",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "59",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "60",
+          "portDescription": "QSFP28",
+          "port": "QSFP28",
+          "topologies": [
+            "40GbE_Copper",
+            "40GbE_Fiber",
+            "100GbE_Fiber",
+            "100GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": true,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "3",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "4",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "5",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "6",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "7",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "8",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "9",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "10",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "11",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "12",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "13",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "14",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "15",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "16",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "17",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "18",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "19",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "20",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "21",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "22",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "23",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "24",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "25",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "26",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "27",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "28",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "29",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "30",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "31",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "32",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "33",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "34",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "35",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "36",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "37",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "38",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "39",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "40",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "41",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "42",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "43",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "44",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "45",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "46",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "47",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "48",
+          "portDescription": "SFP28",
+          "port": "SFP28",
+          "topologies": [
+            "1GbE_Fiber",
+            "10GbE_Copper",
+            "10GbE_Fiber",
+            "25GbE_Fiber",
+            "25GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        },
+        {
+          "portNumber": "1",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        },
+        {
+          "portNumber": "2",
+          "portDescription": "C14",
+          "port": "C14",
+          "topologies": [],
+          "connectorFunction": "Power",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "6311",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
+  "edit": {
+    "configurationId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+    "portName": "QSFP56",
+    "portNumber": "2"
+  },
+  "apiAccepted": [
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "2",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QR",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14183",
+            "price": 249.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "BF6W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 200G QSFP56 Ethernet DAC Cable",
+            "optionCode": "",
+            "price": 239.5,
+            "length": 1,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QS",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14184",
+            "price": 274.5,
+            "length": 1.5,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B4QT",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Mellanox HDR IB Passive Copper QSFP56 Cable",
+            "optionCode": "4Z57A14185",
+            "price": 299.5,
+            "length": 2,
+            "selectionGroups": [
+              "EXTERNAL_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 89.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 184.5,
+            "length": 5,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV1Z",
+      "cableOption": "7Z57A03561",
+      "cablePrice": 54.5,
+      "cableType": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/QSFP56",
+      "sourcePortNumber": "1",
+      "sourcePortName": "QSFP56",
+      "destinationId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "60",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__347319e3-5375-4a56-8ef5-40dc9cbe17e20",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "A1DL",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7886",
+            "price": 189.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DP",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m QSFP to QSFP+ Cable",
+            "optionCode": "49Y7890",
+            "price": 89.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PH",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9427",
+            "price": 39.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2R",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Active DAC SFP+ Cable",
+            "optionCode": "00VX111",
+            "price": 74.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYX",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL634",
+            "price": 64.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1W",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03557",
+            "price": 39.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1Z",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03561",
+            "price": 54.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 119.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "B2UZ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 1m 100G QSFP28 Active Optical Cable",
+            "optionCode": "4X97A94703",
+            "price": 129.5,
+            "length": 1,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A51N",
+            "ctoCode": "7D73CTOHWW",
+            "description": "1.5m Passive DAC SFP+ Cable",
+            "optionCode": "00AY764",
+            "price": 44.5,
+            "length": 1.5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A51P",
+            "ctoCode": "7D73CTOHWW",
+            "description": "2m Passive DAC SFP+ Cable",
+            "optionCode": "00AY765",
+            "price": 44.5,
+            "length": 2,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DM",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7887",
+            "price": 254.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DQ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m QSFP+ to QSFP+ Cable",
+            "optionCode": "49Y7891",
+            "price": 139.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PJ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "3m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9430",
+            "price": 34.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2S",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Active DAC SFP+ Cable",
+            "optionCode": "00VX114",
+            "price": 74.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYY",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL637",
+            "price": 64.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1X",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03558",
+            "price": 49.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV20",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03562",
+            "price": 99.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 204.5,
+            "length": 3,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1DN",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m QSFP+ DAC Break Out Cable",
+            "optionCode": "49Y7888",
+            "price": 314.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A2X8",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m QSFP+ to QSFP+ Cable",
+            "optionCode": "00D5810",
+            "price": 194.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A1PK",
+            "ctoCode": "7D73CTOHWW",
+            "description": "5m Passive DAC SFP+ Cable",
+            "optionCode": "90Y9433",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AT2T",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Active DAC SFP+ Cable",
+            "optionCode": "00VX117",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATYZ",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL640",
+            "price": 69.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1Y",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Passive 25G SFP28 DAC Cable",
+            "optionCode": "7Z57A03559",
+            "price": 94.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV21",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m Passive 100G QSFP28 DAC Cable",
+            "optionCode": "7Z57A03563",
+            "price": 194.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV24",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03566",
+            "price": 304.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV1M",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 5m 100G QSFP28 Active Optical Cable",
+            "optionCode": "4X97A94015",
+            "price": 189.5,
+            "length": 5,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "A3RH",
+            "ctoCode": "7D73CTOHWW",
+            "description": "7m Passive DAC SFP+ Cable",
+            "optionCode": "00D6151",
+            "price": 109.5,
+            "length": 7,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ0",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 7m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL643",
+            "price": 74.5,
+            "length": 7,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ1",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 15m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL646",
+            "price": 99.5,
+            "length": 15,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ6",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 15m 40G QSFP+ to QSFP+ Active Optical Cable",
+            "optionCode": "00YL661",
+            "price": 369.5,
+            "length": 15,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ2",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 20m SFP+ to SFP+ Active Optical Cable",
+            "optionCode": "00YL649",
+            "price": 99.5,
+            "length": 20,
+            "selectionGroups": []
+          },
+          {
+            "category": "Cable",
+            "featureCode": "ATZ7",
+            "ctoCode": "7D73CTOHWW",
+            "description": "Lenovo 20m 40G QSFP+ to QSFP+ Active Optical Cable",
+            "optionCode": "00YL664",
+            "price": 399.5,
+            "length": 20,
+            "selectionGroups": []
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV1Z",
+        "ctoCode": "7D73CTOHWW",
+        "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+        "optionCode": "7Z57A03561",
+        "price": 54.5,
+        "length": 1,
+        "selectionGroups": []
+      },
+      "preferredCable": null,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1,
+      "category": "P2P"
+    }
+  ]
+}

@@ -410,6 +410,28 @@ describe('export grouping', () => {
     expect(products.filter(product => product.id === 'clone-config')).toEqual([]);
   });
 
+  it('treats an omitted unavailable flag as false only on a numerically priced linked service', () => {
+    const root = structuredClone(server);
+    const clone = structuredClone(server);
+    const rootService = (root.hipoServiceCtoServices as Array<Record<string, unknown>>)[0]!;
+    const cloneService = (clone.hipoServiceCtoServices as Array<Record<string, unknown>>)[0]!;
+    delete rootService['priceNotAvailable'];
+    const workspace = {
+      serverState: { cloneDependency: { root: ['root', 'clone'] } },
+      configurations: new Map([
+        ['root', { configurationId: 'root', raw: root, product: { code: '7D73CTO1WW' } }],
+        ['clone', { configurationId: 'clone', raw: clone, product: { code: '7D73CTO1WW' } }],
+      ]),
+    };
+    expect(() => buildExportGroups(workspace)).not.toThrow();
+    expect(rootService).not.toHaveProperty('priceNotAvailable');
+    cloneService['priceNotAvailable'] = true;
+    expect(() => buildExportGroups(workspace)).toThrow(/divergent commercial/);
+    cloneService['priceNotAvailable'] = false;
+    cloneService['price'] = Number(cloneService['price']) + 1;
+    expect(() => buildExportGroups(workspace)).toThrow(/divergent commercial/);
+  });
+
   it('rejects a linked clone group whose commercial selections or prices diverged', () => {
     const clone = structuredClone(server);
     clone.totalPrice = (clone.totalPrice ?? 0) + 1;

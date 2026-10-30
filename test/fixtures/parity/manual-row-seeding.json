@@ -1,0 +1,744 @@
+{
+  "provenance": "Fresh native Auto-Connect baseline plus direct graph-seeding probes via DcscHttpClient, 2026-10-30; no live customer changes.",
+  "requestedManualRow": {
+    "network": "Management",
+    "topology": "1GbE_Copper",
+    "cablePart": "3791",
+    "cableOption": "40K8933",
+    "cablePrice": 9.5,
+    "cableType": "0.6m Yellow Cat5e Cable",
+    "totalDistance": 0.5778000000000001,
+    "sourceId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+    "sourcePart": "7D73CTOHWW",
+    "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+    "sourceLocation": "A1/U2/RJ45 mgmt",
+    "sourcePortNumber": "1",
+    "sourcePortName": "RJ45 mgmt",
+    "destinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+    "destinationPart": "7D5FCTOFWW",
+    "destinationItem": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+    "destinationLocation": "A1/U6/RJ45",
+    "destinationPortNumber": "20",
+    "destinationPortName": "RJ45",
+    "cableDistance": {
+      "from": {
+        "row": 0,
+        "col": 0,
+        "position": 2,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+        "coordinate": "A1",
+        "codeAndLocation": "7D73CTOHWW - A1/U2"
+      },
+      "to": {
+        "row": 0,
+        "col": 0,
+        "position": 6,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__02579351-49f4-427c-8a57-e472132552740",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+        "coordinate": "A1",
+        "codeAndLocation": "7D5FCTOFWW - A1/U6"
+      },
+      "totalScale": 7,
+      "cableDistances": [
+        {
+          "distance": 0.2,
+          "increment": 0.2,
+          "comment": null
+        },
+        {
+          "distance": 0.3778,
+          "increment": 0.1778,
+          "comment": null
+        },
+        {
+          "distance": 0.5778000000000001,
+          "increment": 0.2,
+          "comment": null
+        }
+      ],
+      "totalDistance": 0.5778000000000001,
+      "type": "network",
+      "compatibleCables": [
+        {
+          "category": "Cable",
+          "featureCode": "3791",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Yellow Cat5e Cable",
+          "optionCode": "40K8933",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3796",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Green Cat5e Cable",
+          "optionCode": "",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3801",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Blue Cat5e Cable",
+          "optionCode": "40K5679",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFT",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Blue Cat5e Cable",
+          "optionCode": "00WE111",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFQ",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Green Cat5e Cable",
+          "optionCode": "00WE099",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFU",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.0m Blue Cat5e Cable",
+          "optionCode": "00WE115",
+          "price": 9.5,
+          "length": 1,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFR",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.0m Green Cat5e Cable",
+          "optionCode": "00WE103",
+          "price": 9.5,
+          "length": 1,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFV",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.25m Blue Cat5e Cable",
+          "optionCode": "00WE119",
+          "price": 9.5,
+          "length": 1.25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFS",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.25m Green Cat5e Cable",
+          "optionCode": "00WE107",
+          "price": 9.5,
+          "length": 1.25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3792",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Yellow Cat5e Cable",
+          "optionCode": "40K8951",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3797",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Green Cat5e Cable",
+          "optionCode": "40K5643",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3802",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Blue Cat5e Cable",
+          "optionCode": "40K8785",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3793",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Yellow Cat5e Cable",
+          "optionCode": "",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3761",
+          "ctoCode": "7D73CTOHWW",
+          "description": "3m Black Cat5e Cable",
+          "optionCode": "",
+          "price": 14.5,
+          "length": 3,
+          "selectionGroups": [
+            "EXTERNAL_CABLES"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3803",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Blue Cat5e Cable",
+          "optionCode": "40K5581",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "BQ6Q",
+          "ctoCode": "7D73CTOHWW",
+          "description": "3m Yellow Cat5e Cable",
+          "optionCode": "40K8957",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "EXTERNAL_CABLES"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3798",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Green Cat5e Cable",
+          "optionCode": "40K5793",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3794",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Yellow Cat5e Cable",
+          "optionCode": "40K8801",
+          "price": 14.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3804",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Blue Cat5e Cable",
+          "optionCode": "40K8927",
+          "price": 14.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3799",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Green Cat5e Cable",
+          "optionCode": "40K5794",
+          "price": 19.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3805",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Blue Cat5e Cable",
+          "optionCode": "40K8930",
+          "price": 34.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3795",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Yellow Cat5e Cable",
+          "optionCode": "40K8807",
+          "price": 39.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3800",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Green Cat5e Cable",
+          "optionCode": "40K8869",
+          "price": 39.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        }
+      ]
+    },
+    "cableFeature": {
+      "category": "Cable",
+      "featureCode": "3791",
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.6m Yellow Cat5e Cable",
+      "optionCode": "40K8933",
+      "price": 9.5,
+      "length": null,
+      "selectionGroups": [
+        "ETHERNET_CABLE"
+      ]
+    },
+    "preferredCable": null,
+    "type": "MANUAL",
+    "subType": "NETWORK",
+    "divider": 1,
+    "category": "P2P"
+  },
+  "acceptedManualRow": {
+    "network": "Management",
+    "topology": "1GbE_Copper",
+    "cablePart": "3791",
+    "cableOption": "40K8933",
+    "cablePrice": 9.5,
+    "cableType": "0.6m Yellow Cat5e Cable",
+    "totalDistance": 0.5778000000000001,
+    "sourceId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+    "sourcePart": "7D73CTOHWW",
+    "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+    "sourceLocation": "A1/U2/RJ45 mgmt",
+    "sourcePortNumber": "1",
+    "sourcePortName": "RJ45 mgmt",
+    "destinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+    "destinationPart": "7D5FCTOFWW",
+    "destinationItem": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+    "destinationLocation": "A1/U6/RJ45",
+    "destinationPortNumber": "20",
+    "destinationPortName": "RJ45",
+    "cableDistance": {
+      "from": {
+        "row": 0,
+        "col": 0,
+        "position": 2,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+        "codeAndLocation": "7D73CTOHWW - A1/U2",
+        "coordinate": "A1"
+      },
+      "to": {
+        "row": 0,
+        "col": 0,
+        "position": 6,
+        "conn": "",
+        "subIndex": -1,
+        "parentContainerSlot": -1,
+        "grandparentContainerSlot": -1,
+        "itemId": "US__02579351-49f4-427c-8a57-e472132552740",
+        "code": "7D5FCTOFWW",
+        "type": "switch",
+        "description": "NVIDIA SN2201 1GbE Managed Switch with Cumulus (PSE)",
+        "codeAndLocation": "7D5FCTOFWW - A1/U6",
+        "coordinate": "A1"
+      },
+      "totalScale": 7,
+      "cableDistances": [
+        {
+          "distance": 0.2,
+          "increment": 0.2,
+          "comment": null
+        },
+        {
+          "distance": 0.3778,
+          "increment": 0.1778,
+          "comment": null
+        },
+        {
+          "distance": 0.5778000000000001,
+          "increment": 0.2,
+          "comment": null
+        }
+      ],
+      "totalDistance": 0.5778000000000001,
+      "type": "network",
+      "compatibleCables": [
+        {
+          "category": "Cable",
+          "featureCode": "3791",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Yellow Cat5e Cable",
+          "optionCode": "40K8933",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3796",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Green Cat5e Cable",
+          "optionCode": "",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3801",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.6m Blue Cat5e Cable",
+          "optionCode": "40K5679",
+          "price": 9.5,
+          "length": 0.6,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFT",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Blue Cat5e Cable",
+          "optionCode": "00WE111",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFQ",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "0.75m Green Cat5e Cable",
+          "optionCode": "00WE099",
+          "price": 9.5,
+          "length": 0.75,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFU",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.0m Blue Cat5e Cable",
+          "optionCode": "00WE115",
+          "price": 9.5,
+          "length": 1,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFR",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.0m Green Cat5e Cable",
+          "optionCode": "00WE103",
+          "price": 9.5,
+          "length": 1,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFV",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.25m Blue Cat5e Cable",
+          "optionCode": "00WE119",
+          "price": 9.5,
+          "length": 1.25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "AVFS",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.25m Green Cat5e Cable",
+          "optionCode": "00WE107",
+          "price": 9.5,
+          "length": 1.25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3792",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Yellow Cat5e Cable",
+          "optionCode": "40K8951",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3797",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Green Cat5e Cable",
+          "optionCode": "40K5643",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3802",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "1.5m Blue Cat5e Cable",
+          "optionCode": "40K8785",
+          "price": 9.5,
+          "length": 1.5,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3793",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Yellow Cat5e Cable",
+          "optionCode": "",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3761",
+          "ctoCode": "7D73CTOHWW",
+          "description": "3m Black Cat5e Cable",
+          "optionCode": "",
+          "price": 14.5,
+          "length": 3,
+          "selectionGroups": [
+            "EXTERNAL_CABLES"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3803",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Blue Cat5e Cable",
+          "optionCode": "40K5581",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "BQ6Q",
+          "ctoCode": "7D73CTOHWW",
+          "description": "3m Yellow Cat5e Cable",
+          "optionCode": "40K8957",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "EXTERNAL_CABLES"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3798",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "3m Green Cat5e Cable",
+          "optionCode": "40K5793",
+          "price": 9.5,
+          "length": 3,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3794",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Yellow Cat5e Cable",
+          "optionCode": "40K8801",
+          "price": 14.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3804",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Blue Cat5e Cable",
+          "optionCode": "40K8927",
+          "price": 14.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3799",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "10m Green Cat5e Cable",
+          "optionCode": "40K5794",
+          "price": 19.5,
+          "length": 10,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3805",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Blue Cat5e Cable",
+          "optionCode": "40K8930",
+          "price": 34.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3795",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Yellow Cat5e Cable",
+          "optionCode": "40K8807",
+          "price": 39.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        },
+        {
+          "category": "Cable",
+          "featureCode": "3800",
+          "ctoCode": "7D5FCTOFWW",
+          "description": "25m Green Cat5e Cable",
+          "optionCode": "40K8869",
+          "price": 39.5,
+          "length": 25,
+          "selectionGroups": [
+            "ETHERNET_CABLE"
+          ]
+        }
+      ]
+    },
+    "cableFeature": {
+      "category": "Cable",
+      "featureCode": "3791",
+      "ctoCode": "7D5FCTOFWW",
+      "description": "0.6m Yellow Cat5e Cable",
+      "optionCode": "40K8933",
+      "price": 9.5,
+      "length": null,
+      "selectionGroups": [
+        "ETHERNET_CABLE"
+      ]
+    },
+    "preferredCable": null,
+    "type": "MANUAL",
+    "subType": "NETWORK",
+    "divider": 1,
+    "category": "P2P"
+  },
+  "negativeControls": {
+    "nonexistentSourcePreserved": false,
+    "nonexistentPortPreserved": false
+  },
+  "scope": "API preservation evidence only; arbitrary new-row creation and export parity not implemented"
+}

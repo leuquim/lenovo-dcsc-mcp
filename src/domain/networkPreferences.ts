@@ -172,6 +172,7 @@ function resolveConnectors(
   const ids = input.connectorIds ?? [];
   const ports = input.ports ?? [];
   if (ids.length === 0 && ports.length === 0) {
+    if (input.connectorIds !== undefined || input.ports !== undefined) return [];
     if (choices.length === 1) return choices;
     if (choices.length === 0) throw new Error(`No connectors support topology "${input.topology}".`);
     throw new Error(`Topology "${input.topology}" has multiple compatible connectors. ` +
@@ -206,9 +207,18 @@ export function buildSelectedTopologies(
   rawConfiguration: Obj,
   fabric: FabricOptions,
   input: TopologySelectionInput,
+  storageNetworkNames: readonly string[] = [],
 ): Obj {
   const topology = resolveTopology(fabric, input.topology);
-  const network = resolveNetwork(fabric, topology, input.networkName);
+  const storageMatch = input.networkName !== undefined && storageNetworkNames.includes(input.networkName);
+  if (storageMatch && (storageNetworkNames.filter(name => name === input.networkName).length !== 1 ||
+      rawConfiguration['selectedStorageNetwork'] !== input.networkName ||
+      fabric.networkTypes.some(network => network.name === input.networkName || network.id === input.networkName))) {
+    throw new Error('Storage port selection requires one uniquely named storage network assigned to this configuration.');
+  }
+  const network = storageMatch
+    ? { name: input.networkName!, defaultCableColor: object(object(rawConfiguration['selectedTopologies'])?.[input.networkName!])?.['color'] }
+    : resolveNetwork(fabric, topology, input.networkName);
   const selected = resolveConnectors(topologyChoices(rawConfiguration, topology), input);
   const existingValue = rawConfiguration['selectedTopologies'];
   if (existingValue !== undefined && object(existingValue) === undefined) {

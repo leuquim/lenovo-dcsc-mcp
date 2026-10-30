@@ -1,0 +1,120 @@
+{
+  "provenance": "Native D3 Clone Multiple request captured 2026-10-30",
+  "rackArea": [
+    {
+      "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+      "type": "rack",
+      "size": 42,
+      "lockedSpace": [],
+      "rackItems": [
+        {
+          "lock": false,
+          "weight": 40,
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Chassis",
+          "description": "ThinkSystem D3 Chassis-3yr Base Warranty - HPC",
+          "type": "chassis",
+          "hardwareType": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "cogHeight": 43.5,
+          "cogWidth": 220,
+          "cogDepth": 449,
+          "shipUninstalled": false,
+          "uninstalled": false,
+          "shipWeight": 0,
+          "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+          "position": 1,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "defaultPosition": 1,
+          "placementError": [],
+          "sliceCtoCode": "7DD0CTOLWW",
+          "nodes": [
+            {
+              "size": 1,
+              "productType": null,
+              "marketingDescription": null,
+              "highestLowestMap": {},
+              "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "weight": 5,
+              "cloneBy": null,
+              "occupiedBay": 1,
+              "placementInfo": {
+                "sequence": "",
+                "spaceConnector": null
+              },
+              "description": "ThinkSystem SD535 V3-3yr Base Warranty- HPC",
+              "placementError": [],
+              "sliceCtoCode": "7DD1CTOLWW",
+              "name": "Copy_Node",
+              "height": 1,
+              "thinkAgileMIFeatures": []
+            }
+          ],
+          "capacity": 4,
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": null
+          },
+          "cloneBy": null,
+          "occupiedBay": null,
+          "asVLH": false,
+          "vlhId": null,
+          "newHardwareNumber": 0,
+          "placementInfo": {
+            "sequence": "",
+            "spaceConnector": null
+          },
+          "errors": [],
+          "quantity": 0,
+          "machineType": "7DD0",
+          "endPosition": 3,
+          "lfo": false,
+          "positionForErrorMessage": 2,
+          "chassisModel": "dense",
+          "attributes": {},
+          "height": 2,
+          "originalIndex": 0,
+          "pageIndex": 0,
+          "filler": {
+            "size": 3,
+            "code": "BWJQ"
+          },
+          "thinkAgileMIFeatures": []
+        }
+      ]
+    }
+  ],
+  "nonRackArea": [],
+  "sourceId": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+  "cloneIds": [
+    "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+  ],
+  "childCloneIds": {
+    "US__2e28dba3-615f-4d03-9454-32e2c09b7f47": {
+      "US__-b01d-4208-99bc-55c8cc5464cf1000": "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+    }
+  },
+  "expectedDependency": {
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+    ],
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": [
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+    ],
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+    ],
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2": [
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ]
+  },
+  "expectedPosition": 3
+}

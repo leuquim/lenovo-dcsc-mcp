@@ -1,17 +1,26 @@
+import { isStorageRaidModeChange, clearStorageRaidSections, storageWizardOptions, storageWizardOption, storageWizardSections, stageStorageWizardChange, type StorageWizardChange } from '../domain/storageWizard.js';
+import { pciWizardOptions, stagePciWizardChange, acceptPciWizardValidation, withPciWizardOption, type PciWizardChange } from '../domain/pciWizard.js';
+import { serializeSections } from '../domain/dcscWire.js';
+import { restoreSavedBreakoutConnections } from '../domain/importCabling.js';
 import { isDeepStrictEqual } from 'node:util';
+import { nativeManualSourceConfigurationId, stageNativeManualConnection, planNativeManualCableSelection, assertNativeConnectionsRetained, seedNativeManualRoutes, selectNativeManualSourcePort, selectNativeManualSourceGroup, stageNativeManualCableQuantity, importedManualCableSelections, filterNativeManualCableChoices,
+  type NativeManualConnectionRequest } from '../domain/nativeManualCabling.js';
 
-import { resolveLinkedCloneGroup, projectLinkedCloneResponse, type LinkedCloneGroup } from '../domain/linkedCloneEdit.js';
+import { resolveLinkedCloneGroup, projectLinkedCloneResponse, projectHpcLinkedResponses, type LinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { configurationListPrice } from '../domain/pricing.js';
+import { hydrateUnconfiguredCatalog, preserveUnconfiguredSelections, stageUnconfiguredSelection } from '../domain/unconfigured.js';
 import { refreshStoragePhysicalFeatures, splitStoragePhysicalDerive } from '../domain/storagePhysicalDerive.js';
 import { reconfigureStorageConnectionNetwork, type StorageNetworkChanges } from '../domain/storagePreferences.js';
 import { inspectManualCabling as projectManualCabling, stageManualConnectionEdit, applyManualConnectionDistance, applyAcceptedManualCablePhysicalState,
-  commitManualConnectionEdit, projectManualConnection, type ManualConnectionEdit } from '../domain/manualCabling.js';
+  commitManualConnectionEdit, projectManualConnection, manualConnectionId, type ManualConnectionEdit, type ManualCablingInput } from '../domain/manualCabling.js';
 import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../domain/modeFamily.js';
 import type { ConfigMode } from '../config/constants.js';
 import type { Config, Locale, SolutionContext } from '../config/schema.js';
 import { applySoftwareDerivePatch, isSoftwareDerivePatch } from '../domain/softwareDerive.js';
 import { BLUEPRINTS } from '../domain/blueprints.js';
 import { fetchCatalog, type Catalog } from '../domain/catalog.js';
+import { downloadReferenceSolution, fetchReferenceSolutions, referenceId, referencePath, type ReferenceQuery } from '../domain/referenceSolutions.js';
+import { writeCfxmlArtifact } from '../files/artifactStore.js';
 import {
   fetchSolutionModes,
   toSolutionContext,
@@ -28,7 +37,7 @@ import {
   type ExportFileType,
   type ReducedConfiguration,
 } from '../domain/reduce.js';
-import { parseCfxml } from '../domain/import.js';
+import { prepareImportFile } from '../domain/importFile.js';
 import { hydrateImportedLayout, mergeImportedState } from '../domain/importLayout.js';
 import { parseStandaloneImportResponse } from '../domain/importStandalone.js';
 import { assertConfigurationReconciliationAllowed, hasUnrepairedRecoveryData } from '../domain/workspaceIntegrity.js';
@@ -51,6 +60,9 @@ import {
 } from '../domain/rack.js';
 import { fetchFabricOptions, type FabricOptions } from '../domain/fabric.js';
 import { aggregatePower, extractPowerReport, type AggregatedPower, type PowerReport } from '../domain/power.js';
+import { acceptPowerCalculation, buildPowerCalculationRequest, inspectPowerControls, stagePowerControls,
+  type PowerControlChanges } from '../domain/powerControls.js';
+import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js';
 import { buildSelectedTopologies, buildWorkspaceNetworkPreferences, type WorkspaceNetworkSelection } from '../domain/networkPreferences.js';
 import { workspaceNetworkTypes } from '../domain/workspaceNetworkPreferences.js';
 import { retainReplacedStorageComponents, type DetachedStorageComponent } from '../domain/storageComponentLifecycle.js';
@@ -65,7 +77,7 @@ import { stageRackItemLock, stageRackSpaceLock } from '../domain/rackLocks.js';
 import { workspaceHardwareMode } from '../domain/workspaceWire.js';
 import { buildSwitchCalculationRequest, parseSwitchCalculationResponse, buildGeneratedSwitch } from '../domain/switchProvisioning.js';
 import { buildRackRecustomizePlan, parseRackRecustomizeResult } from '../domain/rackRecustomize.js';
-import { projectRackFiller } from '../domain/rackFiller.js';
+import { projectRackFiller, repriceRackFillers } from '../domain/rackFiller.js';
 import { assignConfigIdFeatures, configIdTargetCodes } from '../domain/configIdFeatures.js';
 import { projectAutoDerivedSelections } from '../domain/autoDerivedSelections.js';
 import { buildStorageAssignmentRequest, parseStorageAssignmentResponse } from '../domain/storageAssignment.js';
@@ -584,6 +596,7 @@ export class DcscService {
   #catalog = new Map<string, Cached<Catalog>>();
   #fabric = new Map<string, Cached<FabricOptions>>();
   #mipCatalog = new Map<string, Cached<unknown>>();
+  #references = new Map<string, Cached<unknown>>();
   #closing: Promise<void> | undefined;
 
 
@@ -635,6 +648,36 @@ export class DcscService {
   async resolveSolution(ctx: RequestCtx, preferred?: string): Promise<SolutionContext> {
     const modes = await this.solutionModes(ctx);
     return toSolutionContext(modes, preferred);
+  }
+
+  async downloadReferenceSolution(crnId: string, ctx: RequestCtx, solutionMode?: string) {
+    const solution = await this.resolveSolution(ctx, solutionMode);
+    const bytes = await downloadReferenceSolution(this.http, { ...ctx, solution }, crnId, this.config.files.maxDownloadBytes);
+    return writeCfxmlArtifact(bytes, `${referenceId(crnId, 'crnId')}.xml`, this.config);
+  }
+
+  async referenceSolutions(query: ReferenceQuery, ctx: RequestCtx, solutionMode?: string) {
+    const solution = await this.resolveSolution(ctx, solutionMode);
+    const key = JSON.stringify([ctx.locale, solution, referencePath(query)]);
+    const hit = this.#references.get(key);
+    // Validation is live; catalogs share the ordinary metadata TTL.
+    if (query.view !== 'validation' && hit && Date.now() - hit.at < CATALOG_TTL_MS) {
+      return { raw: structuredClone(hit.value), solution };
+    }
+    const raw = await fetchReferenceSolutions(this.http, { ...ctx, solution }, query);
+    if (query.view !== 'validation') this.#references.set(key, { at: Date.now(), value: structuredClone(raw) });
+    return { raw, solution };
+  }
+
+  async launchReferenceSolution(crnId: string, ctx: RequestCtx, solutionMode?: string): Promise<ImportResult> {
+    const id = referenceId(crnId, 'crnId');
+    const solution = await this.resolveSolution(ctx, solutionMode);
+    const response = await this.http.send({ endpoint: 'reference_customize', method: 'GET',
+      path: `/reference_solution/CRNs/${id}/customize`, responseKind: 'json', timeoutClass: 'heavy',
+      ctx: { ...ctx, solution } });
+    const raw: unknown = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('DCSC returned no customizable reference solution.');
+    return this.#acceptImportPayload({ ...raw, crnId: id }, { ctx, solution, fileName: `${id}.xml` });
   }
 
   /**
@@ -915,6 +958,209 @@ export class DcscService {
     });
   }
 
+  async loadUnconfigured(handle: string, expectedWorkspaceRevision: number, ctx: RequestCtx) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Choose one configuration handle before loading Unconfigured options.');
+    await this.sessions.transact(handle, { expectedRevision: resolved.session.revision, remoteApplied: false }, async (workspace, session) => {
+      if (workspace.revision !== expectedWorkspaceRevision) throw new Error('Workspace changed; refresh the configuration before loading options.');
+      if (!session) throw new Error('A configuration handle is required.');
+      const code = session.raw.sliceCtoCode ?? session.raw.ctoCode ?? session.raw.code;
+      if (typeof code !== 'string' || !/^[A-Za-z0-9_-]+$/.test(code)) throw new Error('Configuration has no native product code.');
+      const response = await this.http.send({ endpoint: 'unconfigured_catalog', method: 'POST', path: `/unconfigured/${code}`,
+        responseKind: 'json', timeoutClass: 'heavy', ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
+      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+        [...workspace.configurations.values()].map(s => s.configurationId), session.configurationId);
+      for (const member of workspace.configurations.values()) {
+        if (!group.memberIds.includes(member.configurationId)) continue;
+        const memberCode = member.raw.sliceCtoCode ?? member.raw.ctoCode ?? member.raw.code;
+        if (memberCode !== code) throw new Error('Linked configurations have inconsistent product identities; catalog refresh was not committed.');
+        member.raw = hydrateUnconfiguredCatalog(member.raw, response.raw as RawConfiguration);
+        member.index = buildIndex(member.raw);
+        member.reduced = reduceConfiguration(member.raw, member.configurationId, hardwareModeFamily(member.mode), workspace.solution.solutionMode);
+      }
+      this.#refreshRackMetadata(workspace, true);
+    });
+    return this.sessions.get(handle)!;
+  }
+
+  async setUnconfigured(handle: string, changes: Array<{ section: string; code: string; quantity: number }>, expectedWorkspaceRevision: number) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Choose one configuration handle before editing Unconfigured selections.');
+    if (changes.length === 0) throw new Error('Provide at least one Unconfigured selection change.');
+    await this.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: false }, async workspace => {
+      const session = workspace.configurations.get(resolved.session.id);
+      if (!session) throw new Error('Configuration is no longer present.');
+      const edits = changes.map(change => {
+        const section = resolveSection(session.index, change.section);
+        if (!section) throw new Error('Load Unconfigured options and use an exact section ID from dcsc_list_options.');
+        return { ...change, sectionName: section.name };
+      });
+      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+        [...workspace.configurations.values()].map(s => s.configurationId), session.configurationId);
+      for (const member of workspace.configurations.values()) {
+        if (!group.memberIds.includes(member.configurationId)) continue;
+        for (const edit of edits) member.raw = stageUnconfiguredSelection(member.raw, edit);
+        member.index = buildIndex(member.raw);
+        member.reduced = reduceConfiguration(member.raw, member.configurationId, hardwareModeFamily(member.mode), workspace.solution.solutionMode);
+        member.intents.push({ at: Date.now(), changes });
+      }
+      this.#refreshRackMetadata(workspace, true);
+      invalidateConnectionGraph(workspace.serverState, 'Unconfigured selections changed. Regenerate connections before handoff.');
+    });
+    return this.sessions.get(handle)!;
+  }
+
+  inspectStorageWizard(handle: string, expectedWorkspaceRevision?: number) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Storage wizard requires one configuration handle.');
+    if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
+      throw new Error('Workspace changed; refresh dcsc_storage_wizard choices.');
+    }
+    const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
+      [...resolved.workspace.configurations.values()].map(s => s.configurationId), resolved.session.configurationId);
+    const options = storageWizardOptions(resolved.session.raw);
+    const wizard = resolved.session.raw['storageWizard'] as Record<string, unknown> | undefined;
+    return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+      configurationRevision: resolved.session.revision, available: options.length > 0,
+      affectedConfigurationIds: group.memberIds, options,
+      errors: structuredClone(wizard?.['errors'] ?? []), warnings: structuredClone(wizard?.['warnings'] ?? []),
+      notices: structuredClone(wizard?.['notices'] ?? []) };
+  }
+
+  async setStorageWizard(handle: string, change: StorageWizardChange, expectedWorkspaceRevision: number, ctx: RequestCtx) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Storage wizard requires one configuration handle.');
+    const id = resolved.session.configurationId;
+    await this.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
+      actionHistory: updateHistoryFactory(id) }, async workspace => {
+      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+        [...workspace.configurations.values()].map(s => s.configurationId), id);
+      const members = [...workspace.configurations.values()].filter(s => group.memberIds.includes(s.configurationId));
+      const staged = members.map(session => ({ session, raw: stageStorageWizardChange(session.raw, change) }));
+      for (const item of staged) {
+        item.session.raw = item.raw;
+        item.session.index = buildIndex(item.raw);
+        item.session.reduced = reduceConfiguration(item.raw, item.session.configurationId,
+          hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+      }
+      await this.#configureDraft(members.find(s => s.configurationId === id)!, [],
+        { ...ctx, locale: workspace.locale, solution: workspace.solution }, workspace);
+      for (const member of members) {
+        const option = storageWizardOption(member.raw);
+        if (change.optionId === null ? option?.['activate'] !== false
+          : option?.['configId'] !== change.optionId || option?.['userSelected'] !== true) {
+          throw new Error('Lenovo did not retain the explicit storage wizard selection; the local edit was not committed.');
+        }
+      }
+    });
+    return this.inspectStorageWizard(handle);
+  }
+
+  inspectPciWizard(handle: string, expectedWorkspaceRevision?: number) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('PCI wizard requires one configuration handle.');
+    if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
+      throw new Error('Workspace changed; refresh dcsc_pci_wizard choices.');
+    }
+    const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
+      [...resolved.workspace.configurations.values()].map(s => s.configurationId), resolved.session.configurationId);
+    const options = pciWizardOptions(resolved.session.raw);
+    return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+      configurationRevision: resolved.session.revision, available: options.length > 0,
+      affectedConfigurationIds: group.memberIds, options };
+  }
+
+  async setPciWizard(handle: string, change: PciWizardChange, expectedWorkspaceRevision: number, ctx: RequestCtx) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('PCI wizard requires one configuration handle.');
+    const id = resolved.session.configurationId;
+    await this.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
+      actionHistory: updateHistoryFactory(id) }, async workspace => {
+      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+        [...workspace.configurations.values()].map(s => s.configurationId), id);
+      const members = [...workspace.configurations.values()].filter(s => group.memberIds.includes(s.configurationId));
+      const staged = members.map(session => ({ session, ...stagePciWizardChange(session.raw, change) }));
+      const requestCtx = { ...ctx, locale: workspace.locale, solution: workspace.solution };
+      for (const item of staged) {
+        let option = item.option;
+        if (item.operate) {
+          const response = await this.http.send({ endpoint: 'pci_wizard_validate_slot', method: 'POST',
+            path: '/pci_wizard/validate/additional/slot',
+            query: { ctoCode: String(item.session.raw.sliceCtoCode ?? item.session.raw.ctoCode ?? item.session.raw.code), _request: 'web' },
+            body: { kind: 'json', value: { pciWizardOption: option,
+              sections: serializeSections(item.session.raw).filter(section => section.subTabTitle !== 'Riser Card'),
+              operate: item.operate, language: workspace.locale.language } },
+            responseKind: 'json', timeoutClass: 'interactive', ctx: requestCtx });
+          option = acceptPciWizardValidation(option, response.raw, item.operate);
+        }
+        item.session.raw = withPciWizardOption(item.session.raw, item.options, option);
+        item.session.index = buildIndex(item.session.raw);
+        item.session.reduced = reduceConfiguration(item.session.raw, item.session.configurationId,
+          hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+      }
+      await this.#configureDraft(members.find(s => s.configurationId === id)!, [], requestCtx, workspace);
+      for (const member of members) {
+        const active = pciWizardOptions(member.raw).filter(option => option['activate'] === true);
+        if (active.length !== 1 || active[0]!['configId'] !== change.optionId) {
+          throw new Error('Lenovo did not retain the selected PCI wizard option; the local edit was not committed.');
+        }
+      }
+    });
+    return this.inspectPciWizard(handle);
+  }
+
+  inspectPowerControls(handle: string, expectedWorkspaceRevision?: number) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Power controls require one configuration handle from dcsc_session_list.');
+    if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
+      throw new Error('Workspace changed. Call dcsc_power_controls again without a revision to refresh the available choices.');
+    }
+    const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
+      [...resolved.workspace.configurations.values()].map(session => session.configurationId), resolved.session.configurationId);
+    return { workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+      session: resolved.session.id, configurationRevision: resolved.session.revision,
+      affectedConfigurationIds: group.memberIds, ...inspectPowerControls(resolved.session.raw) };
+  }
+
+  /** Mirrors the Engineering Power Report dialog's calculate + Save, in one durable transaction. */
+  async setPowerControls(handle: string, changes: PowerControlChanges, expectedWorkspaceRevision: number, ctx: RequestCtx) {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Power controls require one configuration handle from dcsc_session_list.');
+    const configurationId = resolved.session.configurationId;
+    const transaction = { expectedRevision: expectedWorkspaceRevision, remoteApplied: false };
+    await this.sessions.transact(resolved.workspace.id, transaction, async workspace => {
+      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+        [...workspace.configurations.values()].map(session => session.configurationId), configurationId);
+      const members = [...workspace.configurations.values()].filter(session => group.memberIds.includes(session.configurationId));
+      const staged = members.map(session => ({ session, raw: stagePowerControls(session.raw, changes),
+        physical: storagePhysicalConfigurations(workspace, session.configurationId, session.raw)
+          .map(item => ({ ...item, raw: stagePowerControls(item.raw, changes) })),
+      }));
+      const calculate = async (raw: RawConfiguration) => {
+        const response = await this.http.send({ endpoint: 'power_calculate', method: 'POST',
+          path: '/powercalculation/powercalculate', body: { kind: 'json', value: buildPowerCalculationRequest(raw) },
+          responseKind: 'json', timeoutClass: 'interactive', ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
+        transaction.remoteApplied = true;
+        return acceptPowerCalculation(raw, response.raw);
+      };
+      for (const item of staged) {
+        item.session.raw = await calculate(item.raw);
+        item.session.index = buildIndex(item.session.raw);
+        item.session.reduced = reduceConfiguration(item.session.raw, item.session.configurationId,
+          hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+        for (const physical of item.physical) {
+          const accepted = await calculate(physical.raw);
+          workspace.serverState.storagePhysicalConfigurations = {
+            ...(workspace.serverState.storagePhysicalConfigurations as Record<string, unknown> | undefined),
+            [physical.physicalId]: accepted,
+          };
+        }
+      }
+      this.#refreshRackMetadata(workspace, true);
+    });
+    return { ...this.inspectPowerControls(handle), report: extractPowerReport(this.sessions.get(handle)!.raw) };
+  }
+
   async #prepareRackCustomizationDraft(workspace: WorkspaceSession, session: ConfigSession, ctx: RequestCtx): Promise<void> {
     const ready = Array.isArray(workspace.serverState.rackCustomizationReady)
       ? workspace.serverState.rackCustomizationReady as string[] : [];
@@ -986,7 +1232,7 @@ export class DcscService {
       ? ((updated as Record<string, unknown>)['nodeRole'] as string)
       : undefined;
   const mergedUpdated = {
-    ...updated,
+    ...preserveUnconfiguredSelections(session.raw, updated),
     quantity: session.raw.quantity ?? updated.quantity ?? 1,
     ...(Object.hasOwn(session.raw, 'selectedStorageNetwork')
       ? { selectedStorageNetwork: structuredClone(session.raw.selectedStorageNetwork) } : {}),
@@ -1016,15 +1262,25 @@ export class DcscService {
   return session;
   }
 
-  /** Fan out only the explicit updateConfigurationIds contract captured from GP Clone Multiple. */
+  /** Fan out the explicit updateConfigurationIds contract for GP and shared HPC node/chassis/switch/materialized-storage edits. */
   async #configureLinkedDraft(workspace: WorkspaceSession, initiating: ConfigSession,
     changes: Array<{ section: string; code: string; quantity: number }>, ctx: RequestCtx, group: LinkedCloneGroup): Promise<ConfigSession> {
     const members = group.memberIds.map(id => [...workspace.configurations.values()].find(value => value.configurationId === id)!);
     const editor = members.find(member => member.configurationId === group.rootId)!;
-    if (workspace.solution.solutionMode !== 'General Purpose' || members.some(member =>
+    const hpcNodes = workspace.solution.solutionMode === 'HPC and AI - Systems' && members.every(member => member.raw.type === 'node');
+    const hpcChassis = workspace.solution.solutionMode === 'HPC and AI - Systems' && members.every(member => member.raw.type === 'chassis');
+    const managed = managedStorageComponentIds(workspace.serverState);
+    const hpcSwitches = workspace.solution.solutionMode === 'HPC and AI - Systems' &&
+      members.every(member => member.raw.type === 'switch' && !managed.has(member.configurationId));
+    const physicalTemplates = storagePhysicalTemplateIds(workspace);
+    const hpcStorage = workspace.solution.solutionMode === 'HPC and AI - Systems' &&
+      members.every(member => member.raw.type === 'storage' && !managed.has(member.configurationId) &&
+        (physicalTemplates.get(member.configurationId) ?? member.configurationId) === member.configurationId);
+    const hpcLinked = hpcNodes || hpcChassis || hpcSwitches || hpcStorage;
+    if ((!hpcLinked && workspace.solution.solutionMode !== 'General Purpose') || members.some(member =>
       !usesCtoWire(member.mode) || member.product.code !== initiating.product.code ||
       (member.raw.quantity ?? 1) !== 1 || member.validationMode !== initiating.validationMode || member.autoCorrect !== initiating.autoCorrect)) {
-      throw new Error('Linked edits currently require matching General Purpose CTO configurations at quantity one with the same validation controls.');
+      throw new Error('Linked edits require matching General Purpose CTO configurations or HPC node/chassis/switch/materialized-storage configurations at quantity one with the same validation controls.');
     }
     const savedHistory = workspace.serverState.linkedConfigurationEdits;
     if (savedHistory !== undefined && (!savedHistory || typeof savedHistory !== 'object' || Array.isArray(savedHistory))) {
@@ -1044,20 +1300,68 @@ export class DcscService {
     body.customizingIds = [...group.memberIds];
     const byId = new Map(prepared.map(value => [value.member.configurationId, value.reduced]));
     body.configurations = (body.configurations as ReducedConfiguration[]).map(value => byId.get(value.id) ?? value);
+    if (hpcLinked) {
+      // Native HPC keeps shared configurations at clone roots. Repeated response
+      // records may still occur after a fresh physical clone.
+      const dependency = configurationCloneDependency(workspace);
+      const ids = [...workspace.configurations.values()].map(member => member.configurationId);
+      body.configurations = (body.configurations as ReducedConfiguration[]).filter(value =>
+        resolveLinkedCloneGroup(dependency, ids, value.id).rootId === value.id);
+    }
+
     const response = await this.http.send({ endpoint: 'cto_autoDerive', method: 'POST', path: '/ctos/autoDerive',
-      query: { configurationId: editor.configurationId, entranceFlag: 'customize',
+      query: { configurationId: editor.configurationId, ...(!hpcLinked ? { entranceFlag: 'customize' } : {}),
         ...(softwareEdit ? { isCustomizeOSSoftware: true, isCustomizeNewSoftwareEngine: true }
           : { guideMode: initiating.validationMode === 'guided' }) },
       body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
       ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
     const result = response.raw as { configurations?: RawConfiguration[]; autoDerivedResults?: unknown };
-    const raw = result.configurations?.[0];
-    if (!Array.isArray(result.configurations) || result.configurations.length !== 1 || !raw ||
-      raw.id !== editor.configurationId || !Array.isArray(raw.tabs) || raw.type !== initiating.raw.type ||
-      String(raw.code || raw.sliceCtoCode || '') !== initiating.product.code) {
-      throw new Error('DCSC returned an unexpected linked-clone edit response. No linked configurations were committed.');
+    let projected: RawConfiguration[];
+    if (hpcLinked) {
+      const dependency = configurationCloneDependency(workspace);
+      const ids = [...workspace.configurations.values()].map(member => member.configurationId);
+      const allowedRoots = new Set([group.rootId]);
+      const sharedChildRoots = new Set<string>();
+      if (hpcSwitches || hpcStorage) {
+        // Native linked switch/storage edits may return their containing rack.
+        for (const rack of workspace.rackArea) {
+          const items = Array.isArray(rack['rackItems']) ? rack['rackItems'] as Record<string, unknown>[] : [];
+          if (!items.some(item => group.memberIds.includes(String(item['configurationId'] ?? item['id'])))) continue;
+          allowedRoots.add(resolveLinkedCloneGroup(dependency, ids, String(rack['id'])).rootId);
+          for (const item of items) {
+            const id = String(item['configurationId'] ?? item['id']);
+            if (hpcSwitches && item['type'] === 'switch' && ids.includes(id) && !managed.has(id)) {
+              allowedRoots.add(resolveLinkedCloneGroup(dependency, ids, id).rootId);
+            }
+          }
+        }
+      }
+      const physicalItems = [...workspace.rackArea.flatMap(rack => Array.isArray(rack['rackItems']) ? rack['rackItems'] as Record<string, unknown>[] : []), ...workspace.nonRackArea];
+      for (const item of physicalItems) {
+        const nodes = Array.isArray(item['nodes']) ? item['nodes'] as Record<string, unknown>[] : [];
+        if (hpcChassis && item['type'] === 'chassis' && group.memberIds.includes(String(item['configurationId'] ?? item['id']))) {
+          for (const node of nodes) {
+            const childRoot = resolveLinkedCloneGroup(dependency, ids, String(node['configurationId'] ?? node['id'])).rootId;
+            allowedRoots.add(childRoot); sharedChildRoots.add(childRoot);
+          }
+        }
+        if (hpcNodes && item['type'] === 'chassis' && nodes.some(node => group.memberIds.includes(String(node['configurationId'] ?? node['id'])))) {
+          allowedRoots.add(resolveLinkedCloneGroup(dependency, ids, String(item['configurationId'] ?? item['id'])).rootId);
+        }
+      }
+      if (!Array.isArray(result.configurations)) throw new Error('DCSC omitted HPC linked configurations.');
+      projected = projectHpcLinkedResponses(result.configurations, [...workspace.configurations.values()].map(member => member.raw),
+        dependency, group.rootId, allowedRoots, sharedChildRoots);
+    } else {
+      const raw = result.configurations?.[0];
+      if (!Array.isArray(result.configurations) || result.configurations.length !== 1 || !raw ||
+        raw.id !== editor.configurationId || !Array.isArray(raw.tabs) || raw.type !== initiating.raw.type ||
+        String(raw.code || raw.sliceCtoCode || '') !== initiating.product.code) {
+        throw new Error('DCSC returned an unexpected linked-clone edit response. No linked configurations were committed.');
+      }
+      projected = projectLinkedCloneResponse(raw, group);
     }
-    const projected = projectLinkedCloneResponse(raw, group);
+    const dependentUpdates = projected.some(configuration => !group.memberIds.includes(String(configuration.id)));
     if (Array.isArray(result.autoDerivedResults)) workspace.serverState.autoDerivedResults = structuredClone(result.autoDerivedResults);
     this.#acceptWorkspaceConfigurations(workspace, projected);
     const editAt = Date.now();
@@ -1067,7 +1371,7 @@ export class DcscService {
     }
     if (changes.length > 0) {
       workspace.serverState.linkedConfigurationEdits = { ...histories,
-        [group.rootId]: [...previousEdits, { at: editAt, members: beforeMembers }].slice(-10) };
+        [group.rootId]: [...previousEdits, { at: editAt, members: beforeMembers, ...(dependentUpdates ? { requiresWorkspaceUndo: true } : {}) }].slice(-10) };
     }
     await this.#prepareConfigIdsDraft(workspace, ctx);
     this.#refreshRackMetadata(workspace, true);
@@ -1217,10 +1521,10 @@ export class DcscService {
         const histories = workspace.serverState.linkedConfigurationEdits as Record<string, unknown> | undefined;
         const entries = histories?.[group.rootId];
         const marker = Array.isArray(entries) ? entries.at(-1) as {
-          at?: unknown; members?: Array<{ configurationId: string; revision: number; intentCount: number }>;
+          at?: unknown; requiresWorkspaceUndo?: boolean; members?: Array<{ configurationId: string; revision: number; intentCount: number }>;
         } | undefined : undefined;
         const message = 'No matching atomic linked edit can be undone. Use dcsc_workspace_history to restore the complete workspace.';
-        if (!Array.isArray(entries) || !marker || typeof marker.at !== 'number' || !Array.isArray(marker.members) ||
+        if (!Array.isArray(entries) || !marker || marker.requiresWorkspaceUndo || typeof marker.at !== 'number' || !Array.isArray(marker.members) ||
           marker.members.some(member => !member || typeof member !== 'object' || typeof member.configurationId !== 'string') ||
           marker.members.length !== group.memberIds.length ||
           new Set(marker.members.map(member => member.configurationId)).size !== group.memberIds.length ||
@@ -1425,7 +1729,8 @@ export class DcscService {
     ws: WorkspaceSession,
     rackArea: RackObject[],
     ctx: RequestCtx,
-    opts: CustomizeOptions & { cloneMultiple?: boolean; copyConfigurationId?: string; lockMutation?: boolean;
+    opts: CustomizeOptions & { cloneMultiple?: boolean; cloneHpcSwitch?: string; clonePopulatedChassis?: boolean; copyPopulatedChassisDependency?: unknown; copyConfigurationId?: string; lockMutation?: boolean;
+      preserveImportedManualCables?: boolean;
       deletedLinkedRootConfigurations?: RawConfiguration[];
       nestedPhysicalEdit?: { configurations: RawConfiguration[]; cloneDependency: unknown } } = {},
   ): Promise<LayoutResult> {
@@ -1433,16 +1738,19 @@ export class DcscService {
     const mode = workspaceHardwareMode(ws.configurations.values());
     ws.rackArea = rackArea;
     delete ws.serverState.rackCustomizationReady;
+    const importedCablePlans = opts.preserveImportedManualCables
+      ? importedManualCableSelections(this.#manualCablingInput(ws)) : [];
     const customize = async () => {
       const result = await customizeLayout(this.http, requestContext,
         buildRackCustomizePayload({ ...this.#networkState(ws),
           ...(opts.cloneMultiple || opts.copyConfigurationId || opts.deletedLinkedRootConfigurations
             ? { cloneDependency: {}, cloneDependencyColor: {} } : {}), rackArea: ws.rackArea,
           ...(opts.nestedPhysicalEdit ? { cloneDependency: opts.nestedPhysicalEdit.cloneDependency } : {}),
+          ...(opts.copyPopulatedChassisDependency ? { cloneDependency: opts.copyPopulatedChassisDependency } : {}),
           nonRackArea: ws.nonRackArea }, opts.nestedPhysicalEdit?.configurations ??
           opts.deletedLinkedRootConfigurations ?? [...ws.configurations.values()].map((session) => session.raw)),
         { autoConnect: true, cogValidation: true, ...opts, mode });
-      if (opts.cloneMultiple || opts.copyConfigurationId || opts.lockMutation || opts.deletedLinkedRootConfigurations || opts.nestedPhysicalEdit) {
+      if (opts.cloneMultiple || opts.cloneHpcSwitch || opts.clonePopulatedChassis || opts.copyConfigurationId || opts.lockMutation || opts.deletedLinkedRootConfigurations || opts.nestedPhysicalEdit) {
         const state = result.rawState;
         if (!Array.isArray(state.rackArea) || !Array.isArray(state.nonRackArea) || !Array.isArray(state.connections)) {
           throw new Error('DCSC returned an incomplete physical layout. Workspace was not committed.');
@@ -1450,20 +1758,44 @@ export class DcscService {
         if (result.errors.length || state.errors && (!Array.isArray(state.errors) || state.errors.length)) {
           throw new Error(`DCSC rejected the physical layout: ${JSON.stringify(state.errors ?? result.errors).slice(0, 1500)}`);
         }
-        if (opts.nestedPhysicalEdit) assertAcceptedNestedEdit(ws, {
+        if (opts.nestedPhysicalEdit || opts.clonePopulatedChassis) assertAcceptedNestedEdit(ws, {
           rackArea: result.rawRackArea, nonRackArea: result.rawNonRackArea,
         });
       }
       return result;
     };
-    const initial = await customize();
+    let initial = await customize();
     ws.rackArea = initial.rawRackArea;
     ws.nonRackArea = initial.rawNonRackArea;
+    if (opts.cloneHpcSwitch) {
+      initial = await customize();
+      ws.rackArea = initial.rawRackArea;
+      ws.nonRackArea = initial.rawNonRackArea;
+    }
+    // Native layout recalculation marks active cables forAutoConnect and can
+    // replace selected spare quantities with route counts. Restore the imported
+    // physical quantities before deriving the commercial configurations.
+    for (const plan of importedCablePlans) {
+      const physical = stageNativeManualCableQuantity(this.#manualCablingInput(ws), plan);
+      ws.rackArea = physical.rackArea;
+      ws.nonRackArea = physical.nonRackArea;
+    }
     await this.#prepareConfigIdsDraft(ws, ctx);
     const hasStorageInstances = [...storagePhysicalTemplateIds(ws)].some(([id, template]) => id !== template);
+    if (opts.clonePopulatedChassis) for (const rack of ws.rackArea) {
+      const session = [...ws.configurations.values()].find(c => c.configurationId === rack.id);
+      if (!session) throw new Error(`Cloned chassis rack ${rack.id} has no configuration.`);
+      session.raw = repriceRackFillers(session.raw, projectRackFiller(rack, session.raw).configuration);
+      session.index = buildIndex(session.raw);
+      session.reduced = reduceConfiguration(session.raw, session.configurationId, hardwareModeFamily(session.mode), ws.solution.solutionMode);
+    }
+
     // LFO import/layout only customizes the layout. The website derives LFO
     // options when the user enters configuration editing, not during import.
-    if (ws.configurations.size > 0 && mode === 'cto') {
+    // Native populated-chassis Clone Multiple customizes physical placement only.
+    // Its linked product configurations are copied locally; an extra derive can
+    // return the same child root twice because the IDs belong to one clone group.
+    if (ws.configurations.size > 0 && mode === 'cto' && !opts.clonePopulatedChassis) {
     const body = buildAutoDeriveRequest(ws, { validationMode: ws.validationMode,
       autoCorrect: [...ws.configurations.values()].every((session) => session.autoCorrect) });
     if (opts.copyConfigurationId) {
@@ -1475,10 +1807,16 @@ export class DcscService {
       body.customizingIds = [];
     }
     if (opts.lockMutation || opts.deletedLinkedRootConfigurations) body.customizingIds = [];
-    if (hasStorageInstances || opts.nestedPhysicalEdit) delete body.customizingIds;
+    if (hasStorageInstances || opts.nestedPhysicalEdit || opts.cloneHpcSwitch) delete body.customizingIds;
+    if (opts.cloneHpcSwitch) {
+      const dependency = configurationCloneDependency(ws);
+      const ids = [...ws.configurations.values()].map(c => c.configurationId);
+      body.configurations = (body.configurations as ReducedConfiguration[]).filter(c =>
+        resolveLinkedCloneGroup(dependency, ids, c.id).rootId === c.id);
+    }
     const derived = await this.http.send({
       endpoint: 'workspace_autoDerive', method: 'POST', path: '/ctos/autoDerive',
-      query: { ...(hasStorageInstances || opts.nestedPhysicalEdit ? {} : {
+      query: { ...(hasStorageInstances || opts.nestedPhysicalEdit || opts.cloneHpcSwitch ? {} : {
         entranceFlag: opts.cloneMultiple || opts.copyConfigurationId || opts.lockMutation || opts.deletedLinkedRootConfigurations ? 'customize' : 'summary',
       }), guideMode: ws.validationMode === 'guided' },
       body: { kind: 'json', value: body },
@@ -1490,9 +1828,17 @@ export class DcscService {
     if (!Array.isArray(response.configurations)) {
       throw new Error('DCSC returned no configuration patch after the layout change. Workspace was not committed.');
     }
-    this.#acceptDerivedWorkspaceConfigurations(ws, response);
+    if (opts.cloneHpcSwitch) {
+      const dependency = configurationCloneDependency(ws);
+      const current = [...ws.configurations.values()].map(c => c.raw);
+      const ids = current.map(c => String(c.id));
+      const roots = new Set(ids.map(id => resolveLinkedCloneGroup(dependency, ids, id).rootId));
+      const projected = projectHpcLinkedResponses(response.configurations as RawConfiguration[], current,
+        dependency, opts.cloneHpcSwitch, roots);
+      this.#acceptDerivedWorkspaceConfigurations(ws, { ...response, configurations: projected });
+    } else this.#acceptDerivedWorkspaceConfigurations(ws, response);
     }
-    const result = mode === 'lfo' || opts.copyConfigurationId || opts.lockMutation || hasStorageInstances || opts.deletedLinkedRootConfigurations || opts.nestedPhysicalEdit ? initial : await customize();
+    const result = mode === 'lfo' || opts.cloneHpcSwitch || opts.clonePopulatedChassis || opts.copyConfigurationId || opts.lockMutation || hasStorageInstances || opts.deletedLinkedRootConfigurations || opts.nestedPhysicalEdit ? initial : await customize();
     ws.rackArea = result.rawRackArea;
     ws.nonRackArea = result.rawNonRackArea;
     await this.#prepareConfigIdsDraft(ws, ctx);
@@ -2023,20 +2369,26 @@ export class DcscService {
     await this.#deriveNetworkDraft(ws, ctx);
   }
 
-  async #autoConnectDraft(ws: WorkspaceSession, ctx: RequestCtx): Promise<AutoConnectResult> {
+  async #autoConnectDraft(ws: WorkspaceSession, ctx: RequestCtx, seedConnections?: readonly unknown[],
+    manualCableSelection?: ReturnType<typeof planNativeManualCableSelection> | Array<ReturnType<typeof planNativeManualCableSelection>>): Promise<AutoConnectResult> {
     const settings = readAutoConnectSettings(ws.serverState);
     const automaticSwitches = settings.autoAddSwitch === true && ws.solution.solutionMode === 'HPC and AI - Systems';
-    if (automaticSwitches) await this.#provisionSwitchesDraft(ws, ctx);
+    if (automaticSwitches && seedConnections === undefined) await this.#provisionSwitchesDraft(ws, ctx);
     const floor = buildFloorState(ws);
+    // Manual cable distance was calculated against current placement. Native arrange
+    // can move devices while retaining stale row geometry, breaking later imports.
+    const selectedCableLayout = manualCableSelection
+      ? structuredClone({ rackArea: ws.rackArea, nonRackArea: ws.nonRackArea }) : undefined;
     const result = await autoConnect(this.http, { ...ctx, locale: ws.locale, solution: ws.solution },
       this.#cablingPayload(ws), ws.solution.solutionMode === 'HPC and AI - Systems'
-        ? { autoArrange: true, autoConnect: true, cogValidation: true } : undefined);
+        ? { autoArrange: seedConnections === undefined, autoConnect: true, cogValidation: true } : undefined, seedConnections);
     if (!Array.isArray(result.rawState.connections) || result.rawState.errors && !Array.isArray(result.rawState.errors)) {
       throw new Error('DCSC returned an incomplete connection graph. Workspace was not committed.');
     }
     if (result.errors.length > 0) {
       throw new Error(`DCSC rejected auto-connect: ${JSON.stringify(result.errors).slice(0, 1500)}`);
     }
+    if (seedConnections !== undefined) assertNativeConnectionsRetained(seedConnections, result.rawConnections);
     ws.rackArea = result.rawRackArea;
     ws.nonRackArea = result.rawNonRackArea;
     ws.rackSummaries = summariseRackArea(result.rawRackArea);
@@ -2046,6 +2398,21 @@ export class DcscService {
     ws.serverState.floorInformation = floor.information;
     const returnedConfigurations = result.rawState.configurations;
     if (Array.isArray(returnedConfigurations)) this.#acceptWorkspaceConfigurations(ws, returnedConfigurations);
+    for (const selection of manualCableSelection ? (Array.isArray(manualCableSelection) ? manualCableSelection : [manualCableSelection]) : []) {
+      const input = this.#manualCablingInput(ws);
+      const row = readConnectionGraph(ws.serverState).find(value => {
+        const connection = value as Record<string, unknown>;
+        return selection.physicalDestinationIds.includes(String(connection.destinationId)) && connection.cablePart === selection.code;
+      }) as Record<string, unknown> | undefined;
+
+      // Shared source-port selection can add an AUTO route for a linked sibling.
+      // Cover the accepted graph, not only the explicitly requested seed rows.
+      const requiredQuantity = row ? planNativeManualCableSelection(input, row).requiredQuantity : 0;
+      const layout = stageNativeManualCableQuantity(input, { ...selection,
+        quantity: Math.max(selection.quantity, requiredQuantity) }, selectedCableLayout);
+      ws.rackArea = layout.rackArea;
+      ws.nonRackArea = layout.nonRackArea;
+    }
     if (result.rawConnections.length > 0 && workspaceHardwareMode(ws.configurations.values()) === 'cto') {
       await this.#deriveNetworkDraft(ws, ctx);
     }
@@ -2165,7 +2532,8 @@ export class DcscService {
       if (Array.isArray(ws.serverState.rackCustomizationReady)) {
         ws.serverState.rackCustomizationReady = ws.serverState.rackCustomizationReady.filter(value => value !== id);
       }
-      session.raw = { ...projectAutoDerivedSelections(raw, ws.serverState.autoDerivedResults).configuration,
+      session.raw = { ...preserveUnconfiguredSelections(session.raw,
+        projectAutoDerivedSelections(raw, ws.serverState.autoDerivedResults).configuration),
         quantity: session.raw.quantity ?? 1,
         ...Object.fromEntries(['selectedStorageNetwork', 'selectedTopologies', 'nodeRole', 'name']
           .filter(key => Object.hasOwn(session.raw, key)).map(key => [key, structuredClone(session.raw[key])])),
@@ -2179,7 +2547,7 @@ export class DcscService {
   /** Current physical endpoints and floor geometry for the website's existing-row editor. */
   #manualCablingInput(workspace: WorkspaceSession) {
     const floor = buildFloorState(workspace);
-    return { connections: readConnectionGraph(workspace.serverState),
+    return { connections: readConnectionGraph(workspace.serverState), cloneDependency: configurationCloneDependency(workspace),
       configurations: [...workspace.configurations.values()].map(session => session.raw),
       rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea,
       floorItems: floor.items, floorPreference: floor.information.floorPreference as Record<string, unknown>,
@@ -2197,6 +2565,144 @@ export class DcscService {
       report: projectManualCabling(this.#manualCablingInput(workspace)) };
   }
 
+  async #refreshManualCableChoices(input: ManualCablingInput, connectionId: string, ctx: RequestCtx & { solution: SolutionContext }) {
+    const matches = input.connections.map((row, index) => ({ row: row as Record<string, unknown>, index }))
+      .filter(({ row }) => manualConnectionId(row) === connectionId);
+    if (matches.length !== 1) throw new Error('Choose one existing connection by its exact ID.');
+    const { row, index } = matches[0]!;
+    const topology = String(row['topology'] ?? '');
+    if (!topology) throw new Error('Connection has no topology for cable discovery.');
+    if (typeof row['sourceId'] !== 'string' || !row['sourceId'] || typeof row['destinationId'] !== 'string' || !row['destinationId']) {
+      throw new Error('Connection has no complete physical endpoint identity.');
+    }
+    const request = { floorPreference: input.floorPreference ?? {}, floorItems: [...input.floorItems ?? []],
+      from: String(row['sourceId']), to: String(row['destinationId']), network: topology };
+    const response = await this.http.send({ endpoint: 'manual_cabling_distance', method: 'POST', path: '/calculateDistance',
+      body: { kind: 'json', value: request }, responseKind: 'json', timeoutClass: 'interactive', ctx });
+    const fabric = await this.fabricOptions(ctx, ctx.solution);
+    const distance = filterNativeManualCableChoices(response.raw, topology, fabric.cables,
+      row['category'] === 'BREAKOUT' && row['divider'] === 4 ? 'breakout-4' : 'point-to-point');
+    const refreshed = applyManualConnectionDistance({ connectionId, index, before: row, staged: row,
+      distanceRequest: request }, distance);
+    return { ...input, connections: input.connections.map((value, i) => i === index ? refreshed.staged : value) };
+  }
+
+  async inspectManualCableChoices(handle: string, connectionId: string, expectedWorkspaceRevision: number | undefined, ctx: RequestCtx) {
+    if (expectedWorkspaceRevision === undefined) throw new Error('expectedWorkspaceRevision is required to refresh cable choices.');
+    const workspace = this.sessions.getWorkspace(handle);
+    if (!workspace) throw new Error('Workspace not found.');
+    if (workspace.revision !== expectedWorkspaceRevision) throw new SessionConflictError(expectedWorkspaceRevision, workspace.revision, 'workspace');
+    assertCurrentConnectionGraph(workspace.serverState);
+    const input = await this.#refreshManualCableChoices(structuredClone(this.#manualCablingInput(workspace)), connectionId,
+      { ...ctx, locale: workspace.locale, solution: workspace.solution });
+    const current = this.sessions.getWorkspace(workspace.id);
+    if (!current) throw new Error('Workspace was removed while refreshing cable choices.');
+    if (current.revision !== expectedWorkspaceRevision) throw new SessionConflictError(expectedWorkspaceRevision, current.revision, 'workspace');
+    return { workspace: current.id, revision: current.revision, report: projectManualCabling(input) };
+  }
+
+  async createNativeManualCabling(handle: string, request: NativeManualConnectionRequest & { expectedRevision: number; ctx: RequestCtx }) {
+    const workspace = this.sessions.getWorkspace(handle);
+    if (!workspace) throw new Error('Workspace not found.');
+    const transaction = { expectedRevision: request.expectedRevision, remoteApplied: false };
+    let pinnedConnectionCount = 0;
+    let additionalConnectionCount = 0;
+    let sourceConfigurationIds: string[] = [];
+    let destinationConfigurationIds: string[] = [];
+    const connection = await this.sessions.transact(workspace.id, transaction, async draft => {
+      assertCurrentConnectionGraph(draft.serverState);
+      if (workspaceHardwareMode(draft.configurations.values()) !== 'cto') throw new Error('Native manual creation requires CTO configurations.');
+      const input = this.#manualCablingInput(draft);
+      const source = input.configurations.find(c => c.id === nativeManualSourceConfigurationId(request.source.configurationId, input.physicalTemplateIds));
+      const topologies = source?.selectedTopologies as Record<string, { networkTechnology?: string }> | undefined;
+      if (topologies?.[request.network]?.networkTechnology !== request.topology) {
+        throw new Error('Source is not assigned to the requested network and topology. Configure its network preference first.');
+      }
+      const response = await this.http.send({ endpoint: 'manual_cabling_distance', method: 'POST', path: '/calculateDistance',
+        body: { kind: 'json', value: { floorPreference: input.floorPreference, floorItems: input.floorItems,
+          from: request.source.configurationId, to: request.destination.configurationId, network: request.topology } },
+        responseKind: 'json', timeoutClass: 'interactive', ctx: { ...request.ctx, locale: draft.locale, solution: draft.solution } });
+      const fabric = await this.fabricOptions({ ...request.ctx, locale: draft.locale }, draft.solution);
+      const distance = filterNativeManualCableChoices(response.raw, request.topology, fabric.cables, request.connectionType);
+      const row = stageNativeManualConnection(input, { ...request, distance });
+      const retained = seedNativeManualRoutes(input.connections, request.pinExistingRoutes === true);
+      pinnedConnectionCount = retained.pinnedConnectionCount;
+      const seeds = [...retained.rows, row];
+      const plan = planNativeManualCableSelection({ ...input, connections: seeds }, row);
+      destinationConfigurationIds = plan.configurationIds ?? [plan.configurationId];
+      const destination = [...draft.configurations.values()].find(c => c.configurationId === plan.configurationId)!;
+      const sourceSelections = selectNativeManualSourceGroup(input.configurations, configurationCloneDependency(draft), row, input.physicalTemplateIds);
+      sourceConfigurationIds = [...sourceSelections.keys()];
+      for (const [id, selected] of sourceSelections) {
+        input.configurations.find(configuration => configuration.id === id)!.selectedTopologies = selected;
+      }
+      transaction.remoteApplied = true;
+      if (plan.quantity !== plan.previousQuantity) {
+        const layout = stageNativeManualCableQuantity(input, plan);
+        draft.rackArea = layout.rackArea;
+        draft.nonRackArea = layout.nonRackArea;
+        await this.#configureDraft(destination, [{ section: plan.section, code: plan.code, quantity: plan.quantity }], request.ctx, draft);
+      }
+      await this.#autoConnectDraft(draft, request.ctx, seeds, plan);
+      assertNativeConnectionsRetained(seeds, readConnectionGraph(draft.serverState));
+      for (const id of sourceSelections.keys()) {
+        const actual = [...draft.configurations.values()].find(c => c.configurationId === id)!.raw;
+        if (JSON.stringify(selectNativeManualSourcePort(actual, row)) !== JSON.stringify(actual.selectedTopologies)) {
+          throw new Error('DCSC did not retain the manual source port across its linked group. Workspace was not committed.');
+        }
+      }
+      additionalConnectionCount = readConnectionGraph(draft.serverState).length - seeds.length;
+      const accepted = planNativeManualCableSelection(this.#manualCablingInput(draft), row);
+      if (accepted.previousQuantity < Math.max(plan.quantity, accepted.requiredQuantity)) {
+        throw new Error('DCSC did not retain sufficient manual cable quantity. Workspace was not committed.');
+      }
+      return projectManualConnection(readConnectionGraph(draft.serverState).find(value => {
+        try { assertNativeConnectionsRetained([row], [value]); return true; } catch { return false; }
+      }));
+    });
+    return { workspace: workspace.id, revision: workspace.revision, connection, pinnedConnectionCount, sourceConfigurationIds, destinationConfigurationIds, additionalConnectionCount };
+  }
+
+  async inspectNativeManualCabling(handle: string, request: Omit<NativeManualConnectionRequest, 'cablePart'> & { expectedRevision: number; ctx: RequestCtx }) {
+    const workspace = this.sessions.getWorkspace(handle);
+    if (!workspace) throw new Error('Workspace not found.');
+    if (workspace.revision !== request.expectedRevision) throw new SessionConflictError(request.expectedRevision, workspace.revision, 'workspace');
+    assertCurrentConnectionGraph(workspace.serverState);
+    if (workspaceHardwareMode(workspace.configurations.values()) !== 'cto') throw new Error('Native manual creation requires CTO configurations.');
+    const physicalTemplates = storagePhysicalTemplateIds(workspace);
+    const destinationId = nativeManualSourceConfigurationId(request.destination.configurationId, physicalTemplates);
+    const destination = [...workspace.configurations.values()].find(c => c.configurationId === destinationId);
+    if (!destination) throw new Error('Manual cable destination must resolve to one configuration or managed template.');
+    const destinationGroup = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+      [...workspace.configurations.values()].map(c => c.configurationId), destination.configurationId);
+    const input = structuredClone(this.#manualCablingInput(workspace));
+    const source = input.configurations.find(c => c.id === nativeManualSourceConfigurationId(request.source.configurationId, input.physicalTemplateIds));
+    const networks = source?.selectedTopologies as Record<string, { networkTechnology?: string }> | undefined;
+    if (networks?.[request.network]?.networkTechnology !== request.topology) throw new Error('Source is not assigned to the requested network and topology.');
+    const sourceSelections = selectNativeManualSourceGroup(input.configurations, configurationCloneDependency(workspace), {
+      sourceId: request.source.configurationId, network: request.network, topology: request.topology,
+      sourcePortName: request.source.portName, sourcePortNumber: request.source.portNumber }, input.physicalTemplateIds);
+    const response = await this.http.send({ endpoint: 'manual_cabling_distance', method: 'POST', path: '/calculateDistance',
+      body: { kind: 'json', value: { floorPreference: input.floorPreference, floorItems: input.floorItems,
+        from: request.source.configurationId, to: request.destination.configurationId, network: request.topology } },
+      responseKind: 'json', timeoutClass: 'interactive', ctx: { ...request.ctx, locale: workspace.locale, solution: workspace.solution } });
+    const fabric = await this.fabricOptions({ ...request.ctx, locale: workspace.locale }, workspace.solution);
+    if (workspace.revision !== request.expectedRevision) throw new SessionConflictError(request.expectedRevision, workspace.revision, 'workspace');
+    const distance = filterNativeManualCableChoices(response.raw, request.topology, fabric.cables, request.connectionType);
+    const choices = (Array.isArray(distance.compatibleCables) ? distance.compatibleCables : []).map(value => {
+      const cable = value as Record<string, unknown>;
+      try {
+        const row = stageNativeManualConnection(input, { ...request, cablePart: String(cable.featureCode), distance });
+        const plan = planNativeManualCableSelection({ ...input, connections: [...input.connections, row] }, row);
+        return { part: plan.code, description: cable.description ?? null, option: cable.optionCode ?? null,
+          price: cable.price ?? null, length: cable.length ?? null, selection: plan };
+      } catch { return null; }
+    }).filter(value => value !== null);
+    return { workspace: workspace.id, revision: workspace.revision, report: { totalDistance: distance.totalDistance, choices, destinationConfigurationIds: destinationGroup.memberIds, sourceConfigurationIds: [...sourceSelections.keys()],
+      pinnableConnectionCount: seedNativeManualRoutes(input.connections, true).pinnedConnectionCount,
+      routePreservation: 'Set pinExistingRoutes=true to convert existing AUTO network rows to MANUAL and preserve their routes. Without pinning, native rerouting causes rollback.' } };
+  }
+
   async editManualCabling(handle: string, edit: ManualConnectionEdit & { expectedRevision: number; ctx: RequestCtx }) {
     const workspace = this.sessions.getWorkspace(handle);
     if (!workspace) throw new Error('Workspace not found.');
@@ -2205,7 +2711,16 @@ export class DcscService {
       totalPrice: number | null; priceDelta: number | null; currency: string; priceScope: 'editable-configuration' } | undefined;
     const accepted = await this.sessions.transact(workspace.id, transaction, async draft => {
       assertCurrentConnectionGraph(draft.serverState);
-      const input = this.#manualCablingInput(draft);
+      let input: ManualCablingInput = this.#manualCablingInput(draft);
+      const existing = input.connections.find(row => manualConnectionId(row) === edit.connectionId) as Record<string, unknown> | undefined;
+      const savedDistance = existing?.['cableDistance'] as Record<string, unknown> | undefined;
+      const savedChoices = savedDistance?.['compatibleCables'];
+      const offered = Array.isArray(savedChoices) && savedChoices.some(choice => choice && typeof choice === 'object' &&
+        (choice['featureCode'] ?? choice['code']) === edit.cablePart);
+      if (edit.cablePart && !offered) {
+        input = await this.#refreshManualCableChoices(input, edit.connectionId,
+          { ...edit.ctx, locale: draft.locale, solution: draft.solution });
+      }
       let plan = stageManualConnectionEdit(input, edit);
       if (plan.distanceRequest) {
         const response = await this.http.send({ endpoint: 'manual_cabling_distance', method: 'POST', path: '/calculateDistance',
@@ -2220,30 +2735,97 @@ export class DcscService {
         const replacement = plan.cableReplacement;
         const previous = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId)!;
         const previousTotalPrice = configurationListPrice(previous.raw);
-        draft.rackArea = replacement.rackArea;
-        draft.nonRackArea = replacement.nonRackArea;
-        const body = buildAutoDeriveRequest(draft, { validationMode: draft.validationMode,
-          autoCorrect: [...draft.configurations.values()].every(session => session.autoCorrect) });
-        body.configurations = (body.configurations as ReducedConfiguration[]).map(configuration =>
-          configuration.id === replacement.configurationId ? replacement.reducedConfiguration : configuration);
-        body.customizingIds = replacement.customizingIds;
-        transaction.remoteApplied = true;
-        const response = await this.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: '/ctos/autoDerive',
-          query: { ...replacement.query, guideMode: draft.validationMode === 'guided' },
-          body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
-          ctx: { ...edit.ctx, locale: draft.locale, solution: draft.solution } });
-        const metadata = response.raw as Record<string, unknown>;
-        if (Array.isArray(metadata.autoDerivedResults)) draft.serverState.autoDerivedResults = structuredClone(metadata.autoDerivedResults);
-        this.#acceptDerivedWorkspaceConfigurations(draft, response.raw);
-        const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId);
-        if (!target || (target.index.selected.get(replacement.newCode) ?? 0) !== replacement.targetQuantities.newCode ||
-            (target.index.selected.get(replacement.oldCode) ?? 0) !== replacement.targetQuantities.oldCode) {
-          throw new Error('DCSC did not accept the cable-part replacement. Workspace was not committed.');
+        if (replacement.sharedSelection) {
+          const shared = replacement.sharedSelection;
+          const seeds = commitManualConnectionEdit(input.connections, plan);
+          const selections = [
+            { code: replacement.oldCode, quantity: replacement.targetQuantities.oldCode },
+            { code: replacement.newCode, quantity: replacement.targetQuantities.newCode },
+          ].map(selection => ({ ...selection, configurationId: replacement.configurationId,
+            configurationIds: shared.configurationIds, physicalDestinationIds: shared.physicalDestinationIds,
+            section: replacement.sectionName, previousQuantity: previous.index.selected.get(selection.code) ?? 0,
+            retainAsSpare: !seeds.some(value => {
+              const row = value as Record<string, unknown>;
+              return row.cablePart === selection.code && shared.physicalDestinationIds.includes(String(row.destinationId));
+            }), requiredQuantity: 0 }));
+          for (const selection of selections) {
+            if (selection.retainAsSpare) {
+              // Explicitly retained spares must stop being native auto-connect selections.
+              // Otherwise targeted derive drops them when their last route is replaced.
+              for (const id of shared.configurationIds) {
+                const member = [...draft.configurations.values()].find(c => c.configurationId === id)!;
+                for (const section of (member.raw.tabs ?? []).flatMap(t => t.subTabs ?? []).flatMap(t => t.sections ?? [])) {
+                  if (section.name !== selection.section) continue;
+                  for (const result of section.results ?? []) if (result.code === selection.code) result.forAutoConnect = false;
+                }
+              }
+            }
+            const layout = stageNativeManualCableQuantity(this.#manualCablingInput(draft), selection);
+            draft.rackArea = layout.rackArea;
+            draft.nonRackArea = layout.nonRackArea;
+          }
+          transaction.remoteApplied = true;
+          await this.#configureDraft(previous, selections.map(({ section, code, quantity }) => ({ section, code, quantity })), edit.ctx, draft);
+          await this.#autoConnectDraft(draft, edit.ctx, seeds, selections);
+          const acceptedGraph = readConnectionGraph(draft.serverState);
+          assertNativeConnectionsRetained(seeds, acceptedGraph);
+          if (acceptedGraph.length !== seeds.length) throw new Error('Cable replacement added unexpected routes. Workspace was not committed.');
+          for (const id of shared.configurationIds) {
+            const member = [...draft.configurations.values()].find(session => session.configurationId === id);
+            if (!member || selections.some(selection => (member.index.selected.get(selection.code) ?? 0) !== selection.quantity)) {
+              throw new Error('DCSC did not retain shared cable quantities. Workspace was not committed.');
+            }
+          }
+        } else {
+          draft.rackArea = replacement.rackArea;
+          draft.nonRackArea = replacement.nonRackArea;
+          const body = buildAutoDeriveRequest(draft, { validationMode: draft.validationMode,
+            autoCorrect: [...draft.configurations.values()].every(session => session.autoCorrect) });
+          body.configurations = (body.configurations as ReducedConfiguration[]).map(configuration =>
+            configuration.id === replacement.configurationId ? replacement.reducedConfiguration : configuration);
+          body.customizingIds = replacement.customizingIds;
+          transaction.remoteApplied = true;
+          const response = await this.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: '/ctos/autoDerive',
+            query: { ...replacement.query, guideMode: draft.validationMode === 'guided' },
+            body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
+            ctx: { ...edit.ctx, locale: draft.locale, solution: draft.solution } });
+          const metadata = response.raw as Record<string, unknown>;
+          if (Array.isArray(metadata.autoDerivedResults)) draft.serverState.autoDerivedResults = structuredClone(metadata.autoDerivedResults);
+          this.#acceptDerivedWorkspaceConfigurations(draft, response.raw);
+          const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId);
+          if (!target || (target.index.selected.get(replacement.newCode) ?? 0) !== replacement.targetQuantities.newCode ||
+              (target.index.selected.get(replacement.oldCode) ?? 0) !== replacement.targetQuantities.oldCode) {
+            throw new Error('DCSC did not accept the cable-part replacement. Workspace was not committed.');
+          }
+          const physical = applyAcceptedManualCablePhysicalState({ ...replacement,
+            rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }, target.raw, response.raw);
+          draft.rackArea = physical.rackArea;
+          draft.nonRackArea = physical.nonRackArea;
         }
-        const physical = applyAcceptedManualCablePhysicalState({ ...replacement,
-          rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }, target.raw, response.raw);
-        draft.rackArea = physical.rackArea;
-        draft.nonRackArea = physical.nonRackArea;
+        const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId)!;
+        const physicalConfigurations = draft.serverState.storagePhysicalConfigurations as Record<string, RawConfiguration> | undefined;
+        const checked = replacement.sharedSelection
+          ? [...replacement.sharedSelection.configurationIds.map(id => [...draft.configurations.values()].find(c => c.configurationId === id)!.raw),
+            ...replacement.sharedSelection.physicalDestinationIds.map(id => {
+              const raw = physicalConfigurations?.[id] ?? [...draft.configurations.values()].find(c => c.configurationId === id)?.raw;
+              if (!raw) throw new Error(`DCSC omitted physical cable configuration ${id}. Workspace was not committed.`);
+              return raw;
+            })]
+          : [target.raw];
+        const cableErrors = checked.flatMap(configuration => (configuration.tabs ?? []).flatMap(t => t.subTabs ?? [])
+          .flatMap(t => t.sections ?? []).filter(section => section.name === replacement.sectionName).flatMap(section => section.errors ?? []));
+        if (cableErrors.length) throw new Error(`DCSC rejected cable quantities: ${JSON.stringify(cableErrors).slice(0, 2400)}. Supply valid cableQuantities; workspace was not committed.`);
+        for (const configuration of checked) {
+          const results = (configuration.tabs ?? []).flatMap(t => t.subTabs ?? []).flatMap(t => t.sections ?? [])
+            .filter(section => section.name === replacement.sectionName).flatMap(section => section.results ?? []);
+          for (const [code, quantity] of [[replacement.oldCode, replacement.targetQuantities.oldCode],
+            [replacement.newCode, replacement.targetQuantities.newCode]] as const) {
+            const matches = results.filter(result => result.code === code);
+            if (matches.length > 1 || (matches[0]?.quantity ?? 0) !== quantity) {
+              throw new Error(`DCSC did not retain ${code}=${quantity} on every cable destination. Workspace was not committed.`);
+            }
+          }
+        }
         const totalPrice = configurationListPrice(target.raw);
         configurationChange = { session: target.id, configurationId: target.configurationId,
           previousTotalPrice, totalPrice, priceDelta: previousTotalPrice !== null && totalPrice !== null
@@ -2260,6 +2842,7 @@ export class DcscService {
       draft.cables = projectConnectionGraph(connections).cables;
       draft.serverState.floorInformation = buildFloorState(draft).information;
       return { connection: projectManualConnection(plan.staged),
+        ...(plan.relatedChanges?.length ? { updatedConnections: plan.relatedChanges.map(change => projectManualConnection(change.staged)) } : {}),
         ...(plan.collisionSwaps?.length ? {
           swappedConnections: plan.collisionSwaps.map(swap => projectManualConnection(swap.staged)),
         } : {}) };
@@ -2349,7 +2932,7 @@ export class DcscService {
   /** The distinct website Copy action creates an independent item in the same rack. */
   async copyRackItem(handle: string, opts: {
     expectedRevision?: number | undefined; ctx: RequestCtx;
-  }): Promise<{ source: ConfigSession; copy: ConfigSession; placement: RackedClonePlacement }> {
+  }): Promise<{ source: ConfigSession; copy: ConfigSession; placement: RackedClonePlacement; nestedCopies: ConfigSession[] }> {
     const resolved = this.sessions.resolveHandle(handle);
     if (resolved?.kind !== 'configuration') throw new Error('Copy requires an explicit configuration handle.');
     const transaction = { expectedRevision: opts.expectedRevision, remoteApplied: false,
@@ -2357,13 +2940,44 @@ export class DcscService {
     return this.sessions.transact(resolved.session.workspaceId, transaction, async workspace => {
       const source = workspace.configurations.get(resolved.session.id);
       if (!source) throw new Error('The source configuration no longer belongs to this workspace.');
-      if (workspace.solution.solutionMode !== 'General Purpose' || source.mode !== 'cto' ||
+      const physical = workspace.rackArea.flatMap(rack => Array.isArray(rack['rackItems']) ? rack['rackItems'] as Record<string, unknown>[] : [])
+        .find(item => (item['configurationId'] ?? item['id']) === source.configurationId);
+      const nodes = physical?.['type'] === 'chassis' && Array.isArray(physical['nodes'])
+        ? physical['nodes'] as Record<string, unknown>[] : [];
+      if ((workspace.solution.solutionMode !== 'General Purpose' &&
+          !(workspace.solution.solutionMode === 'HPC and AI - Systems' && nodes.length > 0)) || source.mode !== 'cto' ||
           (source.raw.quantity ?? 1) !== 1 || managedStorageComponentIds(workspace.serverState).has(source.configurationId)) {
-        throw new Error('Rack Copy currently requires an ordinary General Purpose CTO item with quantity one.');
+        throw new Error('Rack Copy requires an ordinary quantity-one CTO item in General Purpose or a populated HPC chassis.');
       }
       const configurationId = newConfigurationId(workspace.locale.country);
+      const priorDependency = structuredClone(workspace.serverState.cloneDependency);
+      const nestedCopies: ConfigSession[] = [];
+      const childCloneIds: Record<string, Record<string, string>> = {};
+      for (const node of nodes) {
+        const id = String(node['configurationId'] ?? node['id']);
+        const template = [...workspace.configurations.values()].find(config => config.configurationId === id);
+        if (!template || template.mode !== 'cto' || (template.raw.quantity ?? 1) !== 1 ||
+            managedStorageComponentIds(workspace.serverState).has(id)) {
+          throw new Error(`Chassis node ${id} has no ordinary quantity-one CTO configuration.`);
+        }
+        const childId = newConfigurationId(workspace.locale.country);
+        if (typeof template.raw.name !== 'string' || !template.raw.name.trim() || template.raw.name !== node['name']) {
+          throw new Error(`Chassis node ${id} requires matching configuration and physical names for Copy.`);
+        }
+        const name = `Copy_${template.raw.name}`;
+        const childRaw = { ...cloneConfigurationRaw(template.raw, id, childId), name };
+        const child = stageConfiguration(workspace, { locale: template.locale, solution: template.solution,
+          mode: template.mode, raw: childRaw, configurationId: childId,
+          reduced: reduceConfiguration(childRaw, childId, 'cto', template.solution.solutionMode),
+          validationMode: template.validationMode, autoCorrect: template.autoCorrect,
+          primed: template.primed, configurable: template.configurable, label: name });
+        child.pricedAt = template.pricedAt;
+        nestedCopies.push(child);
+        (childCloneIds[configurationId] ??= {})[id] = childId;
+      }
       const staged = stageRackedCopy({ rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea,
-        sourceId: source.configurationId, copyId: configurationId, cloneDependency: workspace.serverState.cloneDependency,
+        sourceId: source.configurationId, copyId: configurationId, childCloneIds,
+        cloneDependency: workspace.serverState.cloneDependency,
         sourceName: typeof source.raw.name === 'string' ? source.raw.name : undefined });
       const raw = { ...cloneConfigurationRaw(source.raw, source.configurationId, configurationId), name: staged.copyName };
       const copy = stageConfiguration(workspace, { locale: source.locale, solution: source.solution,
@@ -2376,7 +2990,9 @@ export class DcscService {
       workspace.serverState.cloneDependency = staged.cloneDependency;
       transaction.remoteApplied = true;
       const result = await this.#syncLayout(workspace, staged.rackArea, opts.ctx, {
-        autoArrange: false, copyConfigurationId: configurationId,
+        autoArrange: false, ...(nodes.length > 0
+          ? { clonePopulatedChassis: true, copyPopulatedChassisDependency: priorDependency }
+          : { copyConfigurationId: configurationId }),
       });
       const rack = result.racks.find(rack => rack.id === staged.placement.rackId);
       const item = rack?.items.find(item => item.id === configurationId);
@@ -2384,7 +3000,7 @@ export class DcscService {
         throw new Error('DCSC did not retain the copied item in the source rack. Workspace was not committed.');
       }
       buildGroups(workspace);
-      return { source, copy, placement: { configurationId, rackId: rack.id, position: item.position } };
+      return { source, copy, nestedCopies, placement: { configurationId, rackId: rack.id, position: item.position } };
     });
   }
 
@@ -2403,7 +3019,7 @@ export class DcscService {
   async cloneConfiguration(opts: {
     sessionHandle: string; count: number; labelPrefix?: string | undefined; expectedRevision?: number | undefined;
     placement?: 'none' | 'same-rack' | undefined; ctx?: RequestCtx | undefined;
-  }): Promise<{ source: ConfigSession; clones: ConfigSession[]; placements?: RackedClonePlacement[] }> {
+  }): Promise<{ source: ConfigSession; clones: ConfigSession[]; placements?: RackedClonePlacement[]; nestedConfigurations?: ConfigSession[] }> {
     if (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > 99) throw new Error('Clone count must be an integer from 1 to 99.');
     const resolved = this.sessions.resolveHandle(opts.sessionHandle);
     if (resolved?.kind === 'workspace' && resolved.workspace.configurations.size !== 1) {
@@ -2422,29 +3038,54 @@ export class DcscService {
         throw new Error('Physical Clone Multiple requires an ordinary CTO configuration with quantity one and a request context.');
       }
       const clones: ConfigSession[] = [];
-      for (let i = 0; i < opts.count; i++) {
-        const clone = structuredClone(source);
-        const configurationId = newConfigurationId(source.locale.country);
-        clone.id = `sess_${source.product.code}_${ulid().slice(-6).toLowerCase()}`;
+      const copy = (template: ConfigSession, index: number): ConfigSession => {
+        const clone = structuredClone(template);
+        const configurationId = newConfigurationId(template.locale.country);
+        clone.id = `sess_${template.product.code}_${ulid().slice(-6).toLowerCase()}`;
         clone.configurationId = configurationId;
-        clone.raw = cloneConfigurationRaw(source.raw, source.configurationId, configurationId);
+        clone.raw = cloneConfigurationRaw(template.raw, template.configurationId, configurationId);
         clone.revision = 1;
         clone.snapshots = [];
         clone.intents = [];
         clone.createdAt = Date.now();
-        clone.label = opts.labelPrefix ? `${opts.labelPrefix} ${i + 2}` : `${source.label ?? source.product.description} (copy ${i + 1})`;
+        clone.label = opts.labelPrefix && template === source ? `${opts.labelPrefix} ${index + 2}`
+          : `${template.label ?? template.product.description} (copy ${index + 1})`;
         clone.reduced = reduceConfiguration(clone.raw, configurationId, hardwareModeFamily(clone.mode), workspace.solution.solutionMode);
         workspace.configurations.set(clone.id, clone);
-        clones.push(clone);
-      }
+        return clone;
+      };
+      for (let i = 0; i < opts.count; i++) clones.push(copy(source, i));
       if (opts.placement === 'same-rack') {
+        const physical = workspace.rackArea.flatMap(rack => Array.isArray(rack['rackItems']) ? rack['rackItems'] as Record<string, unknown>[] : [])
+          .find(item => (item['configurationId'] ?? item['id']) === source.configurationId);
+        const nodes = physical?.['type'] === 'chassis' && Array.isArray(physical['nodes'])
+          ? physical['nodes'] as Record<string, unknown>[] : [];
+        const childCloneIds: Record<string, Record<string, string>> = {};
+        const nestedConfigurations: ConfigSession[] = [];
+        for (const node of nodes) {
+          const id = String(node['configurationId'] ?? node['id']);
+          const template = [...workspace.configurations.values()].find(config => config.configurationId === id);
+          if (!template || !usesCtoWire(template.mode) || (template.raw.quantity ?? 1) !== 1 ||
+              managedStorageComponentIds(workspace.serverState).has(id)) {
+            throw new Error(`Chassis node ${id} has no ordinary quantity-one CTO configuration.`);
+          }
+          nestedConfigurations.push(template);
+          for (const [index, parent] of clones.entries()) {
+            const child = copy(template, index);
+            (childCloneIds[parent.configurationId] ??= {})[id] = child.configurationId;
+            nestedConfigurations.push(child);
+          }
+        }
         const staged = stageRackedCloneMultiple({ rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea,
-          sourceId: source.configurationId, cloneIds: clones.map(clone => clone.configurationId),
+          sourceId: source.configurationId, cloneIds: clones.map(clone => clone.configurationId), childCloneIds,
           cloneDependency: workspace.serverState.cloneDependency });
         workspace.nonRackArea = staged.nonRackArea;
         workspace.serverState.cloneDependency = staged.cloneDependency;
         transaction.remoteApplied = true;
-        const result = await this.#syncLayout(workspace, staged.rackArea, opts.ctx!, { autoArrange: false, cloneMultiple: true });
+        const hpcSwitch = workspace.solution.solutionMode === 'HPC and AI - Systems' && source.raw.type === 'switch';
+        const result = await this.#syncLayout(workspace, staged.rackArea, opts.ctx!, { autoArrange: hpcSwitch,
+          ...(nodes.length > 0 ? { clonePopulatedChassis: true } : hpcSwitch ? { cloneHpcSwitch: resolveLinkedCloneGroup(configurationCloneDependency(workspace),
+            [...workspace.configurations.values()].map(c => c.configurationId), source.configurationId).rootId } : { cloneMultiple: true }) });
         const placements = clones.map(clone => {
           const rack = result.racks.find(rack => rack.items.some(item => item.id === clone.configurationId));
           const item = rack?.items.find(item => item.id === clone.configurationId);
@@ -2453,8 +3094,17 @@ export class DcscService {
           }
           return { configurationId: clone.configurationId, rackId: rack.id, position: item.position };
         });
+        for (const parent of clones) {
+          const accepted = workspace.rackArea.flatMap(rack => Array.isArray(rack['rackItems']) ? rack['rackItems'] as Record<string, unknown>[] : [])
+            .find(item => (item['configurationId'] ?? item['id']) === parent.configurationId);
+          const actual = Array.isArray(accepted?.['nodes']) ? accepted['nodes'] as Record<string, unknown>[] : [];
+          const expected = Object.values(childCloneIds[parent.configurationId] ?? {});
+          if (actual.length !== expected.length || expected.some(id => !actual.some(node => (node['configurationId'] ?? node['id']) === id))) {
+            throw new Error(`DCSC did not retain the exact child identities in cloned chassis ${parent.configurationId}. Workspace was not committed.`);
+          }
+        }
         if (result.errors.length) throw new Error(`DCSC rejected the cloned layout: ${JSON.stringify(result.errors).slice(0, 1500)}`);
-        return { source, clones, placements };
+        return { source, clones, placements, ...(nestedConfigurations.length ? { nestedConfigurations } : {}) };
       }
       return { source, clones };
     });
@@ -2619,7 +3269,7 @@ export class DcscService {
   }
 
   /**
-   * Imports a CFXML through DCSC's own import endpoint.
+   * Imports CFXML or an exported Excel workbook through DCSC's own importer.
    *
    * This deliberately posts the file to /multiple/cfxml_import rather than
    * parsing it locally and re-launching each product code. Launch does not
@@ -2636,7 +3286,7 @@ export class DcscService {
    * "HPC and AI - Systems". Callers who know better can override the mode.
    */
   async importConfig(opts: {
-    content: string;
+    content: string | Uint8Array;
     ctx: RequestCtx;
     mode?: ConfigMode;
     workspaceId?: string;
@@ -2644,29 +3294,30 @@ export class DcscService {
     solutionMode?: string;
     expectedRevision?: number | undefined;
   }): Promise<ImportResult> {
-    // Parsed locally only to recover the declared solution mode for the query
-    // preamble, and to fail fast on a file that is not CFXML at all. Note that
+    // XML parsing recovers its declared solution mode and saved breakout shapes,
+    // and rejects invalid CFXML. Excel stays binary and is interpreted by Lenovo.
+    // Note that
     // DCSC stamps "General Purpose" into every export's Configuration Type
     // regardless of the mode it was built in, so this is a weak default.
     const existing = opts.workspaceId ? this.sessions.getWorkspace(opts.workspaceId) : undefined;
     if (opts.workspaceId && !existing) throw new Error(`Workspace ${opts.workspaceId} not found.`);
     const ctx = existing ? { ...opts.ctx, locale: existing.locale } : opts.ctx;
-    const parsed = parseCfxml(opts.content);
-    const solution = await this.resolveSolution(ctx, opts.solutionMode ?? existing?.solution.solutionMode ?? parsed.solutionMode);
+    const file = prepareImportFile(opts.content, opts.fileName);
+    const solution = await this.resolveSolution(ctx, opts.solutionMode ?? existing?.solution.solutionMode ?? file.solutionMode);
 
     const res = await this.http.send({
       endpoint: 'cfxml_import',
       method: 'POST',
-      path: '/multiple/cfxml_import',
+      path: file.source?.isXconfig ? '/cfxml_import' : '/multiple/cfxml_import',
       query: { entranceFlag: 'homePage', serviceCto: true, controlExpressModal: true },
       body: {
         kind: 'multipart',
         parts: [
           {
             name: 'cfxmlFile',
-            filename: opts.fileName ?? 'configuration.xml',
-            contentType: 'text/xml',
-            content: opts.content,
+            filename: file.fileName,
+            contentType: file.contentType,
+            content: file.content,
           },
         ],
       },
@@ -2675,13 +3326,24 @@ export class DcscService {
       ctx: { ...ctx, solution },
     });
 
+    return this.#acceptImportPayload(res.raw, { ctx, solution, mode: opts.mode,
+      workspaceId: opts.workspaceId, fileName: file.fileName, expectedRevision: opts.expectedRevision, importSource: file.source });
+  }
+
+  async #acceptImportPayload(raw: unknown, opts: {
+    ctx: RequestCtx; solution: SolutionContext; mode?: ConfigMode | undefined;
+    workspaceId?: string | undefined; fileName?: string | undefined; expectedRevision?: number | undefined;
+    importSource?: ReturnType<typeof prepareImportFile>['source'] | undefined;
+  }): Promise<ImportResult> {
+    const { ctx, solution } = opts;
     // The endpoint answers with a single-element array in every case we have
     // observed, but tolerate a bare object.
-    const importedPayload = (Array.isArray(res.raw) ? res.raw[0] : res.raw) as RawImportResponse | undefined;
+    const importedPayload = (Array.isArray(raw) ? raw[0] : raw) as RawImportResponse | undefined;
     if (!importedPayload || typeof importedPayload !== 'object') {
-      throw new Error('DCSC returned an unrecognised response to the CFXML import.');
+      throw new Error('DCSC returned an unrecognised response to the configuration import.');
     }
     const payload = expandImportedClones(importedPayload);
+    const restoredBreakouts = restoreSavedBreakoutConnections(payload, opts.importSource?.breakoutConnections ?? []);
 
     const diagnostics: ImportDiagnostics = {
       missingParts: toImportParts(payload.missingParts),
@@ -2692,6 +3354,23 @@ export class DcscService {
 
     const standalone = parseStandaloneImportResponse(payload);
     if (standalone) diagnostics.warnings = standalone.diagnostics.warnings;
+    if (restoredBreakouts) diagnostics.warnings = [...(diagnostics.warnings ?? []),
+      `Restored ${restoredBreakouts} saved breakout branch shapes that Lenovo's import response omitted. Website reimport may still lose these shapes.`];
+    if (opts.importSource?.isXconfig) {
+      const warnings: string[] = [];
+      if (opts.importSource.savedCabling && !payload['networkingInformation'] && !payload['connectionData']) {
+        warnings.push('The x-config source contains saved cabling, but Lenovo returned no networking or connection-recovery metadata. Imported cabling is not verified; inspect or regenerate the native graph before handoff.');
+      }
+      if (opts.importSource.savedFloor && !payload['floorInformation']) {
+        warnings.push('The x-config source contains saved floor information, but Lenovo returned no floor metadata. Verify the imported floor placement before handoff.');
+      }
+      if (opts.importSource.sourceInspectionUnavailable) warnings.push('The x-config source archive could not be inspected within the supported decoding limits. Source floor/cabling preservation is unverified.');
+      diagnostics.warnings = [...(diagnostics.warnings ?? []), ...warnings];
+    }
+    if (payload['needImportExcel'] === true) {
+      diagnostics.warnings = [...(diagnostics.warnings ?? []),
+        'Lenovo requests a companion Excel recovery step for this legacy design. That recovery workflow is not yet supported by the MCP; floor placement and cabling may be incomplete. Complete recovery on the website before relying on the imported layout.'];
+    }
     const configurations = standalone?.kind === 'service' ? []
       : Array.isArray(payload.configuration) ? payload.configuration : [];
 
@@ -2701,7 +3380,7 @@ export class DcscService {
         .map((m) => m.mode)
         .filter((m) => m !== solution.solutionMode);
       throw new Error(
-        `DCSC rejected every product in this CFXML${missing ? ` (missing: ${missing})` : ''}. ` +
+        `DCSC rejected every product in this configuration file${missing ? ` (missing: ${missing})` : ''}. ` +
           `The import ran in solution mode "${solution.solutionMode}"; a model that is not in ` +
           'that mode\'s catalog is dropped even though the file itself is valid. ' +
           (others.length > 0
@@ -2738,15 +3417,51 @@ export class DcscService {
           throw new Error('This workspace already contains standalone software. Import into a new workspace to preserve both baskets.');
         }
         mergeImportedState(workspace, payload);
+        workspace.serverState.lastImportDiagnostics = structuredClone(diagnostics);
         if (standalone) {
           const key = standalone.kind === 'software' ? 'standaloneSoftwareState' : 'standaloneServiceState';
           workspace.serverState[key] = standalone.state;
           workspace.integrityWarnings.push(...standalone.diagnostics.warnings);
         }
         await hydrateImportedLayout(this.http, { ...ctx, locale: workspace.locale, solution }, workspace, payload);
+        const breakoutPlans = new Map<string, ReturnType<typeof planNativeManualCableSelection>>();
+        if (restoredBreakouts) {
+          const input = this.#manualCablingInput(workspace);
+          for (const value of readConnectionGraph(workspace.serverState)) {
+            const row = value as Record<string, unknown>;
+            if (row.category !== 'BREAKOUT' || row.divider !== 4) continue;
+            // CFXML rows omit cableFeature. Resolve the saved part against the
+            // destination catalog rather than requiring live distance metadata.
+            const plan = planNativeManualCableSelection(input, { ...row,
+              cableFeature: { featureCode: row.cablePart, selectionGroups: [] } });
+            breakoutPlans.set(JSON.stringify([plan.configurationIds ?? [plan.configurationId], plan.code]), plan);
+          }
+        }
         if (workspace.rackArea.length > 0 || workspace.nonRackArea.length > 0) {
-          await this.#syncLayout(workspace, workspace.rackArea, ctx);
+          await this.#syncLayout(workspace, workspace.rackArea, ctx, { preserveImportedManualCables: true });
         } else workspace.rackSummaries = summariseRackArea(workspace.rackArea);
+        if (restoredBreakouts) {
+          // Native import derivation counts branches rather than distinct cable heads.
+          // Restore each physical-port quantity (and imported spares) through native configure.
+          for (const plan of breakoutPlans.values()) {
+            const destination = [...workspace.configurations.values()].find(c => c.configurationId === plan.configurationId)!;
+            if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
+              // Native derive reads rack feature quantities ahead of the configuration delta.
+              const staged = stageNativeManualCableQuantity(this.#manualCablingInput(workspace), plan);
+              workspace.rackArea = staged.rackArea; workspace.nonRackArea = staged.nonRackArea;
+              await this.#configureDraft(destination, [{ section: plan.section, code: plan.code, quantity: plan.quantity }], ctx, workspace);
+            }
+            const physical = stageNativeManualCableQuantity(this.#manualCablingInput(workspace), plan);
+            workspace.rackArea = physical.rackArea; workspace.nonRackArea = physical.nonRackArea;
+            if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
+              throw new Error('DCSC did not retain the saved breakout cable quantity. Workspace was not committed.');
+            }
+          }
+          assertNativeConnectionsRetained(opts.importSource!.breakoutConnections, readConnectionGraph(workspace.serverState));
+          // The native quantity-only correction above marks the graph stale. Its
+          // original imported routes and accepted cable demand have now been verified.
+          delete workspace.serverState.connectionGraphInvalidation;
+        }
       },
     });
     return { workspaceId: result.workspace.id, sessions: result.sessions, diagnostics,
@@ -3048,7 +3763,7 @@ export class DcscService {
         networkTypes: workspaceNetworkTypes(fabric, workspace.serverState) }, {
         topology: match.shortName, networkName: opts.networkName,
         connectorIds: opts.connectorIds, ports: opts.ports,
-      });
+      }, readStorageConnectionNetworks(workspace.serverState).map(network => network.name));
       if (JSON.stringify(draft.raw.selectedTopologies ?? {}) !== JSON.stringify(selected)) {
         invalidateConnectionGraph(workspace.serverState, 'Network connector selections changed. Regenerate connections.');
       }
@@ -3556,6 +4271,7 @@ export class DcscService {
     scope: 'configuration' | 'workspace';
     configurationsExported: number;
     manualPlanningLinksOmitted: number;
+    breakoutBranchesAtRisk: number;
   }> {
     this.assertTrustedWorkspace(sessionHandle);
     const resolved = this.sessions.resolveHandle(sessionHandle);
@@ -3647,6 +4363,10 @@ export class DcscService {
       scope,
       configurationsExported: useWorkspace ? workspace!.configurations.size : 1,
       manualPlanningLinksOmitted,
+      breakoutBranchesAtRisk: useWorkspace ? readConnectionGraph(workspace!.serverState).filter(value => {
+        const row = value as Record<string, unknown>;
+        return row.category === 'BREAKOUT' && row.divider === 4;
+      }).length : 0,
     };
   }
 
@@ -3677,6 +4397,8 @@ function prepareConfigurationChanges(session: ConfigSession, changes: Array<{ se
   let reduced = reduceConfiguration(session.raw, session.configurationId,
     hardwareModeFamily(session.mode), session.solution.solutionMode);
   const editKinds = new Set<string>();
+  let ordinaryStorageEdit = false;
+  let raidModeChange = false;
   for (const change of changes) {
     const ref = resolveSection(session.index, change.section);
     if (!ref) {
@@ -3685,7 +4407,20 @@ function prepareConfigurationChanges(session: ConfigSession, changes: Array<{ se
           `Candidates: ${suggestSections(session.index, change.section).join('; ')}`,
       );
     }
+    if (ref.subTab === 'Riser Card' && pciWizardOptions(session.raw).length > 0) {
+      throw new Error('Use dcsc_pci_wizard and dcsc_set_pci_wizard for riser slots on this configuration; ordinary feature edits do not apply native PCI wizard selections.');
+    }
+    if (ref.subTab === 'Controller and Backplane') ordinaryStorageEdit = true;
+    if (ref.name === 'RAID_CONFIG' && change.quantity > 0 && isStorageRaidModeChange(session.raw, change.code)) {
+      if (changes.length !== 1) throw new Error('Switch RAID mode separately: this removes previous drives, backplanes and controllers. Apply new storage choices afterward.');
+      if (hardwareModeFamily(session.mode) === 'lfo') throw new Error('LFO RAID-mode switching requires fixed/preselected storage restoration that is not yet supported. Use the website for this action.');
+      raidModeChange = true;
+      ordinaryStorageEdit = true;
+    }
     const tabType = session.raw.tabs?.find((tab) => tab.title === ref.tab)?.type;
+    if (tabType === 'UNCONFIGURED_TAB') {
+      throw new Error('Use dcsc_set_unconfigured for Unconfigured selections; these are native client-held options and must not be sent through hardware derivation. Load choices with dcsc_load_unconfigured first.');
+    }
     editKinds.add(tabType === 'software' ? 'software' : 'hardware');
     const known = session.index.byCode.get(change.code) ?? [];
     if (known.length > 0 && !known.some((f) => f.section === ref.id)) {
@@ -3703,6 +4438,9 @@ function prepareConfigurationChanges(session: ConfigSession, changes: Array<{ se
   }
 
   if (editKinds.size > 1) throw new Error('Apply software edits separately from hardware/service edits so DCSC receives the correct editing context.');
+  if (raidModeChange) reduced.sections = clearStorageRaidSections(session.raw, reduced.sections);
+  if (ordinaryStorageEdit) reduced.storageWizardOption = null;
+  else reduced.sections = storageWizardSections(session.raw, reduced.sections, true);
   const reducedForDerive: ReducedConfiguration = {
     ...reduced,
     selectedTopologies: {},

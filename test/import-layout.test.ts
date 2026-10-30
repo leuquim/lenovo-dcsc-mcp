@@ -47,6 +47,26 @@ function fakeHttp(calls: SendInput[], omitCode?: string): DcscHttpClient {
 }
 
 describe('import physical layout hydration', () => {
+  it('initializes absent floor metadata using the native hierarchy position codes', async () => {
+    const native = JSON.parse(readFileSync('test/fixtures/parity/xconfig-import-layout.json', 'utf8')) as Obj;
+    const draft = workspace(native);
+    const http = { send: async () => ({ raw: native['envelopes'] }) } as unknown as DcscHttpClient;
+    await hydrateImportedLayout(http, ctx, draft, native);
+    expect(draft.floorItems).toEqual(native['expectedFloor']);
+    const items = draft.rackArea.flatMap(r => r['rackItems'] as Obj[]);
+    expect(items.map(i => Object.fromEntries(['id', 'code', 'type', 'size', 'position'].map(k => [k, i[k]]))))
+      .toEqual(native['expectedItems']);
+    expect(items[0]!['endPosition']).toBe(10);
+    const invalid = structuredClone(native);
+    const child = (((invalid['workspace'] as Obj)['rackArea'] as Obj[])[0]!['children'] as Obj[])[0]!;
+    child['derivedResults'] = [];
+    const rejected = workspace(invalid);
+    await expect(hydrateImportedLayout(http, ctx, rejected, invalid)).rejects.toThrow('unambiguous native U-position');
+    expect(rejected.rackArea).toEqual([]);
+    expect(rejected.floorItems).toEqual([]);
+    const partial = structuredClone(native); partial['floorInformation'] = { floorGrid: [] };
+    await expect(hydrateImportedLayout(http, ctx, workspace(partial), partial)).rejects.toThrow('placement metadata');
+  });
   it('restores captured rack/child identities, quantities and exact positions from the floor report', async () => {
     const draft = workspace();
     const calls: SendInput[] = [];
@@ -301,6 +321,7 @@ describe('import envelope merge', () => {
     for (const mutate of [
       (payload: Obj) => { payload['currency'] = 'EUR'; },
       (payload: Obj) => { (payload['configurationMode'] as Obj)['mode'] = 'HPC and AI - Systems'; },
+      (payload: Obj) => { (payload['configurationMode'] as Obj)['masterSlices'] = ['WRONG']; },
       (payload: Obj) => { ((payload['configuration'] as Obj[])[0]!)['sliceCtoCode'] = 'WRONG'; },
     ]) {
       const payload = structuredClone(fixture);

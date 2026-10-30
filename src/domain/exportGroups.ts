@@ -5,6 +5,7 @@ import type { RawConfiguration } from '../model/types.js';
 import { hardwareModeFamily } from './modeFamily.js';
 import { storageComponentQuantities } from './storagePreferences.js';
 import { storagePhysicalConfigurations } from './storagePhysicalState.js';
+import { adjustUnconfiguredPrices, unconfiguredProducts } from './unconfigured.js';
 
 type Obj = Record<string, unknown>;
 
@@ -22,7 +23,7 @@ export interface ExportGroupProduct extends Obj {
   quantity: number;
   price: number | null;
   unitPrice: number | null;
-  type: 'hardware' | 'hipo' | 'service' | 'servicectohipo' | 'added-options';
+  type: 'hardware' | 'hipo' | 'service' | 'servicectohipo' | 'added-options' | 'unconfigured';
   groupId: string;
   priceNotAvailable?: boolean | undefined;
   showPrice: boolean;
@@ -207,6 +208,11 @@ function aggregateCloneGroups(
  */
 function commercialCloneComparable(product: ExportGroupProduct): Omit<ExportGroupProduct, 'shippingStatus'> {
   const { shippingStatus: _shippingStatus, ...commercial } = product;
+  // Native linked references may omit this false flag on a priced root service
+  // and emit it on its copies. Keep true/unknown-price differences significant.
+  if (commercial.priceNotAvailable === undefined && typeof commercial.price === 'number' && Number.isFinite(commercial.price)) {
+    commercial.priceNotAvailable = false;
+  }
   return commercial;
 }
 
@@ -214,21 +220,27 @@ function productsForConfiguration(configuration: ConfigurationForGroup): ExportG
   const { id, raw } = configuration;
   const quantity = positiveQuantity(raw.quantity, 1);
   const showPrice = raw.showPrice !== false;
+  const unconfigured = unconfiguredProducts(raw);
   const priceNotAvailable = raw.priceNotAvailable === true ||
-    typeof raw.totalPrice !== 'number' || !Number.isFinite(raw.totalPrice);
+    typeof raw.totalPrice !== 'number' || !Number.isFinite(raw.totalPrice) || unconfigured.some(p => p.price === null);
   let hardwareUnitPrice = number(raw.totalPrice);
+  // Restore the priced core before applying the existing native HIPO/service
+  // deductions. Subtracting this later introduces a floating-point cent drift.
+  if (unconfigured.length > 0) hardwareUnitPrice = money(hardwareUnitPrice -
+    unconfigured.reduce((sum, product) => sum + (product.price ?? 0), 0));
   const isLfo = configuration.mode !== undefined
     ? hardwareModeFamily(configuration.mode) === 'lfo'
     : isLfoConfiguration(raw);
 
   const hipoProducts: ExportGroupProduct[] = [];
+  let hipoDeduction = 0;
   for (const value of array(raw.hipoDerivedItems)) {
     const hipo = object(value);
     const targetQuantity = positiveQuantity(hipo['targetCtoQuantity'], 1);
     const targetPrice = number(hipo['targetCtoPrice']);
     const targetUnitPrice = number(hipo['targetCtoUnitPrice']);
     const deductedPrice = money(targetPrice * targetQuantity + targetUnitPrice);
-    hardwareUnitPrice -= deductedPrice;
+    hipoDeduction += deductedPrice;
     hipoProducts.push(
       ...buildHipoProducts({
         id,
@@ -241,9 +253,13 @@ function productsForConfiguration(configuration: ConfigurationForGroup): ExportG
       }),
     );
   }
+  hardwareUnitPrice -= hipoDeduction;
 
   const selectedServices = selectedServiceProducts(raw, id, quantity, showPrice, isLfo);
   hardwareUnitPrice -= selectedServices.deduction;
+  const unconfiguredRows: ExportGroupProduct[] = unconfigured.map(product => ({ ...product, id,
+    quantity: product.quantity * quantity, price: product.price === null ? null : money(product.price * quantity),
+    type: 'unconfigured', showPrice, asMultiProd: false, groupId: GROUP_NAME }));
 
   const serviceCtoProducts: ExportGroupProduct[] = [];
   for (const value of array(raw.hipoServiceCtoServices)) {
@@ -276,7 +292,7 @@ function productsForConfiguration(configuration: ConfigurationForGroup): ExportG
     id,
     quantity,
     price: priceNotAvailable ? null : money(hardwareUnitPrice * quantity),
-    prices: array(raw.totalPrices),
+    prices: array(adjustUnconfiguredPrices(raw.totalPrices, raw, -1)),
     type: 'hardware',
     description: string(raw.description),
     shippingStatus: array(raw.shippingStatus),
@@ -289,7 +305,7 @@ function productsForConfiguration(configuration: ConfigurationForGroup): ExportG
     groupId: GROUP_NAME,
   };
 
-  return [hardware, ...hipoProducts, ...serviceCtoProducts, ...selectedServices.products];
+  return [hardware, ...hipoProducts, ...serviceCtoProducts, ...selectedServices.products, ...unconfiguredRows];
 }
 
 function buildHipoProducts(opts: {

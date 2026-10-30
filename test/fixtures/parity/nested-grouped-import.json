@@ -1,0 +1,572 @@
+{
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+        "quantity": 1,
+        "type": "rack",
+        "size": 42,
+        "originalIds": [
+          "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+        ],
+        "derivedResults": [
+          {
+            "featureCode": "3101",
+            "quantity": "1",
+            "name": "MI_P",
+            "description": null
+          }
+        ],
+        "autoConnectResults": [],
+        "removedResults": [],
+        "children": [
+          {
+            "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+            "quantity": 2,
+            "type": "chassis",
+            "size": 2,
+            "originalIds": [
+              "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+              "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+            ],
+            "derivedResults": [
+              {
+                "featureCode": "3101",
+                "quantity": "1",
+                "name": null,
+                "description": null
+              },
+              {
+                "featureCode": "3201",
+                "quantity": "2",
+                "name": "MI_P",
+                "description": null
+              },
+              {
+                "featureCode": "BWJQ",
+                "quantity": "3",
+                "name": null,
+                "description": null
+              }
+            ],
+            "autoConnectResults": [],
+            "removedResults": [],
+            "children": [
+              {
+                "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+                "quantity": 1,
+                "type": "node",
+                "size": 1,
+                "originalIds": [
+                  "US__-b01d-4208-99bc-55c8cc5464cf1000",
+                  "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+                ],
+                "derivedResults": [],
+                "autoConnectResults": [],
+                "removedResults": [],
+                "children": [],
+                "vlhId": null,
+                "asVLH": false,
+                "lockedSpace": [],
+                "childrenStability": {},
+                "hipoServiceCtoServices": [],
+                "configurationId": "US__-b01d-4208-99bc-55c8cc5464cf1000"
+              }
+            ],
+            "vlhId": null,
+            "asVLH": false,
+            "lockedSpace": [],
+            "childrenStability": {},
+            "hipoServiceCtoServices": [],
+            "configurationId": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720"
+          }
+        ],
+        "vlhId": null,
+        "asVLH": false,
+        "lockedSpace": [],
+        "childrenStability": {
+          "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": 1,
+          "US__2e28dba3-615f-4d03-9454-32e2c09b7f47": 1
+        },
+        "hipoServiceCtoServices": [],
+        "configurationId": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+      }
+    ],
+    "nonRackArea": [
+      {
+        "id": "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+        "quantity": 1,
+        "type": "node",
+        "size": 1,
+        "originalIds": [
+          "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+        ],
+        "derivedResults": [],
+        "autoConnectResults": [],
+        "removedResults": [],
+        "children": [],
+        "vlhId": null,
+        "asVLH": false,
+        "lockedSpace": [],
+        "childrenStability": {},
+        "hipoServiceCtoServices": [],
+        "configurationId": "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+      }
+    ],
+    "floorItems": [
+      {
+        "rackItem": {
+          "facing": "N",
+          "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+        },
+        "row": 0,
+        "col": 0,
+        "aisle": "\u0000",
+        "rack": true,
+        "rackPosition": "A1"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 1,
+        "aisle": "\u0000",
+        "rack": false,
+        "rackPosition": "A2"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 2,
+        "aisle": "\u0000",
+        "rack": false,
+        "rackPosition": "A3"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 3,
+        "aisle": "\u0000",
+        "rack": false,
+        "rackPosition": "A4"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 4,
+        "aisle": "\u0000",
+        "rack": false,
+        "rackPosition": "A5"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 0,
+        "aisle": "H",
+        "rack": false,
+        "rackPosition": "B1"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 1,
+        "aisle": "H",
+        "rack": false,
+        "rackPosition": "B2"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 2,
+        "aisle": "H",
+        "rack": false,
+        "rackPosition": "B3"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 3,
+        "aisle": "H",
+        "rack": false,
+        "rackPosition": "B4"
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 4,
+        "aisle": "H",
+        "rack": false,
+        "rackPosition": "B5"
+      }
+    ],
+    "cloneRackMapping": {}
+  },
+  "cloneDependencyColor": {
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": {
+      "color": "#01bbc1",
+      "darkColor": "#748b80",
+      "dependBy": [
+        "US__-b01d-4208-99bc-55c8cc5464cf1000",
+        "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+      ],
+      "colorRGB": {
+        "r": 1,
+        "g": -69,
+        "b": -63
+      },
+      "darkColorRGB": {
+        "r": 116,
+        "g": -117,
+        "b": -128
+      }
+    },
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": {
+      "color": "#bb7479",
+      "darkColor": "#907491",
+      "dependBy": [
+        "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+        "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+      ],
+      "colorRGB": {
+        "r": -69,
+        "g": 116,
+        "b": 121
+      },
+      "darkColorRGB": {
+        "r": -112,
+        "g": 116,
+        "b": -111
+      }
+    },
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101": {
+      "color": "#55b4bb",
+      "darkColor": "#74979b",
+      "dependBy": [
+        "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+      ],
+      "colorRGB": {
+        "r": 85,
+        "g": -76,
+        "b": -69
+      },
+      "darkColorRGB": {
+        "r": 116,
+        "g": -105,
+        "b": -101
+      }
+    },
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2": {
+      "color": "#bba1d3",
+      "darkColor": "#977411",
+      "dependBy": [
+        "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+      ],
+      "colorRGB": {
+        "r": -69,
+        "g": -95,
+        "b": -45
+      },
+      "darkColorRGB": {
+        "r": -105,
+        "g": 116,
+        "b": 17
+      }
+    }
+  },
+  "floorInformation": {
+    "floorGrid": [
+      {
+        "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+        "key": null,
+        "sourceId": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+        "facing": "N",
+        "adjusted": false,
+        "height": null,
+        "type": "rack",
+        "width": null,
+        "uheight": 44.45,
+        "depth": 1200,
+        "color": "#bba1d3",
+        "aisle": null,
+        "col": 0,
+        "row": 0,
+        "coordinate": "A1",
+        "items": [
+          {
+            "code": "7DD0CTOLWW",
+            "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+            "position": 1,
+            "size": 2,
+            "type": "chassis",
+            "color": "#bb7479",
+            "description": "ThinkSystem D3 Chassis-3yr Base Warranty - HPC"
+          },
+          {
+            "code": "7DD0CTOLWW",
+            "id": "US__2e28dba3-615f-4d03-9454-32e2c09b7f47",
+            "position": 3,
+            "size": 2,
+            "type": "chassis",
+            "color": "#bb7479",
+            "description": "ThinkSystem D3 Chassis-3yr Base Warranty - HPC"
+          }
+        ],
+        "lockedSpace": [],
+        "description": "Lenovo ThinkSystem 42U Onyx Heavy Duty Rack Cabinet"
+      },
+      {
+        "id": null,
+        "key": "c218418a-cb17-41dd-b17c-bb8eba0b3da8",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 1,
+        "row": 0,
+        "coordinate": "A2",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "9a586fb9-5aa3-4335-9103-c0e6c772f026",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 2,
+        "row": 0,
+        "coordinate": "A3",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "30265351-8e99-41c3-91c0-154a2b2edc54",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 3,
+        "row": 0,
+        "coordinate": "A4",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "4f6c03e1-f71b-43b1-be5e-38912c4a6c33",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 4,
+        "row": 0,
+        "coordinate": "A5",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "7c52590a-385d-4f83-9cb5-852a004213c6",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 0,
+        "row": 1,
+        "coordinate": "B1",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "c5f34427-9668-4c2f-bd3f-efcc9f8048fa",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 1,
+        "row": 1,
+        "coordinate": "B2",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "bfb980e3-5fd2-48dc-af26-e171fb2e92ef",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 2,
+        "row": 1,
+        "coordinate": "B3",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "4bf9c8c5-4880-4a0f-a188-b1cdbabfef90",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 3,
+        "row": 1,
+        "coordinate": "B4",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "10260c98-9e2d-4c16-b7c7-97ed24def733",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 4,
+        "row": 1,
+        "coordinate": "B5",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      }
+    ],
+    "floorGridSettings": {
+      "colCount": 5,
+      "rowCount": 2,
+      "hotIndexes": [
+        1
+      ],
+      "coldIndexes": [
+        3
+      ]
+    },
+    "floorPreference": {
+      "growthRatioHorizontal": 1,
+      "growthRatioVertical": 1,
+      "rackDist": 0.01,
+      "vertDist": 0.5,
+      "coldDist": 3,
+      "hotDist": 2,
+      "slackDist": 0,
+      "useTrayCabling": false
+    }
+  },
+  "configuration": [
+    {
+      "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+      "code": "7D6DCTO1WW",
+      "type": "rack",
+      "quantity": 1
+    },
+    {
+      "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "code": "7DD0CTOLWW",
+      "type": "chassis",
+      "quantity": 1
+    },
+    {
+      "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "code": "7DD1CTOLWW",
+      "type": "node",
+      "quantity": 1
+    },
+    {
+      "id": "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+      "code": "7DD1CTOLWW",
+      "type": "node",
+      "quantity": 1
+    }
+  ],
+  "provenance": "Anonymous native Clone Multiple of populated D3 chassis, 2026-10-30; exported XML reimport response subset."
+}

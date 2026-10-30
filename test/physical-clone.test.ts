@@ -69,6 +69,29 @@ describe('browser-authoritative racked Clone Multiple staging', () => {
     expect(staged.placements[0]!.position).toBe(3);
   });
 
+  it('matches native HPC switch cloning with a product maximum of18', () => {
+    const native = JSON.parse(readFileSync(new URL('./fixtures/parity/hpc-switch-clone-native.json', import.meta.url), 'utf8'));
+    const staged = stageRackedCloneMultiple(native);
+    expect(staged.placements[0]?.position).toBe(native.expectedPosition);
+    expect(staged.cloneDependency).toEqual(native.expectedCloneDependency);
+  });
+
+  it('honors per-rack product and machine-type capacity instead of rejecting every rule', () => {
+    const options = fixtureOptions();
+    const source = (options.rackArea[0]!['rackItems'] as Obj[])[0]!;
+    source['machineType'] = '7D73';
+    source['rule'] = { productMinMaxRule: { min: 0, max: 2 }, mtMinMaxRule: { min: 0, max: 3 } };
+    expect(stageRackedCloneMultiple(options).placements).toHaveLength(1);
+    options.cloneIds = ['server-2', 'server-3'];
+    expect(() => stageRackedCloneMultiple(options)).toThrow(/rack code limit/);
+    source['rule'] = { productMinMaxRule: { min: 0, max: 8 }, mtMinMaxRule: { min: 0, max: 2 } };
+    expect(() => stageRackedCloneMultiple(options)).toThrow(/rack machineType limit/);
+    source['rule'] = { productMinMaxRule: { min: 0, max: 0 } };
+    expect(stageRackedCloneMultiple(options).placements).toHaveLength(2);
+    source['rule'] = { productMinMaxRule: { min: 0, max: -1 } };
+    expect(() => stageRackedCloneMultiple(options)).toThrow(/authoritative placement/);
+  });
+
   it('rejects unsupported physical forms instead of inventing clone semantics', () => {
     const nested = fixtureOptions();
     ((nested.rackArea[0]!['rackItems'] as Obj[])[0]!)['nodes'] = [{ id: 'node-1' }];
@@ -99,4 +122,26 @@ describe('browser-authoritative racked Clone Multiple staging', () => {
     ((full.rackArea[0]!['rackItems'] as Obj[])[0]!)['highestPosition'] = 1;
     expect(() => stageRackedCloneMultiple(full)).toThrow(/authoritative placement is required/);
   });
+});
+
+it('clones captured populated chassis with distinct parent and node ownership', () => {
+  const captured = JSON.parse(readFileSync(new URL('./fixtures/parity/chassis-clone-multiple.json', import.meta.url), 'utf8'));
+  const before = structuredClone(captured);
+  const staged = stageRackedCloneMultiple(captured);
+  const items = staged.rackArea[0]!['rackItems'] as Obj[];
+  const clone = items[1]!;
+  expect(clone['position']).toBe(captured.expectedPosition);
+  expect(clone['id']).toBe(captured.cloneIds[0]);
+  const node = (clone['nodes'] as Obj[])[0]!;
+  const sourceNode = ((items[0]!['nodes']) as Obj[])[0]!;
+  expect(node['id']).toBe(captured.childCloneIds[captured.cloneIds[0]][String(sourceNode['id'])]);
+  for (const id of [captured.sourceId, String(sourceNode['id'])]) {
+    expect(staged.cloneDependency[id]).toEqual(captured.expectedDependency[id]);
+  }
+  expect(captured).toEqual(before);
+  const missing = structuredClone(captured); delete missing.childCloneIds;
+  expect(() => stageRackedCloneMultiple(missing)).toThrow('exactly one new identity');
+  const collision = structuredClone(captured);
+  collision.childCloneIds[captured.cloneIds[0]][String(sourceNode['id'])] = captured.cloneIds[0];
+  expect(() => stageRackedCloneMultiple(collision)).toThrow('already exists or is duplicated');
 });

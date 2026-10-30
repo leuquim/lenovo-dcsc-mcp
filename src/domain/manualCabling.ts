@@ -1,3 +1,5 @@
+import { resolveLinkedCloneGroup } from './linkedCloneEdit.js';
+import { countNativePhysicalCables } from './cableQuantity.js';
 import { createHash } from 'node:crypto';
 
 import type { RawConfiguration } from '../model/types.js';
@@ -32,6 +34,8 @@ export interface ManualConnectionView {
   network?: string | undefined;
   topology?: string | undefined;
   type?: string | undefined;
+  category?: string | undefined;
+  divider?: number | undefined;
   source: { configurationId: string; portName: string; portNumber: string; location?: string | undefined };
   destination: { configurationId: string; portName: string; portNumber: string; location?: string | undefined };
   cable: { part?: string | undefined; option?: string | undefined; description?: string | undefined };
@@ -56,10 +60,13 @@ export interface ManualConnectionEdit {
   destination?: ManualConnectionEndpointPatch | undefined;
   /** Exact part identifier returned in compatibleCables. */
   cablePart?: string | undefined;
+  /** Per-product selected quantities, including any retained spares. */
+  cableQuantities?: { oldPart: number; newPart: number } | undefined;
 }
 
 export interface ManualCableReplacementPlan {
   physicalDestinationId: string;
+  sharedSelection?: { configurationIds: string[]; physicalDestinationIds: string[] } | undefined;
   /** Authoritative raw configuration ID, after resolving a managed physical alias. */
   configurationId: string;
   sectionName: string;
@@ -93,6 +100,7 @@ export interface ManualConnectionEditPlan {
     network: string;
   } | undefined;
   cableReplacement?: ManualCableReplacementPlan | undefined;
+  relatedChanges?: ManualConnectionEditPlan['collisionSwaps'];
   collisionSwaps?: Array<{
     index: number;
     connectionId: string;
@@ -107,6 +115,7 @@ export interface AcceptedManualCablePhysicalState {
 }
 
 export interface ManualCablingInput {
+  cloneDependency?: unknown;
   connections: readonly unknown[];
   configurations: readonly RawConfiguration[];
   rackArea: readonly RackObject[];
@@ -271,6 +280,8 @@ export function projectManualConnection(value: unknown): ManualConnectionView {
     ...(string(row['network']) ? { network: string(row['network']) } : {}),
     ...(string(row['topology']) ? { topology: string(row['topology']) } : {}),
     ...(string(row['type']) ? { type: string(row['type']) } : {}),
+    ...(string(row['category']) ? { category: string(row['category']) } : {}),
+    ...(number(row['divider']) !== undefined ? { divider: number(row['divider']) } : {}),
     source: { configurationId: string(row['sourceId']), portName: string(row['sourcePortName']),
       portNumber: string(row['sourcePortNumber']),
       ...(string(row['sourceLocation']) ? { location: string(row['sourceLocation']) } : {}) },
@@ -361,6 +372,7 @@ function stageManualCableReplacement(
   before: Obj,
   staged: Obj,
   cablePart: string,
+  cableQuantities?: ManualConnectionEdit['cableQuantities'],
 ): ManualCableReplacementPlan {
   const oldCode = string(before['cablePart']);
   const newCode = cablePart.trim();
@@ -373,13 +385,9 @@ function stageManualCableReplacement(
   }
   const oldChoice = cableChoices(before).filter(choice => choice.part === oldCode);
   const oldFeature = object(before['cableFeature']);
-  const selectionGroups = strings(oldFeature['selectionGroups']).length > 0
+  let selectionGroups = strings(oldFeature['selectionGroups']).length > 0
     ? strings(oldFeature['selectionGroups'])
     : oldChoice.length === 1 ? strings(oldChoice[0]!.raw['selectionGroups']) : [];
-  if (selectionGroups.length !== 1) {
-    throw new Error(`Cable ${oldCode} does not identify one configuration selection group.`);
-  }
-  const sectionName = selectionGroups[0]!;
   const physicalDestinationId = string(before['destinationId']);
   if (!physicalDestinationId) throw new Error('The current connection has no physical destination.');
   const configurationId = physicalTemplateId(input, physicalDestinationId);
@@ -389,20 +397,51 @@ function stageManualCableReplacement(
     throw new Error(`Destination configuration ${configurationId} is missing or ambiguous.`);
   }
 
-  const oldUsage = input.connections.filter(value => {
+  if (selectionGroups.length === 0) {
+    // Distance-derived manual rows can omit selectionGroups. Resolve both parts
+    // against one authoritative destination section rather than guessing a name.
+    selectionGroups = (configurations[0]!.tabs ?? []).flatMap(tab => tab.subTabs ?? [])
+      .flatMap(tab => tab.sections ?? []).filter(section =>
+        section.features?.some(feature => feature.code === oldCode) &&
+        section.features.some(feature => feature.code === newCode))
+      .map(section => section.name).filter((name): name is string => typeof name === 'string' && name.length > 0);
+  }
+  if (selectionGroups.length !== 1) {
+    throw new Error(`Cable ${oldCode} does not identify one configuration selection group.`);
+  }
+  const sectionName = selectionGroups[0]!;
+
+  const breakout = before['category'] === 'BREAKOUT';
+  if (breakout && (before['divider'] !== 4 || before['topology'] !== '100GbE_Copper' ||
+      before['sourcePortName'] !== 'SFP28' || before['destinationPortName'] !== 'QSFP28' ||
+      !/100G QSFP28 to 4x25G SFP28/i.test(choices[0]!.description ?? ''))) {
+    throw new Error('Breakout replacement requires a compatible four-way 100G QSFP28 to 25G SFP28 DAC.');
+  }
+  const usageCount = (rows: unknown[]) => breakout ? countNativePhysicalCables(rows) : rows.length;
+  const oldUsage = usageCount(input.connections.filter(value => {
     const row = object(value);
     return string(row['destinationId']) === physicalDestinationId && string(row['cablePart']) === oldCode;
-  }).length;
-  const newUsage = input.connections.filter(value => {
+  }));
+  const newUsage = usageCount(input.connections.filter(value => {
     const row = object(value);
     return string(row['destinationId']) === physicalDestinationId && string(row['cablePart']) === newCode;
-  }).length;
-  if (configurationId !== physicalDestinationId) {
-    throw new Error(
-      `Cable-part replacement for managed physical alias ${physicalDestinationId} is not supported until ` +
-      'the website template/physical derive contract is captured. Endpoint edits remain available.',
-    );
-  }
+  }));
+  const group = resolveLinkedCloneGroup(input.cloneDependency, input.configurations.map(c => String(c.id)), configurationId);
+  const aliases = input.physicalTemplateIds instanceof Map ? [...input.physicalTemplateIds]
+    : Object.entries(input.physicalTemplateIds ?? {});
+  const physicalDestinationIds = configurationId === physicalDestinationId && !group.linked ? [physicalDestinationId] : group.memberIds.flatMap(id => {
+    const physical = aliases.filter(([, template]) => template === id).map(([alias]) => alias);
+    return physical.length ? physical : [id];
+  });
+  const sharedSelection = configurationId !== physicalDestinationId || group.linked
+    ? { configurationIds: group.memberIds, physicalDestinationIds } : undefined;
+  const remainingUsage = (code: string, changed: boolean) => Math.max(...physicalDestinationIds.map(id => {
+    const rows = input.connections.filter(value => {
+      const row = object(value);
+      return string(row['destinationId']) === id && string(row['cablePart']) === code;
+    });
+    return usageCount(rows) + (id === physicalDestinationId ? (changed ? 1 : -1) : 0);
+  }));
 
   const reducedConfiguration = reduceConfiguration(
     configurations[0]!, configurationId, input.mode ?? 'cto', input.solutionMode,
@@ -420,9 +459,15 @@ function stageManualCableReplacement(
   const beforeOldQuantity = oldResults[0]!.quantity;
   const beforeNewQuantity = newResults[0]?.quantity ?? 0;
   if (beforeNewQuantity < 0) throw new Error(`Cable ${newCode} has an invalid selected quantity.`);
-  const oldTargetQuantity = Math.max(beforeOldQuantity - 1, oldUsage - 1);
-  const newTargetQuantity = Math.max(beforeNewQuantity, newUsage + 1);
-  const wireMode = oldUsage === 1 && beforeOldQuantity === 1 && newUsage === 0 && beforeNewQuantity <= 1
+  const requiredOld = Math.max(0, remainingUsage(oldCode, false));
+  const requiredNew = remainingUsage(newCode, true);
+  const oldTargetQuantity = cableQuantities?.oldPart ?? Math.max(beforeOldQuantity - 1, requiredOld);
+  const newTargetQuantity = cableQuantities?.newPart ?? Math.max(beforeNewQuantity, requiredNew);
+  if (!Number.isInteger(oldTargetQuantity) || !Number.isInteger(newTargetQuantity) ||
+      oldTargetQuantity < requiredOld || newTargetQuantity < requiredNew) {
+    throw new Error(`Cable quantities must be integers covering every physical instance: ${oldCode} >= ${requiredOld}, ${newCode} >= ${requiredNew}.`);
+  }
+  const wireMode = !cableQuantities && !sharedSelection && oldUsage === 1 && beforeOldQuantity === 1 && newUsage === 0 && beforeNewQuantity <= 1
     ? 'native-single' : 'quantity-preserving';
   const appended = {
     code: newCode,
@@ -471,7 +516,7 @@ function stageManualCableReplacement(
   staged['cableFeature'] = structuredClone(choice.raw);
   staged['type'] = 'MANUAL';
   return {
-    physicalDestinationId, configurationId, sectionName, oldCode, newCode, quantity: newTargetQuantity,
+    physicalDestinationId, sharedSelection, configurationId, sectionName, oldCode, newCode, quantity: newTargetQuantity,
     graphUsage: { oldCode: oldUsage, newCode: newUsage }, choice: structuredClone(choice),
     targetQuantities: { oldCode: oldTargetQuantity, newCode: newTargetQuantity }, wireMode,
     reducedConfiguration, ...physical,
@@ -618,6 +663,7 @@ export function applyAcceptedManualCablePhysicalState(
 }
 
 export function stageManualConnectionEdit(input: ManualCablingInput, edit: ManualConnectionEdit): ManualConnectionEditPlan {
+  if (edit.cableQuantities && !edit.cablePart) throw new Error('cableQuantities requires a cable-part replacement.');
   if (!edit.source && !edit.destination && !edit.cablePart) {
     throw new Error('Supply a source, destination or cable-part change.');
   }
@@ -633,8 +679,23 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
   const topology = string(before['topology']);
   if (!topology) throw new Error(`Connection ${edit.connectionId} has no network topology and cannot be edited safely.`);
   if (edit.cablePart) {
-    const cableReplacement = stageManualCableReplacement(input, before, staged, edit.cablePart);
-    return { connectionId: edit.connectionId, index: matches[0]!.index, before, staged, cableReplacement };
+    const cableReplacement = stageManualCableReplacement(input, before, staged, edit.cablePart, edit.cableQuantities);
+    const relatedChanges: NonNullable<ManualConnectionEditPlan['relatedChanges']> = [];
+    if (before['category'] === 'BREAKOUT') {
+      for (const [index, value] of input.connections.entries()) {
+        if (index === matches[0]!.index) continue;
+        const branch = object(value);
+        if (!['destinationId', 'destinationPortName', 'destinationPortNumber'].every(key => branch[key] === before[key])) continue;
+        if (!['network', 'topology', 'cablePart', 'category', 'divider'].every(key => branch[key] === before[key])) {
+          throw new Error('Shared breakout destination has inconsistent branch metadata.');
+        }
+        const changed = structuredClone(branch);
+        stageManualCableReplacement(input, branch, changed, edit.cablePart, edit.cableQuantities);
+        relatedChanges.push({ index, connectionId: manualConnectionId(branch), before: structuredClone(branch), staged: changed });
+      }
+    }
+    return { connectionId: edit.connectionId, index: matches[0]!.index, before, staged, cableReplacement,
+      ...(relatedChanges.length ? { relatedChanges } : {}) };
   }
   const ports = discoverManualPorts(input);
   const applyEndpoint = (side: 'source' | 'destination', patch: ManualConnectionEndpointPatch): void => {
@@ -658,8 +719,10 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
     if (occupiedBy.length === 1) {
       const collision = occupiedBy[0]!;
       if (collisionSwaps.length > 0) throw new Error('Only one occupied-port swap can be performed per edit.');
-      if (side !== 'destination') {
-        throw new Error('Occupied-port swaps are verified only for destination ports.');
+      if (side === 'source' && (choice.name !== string(before['sourcePortName']) ||
+          string(collision.row['sourcePortName']) !== choice.name ||
+          string(collision.row['topology']) !== topology || string(collision.row['network']) !== string(before['network']))) {
+        throw new Error('Source-port swaps require the same connector name and network topology. Choose an unused source port for other changes.');
       }
       if (collision.occupiedSide !== side || choice.configurationId !== string(before[`${side}Id`])) {
         throw new Error('Only a captured same-side port swap on the current component is supported.');
@@ -743,7 +806,7 @@ export function commitManualConnectionEdit(connections: readonly unknown[], plan
     throw new Error('The connection graph changed before the edit could be committed. Inspect it again.');
   }
   const swaps = new Map<number, Obj>();
-  for (const collision of plan.collisionSwaps ?? []) {
+  for (const collision of [...plan.collisionSwaps ?? [], ...plan.relatedChanges ?? []]) {
     if (collision.index < 0 || collision.index >= connections.length || collision.index === plan.index ||
         manualConnectionId(connections[collision.index]) !== collision.connectionId || swaps.has(collision.index)) {
       throw new Error('The collision row changed before the edit could be committed. Inspect the graph again.');

@@ -13,6 +13,8 @@ export interface StageRackedCloneMultipleOptions {
   nonRackArea: RackObject[];
   sourceId: string;
   cloneIds: string[];
+  /** Each cloned chassis maps every source node ID to its new identity. */
+  childCloneIds?: Record<string, Record<string, string>>;
   /**
    * The complete workspace mapping that will be sent in
    * `workspaceInformation.cloneDependency` on auto-derive.
@@ -60,7 +62,7 @@ function identity(item: Obj, label: string): string {
   return resolved;
 }
 
-function assertSimpleRackItem(item: Obj, sourceId: string): void {
+function assertSimpleRackItem(item: Obj, sourceId: string, rack?: Obj, additionalCount?: number): void {
   for (const key of ['nodes', 'children', 'rackItems']) {
     if (objects(item[key]).length > 0) {
       throw new Error(`Racked clone source ${sourceId} contains ${key}; nested physical cloning requires an authoritative contract.`);
@@ -77,7 +79,25 @@ function assertSimpleRackItem(item: Obj, sourceId: string): void {
   }
   const rule = object(item['rule']);
   if (rule && (rule['mtMinMaxRule'] != null || rule['productMinMaxRule'] != null)) {
-    throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+    if (!rack || additionalCount === undefined) {
+      throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+    }
+    for (const [key, identityKey] of [['mtMinMaxRule', 'machineType'], ['productMinMaxRule', 'code']] as const) {
+      if (rule[key] == null) continue;
+      const bounds = object(rule[key]);
+      const min = bounds?.['min']; const max = bounds?.['max'];
+      const value = nonempty(item[identityKey]);
+      if (!value || typeof min !== 'number' || !Number.isSafeInteger(min) || min < 0 ||
+          typeof max !== 'number' || !Number.isSafeInteger(max) || max < min) {
+        throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+      }
+      // The website treats a lone product 0..0 rule as unrestricted.
+      if (key === 'productMinMaxRule' && !rule['mtMinMaxRule'] && min === 0 && max === 0) continue;
+      const existing = objects(rack['rackItems']).filter(candidate => candidate[identityKey] === value).length;
+      if (existing + additionalCount > max) {
+        throw new Error(`Clone Multiple exceeds the rack ${identityKey} limit for ${value}: ${existing} existing + ${additionalCount} requested > ${max}.`);
+      }
+    }
   }
 }
 
@@ -165,11 +185,12 @@ function extendDependency(
 
 /**
  * Stages the browser's captured `Clone Multiple` physical operation for a
- * direct, rule-free rack item. The returned clone has a new identity,
+ * direct rack item with supported capacity bounds. The returned clone has a new identity,
  * `newHardware: true`, and the first free contiguous rack position. DCSC must
  * still accept the staged layout through rack customize/auto-derive.
  *
- * Copy, non-rack items, nested chassis/VLH, and rule-governed placements are
+ * Populated chassis require explicit per-parent child identity mappings.
+ * Copy, non-rack items, VLH, and complex placement rules are
  * deliberately rejected because their current browser contracts are not yet
  * verified.
  */
@@ -221,7 +242,39 @@ export function stageRackedCloneMultiple(
     if (allIdentities.has(cloneId)) throw new Error(`Clone identity ${cloneId} already exists in the physical layout.`);
   }
 
-  assertSimpleRackItem(match.item, sourceId);
+  const sourceNodes = objects(match.item['nodes']);
+  if (sourceNodes.length > 0 && match.item['type'] === 'chassis') {
+    assertSimpleRackItem({ ...match.item, nodes: [] }, sourceId, match.rack, cloneIds.length);
+    for (const node of sourceNodes) {
+      if (node['type'] !== 'node') throw new Error('Chassis cloning requires direct node children.');
+      assertSimpleRackItem(node, identity(node, 'Chassis node'));
+    }
+  } else assertSimpleRackItem(match.item, sourceId, match.rack, cloneIds.length);
+  const allNodeIds = new Set<string>();
+  for (const item of [...rackArea.flatMap(rack => objects(rack['rackItems'])), ...nonRackArea]) {
+    for (const node of objects(item['nodes'])) {
+      const id = identity(node, 'Chassis node');
+      if (allIdentities.has(id) || allNodeIds.has(id)) throw new Error(`Physical identity ${id} is duplicated.`);
+      allNodeIds.add(id);
+    }
+  }
+  for (const id of cloneIds) if (allNodeIds.has(id)) throw new Error(`Clone identity ${id} already exists in the physical layout.`);
+  const sourceNodeIds = sourceNodes.map(node => identity(node, 'Chassis node'));
+  const childCloneIds = options.childCloneIds ?? {};
+  if (Object.keys(childCloneIds).some(id => !cloneIds.includes(id))) throw new Error('Child mapping references an unknown chassis clone.');
+  const generatedChildren = new Set<string>();
+  for (const parent of cloneIds) {
+    const mapping = childCloneIds[parent] ?? {};
+    if (Object.keys(mapping).length !== sourceNodeIds.length || sourceNodeIds.some(id => !nonempty(mapping[id]))) {
+      throw new Error('Every cloned chassis requires exactly one new identity for every source node.');
+    }
+    for (const childId of Object.values(mapping)) {
+      if (allIdentities.has(childId) || allNodeIds.has(childId) || cloneIds.includes(childId) || generatedChildren.has(childId)) {
+        throw new Error(`Clone child identity ${childId} already exists or is duplicated.`);
+      }
+      generatedChildren.add(childId);
+    }
+  }
   const rackId = identity(match.rack, 'Rack');
   const rackSize = positiveInteger(match.rack['size']);
   const itemSize = positiveInteger(match.item['size']);
@@ -242,6 +295,13 @@ export function stageRackedCloneMultiple(
     clone['id'] = cloneId;
     if (Object.hasOwn(clone, 'configurationId')) clone['configurationId'] = cloneId;
     delete clone['originalId'];
+    if (sourceNodes.length > 0) clone['nodes'] = sourceNodes.map(node => {
+      const child = structuredClone(node);
+      const childId = childCloneIds[cloneId]![identity(node, 'Chassis node')]!;
+      child['id'] = childId;
+      if (Object.hasOwn(child, 'configurationId')) child['configurationId'] = childId;
+      return child;
+    });
     clone['position'] = position;
     clone['lock'] = false;
     clone['newHardware'] = true;
@@ -251,10 +311,14 @@ export function stageRackedCloneMultiple(
   }
   match.rack['rackItems'] = items;
 
+  let dependency = extendDependency(options.cloneDependency, sourceId, cloneIds, rackId);
+  for (const childId of sourceNodeIds) {
+    dependency = extendDependency(dependency, childId, cloneIds.map(parent => childCloneIds[parent]![childId]!), rackId);
+  }
   return {
     rackArea,
     nonRackArea,
-    cloneDependency: extendDependency(options.cloneDependency, sourceId, cloneIds, rackId),
+    cloneDependency: dependency,
     placements,
   };
 }

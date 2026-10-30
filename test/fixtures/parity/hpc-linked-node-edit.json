@@ -1,0 +1,84 @@
+{
+  "provenance": "Native D3/SD535 processor edit initiated from cloned member, 2026-10-30; actual root-only request and accepted response captured before export navigation timed out.",
+  "requestIds": [
+    "US__-b01d-4208-99bc-55c8cc5464cf1000",
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101",
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+  ],
+  "customizingIds": [
+    "US__-b01d-4208-99bc-55c8cc5464cf1000",
+    "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+  ],
+  "query": {
+    "configurationId": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000"
+    ],
+    "guideMode": [
+      "true"
+    ]
+  },
+  "cloneDependency": {
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+    ],
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": [
+      "US__2e28dba3-615f-4d03-9454-32e2c09b7f47",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720"
+    ],
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+    ],
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2": [
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ]
+  },
+  "responses": [
+    {
+      "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "code": "7DD1CTOLWW",
+      "type": "node",
+      "updateConfigurationIds": [
+        "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d",
+        "US__-b01d-4208-99bc-55c8cc5464cf1000"
+      ],
+      "totalPrice": 21822.51,
+      "powerReportResponse": {
+        "powerReport": {
+          "inputPower": null,
+          "inputCurrent": null,
+          "apparentPower": null,
+          "heatGeneration": null,
+          "totalPower": null,
+          "system5": null,
+          "loadFactor": 70,
+          "operatingVoltage": "115V-AC",
+          "productType": null,
+          "powerPolicy": {
+            "key": "NON_REDUNDANT",
+            "description": "Non-Redundant",
+            "value": 1
+          },
+          "powerUtilization": null,
+          "fcsNotSupports": null,
+          "warningMessages": null,
+          "empty": false,
+          "energyStar": false
+        },
+        "errorMsg": [
+          {
+            "tableName": null,
+            "message": "The PSU is missed or not supplied.",
+            "swSubcategory": null,
+            "featureCode": null,
+            "hoverMap": {},
+            "errorType": "POWER_VALIDATION",
+            "realTargetCharacter": null,
+            "cleanFeatureCodes": null
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "provenance": "2026-10-30 native HPC SN2201 Clone Multiple; reduced physical request before adding one clone, max18 product rule.",
+  "rackArea": [
+    {
+      "id": "US__b9b9a362-6e80-4781-932c-6612197fcf450",
+      "code": "7D6DCTO1WW",
+      "type": "rack",
+      "size": 42,
+      "lockedSpace": [],
+      "rackItems": [
+        {
+          "id": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "machineType": "7D73",
+          "type": "server",
+          "size": 1,
+          "position": 1,
+          "lowestPosition": 1,
+          "highestPosition": 42,
+          "defaultPosition": 1,
+          "lock": false,
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": null
+          },
+          "nodes": []
+        },
+        {
+          "id": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+          "code": "7D73CTOHWW",
+          "machineType": "7D73",
+          "type": "server",
+          "size": 1,
+          "position": 2,
+          "lowestPosition": 1,
+          "highestPosition": 42,
+          "defaultPosition": 1,
+          "lock": false,
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": null
+          },
+          "nodes": []
+        },
+        {
+          "id": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+          "code": "7D5FCTOFWW",
+          "machineType": "7D5F",
+          "type": "switch",
+          "size": 1,
+          "position": 5,
+          "lowestPosition": 5,
+          "highestPosition": 42,
+          "defaultPosition": 22,
+          "lock": false,
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": {
+              "min": 0,
+              "max": 18
+            }
+          },
+          "nodes": []
+        },
+        {
+          "id": "US__02579351-49f4-427c-8a57-e472132552740",
+          "code": "7D5FCTOFWW",
+          "machineType": "7D5F",
+          "type": "switch",
+          "size": 1,
+          "position": 6,
+          "lowestPosition": 5,
+          "highestPosition": 42,
+          "defaultPosition": 22,
+          "lock": false,
+          "rule": {
+            "mtMinMaxRule": null,
+            "productMinMaxRule": {
+              "min": 0,
+              "max": 18
+            }
+          },
+          "nodes": []
+        }
+      ]
+    }
+  ],
+  "nonRackArea": [],
+  "sourceId": "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+  "cloneIds": [
+    "US__83ec5779-f11e-4844-84c2-4048ab96062a"
+  ],
+  "cloneDependency": {
+    "US__02579351-49f4-427c-8a57-e472132552740": [
+      "US__02579351-49f4-427c-8a57-e472132552740"
+    ],
+    "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150": [
+      "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150"
+    ],
+    "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0": [
+      "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0"
+    ],
+    "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860": [
+      "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860"
+    ],
+    "US__b9b9a362-6e80-4781-932c-6612197fcf450": [
+      "US__b9b9a362-6e80-4781-932c-6612197fcf450"
+    ]
+  },
+  "expectedPosition": 7,
+  "expectedCloneDependency": {
+    "US__02579351-49f4-427c-8a57-e472132552740": [
+      "US__02579351-49f4-427c-8a57-e472132552740"
+    ],
+    "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150": [
+      "US__b40f7e9b-929a-4b7c-a33c-b22d8803c5150",
+      "US__83ec5779-f11e-4844-84c2-4048ab96062a"
+    ],
+    "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0": [
+      "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0"
+    ],
+    "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860": [
+      "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860"
+    ],
+    "US__b9b9a362-6e80-4781-932c-6612197fcf450": [
+      "US__b9b9a362-6e80-4781-932c-6612197fcf450"
+    ]
+  }
+}

@@ -1,0 +1,1110 @@
+{
+  "before": {
+    "id": "US__-3bac-4a66-b82c-ee09335eb50d01000",
+    "code": "7DGDCTO1WW",
+    "sliceCtoCode": "7DGDCTO1WW",
+    "type": "server",
+    "quantity": 1,
+    "totalPrice": 80897.54,
+    "totalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 80893.51,
+        "priceNotAvailable": false
+      }
+    ],
+    "nonSoftwareTotalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 77322.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "priceNotAvailable": false,
+    "tabs": [
+      {
+        "tabTypeIdentifier": "hardware",
+        "title": "Unconfigured",
+        "description": "Unconfigured",
+        "type": "UNCONFIGURED_TAB",
+        "guideUrl": null,
+        "subTabs": [
+          {
+            "title": "OS & Software",
+            "description": "OS & Software",
+            "type": null,
+            "sections": [
+              {
+                "name": "UNCONFIGURED_COMMVAULT_SOFTWARE",
+                "title": "Commvault Software",
+                "description": "Commvault Software",
+                "singleEntry": false,
+                "features": [
+                  {
+                    "recommendedFeature": false,
+                    "attributeShowInPageMap": {},
+                    "code": "7S1M004HWW",
+                    "priceNotCredible": false,
+                    "noCharge": false,
+                    "hideOnPage": false,
+                    "specialBid": false,
+                    "attributeMap": {
+                      "Duration": "3 Years"
+                    },
+                    "description": "Commvault Cloud Backup & Recovery Software, Per Front-End Terabyte 3Yr w/CVLT support",
+                    "withdrawnDate": "2999-12-31",
+                    "type": "unconfigured_software",
+                    "iad": false,
+                    "facets": [],
+                    "integrated": false,
+                    "shippingStatus": [],
+                    "optionCode": "7S1M004HWW",
+                    "oem": false,
+                    "typeSequence": 0,
+                    "prices": [
+                      {
+                        "priceNotAvailable": false,
+                        "price": 5034.5,
+                        "priceTypeId": 1
+                      }
+                    ],
+                    "priceNotAvailable": false,
+                    "unitPrice": 5034.5,
+                    "tCost": 0,
+                    "isPinned": false,
+                    "eccnRestricted": false,
+                    "deltaTotalPrice": 0,
+                    "displayCode": "7S1M004HWW",
+                    "premier": false,
+                    "marketValue": [],
+                    "productNumber": "7S1MCTOBWW",
+                    "attachedFeatures": [],
+                    "audienceOnly": false,
+                    "topologies": [],
+                    "notGreyOut": false,
+                    "announceDate": "2023-10-03",
+                    "tceAudience": 1,
+                    "topChoice": true,
+                    "preSelectedQuantity": 0,
+                    "tCostNotAvailable": false,
+                    "topFeatureSequence": 0,
+                    "marketingTag": [],
+                    "greyOnPage": false,
+                    "base": false
+                  }
+                ],
+                "results": [
+                  {
+                    "code": "7S1M004HWW",
+                    "noCharge": false,
+                    "placementErrors": [],
+                    "installations": [],
+                    "description": "Commvault Cloud Backup & Recovery Software, Per Front-End Terabyte 3Yr w/CVLT support",
+                    "serviceVariant": false,
+                    "type": "unconfigured_software",
+                    "forAutoConnect": false,
+                    "storageWizardDerived": false,
+                    "shippingStatus": [],
+                    "optionCode": "7S1M004HWW",
+                    "characterName": "UNCONFIGURED_COMMVAULT_SOFTWARE",
+                    "ctoCode": "7S1MCTOBWW",
+                    "derived": false,
+                    "featurePriceNotAvailable": false,
+                    "priceNotAvailable": false,
+                    "storageWizardDerivedQuantity": 0,
+                    "cost": 0,
+                    "quantity": 8,
+                    "eccnRestricted": false,
+                    "costNotAvailable": false,
+                    "hide": false,
+                    "deSelectable": true,
+                    "preSelected": false,
+                    "autoCorrected": false
+                  }
+                ],
+                "supplyInfoFeatureRecommendationInfos": [],
+                "required": false,
+                "isPinned": false,
+                "errors": [],
+                "notices": null,
+                "tags": null,
+                "totalPrice": 0,
+                "selectable": true,
+                "hideNone": null,
+                "priority": 2147483647,
+                "readOnly": false,
+                "hideOnPage": false,
+                "totalPrices": [
+                  {
+                    "priceTypeId": 1,
+                    "price": 40276,
+                    "priceNotAvailable": false
+                  }
+                ],
+                "serviceRequirements": [],
+                "attributeValue": {},
+                "attributeValueSoftware": {},
+                "hasTopFeature": false,
+                "filters": null,
+                "excludedFilter": false
+              }
+            ],
+            "info": [],
+            "notes": [],
+            "warn": [],
+            "subTabs": null,
+            "filters": null,
+            "guideUrl": null
+          }
+        ]
+      }
+    ],
+    "hipoDerivedItems": [
+      {
+        "targetCtoCode": "7S0XCTO6WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "XClarity One",
+        "ruleHashCode": -2042593091,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 304.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SCJD",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1GU",
+            "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+            "ctoCode": "7S0XCTO6WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 304.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 304.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S0XCTO8WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "XClarity Controller Prem-FOD",
+        "ruleHashCode": 1914716268,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 189.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SCY0",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T04K",
+            "description": "Lenovo XClarity XCC3 premier - FOD",
+            "ctoCode": "7S0XCTO8WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 189.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 189.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S1SCTO8WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "Windows Server 2025 Addl Lic",
+        "ruleHashCode": 725129906,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 1118,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDCN",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (POS Only)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 4,
+            "integrated": false,
+            "unitPrice": 279.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 279.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S1SCTO5WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "Windows Server 2025",
+        "ruleHashCode": 1661295794,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 1959.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "3444",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Registration only",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "SDAE",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard (16 core) - MultiLang (not preinstalled)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 1959.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 1959.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "3523",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Drop-in-the-Box",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5372SWX",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "xSeries HIPO",
+        "ruleHashCode": -1892115790,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDGR",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (POS Only)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 4,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5372SWX",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "xSeries HIPO",
+        "ruleHashCode": 1164713138,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDFL",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard (16 core) - MultiLang (not preinstalled)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5374CM1",
+        "subGroup": "N/A",
+        "targetCtoCodeDescription": "Configuration Instruction",
+        "ruleHashCode": -1438142204,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": true,
+        "features": [
+          {
+            "featureCode": "B8Q5",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "ThinkSystem RAID 940-8i 4GB Flash PCIe Gen4 12Gb Adapter Placement",
+            "ctoCode": "7DGDCTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "A2JX",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "Controller 01",
+            "ctoCode": "7DGDCTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      }
+    ]
+  },
+  "derived": {
+    "id": "US__-3bac-4a66-b82c-ee09335eb50d01000",
+    "code": "7DGDCTO1WW",
+    "sliceCtoCode": "7DGDCTO1WW",
+    "type": "server",
+    "quantity": 1,
+    "totalPrice": 40621.54,
+    "totalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 40617.51,
+        "priceNotAvailable": false
+      }
+    ],
+    "nonSoftwareTotalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 37046.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "priceNotAvailable": false,
+    "tabs": [],
+    "hipoDerivedItems": [
+      {
+        "targetCtoCode": "7S0XCTO6WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "XClarity One",
+        "ruleHashCode": -2042593091,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 304.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SCJD",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1GU",
+            "description": "XClarity One - Standard, Per Endpoint w/3 Yr SW S&S",
+            "ctoCode": "7S0XCTO6WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 304.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 304.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S0XCTO8WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "XClarity Controller Prem-FOD",
+        "ruleHashCode": 1914716268,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 189.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SCY0",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T04K",
+            "description": "Lenovo XClarity XCC3 premier - FOD",
+            "ctoCode": "7S0XCTO8WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 189.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 189.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S1SCTO8WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "Windows Server 2025 Addl Lic",
+        "ruleHashCode": 725129906,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 1118,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDCN",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (POS Only)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 4,
+            "integrated": false,
+            "unitPrice": 279.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 279.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "7S1SCTO5WW",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "Windows Server 2025",
+        "ruleHashCode": 1661295794,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 1959.5,
+        "targetCtoUnitPrice": 1,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 1,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "3444",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Registration only",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "SDAE",
+            "subCategory": "FlatFee",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard (16 core) - MultiLang (not preinstalled)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 1959.5,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": false,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 1959.5,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "3523",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Drop-in-the-Box",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5372SWX",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "xSeries HIPO",
+        "ruleHashCode": -1892115790,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDGR",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard Additional License (2 core) (No Media/Key) (POS Only)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 4,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5372SWX",
+        "subGroup": "xSeries",
+        "targetCtoCodeDescription": "xSeries HIPO",
+        "ruleHashCode": 1164713138,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": false,
+        "features": [
+          {
+            "featureCode": "SDFL",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": "T1D0",
+            "description": "Windows Server 2025 Standard (16 core) - MultiLang (not preinstalled)",
+            "ctoCode": "7S1SCTO5WW",
+            "quantity": 1,
+            "integrated": false,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      },
+      {
+        "targetCtoCode": "5374CM1",
+        "subGroup": "N/A",
+        "targetCtoCodeDescription": "Configuration Instruction",
+        "ruleHashCode": -1438142204,
+        "targetCtoQuantity": 1,
+        "targetCtoPrice": 0,
+        "targetCtoUnitPrice": 0.01,
+        "targetCTOPrices": [
+          {
+            "priceTypeId": 1,
+            "price": 0.01,
+            "priceNotAvailable": false
+          }
+        ],
+        "priceNotAvailable": false,
+        "featurePriceNotAvailable": false,
+        "derivedByHw": true,
+        "features": [
+          {
+            "featureCode": "B8Q5",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "ThinkSystem RAID 940-8i 4GB Flash PCIe Gen4 12Gb Adapter Placement",
+            "ctoCode": "7DGDCTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 0,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          },
+          {
+            "featureCode": "A2JX",
+            "subCategory": "N/A",
+            "licenseType": "",
+            "swSubCategory": null,
+            "description": "Controller 01",
+            "ctoCode": "7DGDCTO1WW",
+            "quantity": 1,
+            "integrated": true,
+            "unitPrice": 0,
+            "cost": null,
+            "priceNotAvailable": false,
+            "costNotAvailable": false,
+            "noCharge": true,
+            "userChanged": false,
+            "installations": [],
+            "errorMessages": [],
+            "prices": [
+              {
+                "priceTypeId": 1,
+                "price": 0,
+                "priceNotAvailable": false
+              }
+            ],
+            "eccnRestricted": false,
+            "totalQuantity": false
+          }
+        ]
+      }
+    ]
+  },
+  "exportedSoftware": {
+    "id": "US__-3bac-4a66-b82c-ee09335eb50d01000",
+    "price": 40276,
+    "prices": [
+      {
+        "priceNotAvailable": false,
+        "price": 5034.5,
+        "priceTypeId": 1
+      }
+    ],
+    "type": "unconfigured",
+    "code": "7S1M004HWW",
+    "quantity": 8,
+    "description": "Commvault Cloud Backup & Recovery Software, Per Front-End Terabyte 3Yr w/CVLT support",
+    "unitPrice": 5034.5,
+    "priceNotAvailable": false,
+    "showPrice": true,
+    "asMultiProd": false,
+    "groupId": "Config 1"
+  },
+  "exportedProducts": [
+    {
+      "code": "7DGDCTO1WW",
+      "type": "hardware",
+      "quantity": 1,
+      "price": 37046.01,
+      "unitPrice": 37046.01
+    },
+    {
+      "code": "7S0XCTO6WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 306.5,
+      "unitPrice": 305.5
+    },
+    {
+      "code": "7S0XCTO8WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 191.5,
+      "unitPrice": 190.5
+    },
+    {
+      "code": "7S1SCTO8WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 1120,
+      "unitPrice": 1119
+    },
+    {
+      "code": "7S1SCTO5WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 1961.5,
+      "unitPrice": 1960.5
+    },
+    {
+      "code": "5372SWX",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "5372SWX",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "5374CM1",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "7S1M004HWW",
+      "type": "unconfigured",
+      "quantity": 8,
+      "price": 40276,
+      "unitPrice": 5034.5
+    }
+  ]
+}

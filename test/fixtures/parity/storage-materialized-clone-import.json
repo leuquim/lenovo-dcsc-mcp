@@ -1,0 +1,219 @@
+{
+  "source": {
+    "workspace": {
+      "rackArea": [
+        {
+          "id": "US__0356bec8-a929-4aca-928f-22d8062dcb781",
+          "configurationId": "US__0356bec8-a929-4aca-928f-22d8062dcb781",
+          "type": "rack",
+          "quantity": 1,
+          "originalIds": [
+            "US__0356bec8-a929-4aca-928f-22d8062dcb781"
+          ],
+          "children": [
+            {
+              "id": "US__95aa55a9-064c-43cc-b342-4a440bf98872",
+              "configurationId": "US__95aa55a9-064c-43cc-b342-4a440bf98872",
+              "type": "storage",
+              "quantity": 1,
+              "originalIds": [
+                "US__95aa55a9-064c-43cc-b342-4a440bf98872"
+              ],
+              "children": []
+            },
+            {
+              "id": "US__b37f4321-9498-4e45-b214-9a3689d73f6d0",
+              "configurationId": "US__b37f4321-9498-4e45-b214-9a3689d73f6d0",
+              "type": "storage",
+              "quantity": 1,
+              "originalIds": [
+                "US__b37f4321-9498-4e45-b214-9a3689d73f6d0"
+              ],
+              "children": []
+            },
+            {
+              "id": "US__c889b7ce-999e-4413-a021-778c6c0d933d0",
+              "configurationId": "US__c889b7ce-999e-4413-a021-778c6c0d933d0",
+              "type": "storage",
+              "quantity": 1,
+              "originalIds": [
+                "US__c889b7ce-999e-4413-a021-778c6c0d933d0"
+              ],
+              "children": []
+            },
+            {
+              "id": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+              "configurationId": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+              "type": "server",
+              "quantity": 1,
+              "originalIds": [
+                "US__71beca7d-cda4-4add-b78d-7837aa0be01b0"
+              ],
+              "children": []
+            }
+          ]
+        }
+      ],
+      "nonRackArea": []
+    },
+    "cloneDependencyColor": {
+      "US__71beca7d-cda4-4add-b78d-7837aa0be01b0": {
+        "color": "#7e7c96",
+        "darkColor": "#515061",
+        "dependBy": [
+          "US__71beca7d-cda4-4add-b78d-7837aa0be01b0"
+        ],
+        "colorRGB": {
+          "r": 126,
+          "g": 124,
+          "b": -106
+        },
+        "darkColorRGB": {
+          "r": 81,
+          "g": 80,
+          "b": 97
+        }
+      },
+      "US__0356bec8-a929-4aca-928f-22d8062dcb781": {
+        "color": "#ab929b",
+        "darkColor": "#6f5e64",
+        "dependBy": [
+          "US__0356bec8-a929-4aca-928f-22d8062dcb781"
+        ],
+        "colorRGB": {
+          "r": -85,
+          "g": -110,
+          "b": -101
+        },
+        "darkColorRGB": {
+          "r": 111,
+          "g": 94,
+          "b": 100
+        }
+      },
+      "US__b37f4321-9498-4e45-b214-9a3689d73f6d0": {
+        "color": "#9c90a3",
+        "darkColor": "#655d69",
+        "dependBy": [
+          "US__b37f4321-9498-4e45-b214-9a3689d73f6d0",
+          "US__c889b7ce-999e-4413-a021-778c6c0d933d0"
+        ],
+        "colorRGB": {
+          "r": -100,
+          "g": -112,
+          "b": -93
+        },
+        "darkColorRGB": {
+          "r": 101,
+          "g": 93,
+          "b": 105
+        }
+      },
+      "US__95aa55a9-064c-43cc-b342-4a440bf98872": {
+        "color": "#c8da81",
+        "darkColor": "#828d53",
+        "dependBy": [
+          "US__95aa55a9-064c-43cc-b342-4a440bf98872"
+        ],
+        "colorRGB": {
+          "r": -56,
+          "g": -38,
+          "b": -127
+        },
+        "darkColorRGB": {
+          "r": -126,
+          "g": -115,
+          "b": 83
+        }
+      }
+    },
+    "networkingInformation": {
+      "storageNetworks": [
+        {
+          "name": "Native Direct iSCSI Optical",
+          "maximumExpansions": 0,
+          "type": "General Storage",
+          "layout": "Fully Redundant",
+          "controller": {
+            "featureCode": "",
+            "option": "7Y70CTOHWW"
+          },
+          "expansion": {
+            "featureCode": null,
+            "option": null
+          },
+          "mainSwitch": {
+            "featureCode": null,
+            "option": null
+          }
+        },
+        {
+          "name": "Fresh Manual Storage",
+          "maximumExpansions": 0,
+          "type": "General Storage",
+          "layout": "Fully Redundant",
+          "controller": {
+            "featureCode": "",
+            "option": "7Y70CTOHWW"
+          },
+          "expansion": {
+            "featureCode": null,
+            "option": null
+          },
+          "mainSwitch": {
+            "featureCode": null,
+            "option": null
+          }
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "id": "US__0356bec8-a929-4aca-928f-22d8062dcb781",
+        "code": "7D6DCTO1WW",
+        "type": "rack",
+        "quantity": 1
+      },
+      {
+        "id": "US__95aa55a9-064c-43cc-b342-4a440bf98872",
+        "code": "7Y70CTOHWW",
+        "type": "storage",
+        "quantity": 1
+      },
+      {
+        "id": "US__b37f4321-9498-4e45-b214-9a3689d73f6d0",
+        "code": "7Y70CTOHWW",
+        "type": "storage",
+        "quantity": 1
+      },
+      {
+        "id": "US__c889b7ce-999e-4413-a021-778c6c0d933d0",
+        "code": "7Y70CTOHWW",
+        "type": "storage",
+        "quantity": 1
+      },
+      {
+        "id": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+        "code": "7D73CTOHWW",
+        "type": "server",
+        "quantity": 1
+      }
+    ]
+  },
+  "expectedDependency": {
+    "US__71beca7d-cda4-4add-b78d-7837aa0be01b0": [
+      "US__71beca7d-cda4-4add-b78d-7837aa0be01b0"
+    ],
+    "US__0356bec8-a929-4aca-928f-22d8062dcb781": [
+      "US__0356bec8-a929-4aca-928f-22d8062dcb781"
+    ],
+    "US__b37f4321-9498-4e45-b214-9a3689d73f6d0": [
+      "US__b37f4321-9498-4e45-b214-9a3689d73f6d0",
+      "US__c889b7ce-999e-4413-a021-778c6c0d933d0"
+    ],
+    "US__95aa55a9-064c-43cc-b342-4a440bf98872": [
+      "US__95aa55a9-064c-43cc-b342-4a440bf98872"
+    ]
+  },
+  "provenance": "2026-10-30 native CFXML import and fresh headless SPA racks/customize request; two physical instances of one DE2000H template."
+}

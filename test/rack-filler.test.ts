@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRackFiller,
   projectRackFiller,
-  RackFillerCatalogError,
 } from '../src/domain/rackFiller.js';
 import type { RawConfiguration } from '../src/model/types.js';
 
@@ -58,15 +57,15 @@ describe('browser rack filler projection', () => {
     ]);
   });
 
-  it('rejects a derived filler selection that the retained catalog cannot represent', () => {
+  it('matches native catalog gating instead of selecting unsupported filler codes', () => {
     const configuration = structuredClone(fixture['configuration'] as RawConfiguration);
     const mechanical = (configuration.unSelectableCharacters as Obj[])
       .find((section) => section['name'] === 'MECH_DERIVE_FCS')!;
     mechanical['features'] = (mechanical['features'] as Obj[]).filter((feature) => feature['code'] !== '4273');
-    expect(() => projectRackFiller(
-      { size: 9, rackItems: [{ position: 6, size: 1 }] },
-      configuration,
-    )).toThrowError(RackFillerCatalogError);
+    const result = projectRackFiller(
+      { size: 9, rackItems: [{ position: 6, size: 1 }] }, configuration);
+    expect(result.selections).toEqual([{ code: '4275', quantity: 1, derived: true }]);
+    expect(result.filler).toEqual([{ position: 0, size: 5 }, { position: 6, size: 3 }]);
   });
 
   it('can retain a selected filler code when an imported projection omitted its feature catalog', () => {
@@ -103,4 +102,35 @@ describe('browser rack filler projection', () => {
     const result = projectRackFiller({ size: 5, rackItems: [{ position: 6, size: 1 }] }, configuration);
     expect(result.selections).toEqual([{ code: 'B34A', quantity: 1, derived: true }]);
   });
+});
+
+it('preserves native MGX power-shelf results without inventing standard filler parts', () => {
+  const mgx = JSON.parse(readFileSync(new URL('./fixtures/parity/mgx-rack-filler.json', import.meta.url), 'utf8')) as Obj;
+  const configuration = mgx['configuration'] as RawConfiguration;
+  const before = structuredClone(configuration);
+  const projected = projectRackFiller(mgx['rack'] as Obj, configuration);
+  expect(projected.selections).toEqual([]);
+  expect(configuration).toEqual(before);
+  const mechanical = (projected.configuration.unSelectableCharacters as Obj[])[0]!;
+  const compact = (values: Obj[]) => values.map(r => ({ code: r['code'], quantity: r['quantity'] }));
+  expect(compact(mechanical['results'] as Obj[])).toEqual(compact(mgx['expected'] as Obj[]));
+});
+
+it('reprices native chassis-clone filler changes and keeps unavailable prices explicit', async () => {
+  const { repriceRackFillers } = await import('../src/domain/rackFiller.js');
+  const captured = JSON.parse(readFileSync(new URL('./fixtures/parity/chassis-clone-filler-price.json', import.meta.url), 'utf8')) as {
+    before: RawConfiguration; after: RawConfiguration;
+  };
+  const staged = { ...captured.before, unSelectableCharacters: captured.after.unSelectableCharacters };
+  const result = repriceRackFillers(captured.before, staged);
+  expect(result.totalPrice).toBe(captured.after.totalPrice);
+  expect(result.totalPrices).toEqual(captured.after.totalPrices);
+  expect(result['nonSoftwareTotalPrices']).toEqual(captured.after['nonSoftwareTotalPrices']);
+  const missing = structuredClone(captured.before);
+  for (const section of missing.unSelectableCharacters as Obj[]) for (const feature of section['features'] as Obj[]) {
+    if (feature.code === '4275') { feature.unitPrice = null; feature.prices = []; }
+  }
+  const unavailable = repriceRackFillers(missing, staged);
+  expect(unavailable.totalPrice).toBeNull();
+  expect(unavailable.priceNotAvailable).toBe(true);
 });

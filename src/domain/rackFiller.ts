@@ -16,16 +16,6 @@ export interface RackFillerProjection {
   selections: Array<{ code: string; quantity: number; derived: true }>;
 }
 
-export class RackFillerCatalogError extends Error {
-  readonly missingCodes: string[];
-
-  constructor(missingCodes: string[]) {
-    super(`Rack filler catalog is incomplete; missing feature codes: ${missingCodes.join(', ')}`);
-    this.name = 'RackFillerCatalogError';
-    this.missingCodes = missingCodes;
-  }
-}
-
 const FILLER_CODES = new Set(['4275', '4273', '4271', 'B34A', 'B349', 'B348']);
 const STANDARD_CODE: Record<RackFiller['size'], string> = { 5: '4275', 3: '4273', 1: '4271' };
 const EXTENSION_CODE: Record<RackFiller['size'], string> = { 5: 'B34A', 3: 'B349', 1: 'B348' };
@@ -113,16 +103,14 @@ function applyFillerSelections(
   const existingFillerCodes = new Set(existing
     .map((result) => String(result['code'] ?? ''))
     .filter((code) => FILLER_CODES.has(code)));
-  const requiredCodes = ([5, 3, 1] as const)
-    .filter((size) => filler.some((item) => item.size === size))
-    .map((size) => mapping[size]);
-  const missingCodes = requiredCodes.filter((code) => !available.has(code) && !existingFillerCodes.has(code));
-  if (missingCodes.length > 0) throw new RackFillerCatalogError(missingCodes);
+  // Native addRackFiller only selects codes offered by MECH_DERIVE_FCS.
+  // MGX racks use that section for power shelves and offer no standard fillers.
+  // A retained selected code also proves availability for slim imported catalogs.
   const selections: RackFillerProjection['selections'] = [];
   for (const size of [5, 3, 1] as const) {
     const quantity = filler.filter((item) => item.size === size).length;
     const code = mapping[size];
-    if (quantity > 0) selections.push({ code, quantity, derived: true });
+    if (quantity > 0 && (available.has(code) || existingFillerCodes.has(code))) selections.push({ code, quantity, derived: true });
   }
   mechanical['results'] = [...retained, ...selections];
   configuration.unSelectableCharacters = characters as RawConfiguration['unSelectableCharacters'];
@@ -171,4 +159,39 @@ export function projectRackFiller(
     ...(base ? { baseFeatureCode: base } : {}),
   };
   return { rack, configuration, filler, selections };
+}
+
+/** Native chassis cloning reprices changed filler selections locally. */
+export function repriceRackFillers(source: RawConfiguration, next: RawConfiguration): RawConfiguration {
+  const before = objects(source.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
+  const after = objects(next.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
+  if (!before || !after) return next;
+  const quantity = (section: Obj, code: string) => objects(section['results'])
+    .filter(r => r['code'] === code).reduce((sum, r) => sum + Number(r['quantity'] ?? 0), 0);
+  const changes = [...FILLER_CODES].map(code => ({ code, quantity: quantity(after, code) - quantity(before, code),
+    feature: objects(before['features']).find(f => f['code'] === code) })).filter(c => c.quantity !== 0);
+  if (changes.length === 0) return next;
+  const result = structuredClone(next);
+  const money = (value: number) => Math.round(value * 100) / 100;
+  const scalarKnown = changes.every(c => Number.isFinite(c.quantity) && c.feature?.['priceNotAvailable'] !== true &&
+    typeof c.feature?.['unitPrice'] === 'number' && Number.isFinite(c.feature['unitPrice']));
+  if (scalarKnown && typeof source.totalPrice === 'number') {
+    result.totalPrice = money(source.totalPrice + changes.reduce((sum, c) => sum + Number(c.feature!['unitPrice']) * c.quantity, 0));
+  } else { result.totalPrice = null; result.priceNotAvailable = true; }
+  for (const key of ['totalPrices', 'nonSoftwareTotalPrices'] as const) {
+    if (!Array.isArray(source[key])) continue;
+    result[key] = objects(source[key]).map(total => {
+      let delta = 0;
+      for (const change of changes) {
+        const price = objects(change.feature?.['prices']).find(p => p['priceTypeId'] === total['priceTypeId']);
+        if (!Number.isFinite(change.quantity) || !price || price['priceNotAvailable'] === true ||
+            typeof price['price'] !== 'number' || !Number.isFinite(price['price'])) {
+          const unavailable: Obj = { ...total, priceNotAvailable: true }; delete unavailable['price']; return unavailable;
+        }
+        delta += price['price'] * change.quantity;
+      }
+      return { ...total, ...(typeof total['price'] === 'number' ? { price: money(total['price'] + delta) } : {}) };
+    });
+  }
+  return result;
 }

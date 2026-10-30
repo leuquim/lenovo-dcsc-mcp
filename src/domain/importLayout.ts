@@ -6,6 +6,7 @@ import { nonemptyCode } from './dcscWire.js';
 import { readConnectionGraph, projectConnectionGraph } from './cabling.js';
 import { fetchEnvelopes, type PhysicalEnvelope, type RackObject } from './rack.js';
 import { hydrateLockedSpaceFromSpa } from './rackLocks.js';
+import { buildFloorState } from './floorWire.js';
 
 type Obj = Record<string, unknown>;
 const object = (value: unknown): Obj => value && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
@@ -44,6 +45,7 @@ export async function hydrateImportedLayout(
   );
   const floorGrid = objects(object(payload['floorInformation'])['floorGrid']);
   const workspaceFloorItems = objects(imported['floorItems']);
+  const initializeFloor = payload['floorInformation'] == null && workspaceFloorItems.length === 0;
   const hierarchyItems: Obj[] = [];
   const collect = (item: Obj, depth: number): void => {
     assertSupportedPhysicalShape(item, depth);
@@ -81,6 +83,11 @@ export async function hydrateImportedLayout(
   const stagedLoose: RackObject[] = [];
   const stagedFloor: FloorItem[] = [];
   const incomingRackIds = new Set<string>();
+  // The SPA's buildWorkspaceImportData decodes U_POSITION results, then
+  // constructFloorGrid initializes client-side cells when no floor was supplied.
+  const initializedCells = initializeFloor ? objects(buildFloorState({ ...workspace,
+    rackArea: [...workspace.rackArea, ...racks.map(rack => ({ ...rack, id: hierarchyId(rack) }))],
+  }).information['floorGrid']) : [];
 
   for (const rack of racks) {
     const { id, envelope } = envelopeFor(rack);
@@ -88,7 +95,7 @@ export async function hydrateImportedLayout(
       throw new Error(`Imported layout identity ${id} already exists in this workspace.`);
     }
     incomingRackIds.add(id);
-    const cell = uniqueByIdentity(floorGrid, id, 'floor-grid rack');
+    const cell = uniqueByIdentity(initializeFloor ? initializedCells : floorGrid, id, 'floor-grid rack');
     const cellId = nonemptyString(cell['id']);
     if (!cellId) throw new Error(`Imported rack ${id} has no floor-grid identity.`);
     const row = nonnegativeInteger(cell['row']);
@@ -107,7 +114,8 @@ export async function hydrateImportedLayout(
     }
 
     const children = objects(rack['children']);
-    const locations = objects(cell['items']);
+    const locations = initializeFloor ? children.map(child => ({ id: hierarchyId(child), position: importedHierarchyPosition(child) }))
+      : objects(cell['items']);
     const rackItems = children.map((child) => restoreRackItem(child, locations, envelopeFor));
     assertNoUnknownLocations(locations, children, id);
     stagedRacks.push({
@@ -169,6 +177,18 @@ function restoreLooseNestedNode(
   delete restored['children'];
   restored['nodes'] = [];
   return restored;
+}
+
+/** Inverse of buildItemHierarchy's native 32xx placement code, in wire U units. */
+function importedHierarchyPosition(item: Obj): number {
+  const placements = objects(item['derivedResults']).filter(result => /^32\d{2}$/.test(String(result['featureCode'])));
+  if (placements.length !== 1 || Number(placements[0]!['quantity'] ?? 1) !== 1 ||
+      Array.isArray(item['originalIds']) && item['originalIds'].length > 1) {
+    throw new Error(`Imported item ${hierarchyId(item)} has no unambiguous native U-position; grouped positions require expansion.`);
+  }
+  const position = Number(String(placements[0]!['featureCode']).slice(2));
+  if (!Number.isInteger(position) || position < 1) throw new Error(`Imported item ${hierarchyId(item)} has no usable physical position.`);
+  return position;
 }
 
 function restoreRackItem(
@@ -305,7 +325,10 @@ function assertImportContext(workspace: WorkspaceSession, payload: Obj): void {
   if (importedMode && importedMode !== workspace.solution.solutionMode) {
     throw new Error(`Imported solution mode ${importedMode} conflicts with workspace ${workspace.solution.solutionMode}.`);
   }
-  if (Array.isArray(mode['masterSlices']) && !isDeepStrictEqual(mode['masterSlices'], workspace.solution.masterSlices)) {
+  // Native Excel imports return the selected mode with an empty slices list.
+  // That omits catalog metadata; it does not contradict the resolved mode.
+  if (Array.isArray(mode['masterSlices']) && mode['masterSlices'].length > 0 &&
+    !isDeepStrictEqual(mode['masterSlices'], workspace.solution.masterSlices)) {
     throw new Error('Imported master slices conflict with the workspace solution context.');
   }
 }

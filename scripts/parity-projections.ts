@@ -70,6 +70,8 @@ function seed(sessionFile: string): { workspace: string; firstSession: string; l
       quantity: 1,
       totalPrice: 100 + index,
       tabs: [],
+      selectedTopologies: { Management: {} },
+      selectedStorageNetwork: 'SAN',
     };
     const session = store.create({
       locale: { geo: 'NA', country: 'US', language: 'en', currency: 'USD' },
@@ -96,6 +98,7 @@ function seed(sessionFile: string): { workspace: string; firstSession: string; l
   }));
   const longConnection = 'transceiver-metadata-'.repeat(2_000);
   workspace.serverState['connections'] = [{
+    network: 'Management',
     source: { configurationId: 'US__projection-0', port: 'A1' },
     destination: { configurationId: 'switch-0', port: 'B1' },
     cable: { code: 'DAC' }, transceiverDetails: longConnection,
@@ -144,6 +147,16 @@ async function main(): Promise<void> {
     assert.equal(object(summary['totals'])['configurations'], 80);
     assert.equal(object(summary['totals'])['cables'], 240);
     assert.equal(object(summary['totals'])['rawConnections'], 1);
+    const diagnosticsLink = continuation(object(object(summary['pages'])['cablingDiagnostics'])['inspect']);
+    const diagnostics = (await call(diagnosticsLink.tool, diagnosticsLink.arguments)).json;
+    const diagnosticItems = array(diagnostics['items']).map(object);
+    assert.equal(object(diagnosticItems.find(item => item['key'] === 'requestedNetworksWithoutConnections'))['value'], 1);
+    const networkItem = object(diagnosticItems.find(item => item['key'] === 'networks'));
+    const networks = networkItem['next']
+      ? (await call(continuation(networkItem['next']).tool, continuation(networkItem['next']).arguments)).json
+      : networkItem['value'];
+    assert.match(JSON.stringify(networks), /SAN/);
+    assert.match(JSON.stringify(networks), /no_connections/);
 
     const configurationLink = continuation(object(object(summary['pages'])['configurations'])['inspect']);
     const configurationKeys: string[] = [];
@@ -202,6 +215,7 @@ async function main(): Promise<void> {
       rawConnectionCharacters: reconstructedConnection.length,
       warningCharacters: reconstructedWarning.length,
       staleContinuationRejected: true,
+      missingStorageNetworkReported: true,
     }, null, 2)}\n`);
   } finally {
     await client.close().catch(() => undefined);

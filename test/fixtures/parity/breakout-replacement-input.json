@@ -1,0 +1,469 @@
+{
+  "source": "Reduced 2026-10-30 native four-branch AV22 auto_connect response and offered replacement AV23; replacement behavior tested separately.",
+  "connections": [
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "cableOption": "7Z57A03564",
+      "cablePrice": 109.5,
+      "cableType": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/SFP28",
+      "sourcePortNumber": "1",
+      "sourcePortName": "SFP28",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 109.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 189.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV22",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+        "optionCode": "7Z57A03564",
+        "price": 109.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "AUTO",
+      "subType": "NETWORK",
+      "divider": 4,
+      "category": "BREAKOUT"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "cableOption": "7Z57A03564",
+      "cablePrice": 109.5,
+      "cableType": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/SFP28",
+      "sourcePortNumber": "2",
+      "sourcePortName": "SFP28",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 109.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 189.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV22",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+        "optionCode": "7Z57A03564",
+        "price": 109.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "AUTO",
+      "subType": "NETWORK",
+      "divider": 4,
+      "category": "BREAKOUT"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "cableOption": "7Z57A03564",
+      "cablePrice": 109.5,
+      "cableType": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/SFP28",
+      "sourcePortNumber": "3",
+      "sourcePortName": "SFP28",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 109.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 189.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV22",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+        "optionCode": "7Z57A03564",
+        "price": 109.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "AUTO",
+      "subType": "NETWORK",
+      "divider": 4,
+      "category": "BREAKOUT"
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "cableOption": "7Z57A03564",
+      "cablePrice": 109.5,
+      "cableType": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+      "totalDistance": 0.5778000000000001,
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePart": "7D73CTOHWW",
+      "sourceItem": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+      "sourceLocation": "A1/U1/SFP28",
+      "sourcePortNumber": "4",
+      "sourcePortName": "SFP28",
+      "destinationId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+      "destinationPart": "7D5FCTOKWW",
+      "destinationItem": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+      "destinationLocation": "A1/U5/QSFP28",
+      "destinationPortNumber": "49",
+      "destinationPortName": "QSFP28",
+      "cableDistance": {
+        "from": {
+          "row": 0,
+          "col": 0,
+          "position": 1,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+          "code": "7D73CTOHWW",
+          "type": "server",
+          "description": "ThinkSystem SR630 V3-3yr Base Warranty - HPC for AI",
+          "codeAndLocation": "7D73CTOHWW - A1/U1",
+          "coordinate": "A1"
+        },
+        "to": {
+          "row": 0,
+          "col": 0,
+          "position": 5,
+          "conn": "",
+          "subIndex": -1,
+          "parentContainerSlot": -1,
+          "grandparentContainerSlot": -1,
+          "itemId": "US__a1bb2166-8cd8-415c-83a3-6b5650661e150",
+          "code": "7D5FCTOKWW",
+          "type": "switch",
+          "description": "NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)",
+          "codeAndLocation": "7D5FCTOKWW - A1/U5",
+          "coordinate": "A1"
+        },
+        "totalScale": 7,
+        "cableDistances": [
+          {
+            "distance": 0.2,
+            "increment": 0.2,
+            "comment": null
+          },
+          {
+            "distance": 0.3778,
+            "increment": 0.1778,
+            "comment": null
+          },
+          {
+            "distance": 0.5778000000000001,
+            "increment": 0.2,
+            "comment": null
+          }
+        ],
+        "totalDistance": 0.5778000000000001,
+        "type": "network",
+        "compatibleCables": [
+          {
+            "category": "Cable",
+            "featureCode": "AV22",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03564",
+            "price": 109.5,
+            "length": 1,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          },
+          {
+            "category": "Cable",
+            "featureCode": "AV23",
+            "ctoCode": "7D5FCTOKWW",
+            "description": "Lenovo 3m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+            "optionCode": "7Z57A03565",
+            "price": 189.5,
+            "length": 3,
+            "selectionGroups": [
+              "QSFP+_AND_DAC_CABLES"
+            ]
+          }
+        ]
+      },
+      "cableFeature": {
+        "category": "Cable",
+        "featureCode": "AV22",
+        "ctoCode": "7D5FCTOKWW",
+        "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+        "optionCode": "7Z57A03564",
+        "price": 109.5,
+        "length": null,
+        "selectionGroups": [
+          "QSFP+_AND_DAC_CABLES"
+        ]
+      },
+      "preferredCable": null,
+      "type": "AUTO",
+      "subType": "NETWORK",
+      "divider": 4,
+      "category": "BREAKOUT"
+    }
+  ]
+}

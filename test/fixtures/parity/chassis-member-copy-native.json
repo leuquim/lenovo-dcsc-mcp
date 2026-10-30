@@ -1,0 +1,167 @@
+{
+  "provenance": "Native Copy(number1) from second/member D3 populated chassis, 2026-10-30. Original parent/child groups retained; new singleton copy groups. Geometry from native Copy request after frontend normalization.",
+  "before": [
+    {
+      "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+      "code": "7D6DCTO1WW",
+      "name": "Rack",
+      "type": "rack",
+      "width": 600,
+      "depth": 1200,
+      "size": 42,
+      "lockedSpace": [],
+      "rackItems": [
+        {
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Chassis",
+          "type": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+          "position": 1,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "occupiedBay": null,
+          "nodes": [
+            {
+              "size": 1,
+              "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "occupiedBay": 1,
+              "name": "Copy_Node"
+            }
+          ]
+        },
+        {
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Chassis",
+          "type": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "id": "US__2e28dba3-615f-4d03-9454-32e2c09b7f47",
+          "position": 3,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "occupiedBay": null,
+          "nodes": [
+            {
+              "size": 1,
+              "id": "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "occupiedBay": 1,
+              "name": "Copy_Node"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "request": [
+    {
+      "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+      "code": "7D6DCTO1WW",
+      "name": "Rack",
+      "type": "rack",
+      "width": 600,
+      "depth": 1200,
+      "size": 42,
+      "lockedSpace": [],
+      "rackItems": [
+        {
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Chassis",
+          "type": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+          "position": 1,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "occupiedBay": null,
+          "nodes": [
+            {
+              "size": 1,
+              "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "occupiedBay": 1,
+              "name": "Copy_Node"
+            }
+          ]
+        },
+        {
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Chassis",
+          "type": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "id": "US__2e28dba3-615f-4d03-9454-32e2c09b7f47",
+          "position": 3,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "occupiedBay": null,
+          "nodes": [
+            {
+              "size": 1,
+              "id": "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "occupiedBay": 1,
+              "name": "Copy_Node"
+            }
+          ]
+        },
+        {
+          "size": 2,
+          "code": "7DD0CTOLWW",
+          "name": "Copy_Chassis",
+          "type": "chassis",
+          "width": 448,
+          "depth": 850,
+          "physicalHeight": 87,
+          "id": "US__db26876b-d4ed-4994-b11e-3d275f37ef76",
+          "position": 5,
+          "highestPosition": 41,
+          "lowestPosition": 1,
+          "occupiedBay": null,
+          "nodes": [
+            {
+              "size": 1,
+              "id": "US__cc739bf9-5928-4913-a424-25e15835f137",
+              "code": "7DD1CTOLWW",
+              "type": "node",
+              "occupiedBay": 1,
+              "name": "Copy_Copy_Node"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "requestCloneDependency": {
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d"
+    ],
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": [
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+    ],
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+    ],
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2": [
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ]
+  }
+}

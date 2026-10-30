@@ -1,3 +1,5 @@
+import { registerStorageWizardTools } from './storageWizardTools.js';
+import { registerPciWizardTools } from './pciWizardTools.js';
 import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
 import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { configurationListPrice } from '../domain/pricing.js';
@@ -11,11 +13,12 @@ import { CONFIG_MODES } from '../config/constants.js';
 import { redactConfig } from '../config/schema.js';
 import { browseCatalog, searchCatalogPage } from '../domain/catalog.js';
 import { invalidateConnectionGraph, type AutoConnectResult } from '../domain/cabling.js';
+import { cablingDiagnostics } from '../domain/cablingDiagnostics.js';
 import { toToolError } from '../http/errors.js';
 import { logger } from '../http/trace.js';
 import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
 import type { LayoutResult } from '../domain/rack.js';
-import { aggregatePower, assessRackDensity, extractPowerReport } from '../domain/power.js';
+import { aggregatePower, assessRackDensity, extractPowerReport, powerLoadFactor } from '../domain/power.js';
 import { BLUEPRINTS, findBlueprint } from '../domain/blueprints.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import { diffConfigurations } from '../model/diff.js';
@@ -39,6 +42,9 @@ import type { WorkspaceSession } from '../session/SessionStore.js';
 import { registerRecoveryTools } from './recoveryTools.js';
 import { registerStorageTools } from './storageTools.js';
 import { registerManualCablingTools } from './manualCablingTools.js';
+import { registerPowerControlTools } from './powerControlTools.js';
+import { registerReferenceSolutionTools } from './referenceSolutionTools.js';
+import { registerUnconfiguredTools } from './unconfiguredTools.js';
 import { projectValidationToolResult, registerValidationTools } from './validationTools.js';
 import { registerReconciliationTools } from './reconciliationTools.js';
 import { listTopologyConnectors, listNetworkLeafCablingChoices } from '../domain/networkPreferences.js';
@@ -204,6 +210,9 @@ function projectAutoConnectToolResult(
     .filter(key => typeof result.settings[key] === 'boolean')
     .map(key => [key, result.settings[key]]));
   const messageCount = result.messages.reduce((sum, group) => sum + group.messages.length, 0);
+  const { networks: _networks, ...diagnostics } = cablingDiagnostics(
+    [...workspace.configurations.values()].map(session => session.raw), workspace.serverState,
+  );
   const page = (path: string[]) => ({
     tool: 'dcsc_workspace_layout',
     arguments: {
@@ -215,6 +224,7 @@ function projectAutoConnectToolResult(
     },
   });
   const pages = {
+    diagnostics: { inspect: page(['cablingDiagnostics']) },
     rawConnections: { total: result.rawConnections.length, inspect: page(['rawConnections']) },
     messages: { total: result.messages.length, messageCount, inspect: page(['autoConnectMessages']) },
   };
@@ -228,8 +238,7 @@ function projectAutoConnectToolResult(
     description: connection.description,
   }));
   const note = result.connections.length === 0
-    ? 'DCSC returned no connections. That is expected when the layout has nothing to cable ' +
-      '(no switch, single node). Add networking hardware and re-run.'
+    ? 'DCSC returned no connections. Inspect pages.diagnostics and Lenovo messages before changing hardware.'
     : undefined;
   const full: Record<string, unknown> = {
     session: workspace.id,
@@ -237,13 +246,14 @@ function projectAutoConnectToolResult(
     mode: 'auto',
     settings,
     connectionCount: result.connections.length,
+    diagnostics,
     connections,
     messageGroupCount: result.messages.length,
     messageCount,
     messages: result.messages,
     pages,
     ...(note ? { note } : {}),
-    next: 'dcsc_workspace_layout(session) to inspect the updated racks and connections.',
+    next: 'Inspect pages.diagnostics for missing networks. Use dcsc_cabling_connections to discover editable rows, then dcsc_edit_cabling_connection to change an existing connection.',
   };
   if (Buffer.byteLength(JSON.stringify(full, null, 2)) <= 7_000) return full;
 
@@ -297,8 +307,13 @@ function projectAutoConnectToolResult(
 }
 
 export function registerTools(server: McpServer, service: DcscService): void {
+  registerReferenceSolutionTools(server, service);
+  registerUnconfiguredTools(server, service);
   registerStorageTools(server, service);
   registerManualCablingTools(server, service);
+  registerPowerControlTools(server, service);
+  registerPciWizardTools(server, service);
+  registerStorageWizardTools(server, service);
   registerStandaloneTools(server, service);
   registerReconciliationTools(server, service);
   registerValidationTools(server, service);
@@ -539,7 +554,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
         }
         const configurations = service.sessions.list()
           .filter(s => !args.workspace || s.workspaceId === args.workspace)
-          .map(s => ({ session: s.id, workspace: s.workspaceId, kind: 'configuration',
+          .map(s => ({ session: s.id, configurationId: s.configurationId, workspace: s.workspaceId, kind: 'configuration',
             label: s.label?.slice(0, 128), product: s.product.code,
             description: s.product.description.slice(0, 60), revision: s.revision,
             totalPrice: s.raw.totalPrice ?? null, currency: s.locale.currency,
@@ -761,17 +776,16 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_add_cabling',
     {
-      title: 'Cable a solution (auto-connect or manual)',
+      title: 'Generate native cabling or record a local planning link',
       description:
         'Builds port-to-port cabling for a workspace.\n' +
         'Default mode is "auto": posts the current rack layout to DCSC /auto_connect and replaces ' +
-        'the workspace cable list with the connections the server returns. That is the only ' +
-        'server-validated path — empty connections are normal when the layout has nothing to cable ' +
-        '(e.g. a single node and no switch).\n' +
+        'the workspace cable list with the connections the server returns. Zero connections do not establish success: inspect the returned diagnostics for missing networks.\n' +
         'Optional settings match the website Automated Rack PDU, Automated Switch and P2P Cabling controls; ' +
         'provided fields are persisted with the accepted result and reused for subsequent layout/cabling calls.\n' +
         'Mode "manual" records a single port map locally for planning; DCSC does not validate ' +
-        'these links, and they are excluded from Lenovo exports. Inspect them with dcsc_workspace_layout. Prefer auto for exportable connections.',
+        'these links, and they are excluded from Lenovo exports. Inspect them with dcsc_workspace_layout. Prefer auto for exportable connections. Manual endpoint/cable fields are rejected in auto mode rather than ignored. ' +
+        'For native manual creation, use dcsc_manual_cabling_options followed by dcsc_create_cabling_connection. To edit existing native connections, use dcsc_cabling_connections followed by dcsc_edit_cabling_connection.',
       inputSchema: {
         expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
         session: z.string().describe('Session or workspace ID.'),
@@ -801,6 +815,12 @@ export function registerTools(server: McpServer, service: DcscService): void {
         const mode = args.mode ?? 'auto';
         if (mode === 'manual' && args.settings !== undefined) {
           throw new Error('Auto-connect settings require mode="auto".');
+        }
+        if (mode === 'auto' && [args.fromConfigId, args.fromPort, args.toConfigId, args.toPort,
+          args.cableCode, args.description].some(value => value !== undefined)) {
+          throw new Error('Endpoint, cableCode and description fields require mode="manual", which saves a local planning link excluded from Lenovo exports. ' +
+            'Auto mode cannot create a specified manual connection: omit those fields to run native Auto-Connect, ' +
+            'use dcsc_manual_cabling_options and dcsc_create_cabling_connection for native manual creation, or use dcsc_cabling_connections and dcsc_edit_cabling_connection to edit an existing native row.');
         }
         if (mode === 'auto') {
           const ctx = service.newCtx();
@@ -839,12 +859,12 @@ export function registerTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_import',
     {
-      title: 'Import a saved Lenovo CFXML configuration file or string',
+      title: 'Import a Lenovo CFXML or Excel configuration',
       description:
-        'Imports a saved Lenovo CFXML string or file path from Lenovo Bid Portal or DCSC into a new configuration session or workspace.',
+        'Imports a saved Lenovo CFXML string or a local CFXML/Excel file into a configuration session or workspace. Excel files are uploaded intact to Lenovo; use an exported DCSC workbook, not an arbitrary spreadsheet. Specify solutionMode for Excel when the design is outside General Purpose.',
       inputSchema: {
         content: z.string().optional().describe('XML content string of the CFXML file.'),
-        filePath: z.string().optional().describe('Absolute local file path to the CFXML file.'),
+        filePath: z.string().optional().describe('Absolute local file path to a CFXML (.xml) or DCSC Excel (.xlsx/.xls) file.'),
         mode: z.enum(CONFIG_MODES).optional(),
         expectedRevision: z.number().int().min(1).optional(),
         workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
@@ -852,7 +872,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
           .string()
           .optional()
           .describe(
-            'Solution mode to import under. Defaults to the mode declared in the file. ' +
+            'Solution mode to import under. Defaults to the existing workspace mode, otherwise the XML declaration or General Purpose for Excel. ' +
               'DCSC resolves each model against this mode\'s catalog, so a model outside it ' +
               'is rejected even though the file is valid.',
           ),
@@ -860,31 +880,28 @@ export function registerTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        let xmlContent = args.content;
-        if (args.filePath) {
+        let importContent: string | Uint8Array | undefined = args.content;
+        const inputPath = args.filePath ?? (args.content &&
+          (/\.(xml|xlsx|xls)$/i.test(args.content) || args.content.startsWith('/') || args.content.startsWith('./'))
+          ? args.content : undefined);
+        if (inputPath) {
           const { readFileSync } = await import('node:fs');
-          xmlContent = readFileSync(args.filePath, 'utf8');
-        } else if (
-          xmlContent &&
-          (xmlContent.endsWith('.xml') || xmlContent.startsWith('/') || xmlContent.startsWith('./'))
-        ) {
-          const { readFileSync } = await import('node:fs');
-          xmlContent = readFileSync(xmlContent, 'utf8');
+          importContent = readFileSync(inputPath);
         }
-        if (!xmlContent) {
+        if (!importContent) {
           throw new Error('Either content string or filePath must be provided.');
         }
 
         const ctx = service.newCtx();
         const res = await service.importConfig({
-          content: xmlContent,
+          content: importContent,
           ctx,
           ...(args.mode !== undefined ? { mode: args.mode } : {}),
           expectedRevision: args.expectedRevision,
           ...(args.workspace !== undefined ? { workspaceId: args.workspace } : {}),
           ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
-          ...(args.filePath !== undefined
-            ? { fileName: args.filePath.split('/').pop() ?? 'configuration.xml' }
+          ...(inputPath !== undefined
+            ? { fileName: inputPath.split(/[\\/]/).pop() ?? 'configuration.xml' }
             : {}),
         });
 
@@ -978,13 +995,13 @@ export function registerTools(server: McpServer, service: DcscService): void {
 
   server.registerTool('dcsc_copy_rack_item', {
     title: 'Copy a configured rack item independently',
-    description: 'Performs the website rack Copy action for one direct, rule-free General Purpose CTO item with quantity one. Creates an independently editable configuration named Copy_<source name> in the same rack, validates placement and re-derives the workspace atomically. Unlike Clone Multiple, the copy has separate commercial lines and edits do not propagate to its source. Linked sources, managed storage templates and nested/chassis/VLH items require separate workflows.',
+    description: 'Performs the website rack Copy action for one direct, rule-free General Purpose CTO item with quantity one. Creates an independently editable configuration named Copy_<source name> in the same rack, validates placement and re-derives the workspace atomically. Unlike Clone Multiple, the copy has separate commercial lines and edits do not propagate to its source. Populated HPC chassis with direct node children are also supported: Copy creates independent child configurations using the native physical customize workflow. A linked source can be copied through its root or a member; the original parent/child groups remain linked and the copy is independent. Managed storage templates, deeper containers and VLH items require separate workflows.',
     inputSchema: {
       session: z.string().describe('Explicit configuration handle of the racked item to copy.'),
       expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
     },
   }, async args => guard(async () => {
-    const { source, copy, placement } = await service.copyRackItem(args.session, {
+    const { source, copy, placement, nestedCopies } = await service.copyRackItem(args.session, {
       expectedRevision: args.expectedRevision, ctx: service.newCtx(),
     });
     return {
@@ -993,6 +1010,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
       workspace: copy.workspaceId,
       workspaceRevision: service.sessions.getWorkspace(copy.workspaceId)!.revision,
       configurationId: copy.configurationId, name: copy.raw.name,
+      nestedConfigurationsCreated: nestedCopies.length,
       source: { session: source.id, configurationId: source.configurationId },
       placement,
       inspect: { tool: 'dcsc_workspace_layout', arguments: { session: copy.workspaceId } },
@@ -1011,9 +1029,9 @@ export function registerTools(server: McpServer, service: DcscService): void {
         'but is a single configuration, so it places ONE item in a rack — only separate ' +
         'configurations can occupy separate U positions.\n' +
         'By default creates configuration copies locally; place each with dcsc_place_in_rack. ' +
-        'Use placement="same-rack" for the website Clone Multiple workflow on a direct, rule-free racked CTO item ' +
-        'with quantity one. It finds free U positions and validates/derives the complete layout atomically. ' +
-        'Nested/chassis/VLH, placement-rule products and the separate website Copy action are not supported by this mode.',
+        'Use placement="same-rack" for the website Clone Multiple workflow on a direct racked CTO item ' +
+        'with quantity one and supported product/machine-type capacity bounds. It finds free U positions and validates/derives the complete layout atomically. ' +
+        'Populated chassis clone their direct node children into separate linked groups. VLH, deeper containers, complex placement rules and the separate website Copy action are not supported by this mode.',
       inputSchema: {
         expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
         session: z.string().describe('Session holding the configured template product.'),
@@ -1032,7 +1050,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const { source, clones, placements } = await service.cloneConfiguration({
+        const { source, clones, placements, nestedConfigurations } = await service.cloneConfiguration({
           sessionHandle: args.session,
           count: args.count,
           expectedRevision: args.expectedRevision,
@@ -1041,7 +1059,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
           ...(args.labelPrefix !== undefined ? { labelPrefix: args.labelPrefix } : {}),
         });
         const unit = configurationListPrice(source.raw);
-        const configurations = [source, ...clones];
+        const configurations = [source, ...clones, ...nestedConfigurations ?? []];
         const priceAvailable = configurations.every(session => configurationListPrice(session.raw) !== null);
         const total = configurations.reduce((sum, session) =>
           sum + (configurationListPrice(session.raw) ?? 0) * (session.raw.quantity ?? 1), 0);
@@ -1056,7 +1074,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
             label: c.label,
             unitPrice: configurationListPrice(c.raw),
           })),
-          totalConfigurations: clones.length + 1,
+          totalConfigurations: configurations.length,
+          ...(nestedConfigurations ? { nestedConfigurationsCreated: nestedConfigurations.length * clones.length / (clones.length + 1) } : {}),
           combinedListPrice: priceAvailable ? Math.round(total * 100) / 100 : null,
           priceAvailable,
           ...(!priceAvailable ? { knownListPriceSubtotal: Math.round(total * 100) / 100 } : {}),
@@ -1769,6 +1788,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
         'the price delta, and updated resource constraints. Linked Clone Multiple edits update every member atomically.\n' +
         'Pass several changes together — they are applied in one round trip, so a combined edit ' +
         '(swap the CPU and bump the memory) never leaves the configuration transiently invalid.\n' +
+        'On storage-wizard CTOs, switching RAID_CONFIG mode removes previous drives, backplanes and controllers, matching the website. Submit that switch alone, then select new storage parts. ' +
         'DCSC reconciles dependencies itself: changing a processor may pull in a different heatsink. ' +
         'Anything DCSC decided on its own is flagged with "auto": true — always report those to the user.\n' +
         'Get section IDs and feature codes from dcsc_list_options first. Software groups use quantity 1 to select and 0 to remove; their nested filters expose separate section IDs. Edit software separately from hardware/services.',
@@ -1930,7 +1950,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
       title: 'Undo the last configuration change',
       description:
         'Reverts the most recent dcsc_configure call, locally. Does not re-run DCSC rules, so it restores ' +
-        'the exact prior state rather than re-deriving it. Linked edits undo every member atomically; if their histories no longer match, use workspace history. Up to 10 steps are kept.',
+        'the exact prior state rather than re-deriving it. Linked edits undo every member atomically; if their histories no longer match or an HPC edit also changed its parent chassis, use workspace history. Up to 10 steps are kept.',
       inputSchema: { session: z.string(), expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision.'), },
     },
     async (args) =>
@@ -2049,7 +2069,7 @@ export function registerTools(server: McpServer, service: DcscService): void {
           }
         }
 
-        const { stream, contentDisposition, rackDataOmitted, scope, configurationsExported, manualPlanningLinksOmitted } =
+        const { stream, contentDisposition, rackDataOmitted, scope, configurationsExported, manualPlanningLinksOmitted, breakoutBranchesAtRisk } =
           await service.exportZip(args.session, {
             fileTypes: (args.fileTypes ?? DEFAULT_EXPORT_TYPES) as ExportFileType[],
             fileName,
@@ -2058,6 +2078,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
           });
 
         const bundle = await writeExportBundle(stream, fileName, service.config);
+        const powerSettings = (workspaceScope && workspace ? [...workspace.configurations.values()] : session ? [session] : [])
+          .map(configuration => powerLoadFactor(configuration.raw));
 
         return {
           session: args.session,
@@ -2067,10 +2089,14 @@ export function registerTools(server: McpServer, service: DcscService): void {
           ...bundle,
           priceType: 'LIST',
           rackDataOmitted,
+          ...(powerSettings.some(value => value !== undefined && value !== 70) ? { powerSettingsWarning:
+            'Lenovo CFXML reimport can reset custom load factors (verified SR630 V3: 100% to 70%). Saved MCP sessions retain them. Inspect dcsc_power_controls and reapply the desired load factor after XML import.' } : {}),
           ...(scope === 'workspace' && workspace && detachedNestedNodeIds(workspace).size > 0 ? {
             detachedNodesDroppedOnReimport: detachedNestedNodeIds(workspace).size,
             reimportWarning: 'Lenovo reimport drops physically detached nodes even though their commercial lines are exported. Undo detach and use unplace before exporting to retain them through reimport.',
           } : {}),
+          ...(breakoutBranchesAtRisk > 0 ? { breakoutBranchesAtRisk,
+            breakoutReimportWarning: 'DCSC website reimport has been observed to reset saved four-way breakout branches to point-to-point and change cable quantities. MCP import restores supported shapes and physical cable quantities from this XML; direct website handoff remains unverified.' } : {}),
           ...(manualPlanningLinksOmitted > 0 ? { manualPlanningLinksOmitted,
             warning: `${manualPlanningLinksOmitted} local planning link(s) are excluded from this Lenovo export. They remain inspectable in dcsc_workspace_layout. Use auto-connect for server-authored exportable connections.` } : {}),
           disclaimer:
@@ -2506,7 +2532,8 @@ export function registerTools(server: McpServer, service: DcscService): void {
         'Given a workspace it aggregates across every configuration and breaks the total down per rack — ' +
         'using one power contribution per physical placement, independent of sales quantity. Sales units ' +
         'without a physical placement are reported separately.\n' +
-        'Figures come from DCSC as configured; they are not estimates.',
+        'Figures come from DCSC as configured; they are not estimates. ' +
+        'Use dcsc_power_controls and dcsc_set_power_controls to inspect or change voltage, load factor and power policy.',
       inputSchema: {
         session: z.string().describe('Session or workspace ID.'),
       },
@@ -2761,9 +2788,9 @@ export function registerTools(server: McpServer, service: DcscService): void {
       inputSchema: {
         session: z.string().describe('Configuration session ID.'),
         topology: z.string().describe('Topology shortName from dcsc_fabric_options, e.g. "IB_XDR".'),
-        networkName: z.string().optional().describe('Network name or stable networkType ID. Required when topology does not uniquely identify a network.'),
-        connectorIds: z.array(z.string()).optional(),
-        ports: z.array(z.string()).optional().describe('Exact port selectors; ambiguous choices are rejected.'),
+        networkName: z.string().optional().describe('Network name or stable networkType ID. For storage, use the exact existing storage network name already assigned to this configuration. Required when topology does not uniquely identify a network.'),
+        connectorIds: z.array(z.string()).optional().describe('Connector IDs to select. An explicitly empty selection clears ports for this network.'),
+        ports: z.array(z.string()).optional().describe('Exact port selectors; ambiguous choices are rejected. Pass [] to clear this network’s ports; omit selectors to choose a sole compatible connector.'),
         expectedRevision: z.number().int().min(1).optional(),
         autoConnect: z
           .boolean()

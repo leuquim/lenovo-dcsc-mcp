@@ -128,3 +128,16 @@ describe('imported clone color ownership classification', () => {
     });
   });
 });
+
+it('preserves native color member order independently of physical placement order', () => {
+  const colors = { root: { dependBy: ['member', 'root'], color: '#123456' } };
+  const result = reconcileImportedCloneOwnership({
+    dependency: { root: ['root', 'member'] }, colors,
+    provenance: [{ sourceId: 'root', ids: ['root', 'member'], original: {
+      id: 'root', quantity: 2, originalIds: ['root', 'member'],
+    } }],
+    activeConfigurationIds: new Set(['root', 'member']), storageRoots: new Set(), configurations: [],
+  });
+  expect(result.colors).toEqual(colors);
+  expect(result.changed).toBe(false);
+});

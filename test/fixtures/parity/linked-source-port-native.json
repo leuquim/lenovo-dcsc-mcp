@@ -1,0 +1,30 @@
+{
+  "provenance": "2026-10-30 native headless nested-grouped-native.xml import; updateSelectedTopologiesById via reduxInterceptor; both linked SD535 nodes read back with identical topology state. Not a complete manual cable UI capture.",
+  "bindings": [
+    "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d",
+    "US__-b01d-4208-99bc-55c8cc5464cf1000"
+  ],
+  "selectedAfter": {
+    "Management": {
+      "networkTechnology": "1GbE_Copper",
+      "selectedConnectors": [
+        {
+          "portNumber": "1",
+          "portDescription": "RJ45 mgmt",
+          "port": "RJ45 mgmt",
+          "topologies": [
+            "Management_Ethernet",
+            "1GbE_Copper"
+          ],
+          "connectorFunction": "Network",
+          "cableCompatible": "",
+          "transceiverCompatibility": "",
+          "useCableAsDAC": false,
+          "sourceFeature": "",
+          "quantity": 1
+        }
+      ]
+    }
+  },
+  "privateBindingsUnchanged": true
+}

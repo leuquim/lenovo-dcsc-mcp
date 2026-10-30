@@ -1,0 +1,38 @@
+{
+  "provenance": "Native linked D3 root POWERSUPPLY C2NC quantity2 edit, 2026-10-30. Child response targets only root; browser updates shareData bound to both child IDs. Full before/after databases in local audit artifacts.",
+  "cloneDependency": {
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": [
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+    ],
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": [
+      "US__7fa99d00-6d3c-4cd1-96b2-71f5a198e98d",
+      "US__-b01d-4208-99bc-55c8cc5464cf1000"
+    ]
+  },
+  "customizingIds": [
+    "US__2e28dba3-615f-4d03-9454-32e2c09b7f47",
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720"
+  ],
+  "responses": [
+    {
+      "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "code": "7DD0CTOLWW",
+      "type": "chassis",
+      "totalPrice": 3069.01,
+      "updateConfigurationIds": [
+        "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+        "US__2e28dba3-615f-4d03-9454-32e2c09b7f47"
+      ]
+    },
+    {
+      "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "code": "7DD1CTOLWW",
+      "type": "node",
+      "totalPrice": 21042.51,
+      "updateConfigurationIds": [
+        "US__-b01d-4208-99bc-55c8cc5464cf1000"
+      ]
+    }
+  ]
+}

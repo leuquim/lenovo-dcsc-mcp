@@ -208,11 +208,15 @@ export async function autoConnect(
   ctx: RequestCtx,
   payload: AutoConnectPayload,
   query?: { autoArrange: boolean; autoConnect: boolean; cogValidation: boolean },
+  seedConnections?: readonly unknown[],
 ): Promise<AutoConnectResult> {
   if (payload.rackArea.length === 0 && (payload.nonRackArea?.length ?? 0) === 0) {
     throw new Error('Nothing to cable: the workspace has no racks or non-rack items. Add and place products first.');
   }
   const requestState = buildAutoConnectRequest(payload);
+  // Only explicit manual creation seeds a graph. Normal regeneration still
+  // drops payload.connections, including stale imported rows.
+  if (seedConnections !== undefined) requestState.connections = structuredClone([...seedConnections]);
   const res = await http.send({ endpoint: 'auto_connect', method: 'POST', path: '/auto_connect', query,
     body: { kind: 'json', value: requestState }, responseKind: 'json', timeoutClass: 'heavy', ctx });
   const rawState = object(res.raw);

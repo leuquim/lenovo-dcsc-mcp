@@ -252,3 +252,97 @@ Additional contracts from the same anonymous/headless audit:
   forwards that slim hierarchy to rack customization, which assigns
   `occupiedBay: 1`; the import hydrator follows that captured fallback only
   when the complete physical node-location list is absent.
+- `power-controls.json` captures the native SR630 V3 Engineering Power Report
+  voltage selection, 100% load calculation and saved export fields on
+  2026-10-29. Save made no hardware-derive request; it updated voltage/policy MI
+  selections. `xml/power-controls-native.xml` is the anonymous website export
+  from that exact captured form. Fresh-browser import restores 230 V and policy
+  5, but resets load factor to 70. The maintained power-controls runner compares
+  MCP output and this independent native control, and checks explicit
+  reapplication rather than claiming CFXML preserves load factor.
+
+- `reference-unconfigured.json` captures anonymous native SID0000978 Customize,
+  hardware derive and exported commercial rows on 2026-10-30. The native client
+  restores eight Commvault licenses omitted by the derive response; nine quote
+  rows and the $80,897.54 total are the regression oracle. Raw captures reside
+  under `artifacts/reference-solutions-2026-10-30/`.
+
+- `reference-unconfigured-edited.json` records the native UI quantity change
+  from eight to four Commvault licenses in SID0000978 with Express mode retained,
+  plus all nine commercial rows from its generated export form. Captured by
+  `parity:unconfigured` run3 on 2026-10-30; total $60,759.54. Switching to Full
+  Mode separately removes mechanical selection BU1E ($0.50), so that is not
+  an equivalent starting state for the quantity-only comparison.
+
+- `xml/xconfig-native-physical.xml` is an unchanged anonymous x-config
+  v8.1.3.5 integration export from 2026-10-26 (Native I/O Probe Server and Rack).
+  Its CSEBLOB contains one floor rack and eight power connections. Source was
+  the sibling xconfig-mcp integration-cfxml benchmark. Native DCSC imports it
+  through `/cfxml_import` with no floor/network metadata and needImportExcel
+  false, then initializes the physical workspace client-side. The maintained
+  `parity:xconfig-import` gate verifies the initialized native layout and
+  export handoff; this is not a successful cabling-recovery fixture.
+
+- `xconfig-import-layout.json` captures the same native import hierarchy,
+  absent floor metadata and the website's subsequent physical request. The
+  3203 hierarchy code becomes canonical U3; the new floor starts at (0,0).
+  It provides the regression oracle for initialization without weakening
+  explicit placement validation.
+
+- `grouped-rack-import.json`: anonymous Lenovo SID0001325 Customize hierarchy,
+  identity and floor subset captured October 16; verifies grouped rack expansion
+  against independent native floor positions. No commercial or customer data.
+
+- `mgx-rack-filler.json`: fresh anonymous SID0001325 rack mechanical catalog,
+  floor positions and native customization selections captured October 30.
+  MGX keeps C6MV power-shelf selection and offers no standard filler codes.
+
+- `nested-grouped-import.json` and `xml/nested-grouped-native.xml`: anonymous
+  native D3 populated-chassis Clone Multiple export and reduced import response,
+  captured October 30. Two chassis share a linked parent group; their two SD535
+  nodes share a separate group with quantity one per parent.
+
+- `chassis-clone-multiple.json`: reduced native populated D3 Clone Multiple
+  request, including separate chassis and node identity groups.
+- `chassis-clone-filler-price.json`: native rack filler change after cloning,
+  from eight 5U fillers to seven 5U plus one 3U, reducing list total by $30.
+
+- `chassis-copy-native.json`: reduced native D3 populated-chassis Copy request/accepted topology and pre-copy dependency map. Captured 2026-10-30; covered by physical-copy staging tests; live MCP parity is tracked separately.
+
+- `xml/nested-copied-native.xml`: native D3/SD535 independent Copy export used by the `--copy` nested parity runner.
+
+- `hpc-linked-node-edit.json`: native imported D3/SD535 clone-group member edit: root-only request, no entranceFlag, explicit two-node response targets. Fresh-clone parent responses are covered separately below.
+
+- `hpc-fresh-clone-edit.json`: native fresh chassis-clone/member-edit response order, overlapping node targets, parent update and final shared node power data. Covered by ordered response projection, coverage and foreign-target regressions.
+
+- `manual-row-seeding.json`: fresh Auto-Connect supplied MANUAL graph-row preservation with invalid-source and invalid-port controls. Used by native creation staging tests. Separate live `parity:manual-create` and `parity:manual-create:100g` gates cover quantities, crash/restart and browser reimport.
+- `manual-cable-topology-catalog.json`: reduced live catalog entries contrasting 1/10 GbE DAC, 100 GbE DAC, breakout DAC and management Cat5E cables. Distance results alone do not enforce these topology/category distinctions.
+
+- `hpc-linked-chassis-edit.json`: native linked D3 PSU edit; the dependent child response names only its root, while browser shared data remains bound to both child IDs.
+
+- `chassis-linked-copy-native.json`: native Copy from a grouped D3 root, preserving original parent/child groups and creating independent copied identities.
+- `chassis-member-copy-native.json`: native Copy from the second/member D3 chassis, preserving the original groups under their original roots and creating independent parent/child identities.
+
+- `linked-source-port-native.json`: reduced native linked-node topology selection capture. Both bindings receive identical selectedTopologies; private identities remain unchanged. Captures the native configuration action, not a full manual-cable UI gesture.
+
+- `hpc-switch-clone-native.json`: reduced native HPC SN2201 Clone Multiple placement/dependency request with a per-product maximum of18. Verifies the new clone at U7 and retention of linked ownership.
+
+- `breakout-native.json`: reduced 2026-10-30 native AV22 breakout graph: four SFP28 branches share one QSFP28 port and one selected cable. The same rows were accepted as MANUAL on another port; this fixture alone does not establish complete creation/export parity.
+
+- `breakout-import-native.json`: original compressed NetworkingInformation plus reduced native import rows, demonstrating loss of saved divider4. Used to require exact connection identity before restoring breakout shape.
+
+- `breakout-replacement-input.json`: reduced native four-branch AV22 graph and AV23 compatible choice. Planner tests require whole physical cable replacement, per-port quantities, spare preservation and compatibility for every branch.
+
+- `xml/manual-cabling-managed-source.xml`: native-exported HPC layout with DB710S managed physical source and SN2201 Management destination. Generated by clearing the source template connector selection, running native Auto-Connect and exporting; native reimport confirmed one existing server route and a free DB710S Management port. This is an API-generated control, not a website-created manual connection. Used by `parity:manual-create:managed-source`.
+
+- `xml/manual-cabling-managed-destination.xml`: native-exported HPC server/DE2000H storage layout with no connections and empty source topology selection. Controller hardware was prepared using native configure/derive: A3RG DAC quantity two, incompatible B4B2 optics removed. Placement comes from the accepted fixed-layout control. This is an API-generated fixture, not a captured website manual gesture or a proof of public setup from scratch. Used by `parity:manual-create:managed-destination` to select the source port through MCP and create/recover/export/import a connection.
+
+- `xml/manual-cabling-storage-optical.xml`: native import of the managed-destination free-graph fixture, then explicit native configuration to remove A3RG DACs and select eight B4B2 optical modules. Export accepted with no controller section errors. The storage-prepare gate requires the optical starting state and explicitly changes hardware through MCP before creating the DAC connection. It does not imply automatic optics removal or optical-cable support.
+
+- `storage-materialized-clone-import.json`: reduced 2026-10-30 native shared-DE2000H CFXML import plus the fresh website racks/customize dependency. Import returns distinct quantity-one physical configurations with a rooted color group; the SPA restores their linked dependency. Rootless missing-template presentation groups remain a separate case.
+
+- `manual-import-cable-spares.json`: native shared DE2000H import selections (A1PH/A1PJ quantity two each), raw manual graph with omitted category/divider one, and post-layout physical cable quantities reduced to one on active routes. Verifies restoration of selected spares before workspace derivation, without inferring unselected quantities.
+
+- `pci-wizard.json`: compact native SR650 V4 SID0000978 PCI wizard before/derive/validation data, including rejected removal of an adapter-required slot (code3), successful spare removal (code4), and alternative-riser addition (code2). Captured 2026-10-30; full browser traces are in `artifacts/pci-wizard-audit-2026-10-30`. Live optional-slot addition and XML handoff are exercised by `npm run parity:pci-wizard`.
+
+- `storage-wizard.json`: native SR860 V4 SID0001064 option selection and controller-add requests/responses. Includes a deliberately invalid two-controller state with native diagnostics; it is not a valid manufacturing design. Used to verify exact outgoing option/feature deltas, selected intent and wizard-derived sections.

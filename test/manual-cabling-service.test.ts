@@ -212,6 +212,22 @@ describe('manual cabling service transaction', () => {
     });
   });
 
+  it('rolls back accepted cable quantities when native cable rules report errors', async () => {
+    const value = setupCablePart(); const before = state(value); const write = vi.fn();
+    value.service.sessions.setPersistenceWriter(write);
+    const accepted = structuredClone(value.accepted);
+    const section = accepted.tabs!.flatMap(t => t.subTabs ?? []).flatMap(t => t.sections ?? [])
+      .find(s => s.name === cableFixture.sectionName)!;
+    section.errors = [{ message: 'Cables must be selected in pairs.', errorType: 'VARIANT' }];
+    vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: cableDeriveResponse(accepted) } as never);
+    await expect(value.service.editManualCabling(value.workspace.id, {
+      connectionId: value.connectionId, cablePart: String(cableFixture.newChoice['featureCode']),
+      expectedRevision: value.workspace.revision, ctx: value.ctx,
+    })).rejects.toThrow(/DCSC rejected cable quantities.*pairs/);
+    expect(state(value)).toEqual(before);
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it('publishes a newly selected cable that was absent from physical rack features', async () => {
     const value = setupCablePart();
     const connection = (value.workspace.serverState.connections as Obj[])[0]!;
@@ -370,5 +386,257 @@ describe('manual cabling service transaction', () => {
       destination: { configurationId: fixture.edit.destination.configurationId },
       totalDistance: fixture.distanceResponse['totalDistance'] });
     expect(restored.sessions.getWorkspace(value.workspace.id)?.history?.undo.length).toBeGreaterThan(0);
+  });
+});
+
+describe('native manual creation transaction', () => {
+  function creationSetup() {
+    const value = setup();
+    const row = fixture.beforeConnection;
+    const distance = row['cableDistance'] as Obj;
+    vi.spyOn(value.service, 'fabricOptions').mockResolvedValue({ cables: (distance['compatibleCables'] as Obj[]).map(c => ({
+      featureCode: c['featureCode'], option: c['optionCode'], topologies: [row['topology']], category: 'Cat5E',
+    })) } as never);
+    value.workspace.serverState.connections = [];
+    delete value.workspace.serverState.autoConnectResults;
+    delete value.workspace.serverState.networkingInformation;
+    const source = [...value.workspace.configurations.values()].find(c => c.configurationId === row['sourceId'])!;
+    source.raw.selectedTopologies = { Management: { networkTechnology: row['topology'] } };
+    const destination = [...value.workspace.configurations.values()].find(c => c.configurationId === row['destinationId'])!;
+    destination.raw.tabs = [{ subTabs: [{ sections: [{ name: 'ETHERNET_CABLE',
+      results: [{ code: String(row['cablePart']), quantity: 1 }] }] }] }];
+    const request = { network: String(row['network']), topology: String(row['topology']), cablePart: String(row['cablePart']),
+      source: { configurationId: String(row['sourceId']), portName: String(row['sourcePortName']), portNumber: String(row['sourcePortNumber']) },
+      destination: { configurationId: String(row['destinationId']), portName: String(row['destinationPortName']), portNumber: String(row['destinationPortNumber']) },
+      expectedRevision: value.workspace.revision, ctx: value.ctx };
+    return { ...value, request };
+  }
+
+  it('commits a retained graph and BOM together', async () => {
+    const value = creationSetup();
+    const send = vi.spyOn(value.service.http, 'send').mockImplementation(async input => {
+      if (input.endpoint === 'manual_cabling_distance') return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+      if (input.endpoint === 'auto_connect' && input.body?.kind === 'json') {
+        const body = { ...input.body.value as Obj }; delete body['configurations']; return { raw: body } as never;
+      }
+      if (input.endpoint === 'workspace_autoDerive') return { raw: { configurations: [...value.workspace.configurations.values()].map(c => c.raw) } } as never;
+      throw new Error(`Unexpected endpoint ${input.endpoint}`);
+    });
+    const result = await value.service.createNativeManualCabling(value.workspace.id, value.request);
+    expect(result.revision).toBe(value.request.expectedRevision + 1);
+    expect(result.connection.type).toBe('MANUAL');
+    expect(value.workspace.serverState.connections).toHaveLength(1);
+    expect(send.mock.calls.map(([input]) => input.endpoint)).toEqual(['manual_cabling_distance', 'auto_connect', 'workspace_autoDerive']);
+    expect(send.mock.calls.find(([input]) => input.endpoint === 'auto_connect')![0].query)
+      .toMatchObject({ autoArrange: false, autoConnect: true });
+    await value.service.sessions.undoWorkspace(value.workspace.id, value.workspace.revision);
+    expect(value.workspace.serverState.connections).toEqual([]);
+    await value.service.sessions.redoWorkspace(value.workspace.id, value.workspace.revision);
+    expect(value.workspace.serverState.connections).toHaveLength(1);
+  });
+
+  it.each([false, true])('commits and undoes linked source selections with additional native route=%s', async additionalRoute => {
+    const value = creationSetup();
+    const source = [...value.workspace.configurations.values()].find(c => c.configurationId === value.request.source.configurationId)!;
+    const linkedRaw = { ...structuredClone(source.raw), id: 'linked-source' };
+    const linked = value.service.sessions.create({ locale: value.service.locale, solution, mode: 'cto', raw: linkedRaw,
+      configurationId: 'linked-source', reduced: reduceConfiguration(linkedRaw, 'linked-source'),
+      primed: true, workspaceId: value.workspace.id });
+    value.workspace.serverState.cloneDependency = { [source.configurationId]: [source.configurationId, linked.configurationId] };
+    const before = structuredClone(source.raw.selectedTopologies);
+    vi.spyOn(value.service.http, 'send').mockImplementation(async input => {
+      if (input.endpoint === 'manual_cabling_distance') return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+      if (input.endpoint === 'auto_connect' && input.body?.kind === 'json') {
+        const body = { ...input.body.value as Obj }; delete body['configurations'];
+        if (additionalRoute) body['connections'] = [...body['connections'] as Obj[], {
+          ...(body['connections'] as Obj[])[0], sourceId: linked.configurationId, destinationPortNumber: '99', type: 'AUTO',
+        }];
+        return { raw: body } as never;
+      }
+      if (input.endpoint === 'workspace_autoDerive' && input.body?.kind === 'json') {
+        const configurations = [...value.workspace.configurations.values()].map(c => structuredClone(c.raw));
+        if (additionalRoute) {
+          const info = (input.body.value as Obj)['workspaceInformation'] as Obj;
+          const item = (info['rackData'] as Obj[]).flatMap(r => r['rackItems'] as Obj[])
+            .find(c => c['id'] === value.request.destination.configurationId)!;
+          expect(JSON.stringify(item['features'])).toContain('"quantity":2');
+          const destination = configurations.find(c => c.id === value.request.destination.configurationId)!;
+          destination.tabs![0]!.subTabs![0]!.sections![0]!.results![0]!.quantity = 2;
+        }
+        return { raw: { configurations } } as never;
+      }
+      throw new Error(`Unexpected endpoint ${input.endpoint}`);
+    });
+    value.request.expectedRevision = value.workspace.revision;
+    const result = await value.service.createNativeManualCabling(value.workspace.id, value.request);
+    expect(result.additionalConnectionCount).toBe(additionalRoute ? 1 : 0);
+    expect(result.sourceConfigurationIds).toEqual([source.configurationId, linked.configurationId]);
+    const selections = () => [...value.workspace.configurations.values()]
+      .filter(c => [source.configurationId, linked.configurationId].includes(c.configurationId)).map(c => c.raw.selectedTopologies);
+    const accepted = structuredClone(selections());
+    expect(accepted[0]).toEqual(accepted[1]);
+    expect(accepted[0]).not.toEqual(before);
+    await value.service.sessions.undoWorkspace(value.workspace.id, value.workspace.revision);
+    expect(selections()).toEqual([before, before]);
+    await value.service.sessions.redoWorkspace(value.workspace.id, value.workspace.revision);
+    expect(selections()).toEqual(accepted);
+  });
+
+  it('discovers native choices without mutating the workspace and rejects a concurrent edit', async () => {
+    const value = creationSetup(); const before = state(value);
+    const send = vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never);
+    const result = await value.service.inspectNativeManualCabling(value.workspace.id, value.request);
+    expect(result.report.choices).toEqual(expect.arrayContaining([expect.objectContaining({ part: value.request.cablePart })]));
+    expect(state(value)).toEqual(before);
+    send.mockImplementationOnce(async () => {
+      value.workspace.revision++;
+      return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+    });
+    await expect(value.service.inspectNativeManualCabling(value.workspace.id, value.request)).rejects.toThrow();
+  });
+
+  it('pins existing routes only on opt-in and restores their AUTO ownership on undo', async () => {
+    const value = creationSetup();
+    const existing = { ...fixture.beforeConnection, sourceId: 'another-source', destinationPortNumber: '99', type: 'AUTO' };
+    value.workspace.serverState.connections = [existing];
+    const destination = [...value.workspace.configurations.values()].find(c => c.configurationId === value.request.destination.configurationId)!;
+    destination.raw.tabs![0]!.subTabs![0]!.sections![0]!.results![0]!.quantity = 2;
+    vi.spyOn(value.service.http, 'send').mockImplementation(async input => {
+      if (input.endpoint === 'manual_cabling_distance') return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+      if (input.endpoint === 'auto_connect' && input.body?.kind === 'json') {
+        const body = { ...input.body.value as Obj }; delete body['configurations'];
+        expect((body['connections'] as Obj[])[0]).toEqual({ ...existing, type: 'MANUAL' });
+        // Native auto-connect may return its old physical quantity even after
+        // accepting both manually seeded routes. Do not feed that stale row to derive.
+        const items = (body['rackArea'] as Obj[]).flatMap(rack => rack['rackItems'] as Obj[]);
+        items.find(item => item['id'] === value.request.destination.configurationId)!['features'] = [
+          { name: 'ETHERNET_CABLE', results: [{ code: value.request.cablePart, quantity: 1, forAutoConnect: true }] },
+        ];
+        return { raw: body } as never;
+      }
+      if (input.endpoint === 'workspace_autoDerive' && input.body?.kind === 'json') {
+        const info = (input.body.value as Obj)['workspaceInformation'] as Obj;
+        const items = (info['rackData'] as Obj[]).flatMap(rack => rack['rackItems'] as Obj[]);
+        expect(items.find(item => item['id'] === value.request.destination.configurationId)!['features'])
+          .toEqual([{ name: 'ETHERNET_CABLE', results: [{ code: value.request.cablePart, quantity: 2, forAutoConnect: true }] }]);
+        return { raw: { configurations: [...value.workspace.configurations.values()].map(c => c.raw) } } as never;
+      }
+      throw new Error(`Unexpected endpoint ${input.endpoint}`);
+    });
+    const result = await value.service.createNativeManualCabling(value.workspace.id, { ...value.request, pinExistingRoutes: true });
+    expect(result.pinnedConnectionCount).toBe(1);
+    expect(value.workspace.serverState.connections).toHaveLength(2);
+    await value.service.sessions.undoWorkspace(value.workspace.id, value.workspace.revision);
+    expect(value.workspace.serverState.connections).toEqual([existing]);
+  });
+
+  it('rolls back when Lenovo silently replaces the seed', async () => {
+    const value = creationSetup(); const before = state(value);
+    vi.spyOn(value.service.http, 'send').mockImplementation(async input => {
+      if (input.endpoint === 'manual_cabling_distance') return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+      if (input.endpoint === 'auto_connect' && input.body?.kind === 'json') {
+        const body = structuredClone(input.body.value) as Obj;
+        body['connections'] = [{ ...fixture.beforeConnection, type: 'AUTO' }];
+        return { raw: body } as never;
+      }
+      throw new Error(`Unexpected endpoint ${input.endpoint}`);
+    });
+    await expect(value.service.createNativeManualCabling(value.workspace.id, value.request)).rejects.toThrow(/did not retain/);
+    expect(state(value)).toEqual(before);
+  });
+
+  it('hides and rejects a distance-offered cable for a different topology before any write request', async () => {
+    const value = creationSetup(); const before = state(value);
+    const distanceChoice = ((fixture.beforeConnection['cableDistance'] as Obj)['compatibleCables'] as Obj[])
+      .find(c => c['featureCode'] === value.request.cablePart)!;
+    vi.mocked(value.service.fabricOptions).mockResolvedValue({ cables: [{
+      featureCode: value.request.cablePart, option: distanceChoice['optionCode'], category: 'DAC', topologies: ['100GbE_Copper'],
+    }] } as never);
+    const send = vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: fixture.beforeConnection['cableDistance'] } as never);
+    const options = await value.service.inspectNativeManualCabling(value.workspace.id, value.request);
+    expect(options.report.choices).toEqual([]);
+    await expect(value.service.createNativeManualCabling(value.workspace.id, value.request)).rejects.toThrow(/not one compatible choice/);
+    expect(send.mock.calls.every(([input]) => input.endpoint === 'manual_cabling_distance')).toBe(true);
+    expect(state(value)).toEqual(before);
+  });
+
+  it('rejects stale revisions and an unassigned network before HTTP', async () => {
+    const value = creationSetup(); const send = vi.spyOn(value.service.http, 'send');
+    await expect(value.service.createNativeManualCabling(value.workspace.id, { ...value.request, expectedRevision: 999 })).rejects.toThrow();
+    await expect(value.service.createNativeManualCabling(value.workspace.id, { ...value.request, network: 'unassigned' })).rejects.toThrow(/not assigned/);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('rolls back a retained graph if derivation drops its commercial cable', async () => {
+    const value = creationSetup(); const before = state(value);
+    const configurations = structuredClone([...value.workspace.configurations.values()].map(c => c.raw));
+    const original = structuredClone(configurations);
+    configurations.find(c => c.id === value.request.destination.configurationId)!.tabs![0]!.subTabs![0]!.sections![0]!.results = [];
+    vi.spyOn(value.service.http, 'send').mockImplementation(async input => {
+      if (input.endpoint === 'manual_cabling_distance') return { raw: structuredClone(fixture.beforeConnection['cableDistance']) } as never;
+      if (input.endpoint === 'auto_connect' && input.body?.kind === 'json') {
+        const body = { ...input.body.value as Obj }; delete body['configurations']; return { raw: body } as never;
+      }
+      if (input.endpoint === 'workspace_autoDerive') return { raw: { configurations } } as never;
+      throw new Error(`Unexpected endpoint ${input.endpoint}`);
+    });
+    await expect(value.service.createNativeManualCabling(value.workspace.id, value.request)).rejects.toThrow(/sufficient manual cable quantity/);
+    expect(state(value)).toEqual(before);
+    expect([...value.workspace.configurations.values()].map(c => c.raw)).toEqual(original);
+  });
+});
+
+describe('fresh choices for imported cable rows', () => {
+  function imported() {
+    const value = setupCablePart();
+    const row = (value.workspace.serverState.connections as Obj[])[0]!;
+    delete row['cableDistance'];
+    vi.spyOn(value.service, 'fabricOptions').mockResolvedValue({ cables: [{
+      featureCode: cableFixture.newChoice['featureCode'], option: cableFixture.newChoice['optionCode'],
+      category: 'CAT5E', topologies: [row['topology']],
+    }] } as never);
+    const distance = { from: row['sourceId'], to: row['destinationId'], network: row['topology'],
+      totalDistance: 1, compatibleCables: [structuredClone(cableFixture.newChoice)] };
+    return { ...value, distance };
+  }
+
+  it('discovers missing choices without mutating graph, history or revision', async () => {
+    const value = imported(); const before = state(value);
+    vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: value.distance } as never);
+    const result = await value.service.inspectManualCableChoices(value.workspace.id, value.connectionId, value.workspace.revision, value.ctx);
+    expect(JSON.stringify(result.report)).toContain(String(cableFixture.newChoice['featureCode']));
+    expect(state(value)).toEqual(before);
+  });
+
+  it('requires a revision and rejects a concurrent revision change', async () => {
+    const value = imported(); const revision = value.workspace.revision;
+    const send = vi.spyOn(value.service.http, 'send').mockImplementation(async () => {
+      value.workspace.revision++;
+      return { raw: value.distance } as never;
+    });
+    await expect(value.service.inspectManualCableChoices(value.workspace.id, value.connectionId, undefined, value.ctx)).rejects.toThrow(/required/);
+    expect(send).not.toHaveBeenCalled();
+    await expect(value.service.inspectManualCableChoices(value.workspace.id, value.connectionId, revision, value.ctx)).rejects.toThrow(/Revision conflict/);
+  });
+
+  it('rejects distance metadata for a different endpoint without altering the workspace', async () => {
+    const value = imported(); const before = state(value);
+    vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: { ...value.distance, from: 'foreign' } } as never);
+    await expect(value.service.inspectManualCableChoices(value.workspace.id, value.connectionId, value.workspace.revision, value.ctx)).rejects.toThrow(/unexpected endpoint/);
+    expect(state(value)).toEqual(before);
+    await expect(value.service.editManualCabling(value.workspace.id, { connectionId: value.connectionId,
+      cablePart: String(cableFixture.newChoice['featureCode']), expectedRevision: value.workspace.revision, ctx: value.ctx })).rejects.toThrow(/unexpected endpoint/);
+    expect(state(value)).toEqual(before);
+  });
+
+  it('revalidates missing imported choices before coupled replacement derive', async () => {
+    const value = imported();
+    const send = vi.spyOn(value.service.http, 'send')
+      .mockResolvedValueOnce({ raw: value.distance } as never)
+      .mockResolvedValueOnce({ raw: cableDeriveResponse(value.accepted) } as never);
+    await value.service.editManualCabling(value.workspace.id, { connectionId: value.connectionId,
+      cablePart: String(cableFixture.newChoice['featureCode']), expectedRevision: value.workspace.revision, ctx: value.ctx });
+    expect(send.mock.calls.map(([request]) => request.endpoint)).toEqual(['manual_cabling_distance', 'manual_cabling_replacement']);
+    expect((value.workspace.serverState.connections as Obj[])[0]!['cablePart']).toBe(cableFixture.newChoice['featureCode']);
   });
 });

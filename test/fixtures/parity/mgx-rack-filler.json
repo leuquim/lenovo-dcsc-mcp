@@ -1,0 +1,159 @@
+{
+  "provenance": "Fresh anonymous SID0001325 native Customize and completed rack customization, 2026-10-30",
+  "configuration": {
+    "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+    "code": "7DJVCTO2WW",
+    "unSelectableCharacters": [
+      {
+        "name": "MECH_DERIVE_FCS",
+        "features": [
+          {
+            "code": "C6MV"
+          }
+        ],
+        "results": [
+          {
+            "derived": true,
+            "swDerived": false,
+            "quantity": 1,
+            "description": "GB300 NVL72 Non-Redunant Power Shelf Solution",
+            "forAutoConnect": false,
+            "installations": [],
+            "storageWizardDerivedQuantity": 0,
+            "code": "C6MV"
+          }
+        ]
+      }
+    ]
+  },
+  "rack": {
+    "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+    "size": 48,
+    "rackItems": [
+      {
+        "position": 11,
+        "size": 1
+      },
+      {
+        "position": 12,
+        "size": 1
+      },
+      {
+        "position": 13,
+        "size": 1
+      },
+      {
+        "position": 14,
+        "size": 1
+      },
+      {
+        "position": 15,
+        "size": 1
+      },
+      {
+        "position": 16,
+        "size": 1
+      },
+      {
+        "position": 17,
+        "size": 1
+      },
+      {
+        "position": 18,
+        "size": 1
+      },
+      {
+        "position": 19,
+        "size": 1
+      },
+      {
+        "position": 20,
+        "size": 1
+      },
+      {
+        "position": 21,
+        "size": 1
+      },
+      {
+        "position": 22,
+        "size": 1
+      },
+      {
+        "position": 23,
+        "size": 1
+      },
+      {
+        "position": 24,
+        "size": 1
+      },
+      {
+        "position": 25,
+        "size": 1
+      },
+      {
+        "position": 26,
+        "size": 1
+      },
+      {
+        "position": 27,
+        "size": 1
+      },
+      {
+        "position": 28,
+        "size": 1
+      },
+      {
+        "position": 29,
+        "size": 1
+      },
+      {
+        "position": 30,
+        "size": 1
+      },
+      {
+        "position": 31,
+        "size": 1
+      },
+      {
+        "position": 32,
+        "size": 1
+      },
+      {
+        "position": 33,
+        "size": 1
+      },
+      {
+        "position": 34,
+        "size": 1
+      },
+      {
+        "position": 35,
+        "size": 1
+      },
+      {
+        "position": 36,
+        "size": 1
+      },
+      {
+        "position": 37,
+        "size": 1
+      },
+      {
+        "position": 45,
+        "size": 1
+      },
+      {
+        "position": 46,
+        "size": 1
+      }
+    ]
+  },
+  "expected": [
+    {
+      "code": "C6MV",
+      "quantity": 1,
+      "installations": [],
+      "description": "GB300 NVL72 Non-Redunant Power Shelf Solution"
+    }
+  ]
+}

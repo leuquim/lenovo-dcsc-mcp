@@ -54,7 +54,7 @@ interface Manifest {
   materializeSteps: string[];
 }
 
-const IGNORED_REVIEW_DOCS = [
+const REVIEW_DOCS = [
   '.docs/roadmaps/2026_10_15_dcsc_parity.md',
   '.docs/roadmaps/2026_10_15_dcsc_progress.md',
   '.docs/roadmaps/2026_10_15_dcsc_finding_audit.md',
@@ -87,18 +87,54 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:storage-placement -- --out artifacts/release/storage-placement', class: 'live' },
   { command: 'npm run parity:storage-fc -- --out artifacts/release/storage-fc', class: 'headless', blockedExit: 2 },
   { command: 'npm run parity:manual-cabling', class: 'live' },
+  { command: 'npm run parity:manual-create', class: 'headless' },
+  { command: 'npm run parity:manual-replace:breakout', class: 'headless', blockedExit: 2 },
+  { command: 'npm run parity:manual-create:breakout', class: 'headless', blockedExit: 2 },
+  { command: 'npm run parity:manual-create:100g', class: 'headless' },
+  { command: 'npm run parity:manual-create:managed-source', class: 'headless' },
+  { command: 'npm run parity:manual-create:managed-destination', class: 'headless' },
+  { command: 'npm run parity:manual-create:storage-prepare', class: 'headless' },
+  { command: 'npm run parity:manual-create:fresh-storage', class: 'headless' },
+  { command: 'npm run parity:manual-create:shared-storage', class: 'headless' },
+  { command: 'npm run parity:manual-create:mixed-storage', class: 'headless' },
+  { command: 'npm run parity:manual-replace:shared-storage', class: 'headless' },
+  { command: 'npm run parity:manual-create:linked-source', class: 'headless' },
+  { command: 'npm run parity:manual-create:linked-destination', class: 'headless' },
   { command: 'npm run parity:manual-cabling -- --cable-part AVFU', class: 'live' },
   { command: 'npm run parity:manual-cabling:shared', class: 'live' },
   { command: 'npm run parity:manual-cabling:collision', class: 'live' },
   { command: 'npm run parity:storage-reimport -- --mcp-report artifacts/release/storage/report.json', class: 'headless' },
   { command: 'npm run parity:storage-placement-reimport -- --mcp-report artifacts/release/storage-placement/report.json --out artifacts/release/storage-placement/reimport', class: 'headless' },
   { command: 'npm run parity:rack-power', class: 'headless' },
+  { command: 'npm run parity:power-controls', class: 'headless' },
+  { command: 'npm run parity:pci-wizard', class: 'headless' },
+  { command: 'npm run parity:pci-wizard -- --linked', class: 'headless' },
+  { command: 'npm run parity:storage-wizard', class: 'headless' },
+  { command: 'npm run parity:storage-wizard -- --clear', class: 'headless' },
+  { command: 'npm run parity:storage-wizard -- --raid', class: 'headless' },
+  { command: 'npm run parity:storage-wizard -- --raid-reverse', class: 'headless' },
+  { command: 'npm run parity:storage-wizard -- --sr850', class: 'headless' },
+  { command: 'npm run parity:manual-source-swap', class: 'headless' },
+  { command: 'npm run parity:workbook-import', class: 'headless' },
+  { command: 'npm run parity:chassis-clone', class: 'headless' },
+  { command: 'npm run parity:chassis-parent-edit', class: 'headless' },
+  { command: 'npm run parity:chassis-linked-copy', class: 'headless' },
+  { command: 'npm run parity:chassis-member-copy', class: 'headless' },
+  { command: 'npm run parity:chassis-copy', class: 'headless' },
+  { command: 'npm run parity:nested-grouped-import', class: 'headless' },
+  { command: 'npm run parity:grouped-rack-import', class: 'headless' },
+  { command: 'npm run parity:xconfig-import', class: 'headless' },
+  { command: 'npm run parity:reference-solutions', class: 'headless' },
+  { command: 'npm run parity:reference-download', class: 'headless' },
+  { command: 'npm run parity:unconfigured', class: 'headless' },
   { command: 'npm run parity:rack-power -- --multi', class: 'headless' },
   { command: 'npm run parity:rack-lock', class: 'headless' },
   { command: 'npm run parity:rack-lock -- --mcp', class: 'headless' },
   { command: 'npm run parity:rack-lifecycle', class: 'headless' },
   { command: 'npm run parity:rack-multiu', class: 'headless' },
   { command: 'npm run parity:rack-clone', class: 'headless' },
+  { command: 'npm run parity:switch-clone', class: 'headless' },
+  { command: 'npm run parity:switch-edit', class: 'headless' },
   { command: 'npm run parity:rack-clone -- --action=clone --fresh', class: 'headless' },
   { command: 'npm run parity:rack-clone -- --mcp --copy', class: 'headless' },
   { command: 'npm run parity:rack-clone -- --mcp --linked-edit=source', class: 'headless' },
@@ -244,10 +280,10 @@ function prepare(outDir: string): void {
   });
   const untrackedPaths = nulGitFiles(['ls-files', '--others', '--exclude-standard']);
   const untracked = untrackedPaths.map(digestFile);
-  const docs = IGNORED_REVIEW_DOCS.map(relative => {
-    assert.equal(gitState(relative), 'ignored', `${relative} is expected to be an explicit ignored review document.`);
-    return digestFile(relative);
-  });
+  // Tracked and ordinary untracked docs already travel with the patch/input list.
+  // Only ignored review docs need an explicit supplemental collection.
+  const docs = REVIEW_DOCS.map(digestFile).filter(file => file.gitState === 'ignored');
+  const ignoredDocPaths = docs.map(file => file.path);
   const fixturePaths = literalFixtureDependencies();
   const missingRuntimeInputs = fixturePaths.filter(relative => {
     try { statSync(relative); return false; } catch { return true; }
@@ -257,7 +293,7 @@ function prepare(outDir: string): void {
   ignoredRuntimeInputs.push(...ignoredArtifactInputsInReleaseScripts());
 
   const untrackedList = nulPathList(untrackedPaths);
-  const docsList = nulPathList(IGNORED_REVIEW_DOCS);
+  const docsList = nulPathList(ignoredDocPaths);
   writeFileSync(path.join(outDir, 'tracked.patch'), patch);
   writeFileSync(path.join(outDir, 'untracked-inputs.nul'), untrackedList);
   writeFileSync(path.join(outDir, 'ignored-doc-inputs.nul'), docsList);
@@ -270,7 +306,7 @@ function prepare(outDir: string): void {
   });
   const finalUntrackedPaths = nulGitFiles(['ls-files', '--others', '--exclude-standard']);
   const finalUntracked = finalUntrackedPaths.map(digestFile);
-  const finalDocs = IGNORED_REVIEW_DOCS.map(digestFile);
+  const finalDocs = ignoredDocPaths.map(digestFile);
   assert.equal(sha256(finalPatch), sha256(patch),
     'Tracked content changed while the preflight manifest was generated. Run it again after active edits settle.');
   assert.deepEqual(finalUntrackedPaths, untrackedPaths,
@@ -298,7 +334,7 @@ function prepare(outDir: string): void {
         sha256: sha256(patch),
       },
       untrackedInputs: collection('untracked-inputs.nul', untrackedPaths, untracked),
-      ignoredDocumentation: collection('ignored-doc-inputs.nul', IGNORED_REVIEW_DOCS, docs),
+      ignoredDocumentation: collection('ignored-doc-inputs.nul', ignoredDocPaths, docs),
       packageLockSha256: sha256(readFileSync('package-lock.json')),
     },
     runtime: {
@@ -309,8 +345,10 @@ function prepare(outDir: string): void {
     pendingGates: [
       'The supported nested lifecycle is implemented and has native wire oracles; the final source-frozen run must repeat its MCP and three native removal variants.',
       'Native Delete Node retains a commercial configuration in its export but Lenovo drops that detached node on reimport. The MCP exposes this as detach with an explicit warning; use unplace for roundtrip retention.',
-      'Managed-storage physical-alias cable replacement remains blocked on a populated native storage graph.',
-      'The historical Direct Attached FC and clean FC/optical-iSCSI post-import controls complete HTTP 200 without storage rows; a fresh distinct-root optical-iSCSI pre-export control also returns zero connections with intact ownership, assignment and compatible connector/cable groups. This is bounded to the tested design; a populated storage graph and managed-alias cable edit remain pending.',
+      'Manual Management/100GbE creation and shared 10GbE DAC storage replacement are implemented; repeat their public recovery/export/browser gates from this source snapshot.',
+      'FC/optical-iSCSI probes remain unavailable for the tested hardware/catalog combinations; this does not block the verified 10GbE DAC storage workflows or prove universal API absence.',
+      'Native website CFXML import degrades the captured four-way breakout shape. Only that exact independently verified mismatch is a declared blocked result in the breakout gates.',
+      'Legacy companion-workbook recovery still needs genuine nonempty legacy input. Broader topologies/layouts and authenticated account/partner workflows remain outside verified coverage.',
       'Terminal valid and deliberately invalid manufacturing verdicts pass development acceptance with bounded public responses, full paged diagnostics and canonical provenance; repeat these checks from the final source-frozen snapshot.',
       'Run every release command from one materialized source snapshot only after integration is frozen.',
     ],

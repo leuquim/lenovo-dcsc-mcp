@@ -1,0 +1,205 @@
+{
+  "provenance": "Native fresh D3 Clone Multiple then member processor edit, 2026-10-30. Successful browser edit and database capture; no export attempted.",
+  "cloneDependency": {
+    "US__-b01d-4208-99bc-55c8cc5464cf1000": [
+      "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "US__cfab50aa-7a1d-4374-b97d-030592e824fe"
+    ],
+    "US__e24502d5-2f5d-4b89-8073-620bd4dd38720": [
+      "US__bffe0b34-e2fd-49f1-bb6f-81c368395fec",
+      "US__e24502d5-2f5d-4b89-8073-620bd4dd38720"
+    ],
+    "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101": [
+      "US__97b6a1b5-5c0a-4562-afa1-4fa5401227101"
+    ],
+    "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2": [
+      "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2"
+    ]
+  },
+  "responses": [
+    {
+      "id": "US__e24502d5-2f5d-4b89-8073-620bd4dd38720",
+      "type": "chassis",
+      "code": "7DD0CTOLWW",
+      "totalPrice": 2889.01,
+      "updateConfigurationIds": [
+        "US__bffe0b34-e2fd-49f1-bb6f-81c368395fec",
+        "US__e24502d5-2f5d-4b89-8073-620bd4dd38720"
+      ],
+      "powerReportResponse": {
+        "powerReport": {
+          "inputPower": {
+            "idle": 228.6,
+            "max": 503.9,
+            "loadFactorResult": 319,
+            "worst": 661
+          },
+          "inputCurrent": {
+            "idle": 1.7,
+            "max": 2.2,
+            "loadFactorResult": 1.5,
+            "worst": 2.9
+          },
+          "apparentPower": {
+            "idle": 384.8,
+            "max": 515.7,
+            "loadFactorResult": 335.1,
+            "worst": 670.4
+          },
+          "heatGeneration": {
+            "idle": 779.9,
+            "max": 1719.2,
+            "loadFactorResult": 1088.6,
+            "worst": 2255.5
+          },
+          "totalPower": {
+            "idle": 102.2,
+            "max": 471.4,
+            "loadFactorResult": 288.3,
+            "worst": 625.5
+          },
+          "system5": 12,
+          "loadFactor": 70,
+          "operatingVoltage": "230V-AC",
+          "productType": "purley",
+          "powerPolicy": {
+            "key": "N_PLUS_1_REDUNDANT_WITHOUT_OVER_SUBSCRIPTION",
+            "description": "N+1 redundancy without over-subscription",
+            "value": 2
+          },
+          "powerUtilization": 48.12,
+          "fcsNotSupports": [
+            "6201",
+            "6201",
+            "BAFD",
+            "8971",
+            "2306",
+            "7501",
+            "BPK3",
+            "BE0C",
+            "BK15",
+            "BF94",
+            "A102",
+            "BWJQ",
+            "BWJQ",
+            "BWJQ",
+            "BWJP",
+            "BWJP",
+            "BWJP",
+            "BYEA",
+            "C2CA",
+            "BWJS",
+            "BYVC",
+            "BYVA",
+            "BYVD",
+            "BYVB",
+            "BWJN",
+            "BFYA",
+            "BL0H",
+            "BPKR",
+            "B7Y0",
+            "CARY",
+            "7501",
+            "BPK3",
+            "BF94",
+            "C080",
+            "BWT0",
+            "BWT4",
+            "AVEN",
+            "AVEN",
+            "AVEN",
+            "AVEN",
+            "AVEN",
+            "AVEN",
+            "C0E5",
+            "BZE0",
+            "BZE1",
+            "C0LS",
+            "BXSV",
+            "BCPQ",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BM2Z",
+            "BXXW",
+            "BWT7",
+            "C2C9"
+          ],
+          "warningMessages": [],
+          "empty": false,
+          "energyStar": false
+        },
+        "errorMsg": []
+      }
+    },
+    {
+      "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "type": "node",
+      "code": "7DD1CTOLWW",
+      "totalPrice": 21822.51,
+      "updateConfigurationIds": [
+        "US__-b01d-4208-99bc-55c8cc5464cf1000",
+        "US__cfab50aa-7a1d-4374-b97d-030592e824fe"
+      ],
+      "powerReportResponse": {
+        "powerReport": {
+          "inputPower": null,
+          "inputCurrent": null,
+          "apparentPower": null,
+          "heatGeneration": null,
+          "totalPower": null,
+          "system5": null,
+          "loadFactor": 70,
+          "operatingVoltage": "115V-AC",
+          "productType": null,
+          "powerPolicy": {
+            "key": "NON_REDUNDANT",
+            "description": "Non-Redundant",
+            "value": 1
+          },
+          "powerUtilization": null,
+          "fcsNotSupports": null,
+          "warningMessages": null,
+          "empty": false,
+          "energyStar": false
+        },
+        "errorMsg": [
+          {
+            "tableName": null,
+            "message": "The PSU is missed or not supplied.",
+            "swSubcategory": null,
+            "featureCode": null,
+            "hoverMap": {},
+            "errorType": "POWER_VALIDATION",
+            "realTargetCharacter": null,
+            "cleanFeatureCodes": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+      "type": "node",
+      "code": "7DD1CTOLWW",
+      "totalPrice": 21822.51,
+      "updateConfigurationIds": [
+        "US__cfab50aa-7a1d-4374-b97d-030592e824fe"
+      ],
+      "powerReportResponse": null
+    }
+  ],
+  "savedNode": {
+    "id": "US__-b01d-4208-99bc-55c8cc5464cf1000",
+    "type": "node",
+    "code": "7DD1CTOLWW",
+    "totalPrice": 21822.51,
+    "powerReportResponse": null
+  }
+}

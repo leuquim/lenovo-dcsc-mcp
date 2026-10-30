@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 
-it('rejects a release checkout with an additional unrecorded source input', () => {
+it.each(['ignored', 'tracked'])('verifies %s review docs and rejects additional unrecorded source input', documentationState => {
   const root = mkdtempSync(path.join(tmpdir(), 'dcsc-release-verifier-'));
   const script = fileURLToPath(new URL('../scripts/release-checkpoint.ts', import.meta.url));
   const loader = createRequire(import.meta.url).resolve('tsx');
@@ -29,17 +29,33 @@ it('rejects a release checkout with an additional unrecorded source input', () =
     for (const name of ['parity', 'progress', 'finding_audit']) {
       writeFileSync(path.join(root, `.docs/roadmaps/2026_10_15_dcsc_${name}.md`), 'fixture');
     }
+    if (documentationState === 'tracked') {
+      git('add', '-f', '.docs');
+      git('-c', 'user.name=Checkpoint Test', '-c', 'user.email=checkpoint@example.invalid',
+        '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Track review docs');
+      writeFileSync(path.join(root, '.docs/roadmaps/2026_10_15_dcsc_parity.md'), 'updated tracked review');
+    }
     writeFileSync(path.join(root, 'existing-input.ts'), 'export const value = 1;');
     const manifest = path.join(root, 'artifacts/checkpoint/manifest.json');
     const prepared = run('--out', path.dirname(manifest));
     expect(prepared.status, prepared.stderr).toBe(0);
     const checkpoint = JSON.parse(readFileSync(manifest, 'utf8')) as {
       releaseCommands: Array<{ command: string; blockedExit?: number }>;
+      repository: { ignoredDocumentation: { count: number } };
     };
+    expect(checkpoint.repository.ignoredDocumentation.count).toBe(documentationState === 'ignored' ? 3 : 0);
     expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity:recovery'))
       .toMatchObject({ blockedExit: 2 });
+    for (const command of ['npm run parity:manual-replace:breakout', 'npm run parity:manual-create:breakout']) {
+      expect(checkpoint.releaseCommands.find(entry => entry.command === command)).toMatchObject({ blockedExit: 2 });
+    }
     const verified = run('--verify', manifest);
     expect(verified.status, verified.stderr).toBe(0);
+    const reviewFile = path.join(root, '.docs/roadmaps/2026_10_15_dcsc_parity.md');
+    const reviewBefore = readFileSync(reviewFile);
+    writeFileSync(reviewFile, 'unrecorded review change');
+    expect(run('--verify', manifest).status).not.toBe(0);
+    writeFileSync(reviewFile, reviewBefore);
     writeFileSync(path.join(root, 'unexpected-input.ts'), 'export const value = 2;');
     const rejected = run('--verify', manifest);
     expect(rejected.status).not.toBe(0);

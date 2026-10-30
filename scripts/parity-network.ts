@@ -2,7 +2,7 @@
  * Maintained live parity gate for AI/HPC automatic switch provisioning.
  *
  * Builds the same design as the browser r25 oracle through DcscService, checks
- * the authoritative port graph and prices, exports it, and imports that export
+ * the captured port graph and current native prices, exports it, and imports that export
  * through a fresh headless browser session.
  */
 import assert from 'node:assert/strict';
@@ -240,10 +240,10 @@ async function main(): Promise<void> {
     assert.equal(workspace.cables.length, 1);
     assert.equal(workspace.cables[0]?.cableCode, oracleConnection['cablePart']);
 
-    const expectedPrices = object(object(oracle['prices'])['finalAfterPlacementAndAutoConnect']) as Record<string, number[]>;
+    const historicalPrices = object(object(oracle['prices'])['finalAfterPlacementAndAutoConnect']) as Record<string, number[]>;
     const livePrices = priceMap([...workspace.configurations.values()].map((value) => object(value.raw)));
     await writeFile(path.join(outDir, 'mcp-post-connect-summary.json'), JSON.stringify({
-      prices: livePrices,
+      prices: livePrices, historicalPrices,
       configurations: [...workspace.configurations.values()].map((value) => ({
         id: value.configurationId,
         code: value.product.code,
@@ -253,7 +253,8 @@ async function main(): Promise<void> {
       connection,
       projectedConnections: connected.connections,
     }, null, 2));
-    assert.deepEqual(livePrices, expectedPrices, 'Current MCP prices differ from the contemporaneous browser r25 oracle.');
+    // Catalog prices change independently of the captured structural oracle.
+    // Compare current prices against the fresh native browser import below.
 
     stage = 'export';
     const exported = await service.exportZip(workspace.id, { ctx, fileName: 'mcp-network-parity',
@@ -275,7 +276,16 @@ async function main(): Promise<void> {
     }
     const restoredConfigurations = importedConfigurations(browserImport);
     const restoredPrices = priceMap(restoredConfigurations);
-    assert.deepEqual(restoredPrices, expectedPrices, 'Fresh browser import changed configuration prices.');
+    assert.deepEqual(restoredPrices, livePrices, 'Fresh browser import changed current configuration prices.');
+    for (const restored of restoredConfigurations) {
+      const current = [...workspace.configurations.values()].find(value => value.configurationId === restored['id']);
+      assert(current, 'Fresh browser import introduced an unknown configuration.');
+      assert.equal(finite(restored['totalPrice']), finite(current.raw.totalPrice), 'Fresh browser import changed an individual configuration price.');
+      const selections = (configuration: JsonObject) => selectedLines(configuration)
+        .map(line => ({ section: line['section'], code: line['code'], quantity: line['quantity'] }))
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      assert.deepEqual(selections(restored), selections(object(current.raw)), 'Fresh browser import changed selected parts or quantities.');
+    }
     assert.equal(new Set(restoredConfigurations.map((value) => text(value['id']))).size, 4,
       'Fresh browser import changed configuration identities.');
     assert.deepEqual(new Set(restoredConfigurations.map((value) => text(value['id']))),

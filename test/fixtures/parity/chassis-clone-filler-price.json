@@ -1,0 +1,163 @@
+{
+  "provenance": "D3 native Clone Multiple changes rack filler from 8x4275 to 7x4275 + 1x4273; captured 2026-10-30",
+  "before": {
+    "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+    "code": "7D6DCTO1WW",
+    "totalPrice": 12692.01,
+    "totalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 12692.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "nonSoftwareTotalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 13281.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "priceNotAvailable": false,
+    "unSelectableCharacters": [
+      {
+        "name": "MECH_DERIVE_FCS",
+        "features": [
+          {
+            "code": "4271",
+            "unitPrice": 14.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 14.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          },
+          {
+            "code": "4273",
+            "unitPrice": 24.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 24.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          },
+          {
+            "code": "4275",
+            "unitPrice": 54.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 54.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          }
+        ],
+        "results": [
+          {
+            "derived": true,
+            "swDerived": false,
+            "quantity": 8,
+            "description": "5U black plastic filler panel",
+            "forAutoConnect": false,
+            "installations": [],
+            "storageWizardDerivedQuantity": 0,
+            "code": "4275"
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "id": "US__c0bad56d-66e4-4630-a9fc-4a0e70a2f4ce2",
+    "code": "7D6DCTO1WW",
+    "totalPrice": 12662.01,
+    "totalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 12662.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "nonSoftwareTotalPrices": [
+      {
+        "priceTypeId": 1,
+        "price": 13251.01,
+        "priceNotAvailable": false
+      }
+    ],
+    "priceNotAvailable": false,
+    "unSelectableCharacters": [
+      {
+        "name": "MECH_DERIVE_FCS",
+        "features": [
+          {
+            "code": "4271",
+            "unitPrice": 14.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 14.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          },
+          {
+            "code": "4273",
+            "unitPrice": 24.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 24.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          },
+          {
+            "code": "4275",
+            "unitPrice": 54.5,
+            "prices": [
+              {
+                "priceNotAvailable": false,
+                "price": 54.5,
+                "priceTypeId": 1
+              }
+            ],
+            "priceNotAvailable": false
+          }
+        ],
+        "results": [
+          {
+            "derived": true,
+            "swDerived": false,
+            "quantity": 7,
+            "description": "5U black plastic filler panel",
+            "forAutoConnect": false,
+            "installations": [],
+            "storageWizardDerivedQuantity": 0,
+            "code": "4275"
+          },
+          {
+            "derived": true,
+            "swDerived": false,
+            "quantity": 1,
+            "description": "3U black plastic filler panel",
+            "forAutoConnect": false,
+            "installations": [],
+            "storageWizardDerivedQuantity": 0,
+            "code": "4273"
+          }
+        ]
+      }
+    ]
+  }
+}

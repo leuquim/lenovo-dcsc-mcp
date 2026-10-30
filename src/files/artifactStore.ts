@@ -16,6 +16,7 @@ import { pipeline } from 'node:stream/promises';
 import yauzl from 'yauzl';
 
 import { MAGIC_BYTES } from '../config/constants.js';
+import { parseCfxml } from '../domain/import.js';
 import type { Config } from '../config/schema.js';
 
 const OWNED_ARTIFACT = 'lenovo-dcsc-export';
@@ -306,13 +307,19 @@ export async function writeRecoverySourceArtifact(
   return writeRecoveryContent(bytes, fileName, config, 'lenovo-dcsc-session-source-bytes', 'bin');
 }
 
-async function writeRecoveryContent(
+export async function writeCfxmlArtifact(bytes: Buffer, fileName: string, config: Config) {
+  if (bytes.length > config.files.maxDownloadBytes) throw new Error('CFXML artifact exceeded the configured download limit.');
+  parseCfxml(bytes.toString('utf8'));
+  return writeRecoveryContent(bytes, fileName.replace(/\.xml$/i, ''), config, 'lenovo-cfxml', 'xml');
+}
+
+async function writeRecoveryContent<F extends RecoveryArtifact['format'] | 'lenovo-cfxml'>(
   bytes: Buffer,
   fileName: string,
   config: Config,
-  format: RecoveryArtifact['format'],
-  extension: 'json' | 'bin',
-): Promise<RecoveryArtifact> {
+  format: F,
+  extension: 'json' | 'bin' | 'xml',
+): Promise<Omit<RecoveryArtifact, 'format'> & { format: F }> {
   if (bytes.length > config.files.maxDownloadBytes) {
     throw new Error(`Recovery artifact exceeded the configured download limit of ${config.files.maxDownloadBytes} bytes.`);
   }
@@ -344,7 +351,7 @@ async function writeRecoveryContent(
       inspection,
       createWriteStream(stagedPath, { flags: 'wx' }),
     );
-    const artifact: RecoveryArtifact = {
+    const artifact: Omit<RecoveryArtifact, 'format'> & { format: F } = {
       path: finalPath,
       bytes: inspection.bytes,
       sha256: inspection.digest(),

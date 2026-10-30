@@ -139,10 +139,16 @@ function colorGroups(
       if (activeConfigurationIds.has(root) && !storageAliases.has(root) && !storageTemplateIds.has(root)) {
         throw new Error(`Imported storage color group ${root} conflicts with an active configuration.`);
       }
+      // Native import can materialize every storage instance as an editable
+      // configuration and rebase its color owner to the first physical ID. The
+      // SPA then uses that rooted color group as clone dependency ownership.
       const touchingDependency = touchingGroups(dependency, new Set(members));
+      const materializedGroup = members.includes(root) && members.every(id => activeConfigurationIds.has(id)) &&
+        !members.some(id => storageTemplateIds.has(id)) &&
+        !touchingDependency.some(([owner]) => storageTemplateIds.has(owner));
       if (touchingDependency.length > 0) {
         const exact = touchingDependency.length === 1 &&
-          storageTemplateIds.has(touchingDependency[0]![0]) &&
+          (storageTemplateIds.has(touchingDependency[0]![0]) || materializedGroup && touchingDependency[0]![0] === root) &&
           sameMembers(touchingDependency[0]![1].filter(member => storageAliases.has(member)), members) &&
           touchingDependency[0]![1].every(member => storageAliases.has(member) || member === touchingDependency[0]![0]);
         if (!exact) {
@@ -155,6 +161,10 @@ function colorGroups(
           throw new Error(`Imported storage color identity ${member} belongs to overlapping roots ${owner} and ${root}.`);
         }
         storageOwners.set(member, root);
+      }
+      if (materializedGroup) {
+        memberships[root] = members;
+        continue;
       }
       // Physical storage color groups may omit a managed template that the
       // import response did not return. Preserve the raw color metadata, but do
@@ -226,7 +236,7 @@ function assertMatchingColors(dependency: CloneDependency, colors: CloneDependen
 }
 
 /**
- * CFXML imports compress identical loose products into one configuration and an
+ * CFXML imports compress identical products into one configuration and an
  * originalIds list. The captured SPA expands those IDs into physical instances
  * before customization. A group quantity alone is not enough to invent IDs.
  */
@@ -242,41 +252,123 @@ export function expandImportedClones<T extends Obj>(source: T): T {
   const colors = colorGroups(payload.cloneDependencyColor, dependency, activeConfigurationIds,
     storage.aliases, storage.templates);
   const byId = new Map(configurations.map(raw => [String(raw.id), raw]));
-  const expansions: Array<{ sourceId: string; original: Obj; ids: string[] }> = [];
+  const expansions: Array<{ sourceId: string; original: Obj; ids: string[]; parentQuantity?: number }> = [];
   const generated = new Set<string>();
-  const expandedItems: Obj[] = [];
-  for (const value of workspace.nonRackArea) {
-    const item = object(value);
-    if (!item) throw new Error('Imported non-rack item is not an object.');
-    const ids = item.originalIds;
-    if (!Array.isArray(ids) || ids.length < 2) { expandedItems.push(item); continue; }
+  const expandItem = (item: Obj, inRack: boolean, parentQuantity = 1): Obj[] => {
     const sourceId = String(item.configurationId ?? item.id ?? '');
-    const raw = byId.get(sourceId);
-    if (!raw || ids.some(id => typeof id !== 'string' || !id.trim()) ||
-        new Set(ids).size !== ids.length || !ids.includes(sourceId) ||
-        Number(item.quantity) !== ids.length || Number(raw.quantity ?? 1) !== 1) {
-      throw new Error(`Imported clone group ${sourceId} has inconsistent identities or quantities. No workspace was committed.`);
-    }
-    if (item.type === 'rack' || item.asVLH === true || (Array.isArray(item.children) && item.children.length > 0)) {
+    const ids = item.originalIds;
+    const grouped = Array.isArray(ids) && ids.length > 1;
+    const children = Array.isArray(item.children) ? item.children : [];
+    if (!grouped && children.length === 0) return [item];
+    if (item.type === 'rack' || item.asVLH === true ||
+        children.length > 0 && item.type !== 'chassis') {
       throw new Error('Cloned racks and nested containers require a captured expansion contract.');
     }
-    for (const id of ids as string[]) {
-      if (generated.has(id) || (id !== sourceId && byId.has(id))) {
-        throw new Error(`Imported clone identity ${id} collides with another configuration.`);
-      }
-      generated.add(id);
-      if (id !== sourceId) configurations.push(cloneConfigurationRaw(raw, sourceId, id));
-      expandedItems.push({ ...structuredClone(item), id, configurationId: id, quantity: 1, originalIds: [id] });
+    const raw = byId.get(sourceId);
+    const memberIds = grouped ? ids : [sourceId];
+    if (grouped && (!raw || ids.some(id => typeof id !== 'string' || !id.trim()) ||
+        new Set(ids).size !== ids.length || !ids.includes(sourceId) ||
+        Number(item.quantity) * parentQuantity !== ids.length || Number(raw.quantity ?? 1) !== 1)) {
+      throw new Error(`Imported clone group ${sourceId} has inconsistent identities or quantities. No workspace was committed.`);
     }
-    expansions.push({ sourceId, original: structuredClone(item), ids: ids as string[] });
+    const childrenByParent: Obj[][] = memberIds.map(() => []);
+    for (const value of children) {
+      const child = object(value);
+      if (!child || child.type !== 'node' || (Array.isArray(child.children) && child.children.length > 0)) {
+        throw new Error('Nested chassis expansion requires direct node children.');
+      }
+      const perParent = Number(child.quantity ?? 1);
+      const childIds = child.originalIds ?? (memberIds.length === 1 && perParent === 1
+        ? [String(child.configurationId ?? child.id ?? '')] : undefined);
+      if (!Number.isSafeInteger(perParent) || perParent < 1 || !Array.isArray(childIds) ||
+          childIds.length !== perParent * memberIds.length) {
+        throw new Error(`Imported chassis ${sourceId} has inconsistent child identities or quantities.`);
+      }
+      const expanded = expandItem(child, false, memberIds.length);
+      for (let index = 0; index < memberIds.length; index++) {
+        childrenByParent[index]!.push(...expanded.slice(index * perParent, (index + 1) * perParent));
+      }
+    }
+    const positions = grouped && inRack ? groupedRackPositions(item, memberIds.length) : undefined;
+    const members = memberIds.map((id, index) => {
+      if (grouped) {
+        if (generated.has(id) || (id !== sourceId && byId.has(id))) {
+          throw new Error(`Imported clone identity ${id} collides with another configuration.`);
+        }
+        generated.add(id);
+        if (id !== sourceId) configurations.push(cloneConfigurationRaw(raw!, sourceId, id));
+      }
+      const member: Obj = { ...structuredClone(item), id, configurationId: id, quantity: 1, originalIds: [id] };
+      if (children.length > 0) member.children = childrenByParent[index];
+      if (positions) member.derivedResults = [
+        ...(Array.isArray(item.derivedResults) ? item.derivedResults.filter(result => !/^32\d{2}$/.test(String(object(result)?.featureCode))) : []),
+        { featureCode: `32${String(positions[index]).padStart(2, '0')}`, name: 'MI_P', quantity: 1 },
+      ];
+      return member;
+    });
+    if (grouped) expansions.push({ sourceId, original: structuredClone(item), ids: memberIds as string[],
+      ...(parentQuantity > 1 ? { parentQuantity } : {}) });
+    return members;
+  };
+  const expandItems = (items: unknown[], inRack: boolean): Obj[] => items.flatMap(value => {
+    const item = object(value);
+    if (!item) throw new Error('Imported physical item is not an object.');
+    return expandItem(item, inRack);
+  });
+  workspace.nonRackArea = expandItems(workspace.nonRackArea, false);
+  if (Array.isArray(workspace.rackArea)) for (const value of workspace.rackArea) {
+    const rack = object(value);
+    if (rack && Array.isArray(rack.children)) rack.children = expandItems(rack.children, true);
   }
   if (expansions.length > 0) {
     for (const expansion of expansions) promoteExpansion(dependency, expansion.sourceId, expansion.ids);
     assertMatchingColors(dependency, colors);
-    workspace.nonRackArea = expandedItems;
+    // Native references also retain singleton colors for the rack and spare
+    // products. Preserve their explicit ownership alongside expanded groups so
+    // persisted restore sees the same complete dependency/color partition.
+    for (const [root, members] of Object.entries(colors ?? {})) {
+      if (members.length === 1 && activeConfigurationIds.has(root) &&
+          touchingGroups(dependency, new Set(members)).length === 0) dependency[root] = [...members];
+    }
     (payload as Obj).cloneDependency = dependency;
     // Preserve the compressed source records for inspection/recovery.
     (payload as Obj).importCloneExpansion = expansions;
   } else assertMatchingColors(dependency, colors);
+  // A rooted native color is explicit ownership evidence even when import
+  // returns separate quantity-one records rather than a compressed originalIds
+  // group. Do not infer these links from matching product codes alone.
+  let materializedStorage = false;
+  for (const [root, members] of Object.entries(colors ?? {})) {
+    if (members.length < 2 || !storage.aliases.has(root) ||
+        !members.every(id => storage.aliases.has(id) && activeConfigurationIds.has(id)) ||
+        members.some(id => storage.templates.has(id))) continue;
+    promoteExpansion(dependency, root, members);
+    materializedStorage = true;
+  }
+  if (materializedStorage) {
+    assertMatchingColors(dependency, colors);
+    (payload as Obj).cloneDependency = dependency;
+  }
   return payload;
+}
+
+/** Native buildWorkspaceImportData expands position runs in originalIds order. */
+function groupedRackPositions(item: Obj, count: number): number[] {
+  const size = Number(item.size);
+  const positions: number[] = [];
+  for (const value of Array.isArray(item.derivedResults) ? item.derivedResults : []) {
+    const result = object(value);
+    if (!/^32\d{2}$/.test(String(result?.featureCode))) continue;
+    const start = Number(String(result!.featureCode).slice(2));
+    const quantity = Number(result!.quantity);
+    if (!Number.isInteger(size) || size < 1 || !Number.isInteger(quantity) || quantity < 1 ||
+        quantity > count || start < 1 || start + size * (quantity - 1) > 99) {
+      throw new Error(`Imported rack clone group ${item.id} has invalid position runs.`);
+    }
+    for (let index = 0; index < quantity; index++) positions.push(start + index * size);
+  }
+  if (positions.length !== count || new Set(positions).size !== count) {
+    throw new Error(`Imported rack clone group ${item.id} has inconsistent positions and identities.`);
+  }
+  return positions;
 }

@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { inspectXconfigSource } from '../src/domain/importFile.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
@@ -21,6 +23,50 @@ function setup(payload: Record<string, unknown>) {
 }
 
 describe('atomic standalone import integration', () => {
+  it('uses the native x-config endpoint and warns when saved physical state is absent upstream', async () => {
+    const blob = gzipSync('FLOOR{\n0,0=Rack,N\n}\nCABLES{\n0,0=Power row\n}').toString('base64');
+    const source = xml.replace('<CFData>', `<CFData><ProprietaryInformation><Name>Configurator Identifier</Name><Value>XCONFIG.R.v8.1.3.5</Value></ProprietaryInformation><CSEBLOB>${blob}</CSEBLOB>`);
+    expect(inspectXconfigSource(source)).toEqual({ isXconfig: true, savedCabling: true, savedFloor: true });
+    const { service, ctx, send } = setup({ ...fixture('software-qty3'), needImportExcel: false });
+    const result = await service.importConfig({ content: source, ctx });
+    expect(send.mock.calls[0]![0].path).toBe('/cfxml_import');
+    expect(result.diagnostics.warnings?.join(' ')).toContain('saved cabling');
+    expect(result.diagnostics.warnings?.join(' ')).toContain('saved floor');
+    expect(service.sessions.getWorkspace(result.workspaceId)!.serverState.lastImportDiagnostics).toEqual(result.diagnostics);
+    expect(inspectXconfigSource(source.replace(blob, 'invalid'))).toMatchObject({ sourceInspectionUnavailable: true });
+    expect(inspectXconfigSource(xml)).toEqual({ isXconfig: false, savedCabling: false, savedFloor: false });
+  });
+
+  it('uploads workbook bytes to the native import endpoint and uses the same atomic hydration', async () => {
+    const { service, ctx, send } = setup({ ...fixture('software-qty3'),
+      configurationMode: { mode: 'General Purpose', masterSlices: [], sbSlices: [] } });
+    const bytes = Buffer.from([0x50, 0x4b, 3, 4, 0xff, 0, 0x80]);
+    const result = await service.importConfig({ content: bytes, fileName: 'design.xlsx', ctx,
+      solutionMode: 'General Purpose' });
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/multiple/cfxml_import', body: { kind: 'multipart', parts: [{
+        name: 'cfxmlFile', filename: 'design.xlsx',
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', content: bytes,
+      }] },
+    }));
+    expect(result.standaloneKind).toBe('software');
+    expect(service.sessions.getWorkspace(result.workspaceId)?.serverState.standaloneSoftwareState).toBeDefined();
+  });
+
+  it('rejects incorrectly encoded or mislabeled workbooks before HTTP', async () => {
+    const { service, ctx, send } = setup(fixture('software-qty3'));
+    await expect(service.importConfig({ content: 'PK...', fileName: 'design.xlsx', ctx })).rejects.toThrow('binary');
+    await expect(service.importConfig({ content: Buffer.from(xml), fileName: 'design.xlsx', ctx })).rejects.toThrow('signature');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('reports the unimplemented legacy companion-workbook recovery without hiding other warnings', async () => {
+    const { service, ctx } = setup({ ...fixture('software-qty3'), needImportExcel: true });
+    const result = await service.importConfig({ content: xml, ctx });
+    expect(result.diagnostics.warnings).toHaveLength(2);
+    expect(result.diagnostics.warnings?.[1]).toContain('companion Excel recovery');
+  });
+
   it('restores software-only state without inventing hardware and persists the complete envelope once', async () => {
     const payload = fixture('software-qty3');
     const { service, ctx } = setup(payload);

@@ -19,7 +19,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function setup(persist = false) {
+function setup(persist = false, hpcSwitch = false) {
   const root = mkdtempSync(join(tmpdir(), 'dcsc-physical-clone-'));
   roots.push(root);
   const config = ConfigSchema.parse({ files: {
@@ -28,10 +28,10 @@ function setup(persist = false) {
   }, logLevel: 'silent' });
   const service = new DcscService(config);
   services.push(service);
-  const solution = { solutionMode: 'General Purpose', masterSlices: ['GP'] };
+  const solution = { solutionMode: hpcSwitch ? 'HPC and AI - Systems' : 'General Purpose', masterSlices: ['GP'] };
   const sourceRaw: RawConfiguration = {
     id: 'server-1', code: '7D73CTO1WW', sliceCtoCode: '7D73CTO1WW', description: 'SR630 V3',
-    type: 'server', quantity: 1, totalPrice: 15_650.51,
+    type: hpcSwitch ? 'switch' : 'server', quantity: 1, totalPrice: 15_650.51,
     tabs: [{ title: 'System', type: 'hardware', subTabs: [{ title: 'System', sections: [{
       name: 'PROCESSOR', features: [{ code: 'BYW3', max: 2 }], results: [{ code: 'BYW3', quantity: 1 }],
     }] }] }],
@@ -86,6 +86,40 @@ function snapshot(service: DcscService) {
 }
 
 describe('physical Clone Multiple service orchestration', () => {
+  it('uses the captured HPC switch clone sequence and projects root responses across bindings', async () => {
+    const { service, workspace, source, sourceRaw, rackRaw } = setup(false, true);
+    const item = (workspace.rackArea[0]!['rackItems'] as Obj[])[0]!;
+    item['type'] = 'switch';
+    item['rule'] = { productMinMaxRule: { min: 0, max: 18 } };
+    const calls: SendInput[] = [];
+    vi.spyOn(service.http, 'send').mockImplementation(async request => {
+      calls.push(request);
+      const body = request.body?.kind === 'json' ? request.body.value as Obj : {};
+      if (request.endpoint === 'racks_customize') {
+        expect(request.query).toEqual({ autoArrange: true, autoConnect: true, cogValidation: true });
+        expect((body['cloneDependency'] as Obj)['server-1']).toHaveLength(2);
+        return { raw: { rackArea: body['rackArea'], nonRackArea: [], connections: [], errors: [] } } as never;
+      }
+      if (request.endpoint === 'workspace_autoDerive') {
+        expect(request.query).toEqual({ guideMode: true });
+        expect(body).not.toHaveProperty('customizingIds');
+        expect((body['configurations'] as Obj[]).map(c => c['id'])).toEqual(['server-1', 'rack-1']);
+        const ids = ((body['workspaceInformation'] as Obj)['cloneDependency'] as Obj)['server-1'];
+        return { raw: { configurations: [
+          { ...sourceRaw, totalPrice: 16000, updateConfigurationIds: ids },
+          { ...rackRaw, updateConfigurationIds: ['rack-1'] },
+        ] } } as never;
+      }
+      throw new Error(`Unexpected endpoint ${request.endpoint}`);
+    });
+    const result = await service.cloneConfiguration({ sessionHandle: source.id, count: 1, placement: 'same-rack',
+      expectedRevision: workspace.revision, ctx: service.newCtx() });
+    expect(calls.map(c => c.endpoint)).toEqual(['racks_customize', 'racks_customize', 'workspace_autoDerive']);
+    expect(result.source.raw.totalPrice).toBe(16000);
+    expect(result.clones[0]!.raw.totalPrice).toBe(16000);
+    expect(workspace.serverState.cloneDependency).toMatchObject({ 'server-1': ['server-1', result.clones[0]!.configurationId] });
+  });
+
   it('runs customize, derive, customize and commits authoritative placement and dependency atomically', async () => {
     const { service, workspace, source, sourceRaw, rackRaw } = setup();
     const { calls, customizeCount } = installAcceptedLayout(service, sourceRaw, rackRaw);
@@ -193,4 +227,33 @@ describe('physical Clone Multiple service orchestration', () => {
       validationMode: loaded.validationMode });
     expect((exported['workspaceInformation'] as Obj)['cloneDependency']).toEqual(loaded.serverState.cloneDependency);
   });
+});
+
+it('rolls back parent and child configurations when Lenovo drops a cloned chassis child', async () => {
+  const { service, workspace, source, sourceRaw, rackRaw } = setup();
+  sourceRaw.type = 'chassis'; source.raw.type = 'chassis';
+  const physical = (workspace.rackArea[0]!['rackItems'] as Obj[])[0]!;
+  physical['type'] = 'chassis'; physical['size'] = 2;
+  physical['nodes'] = [{ id: 'node-1', configurationId: 'node-1', code: 'NODE', type: 'node', occupiedBay: 1 }];
+  const nodeRaw: RawConfiguration = { id: 'node-1', code: 'NODE', type: 'node', quantity: 1, totalPrice: 100, tabs: [] };
+  service.sessions.create({ locale: service.locale, solution: workspace.solution, mode: 'cto', raw: nodeRaw,
+    configurationId: 'node-1', reduced: reduceConfiguration(nodeRaw, 'node-1'), primed: true, workspaceId: workspace.id });
+  workspace.serverState.cloneDependency = { ...(workspace.serverState.cloneDependency as Obj), 'node-1': ['node-1'] };
+  const before = snapshot(service);
+  let layouts = 0;
+  vi.spyOn(service.http, 'send').mockImplementation(async request => {
+    const body = request.body?.kind === 'json' ? request.body.value as Obj : {};
+    if (request.endpoint === 'racks_customize') {
+      const rackArea = structuredClone(body['rackArea'] as Obj[]);
+      if (++layouts === 1) ((rackArea[0]!['rackItems'] as Obj[])[1]!)['nodes'] = [];
+      return { raw: { rackArea, nonRackArea: [], connections: [], errors: [] } } as never;
+    }
+    if (request.endpoint === 'workspace_autoDerive') return { raw: { configurations: (body['configurations'] as Obj[]).map(c => ({
+      ...(c['id'] === 'rack-1' ? rackRaw : c['code'] === 'NODE' ? nodeRaw : sourceRaw), id: c['id'],
+    })) } } as never;
+    throw new Error(`Unexpected ${request.endpoint}`);
+  });
+  await expect(service.cloneConfiguration({ sessionHandle: source.id, count: 1, placement: 'same-rack',
+    expectedRevision: workspace.revision, ctx: service.newCtx() })).rejects.toThrow(/child identities|nested|node/i);
+  expect(snapshot(service)).toEqual(before);
 });

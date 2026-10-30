@@ -1,0 +1,927 @@
+{
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+        "quantity": 1,
+        "type": "rack",
+        "size": 48,
+        "originalIds": [
+          "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50"
+        ],
+        "derivedResults": [
+          {
+            "featureCode": "3101",
+            "quantity": "1",
+            "name": "MI_P",
+            "description": null
+          }
+        ],
+        "autoConnectResults": [],
+        "removedResults": [],
+        "children": [
+          {
+            "id": "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d",
+            "quantity": 18,
+            "type": "server",
+            "size": 1,
+            "originalIds": [
+              "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d",
+              "US__b34972b9-d845-41f6-98bd-8e905f680b2d",
+              "US__850f6547-9505-49b4-b183-eb9d050c87d4",
+              "US__57e57c33-bcad-4ca1-9d76-2f9618872ab9",
+              "US__37da3934-7531-4951-bcc2-73afedeabb31",
+              "US__ccc74965-3cce-40d9-a3ff-aab4791fabce",
+              "US__939e0eed-aed5-4a7f-9663-6045dc491fea",
+              "US__ca5df926-ee4c-4972-b802-08065b0f2236",
+              "US__f4e8e822-8e08-40b0-aea4-497371714af8",
+              "US__155277ee-2137-410a-989d-902c40458401",
+              "US__f0f70927-2d7e-4b80-9663-4f1af7036004",
+              "US__1ac3b59b-d755-4ee0-bed3-c00c7b9dc3aa",
+              "US__3d7ced0b-16e2-4950-8857-1abf726791e2",
+              "US__64623d4c-c9d4-4a4d-abca-c002fb082bf7",
+              "US__e51df0ff-549d-4ecf-bd95-3911116100c6",
+              "US__71950125-a9e6-46bc-901e-ffc9c228af7e",
+              "US__4dd51ddb-bcbe-4477-af17-ac188ccde591",
+              "US__f2bec3ba-9e66-43ba-94ba-cdb2d58b336f"
+            ],
+            "derivedResults": [
+              {
+                "featureCode": "3101",
+                "quantity": "1",
+                "name": null,
+                "description": null
+              },
+              {
+                "featureCode": "3211",
+                "quantity": "8",
+                "name": "MI_P",
+                "description": null
+              },
+              {
+                "featureCode": "3228",
+                "quantity": "10",
+                "name": "MI_P",
+                "description": null
+              }
+            ],
+            "autoConnectResults": [],
+            "removedResults": [],
+            "children": [],
+            "vlhId": null,
+            "asVLH": false,
+            "lockedSpace": [],
+            "childrenStability": {},
+            "hipoServiceCtoServices": [],
+            "configurationId": "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d"
+          },
+          {
+            "id": "US__3398fc2f-b7b5-4f86-bded-62a1374028f9",
+            "quantity": 9,
+            "type": "switch",
+            "size": 1,
+            "originalIds": [
+              "US__3398fc2f-b7b5-4f86-bded-62a1374028f9",
+              "US__a7b1ad31-c65a-46a4-a7ee-3284f6f6f433",
+              "US__65b50a68-03d3-4c54-b6a1-9190d93529b7",
+              "US__04eaa464-d47d-43e0-abb5-46982f652717",
+              "US__2224d0fb-bcf4-4d6b-851c-8ef38813c577",
+              "US__f57b97ba-66fd-4a79-a431-a0f4624c350c",
+              "US__7ab5c107-a0d7-4c22-973f-57778740a7d3",
+              "US__06caed27-fe98-4b64-865e-e93065c4a28e",
+              "US__531925f6-756e-4fac-a969-55de8fbc096d"
+            ],
+            "derivedResults": [
+              {
+                "featureCode": "3101",
+                "quantity": "1",
+                "name": null,
+                "description": null
+              },
+              {
+                "featureCode": "3219",
+                "quantity": "9",
+                "name": "MI_P",
+                "description": null
+              }
+            ],
+            "autoConnectResults": [],
+            "removedResults": [],
+            "children": [],
+            "vlhId": null,
+            "asVLH": false,
+            "lockedSpace": [],
+            "childrenStability": {},
+            "hipoServiceCtoServices": [],
+            "configurationId": "US__3398fc2f-b7b5-4f86-bded-62a1374028f9"
+          },
+          {
+            "id": "US__b5989a91-1292-4fe3-8476-485a75e8869e",
+            "quantity": 2,
+            "type": "switch",
+            "size": 1,
+            "originalIds": [
+              "US__b5989a91-1292-4fe3-8476-485a75e8869e",
+              "US__3b72a5cb-838c-4970-a116-4d47c43cc31f"
+            ],
+            "derivedResults": [
+              {
+                "featureCode": "3101",
+                "quantity": "1",
+                "name": null,
+                "description": null
+              },
+              {
+                "featureCode": "3245",
+                "quantity": "2",
+                "name": "MI_P",
+                "description": null
+              }
+            ],
+            "autoConnectResults": [],
+            "removedResults": [],
+            "children": [],
+            "vlhId": null,
+            "asVLH": false,
+            "lockedSpace": [],
+            "childrenStability": {},
+            "hipoServiceCtoServices": [],
+            "configurationId": "US__b5989a91-1292-4fe3-8476-485a75e8869e"
+          }
+        ],
+        "vlhId": null,
+        "asVLH": false,
+        "lockedSpace": [],
+        "childrenStability": {},
+        "hipoServiceCtoServices": [],
+        "configurationId": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50"
+      }
+    ],
+    "nonRackArea": [
+      {
+        "id": "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30",
+        "quantity": 1,
+        "type": "server",
+        "size": 1,
+        "originalIds": [
+          "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30"
+        ],
+        "derivedResults": [],
+        "autoConnectResults": [],
+        "removedResults": [],
+        "children": [],
+        "vlhId": null,
+        "asVLH": false,
+        "lockedSpace": [],
+        "childrenStability": {},
+        "hipoServiceCtoServices": [],
+        "configurationId": "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30"
+      }
+    ],
+    "floorItems": [
+      {
+        "rackItem": {
+          "facing": "N",
+          "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50"
+        },
+        "row": 0,
+        "col": 0,
+        "aisle": "\u0000",
+        "rackPosition": "A1",
+        "rack": true
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 1,
+        "aisle": "\u0000",
+        "rackPosition": "A2",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 2,
+        "aisle": "\u0000",
+        "rackPosition": "A3",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 3,
+        "aisle": "\u0000",
+        "rackPosition": "A4",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 0,
+        "col": 4,
+        "aisle": "\u0000",
+        "rackPosition": "A5",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 0,
+        "aisle": "H",
+        "rackPosition": "B1",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 1,
+        "aisle": "H",
+        "rackPosition": "B2",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 2,
+        "aisle": "H",
+        "rackPosition": "B3",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 3,
+        "aisle": "H",
+        "rackPosition": "B4",
+        "rack": false
+      },
+      {
+        "rackItem": {
+          "facing": "\u0000",
+          "id": null
+        },
+        "row": 1,
+        "col": 4,
+        "aisle": "H",
+        "rackPosition": "B5",
+        "rack": false
+      }
+    ],
+    "cloneRackMapping": {}
+  },
+  "cloneDependencyColor": {
+    "US__b5989a91-1292-4fe3-8476-485a75e8869e": {
+      "color": "#bb9195",
+      "darkColor": "#7481a4",
+      "dependBy": [
+        "US__3b72a5cb-838c-4970-a116-4d47c43cc31f",
+        "US__b5989a91-1292-4fe3-8476-485a75e8869e"
+      ],
+      "colorRGB": {
+        "r": -69,
+        "g": -111,
+        "b": -107
+      },
+      "darkColorRGB": {
+        "r": 116,
+        "g": -127,
+        "b": -92
+      }
+    },
+    "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30": {
+      "color": "#4ac5bb",
+      "darkColor": "#9a74d7",
+      "dependBy": [
+        "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30"
+      ],
+      "colorRGB": {
+        "r": 74,
+        "g": -59,
+        "b": -69
+      },
+      "darkColorRGB": {
+        "r": -102,
+        "g": 116,
+        "b": -41
+      }
+    },
+    "US__3398fc2f-b7b5-4f86-bded-62a1374028f9": {
+      "color": "#bb86bb",
+      "darkColor": "#749b04",
+      "dependBy": [
+        "US__04eaa464-d47d-43e0-abb5-46982f652717",
+        "US__06caed27-fe98-4b64-865e-e93065c4a28e",
+        "US__2224d0fb-bcf4-4d6b-851c-8ef38813c577",
+        "US__3398fc2f-b7b5-4f86-bded-62a1374028f9",
+        "US__531925f6-756e-4fac-a969-55de8fbc096d",
+        "US__65b50a68-03d3-4c54-b6a1-9190d93529b7",
+        "US__7ab5c107-a0d7-4c22-973f-57778740a7d3",
+        "US__a7b1ad31-c65a-46a4-a7ee-3284f6f6f433",
+        "US__f57b97ba-66fd-4a79-a431-a0f4624c350c"
+      ],
+      "colorRGB": {
+        "r": -69,
+        "g": -122,
+        "b": -69
+      },
+      "darkColorRGB": {
+        "r": 116,
+        "g": -101,
+        "b": 4
+      }
+    },
+    "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50": {
+      "color": "#eac1bb",
+      "darkColor": "#a7f174",
+      "dependBy": [
+        "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50"
+      ],
+      "colorRGB": {
+        "r": -22,
+        "g": -63,
+        "b": -69
+      },
+      "darkColorRGB": {
+        "r": -89,
+        "g": -15,
+        "b": 116
+      }
+    },
+    "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d": {
+      "color": "#bbe550",
+      "darkColor": "#4374a0",
+      "dependBy": [
+        "US__155277ee-2137-410a-989d-902c40458401",
+        "US__1ac3b59b-d755-4ee0-bed3-c00c7b9dc3aa",
+        "US__37da3934-7531-4951-bcc2-73afedeabb31",
+        "US__3d7ced0b-16e2-4950-8857-1abf726791e2",
+        "US__4dd51ddb-bcbe-4477-af17-ac188ccde591",
+        "US__57e57c33-bcad-4ca1-9d76-2f9618872ab9",
+        "US__64623d4c-c9d4-4a4d-abca-c002fb082bf7",
+        "US__71950125-a9e6-46bc-901e-ffc9c228af7e",
+        "US__850f6547-9505-49b4-b183-eb9d050c87d4",
+        "US__939e0eed-aed5-4a7f-9663-6045dc491fea",
+        "US__b34972b9-d845-41f6-98bd-8e905f680b2d",
+        "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d",
+        "US__ca5df926-ee4c-4972-b802-08065b0f2236",
+        "US__ccc74965-3cce-40d9-a3ff-aab4791fabce",
+        "US__e51df0ff-549d-4ecf-bd95-3911116100c6",
+        "US__f0f70927-2d7e-4b80-9663-4f1af7036004",
+        "US__f2bec3ba-9e66-43ba-94ba-cdb2d58b336f",
+        "US__f4e8e822-8e08-40b0-aea4-497371714af8"
+      ],
+      "colorRGB": {
+        "r": -69,
+        "g": -27,
+        "b": 80
+      },
+      "darkColorRGB": {
+        "r": 67,
+        "g": 116,
+        "b": -96
+      }
+    }
+  },
+  "floorInformation": {
+    "floorGrid": [
+      {
+        "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+        "key": null,
+        "sourceId": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+        "facing": "N",
+        "adjusted": false,
+        "height": null,
+        "type": "rack",
+        "width": null,
+        "uheight": 44.45,
+        "depth": 1200.0,
+        "color": "#eac1bb",
+        "aisle": null,
+        "col": 0,
+        "row": 0,
+        "coordinate": "A1",
+        "items": [
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d",
+            "position": 11,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__b34972b9-d845-41f6-98bd-8e905f680b2d",
+            "position": 12,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__850f6547-9505-49b4-b183-eb9d050c87d4",
+            "position": 13,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__57e57c33-bcad-4ca1-9d76-2f9618872ab9",
+            "position": 14,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__37da3934-7531-4951-bcc2-73afedeabb31",
+            "position": 15,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__ccc74965-3cce-40d9-a3ff-aab4791fabce",
+            "position": 16,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__939e0eed-aed5-4a7f-9663-6045dc491fea",
+            "position": 17,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__ca5df926-ee4c-4972-b802-08065b0f2236",
+            "position": 18,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__3398fc2f-b7b5-4f86-bded-62a1374028f9",
+            "position": 19,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__a7b1ad31-c65a-46a4-a7ee-3284f6f6f433",
+            "position": 20,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__65b50a68-03d3-4c54-b6a1-9190d93529b7",
+            "position": 21,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__04eaa464-d47d-43e0-abb5-46982f652717",
+            "position": 22,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__2224d0fb-bcf4-4d6b-851c-8ef38813c577",
+            "position": 23,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__f57b97ba-66fd-4a79-a431-a0f4624c350c",
+            "position": 24,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__7ab5c107-a0d7-4c22-973f-57778740a7d3",
+            "position": 25,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__06caed27-fe98-4b64-865e-e93065c4a28e",
+            "position": 26,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DJYCTO3WW",
+            "id": "US__531925f6-756e-4fac-a969-55de8fbc096d",
+            "position": 27,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb86bb",
+            "description": "Lenovo NVIDIA GB300 NVLink Switch Tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__f4e8e822-8e08-40b0-aea4-497371714af8",
+            "position": 28,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__155277ee-2137-410a-989d-902c40458401",
+            "position": 29,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__f0f70927-2d7e-4b80-9663-4f1af7036004",
+            "position": 30,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__1ac3b59b-d755-4ee0-bed3-c00c7b9dc3aa",
+            "position": 31,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__3d7ced0b-16e2-4950-8857-1abf726791e2",
+            "position": 32,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__64623d4c-c9d4-4a4d-abca-c002fb082bf7",
+            "position": 33,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__e51df0ff-549d-4ecf-bd95-3911116100c6",
+            "position": 34,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__71950125-a9e6-46bc-901e-ffc9c228af7e",
+            "position": 35,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__4dd51ddb-bcbe-4477-af17-ac188ccde591",
+            "position": 36,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DLZCTO2WW",
+            "id": "US__f2bec3ba-9e66-43ba-94ba-cdb2d58b336f",
+            "position": 37,
+            "size": 1,
+            "type": "server",
+            "color": "#bbe550",
+            "description": "Lenovo NVIDIA GB300 4GPU DWC Compute tray"
+          },
+          {
+            "code": "7DJWCTO2WW",
+            "id": "US__b5989a91-1292-4fe3-8476-485a75e8869e",
+            "position": 45,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb9195",
+            "description": "Lenovo NVIDIA SN2201 1GbE Managed Switch"
+          },
+          {
+            "code": "7DJWCTO2WW",
+            "id": "US__3b72a5cb-838c-4970-a116-4d47c43cc31f",
+            "position": 46,
+            "size": 1,
+            "type": "switch",
+            "color": "#bb9195",
+            "description": "Lenovo NVIDIA SN2201 1GbE Managed Switch"
+          }
+        ],
+        "lockedSpace": [],
+        "description": "Lenovo 48U MGX Rack"
+      },
+      {
+        "id": null,
+        "key": "3578a798-e426-4039-ba5a-1d6871764011",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 1,
+        "row": 0,
+        "coordinate": "A2",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "aca1adfa-a95a-4585-b3f8-9ae94905aaf5",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 2,
+        "row": 0,
+        "coordinate": "A3",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "1ca6816b-15b5-4f8e-930f-9bb80486a169",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 3,
+        "row": 0,
+        "coordinate": "A4",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "90f5bb2c-3f4f-4017-9e6c-733e703694db",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "empty",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": null,
+        "col": 4,
+        "row": 0,
+        "coordinate": "A5",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "d6e772f9-c6e4-41ef-af78-8343a8e3aff7",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 0,
+        "row": 1,
+        "coordinate": "B1",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "b427875b-3ae0-4315-a18e-f0b1d36f4aa4",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 1,
+        "row": 1,
+        "coordinate": "B2",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "20f3069c-7d82-477c-8668-ba57f9177853",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 2,
+        "row": 1,
+        "coordinate": "B3",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "3ece71d3-ed85-41b9-b5e6-cc5ec1a28ccf",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 3,
+        "row": 1,
+        "coordinate": "B4",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      },
+      {
+        "id": null,
+        "key": "eed7b20e-8c3e-4a82-a0c7-7f2b52bf067a",
+        "sourceId": null,
+        "facing": null,
+        "adjusted": null,
+        "height": null,
+        "type": "aisle",
+        "width": null,
+        "uheight": null,
+        "depth": null,
+        "color": null,
+        "aisle": "H",
+        "col": 4,
+        "row": 1,
+        "coordinate": "B5",
+        "items": null,
+        "lockedSpace": null,
+        "description": null
+      }
+    ],
+    "floorGridSettings": {
+      "colCount": 5,
+      "rowCount": 2,
+      "hotIndexes": [
+        1
+      ],
+      "coldIndexes": [
+        3
+      ]
+    },
+    "floorPreference": {
+      "growthRatioHorizontal": 1,
+      "growthRatioVertical": 1,
+      "rackDist": 0.01,
+      "vertDist": 0.5,
+      "coldDist": 3.0,
+      "hotDist": 2.0,
+      "slackDist": 0.0,
+      "useTrayCabling": false
+    }
+  },
+  "configuration": [
+    {
+      "id": "US__8ccbeac7-5c5f-48d6-aa06-ef0292fd91d50",
+      "code": "7DJVCTO2WW",
+      "type": "rack",
+      "quantity": 1
+    },
+    {
+      "id": "US__bf716c68-8b91-4fa5-af02-a0309f8fcd3d",
+      "code": "7DLZCTO2WW",
+      "type": "server",
+      "quantity": 1
+    },
+    {
+      "id": "US__3398fc2f-b7b5-4f86-bded-62a1374028f9",
+      "code": "7DJYCTO3WW",
+      "type": "switch",
+      "quantity": 1
+    },
+    {
+      "id": "US__b5989a91-1292-4fe3-8476-485a75e8869e",
+      "code": "7DJWCTO2WW",
+      "type": "switch",
+      "quantity": 1
+    },
+    {
+      "id": "US__917c5757-56b7-47b3-ad0e-e04350bbf5ad30",
+      "code": "7DLZCTO2WW",
+      "type": "server",
+      "quantity": 1
+    }
+  ],
+  "provenance": "Anonymous Lenovo SID0001325 Customize response captured 2026-10-16; identity, hierarchy and floor subset."
+}

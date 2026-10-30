@@ -3,8 +3,7 @@ import type { RawConfiguration } from '../model/types.js';
 /**
  * Power and thermal figures, when DCSC supplies a numeric report.
  *
- * There is a /powercalculation/powercalculate endpoint, but it is not needed:
- * supported launch and autoDerive responses carry a computed
+ * Supported launch and autoDerive responses carry a computed
  * `powerReportResponse` for the configuration as selected. Some current
  * products omit that report; callers must preserve unavailable metrics. For AI factory work these numbers are the
  * binding design constraint long before price is — a single 8-GPU node draws
@@ -34,6 +33,13 @@ export interface PowerReport {
 }
 
 type Obj = Record<string, unknown>;
+
+/** The website exports the saved report's load factor, including zero. */
+export function powerLoadFactor(raw: RawConfiguration): number | undefined {
+  const container = raw.powerReportResponse;
+  const report = container && typeof container === 'object' ? (container as Obj)['powerReport'] : undefined;
+  return num(report && typeof report === 'object' ? (report as Obj)['loadFactor'] : undefined) ?? num(raw.loadFactor);
+}
 
 function band(v: unknown): PowerBand | undefined {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined;

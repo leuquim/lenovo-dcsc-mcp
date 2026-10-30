@@ -2503,9 +2503,17 @@ function validateKnownReferences(workspace: WorkspaceSession): void {
   for (const item of workspace.rackArea) {
     if (typeof item['id'] === 'string') rackIds.add(item['id']);
   }
+  const cableEndpointIds = new Set(configurationIds);
+  try {
+    for (const [physicalId, templateId] of storagePhysicalTemplateIds(workspace)) {
+      if (configurationIds.has(templateId)) cableEndpointIds.add(physicalId);
+    }
+  } catch (error) {
+    markDamaged(workspace, `Cable endpoint ownership could not be resolved: ${String(error)}`, workspace.serverState.cloneDependency);
+  }
   workspace.cables = workspace.cables.filter((cable) => {
     const valid =
-      configurationIds.has(cable.fromConfigId) && configurationIds.has(cable.toConfigId);
+      cableEndpointIds.has(cable.fromConfigId) && cableEndpointIds.has(cable.toConfigId);
     if (!valid) markDamaged(workspace, `Cable ${cable.id} has a missing endpoint`, cable);
     return valid;
   });

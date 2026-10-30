@@ -1,0 +1,458 @@
+{
+  "capturedAt": "2026-10-29",
+  "source": "Native General Purpose SR630 V3 Engineering Power Report: select 230V AC, change load factor to 100, Save, capture Export form. Two powercalculate requests; Save made no autoDerive request.",
+  "productCode": "7D73CTO1WW",
+  "request": [
+    {
+      "features": [
+        {
+          "characterName": "US_SHIPMENT_INDICATOR",
+          "featureCode": "CA0Z",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "BASE",
+          "featureCode": "BLK4",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "UEFI_OPERATING_MODES",
+          "featureCode": "BFYE",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "HIGH_TDP_TEMPERATURE",
+          "featureCode": "BVGL",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "PROCESSOR",
+          "featureCode": "BYW3",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "MEMORY",
+          "featureCode": "BWHS",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "RAID_CONFIG",
+          "featureCode": "5977",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "POWERSUPPLY",
+          "featureCode": "BNFG",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 2
+        },
+        {
+          "characterName": "RACK_POWERCABLE",
+          "featureCode": "6400",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 2
+        },
+        {
+          "characterName": "MECH_FRONT_IO",
+          "featureCode": "BLKD",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "FAN",
+          "featureCode": "BH9M",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 6
+        },
+        {
+          "characterName": "RAIL_KIT",
+          "featureCode": "B8LA",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "TPM_MODULE",
+          "featureCode": "BPKR",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "IPMI",
+          "featureCode": "B7XZ",
+          "ctoCode": "7D73CTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QA0F",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QAKT",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QA08",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QA03",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QA0A",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Lenovo Recommends|Better",
+          "featureCode": "QABL",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "A la Carte|Column3|3 Years",
+          "featureCode": "QA0F",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "A la Carte|Column3|3 Years",
+          "featureCode": "QAKT",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "A la Carte|Column3|3 Years",
+          "featureCode": "QA08",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "A la Carte|Column3|3 Years",
+          "featureCode": "QA03",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Add ons|Keep Your Drive|3 Years",
+          "featureCode": "QA0A",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Add ons|Keep Your Drive|3 Years",
+          "featureCode": "QAKT",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Add ons|Keep Your Drive|3 Years",
+          "featureCode": "QA03",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "Add ons|CO2 Offset|CO2 Offset",
+          "featureCode": "QABL",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "COMMITTED_SERVICE_REPAIR_TIME_CFC",
+          "featureCode": "QASW",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "INSTALLATION_CFC",
+          "featureCode": "QAB4",
+          "ctoCode": "7QCFCTO1WW",
+          "quantity": 1
+        },
+        {
+          "characterName": "T1GT",
+          "featureCode": "SCJD",
+          "ctoCode": "7S0XCTO6WW",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "T167",
+          "featureCode": "SBCV",
+          "ctoCode": "7S0XCTO5WW",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MB",
+          "featureCode": "C9RM",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "OTHER_MI",
+          "featureCode": "BVMC",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "OTHER_MI",
+          "featureCode": "C8WP",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "SYSTEM_MANAGEMENT_UPGRADE",
+          "featureCode": "BRPJ",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "POWER_POLICY_MI",
+          "featureCode": "BE0E",
+          "derived": false,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "BEYJ",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B8NM",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "BCEB",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "AVEN",
+          "derived": true,
+          "quantity": 4
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B8NK",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B8NA",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B8NB",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B8NJ",
+          "derived": true,
+          "quantity": 2
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "AUWG",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_FILLERS_DUMMY",
+          "featureCode": "B5WJ",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MECH_DERIVE_FCS",
+          "featureCode": "BQBP",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MECH_DERIVE_FCS",
+          "featureCode": "BPFK",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MECH_DERIVE_FCS",
+          "featureCode": "B984",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MECH_DERIVE_FCS",
+          "featureCode": "C9RN",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "MECH_DERIVE_FCS",
+          "featureCode": "B989",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "VOLTAGE_MI",
+          "featureCode": "BK14",
+          "derived": false,
+          "quantity": 1
+        },
+        {
+          "characterName": "LPK",
+          "featureCode": "BPK3",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "B97B",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "B8JV",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "BPD7",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "BPD6",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "AWF9",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "AUTQ",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "BQPS",
+          "derived": true,
+          "quantity": 1
+        },
+        {
+          "characterName": "DERIVE_LABELS",
+          "featureCode": "CJ1L",
+          "derived": true,
+          "quantity": 1
+        }
+      ],
+      "operationVoltage": {
+        "level": "High",
+        "type": "AC",
+        "displayValue": "230V",
+        "actualValue": "230"
+      },
+      "type": "server",
+      "productNumber": "7D73CTO1WW",
+      "utilization": 100,
+      "currentPowerPolicy": 5
+    }
+  ],
+  "response": {
+    "powerReport": {
+      "inputPower": {
+        "idle": 73.6,
+        "max": 250.3,
+        "loadFactorResult": 250.3,
+        "worst": 375.8
+      },
+      "inputCurrent": {
+        "idle": 0.4,
+        "max": 1.2,
+        "loadFactorResult": 1.2,
+        "worst": 1.7
+      },
+      "apparentPower": {
+        "idle": 99.6,
+        "max": 266.0,
+        "loadFactorResult": 266.0,
+        "worst": 386.6
+      },
+      "heatGeneration": {
+        "idle": 251.2,
+        "max": 854.0,
+        "loadFactorResult": 854.0,
+        "worst": 1282.2
+      },
+      "totalPower": {
+        "idle": 40.1,
+        "max": 226.6,
+        "loadFactorResult": 226.6,
+        "worst": 346.1
+      },
+      "system5": 12.0,
+      "loadFactor": 100.0,
+      "operatingVoltage": "230V-AC",
+      "voltageMI": "BK15",
+      "productType": "purley",
+      "powerPolicy": {
+        "key": "N_PLUS_N_REDUNDANT_WITH_OVER_SUBSCRIPTION",
+        "description": "N+N redundancy with over-subscription",
+        "value": 5
+      },
+      "powerUtilization": 38.46,
+      "energyStar": false
+    },
+    "errorMsg": [],
+    "powerPolicyMI": "BE0E"
+  },
+  "expectedExport": {
+    "code": "7D73CTO1WW",
+    "voltage": {
+      "level": "High",
+      "type": "AC",
+      "displayValue": "230V",
+      "actualValue": "230"
+    },
+    "currentPowerPolicy": 5,
+    "loadFactor": 100
+  },
+  "expectedMetadata": {
+    "POWER_POLICY_MI": "BE0E",
+    "VOLTAGE_MI": "BK15"
+  }
+}

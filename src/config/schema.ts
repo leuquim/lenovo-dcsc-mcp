@@ -127,12 +127,14 @@ export const ConfigSchema = z.object({
    */
   credentials: z.null().default(null),
 
-  pacing: PacingSchema.default({}),
-  timeouts: TimeoutsSchema.default({}),
-  retry: RetrySchema.default({}),
-  breaker: BreakerSchema.default({}),
-  waf: WafSchema.default({}),
-  files: FilesSchema.default({}),
+  // Parse omitted sections so their field defaults are populated. Zod 4's
+  // default({}) would return the empty object without parsing its children.
+  pacing: PacingSchema.prefault({}),
+  timeouts: TimeoutsSchema.prefault({}),
+  retry: RetrySchema.prefault({}),
+  breaker: BreakerSchema.prefault({}),
+  waf: WafSchema.prefault({}),
+  files: FilesSchema.prefault({}),
 
   /** `lenient` in production; `strict` only in the contract-test suite. */
   schemaMode: z.enum(['lenient', 'strict']).default('lenient'),

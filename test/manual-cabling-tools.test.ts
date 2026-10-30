@@ -22,13 +22,16 @@ function setup() {
     ] } });
   const editManualCabling = vi.fn().mockResolvedValue({ workspace: 'workspace-1', revision: 8,
     connection: { ...connection, type: 'MANUAL' } });
+  const inspectNativeManualCabling = vi.fn().mockResolvedValue({ workspace: 'workspace-1', revision: 7, report: { choices: Array.from({ length: 50 }, (_, i) => ({ part: `C${i}`, selection: { quantity: 1 } })) } });
+  const createNativeManualCabling = vi.fn().mockResolvedValue({ workspace: 'workspace-1', revision: 8, connection: { ...connection, type: 'MANUAL' } });
+  const inspectManualCableChoices = vi.fn().mockImplementation(() => inspectManualCabling());
   const service: ManualCablingService = { newCtx: () => ({}) as RequestCtx,
-    inspectManualCabling, editManualCabling };
+    inspectManualCabling, inspectManualCableChoices, editManualCabling, inspectNativeManualCabling, createNativeManualCabling };
   const handlers = new Map<string, Handler>();
   registerManualCablingTools({ registerTool(name: string, _definition: unknown, callback: Handler) {
     handlers.set(name, callback); return { remove() {}, update() {} };
   } } as unknown as McpServer, service);
-  return { handlers, inspectManualCabling, editManualCabling, connection };
+  return { handlers, inspectManualCabling, inspectManualCableChoices, editManualCabling, inspectNativeManualCabling, createNativeManualCabling, connection };
 }
 
 function json(reply: Reply): Obj {
@@ -85,10 +88,10 @@ describe('manual cabling MCP tools', () => {
 
     await value.handlers.get('dcsc_edit_cabling_connection')!({
       session: 'workspace-1', connectionId: value.connection.id,
-      cablePart: '3802', expectedRevision: 8,
+      cablePart: '3802', cableQuantities: { oldPart: 2, newPart: 2 }, expectedRevision: 8,
     });
     expect(value.editManualCabling).toHaveBeenLastCalledWith('workspace-1', expect.objectContaining({
-      connectionId: value.connection.id, cablePart: '3802', expectedRevision: 8,
+      connectionId: value.connection.id, cablePart: '3802', cableQuantities: { oldPart: 2, newPart: 2 }, expectedRevision: 8,
       ctx: expect.any(Object),
     }));
   });
@@ -128,4 +131,59 @@ describe('manual cabling MCP tools', () => {
     expect((json(reply)['swappedConnections'] as Obj[])[0]).not.toHaveProperty('compatibleCables');
     expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8_000);
   });
+});
+
+
+describe('native manual creation tools', () => {
+  it('preserves endpoint and revision arguments in cable discovery continuations', async () => {
+    const value = setup();
+    const args = { session: 'workspace-1', network: 'Management', topology: '1GbE_Copper', connectionType: 'breakout-4',
+      source: value.connection.source, destination: value.connection.destination, expectedRevision: 7,
+      path: [], offset: 0, limit: 20 };
+    const reply = json(await value.handlers.get('dcsc_manual_cabling_options')!(args));
+    const next = ((reply['items'] as Obj[])[0]!['next'] as Obj);
+    expect(next).toMatchObject({ tool: 'dcsc_manual_cabling_options', arguments: {
+      source: args.source, destination: args.destination, network: args.network, connectionType: 'breakout-4', expectedRevision: 7, path: ['choices'],
+    } });
+    await value.handlers.get('dcsc_manual_cabling_options')!(next['arguments'] as Obj);
+    expect(value.inspectNativeManualCabling).toHaveBeenCalledTimes(2);
+  });
+  it('creates native connections with bounded results and propagates rejection', async () => {
+    const value = setup();
+    const args = { session: 'workspace-1', network: 'Management', topology: '1GbE_Copper',
+      source: value.connection.source, destination: value.connection.destination, expectedRevision: 7, cablePart: 'AVFT' };
+    const reply = json(await value.handlers.get('dcsc_create_cabling_connection')!(args));
+    expect(reply).toMatchObject({ workspaceRevision: 8, connection: { type: 'MANUAL' }, inspect: { tool: 'dcsc_cabling_connections' } });
+    expect(reply['connection']).not.toHaveProperty('compatibleCables');
+    expect(value.createNativeManualCabling).toHaveBeenCalledWith('workspace-1', expect.objectContaining({ cablePart: 'AVFT', expectedRevision: 7 }));
+    value.createNativeManualCabling.mockRejectedValueOnce(new Error('Native port is already connected'));
+    expect((await value.handlers.get('dcsc_create_cabling_connection')!(args)).isError).toBe(true);
+  });
+});
+it('reports all shared-cable branch changes without expanding their compatible catalogs', async () => {
+  const value = setup();
+  value.editManualCabling.mockResolvedValueOnce({ workspace: 'workspace-1', revision: 8,
+    connection: { ...value.connection, category: 'BREAKOUT', divider: 4 },
+    updatedConnections: [2, 3, 4].map(n => ({ ...value.connection, id: `branch-${n}`, category: 'BREAKOUT', divider: 4,
+      source: { ...value.connection.source, portNumber: String(n) } })),
+  });
+  const reply = await value.handlers.get('dcsc_edit_cabling_connection')!({ session: 'workspace-1', expectedRevision: 7,
+    connectionId: value.connection.id, cablePart: 'AV23' });
+  expect(reply.isError).not.toBe(true);
+  const result = json(reply);
+  expect(result['updatedConnections']).toHaveLength(3);
+  expect((result['updatedConnections'] as Obj[]).every(row => row['divider'] === 4 && !('compatibleCables' in row))).toBe(true);
+  expect(result).not.toHaveProperty('swappedConnections');
+  expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8_000);
+});
+
+
+it('retains fresh-choice targeting and the revision guard in inspection continuations', async () => {
+  const value = setup();
+  const reply = await value.handlers.get('dcsc_cabling_connections')!({ session: 'workspace-1',
+    expectedWorkspaceRevision: 7, refreshConnectionId: 'row-1', path: [], offset: 0, limit: 20 });
+  expect(reply.isError).not.toBe(true);
+  expect(value.inspectManualCableChoices).toHaveBeenCalledWith('workspace-1', 'row-1', 7, {});
+  const entry = (json(reply)['items'] as Obj[]).find(item => item['key'] === 'connections')!;
+  expect(entry).toMatchObject({ next: { arguments: { refreshConnectionId: 'row-1', expectedWorkspaceRevision: 7 } } });
 });

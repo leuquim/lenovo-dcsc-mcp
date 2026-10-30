@@ -217,3 +217,47 @@ describe('independent physical rack Copy service orchestration', () => {
     expect(result['configurationId']).not.toBe('server-1');
   });
 });
+
+
+it.each([false, true])('copies a populated HPC chassis atomically (drop child: %s)', async dropChild => {
+  const { service, workspace, source, rackRaw } = setup();
+  workspace.solution.solutionMode = 'HPC and AI - Systems';
+  source.raw.type = 'chassis';
+  const physical = (workspace.rackArea[0]!['rackItems'] as Obj[])[0]!;
+  physical['type'] = 'chassis'; physical['size'] = 2;
+  physical['nodes'] = [{ id: 'node-1', configurationId: 'node-1', name: 'Node', code: 'NODE', type: 'node', occupiedBay: 1 }];
+  const nodeRaw: RawConfiguration = { id: 'node-1', name: 'Node', code: 'NODE', type: 'node', quantity: 1, totalPrice: 100, tabs: [] };
+  service.sessions.create({ locale: service.locale, solution: workspace.solution, mode: 'cto', raw: nodeRaw,
+    configurationId: 'node-1', reduced: reduceConfiguration(nodeRaw, 'node-1'), primed: true, workspaceId: workspace.id });
+  workspace.serverState.cloneDependency = { ...(workspace.serverState.cloneDependency as Obj), 'node-1': ['node-1'] };
+  const priorDependency = structuredClone(workspace.serverState.cloneDependency);
+  const before = snapshot(service);
+  const { calls, send } = installAcceptedCopy(service, rackRaw);
+  if (dropChild) send.mockImplementation(async request => {
+    const body = request.body?.kind === 'json' ? request.body.value as Obj : {};
+    const rackArea = structuredClone(body['rackArea'] as Obj[]);
+    ((rackArea[0]!['rackItems'] as Obj[])[1]!)['nodes'] = [];
+    return { raw: { rackArea, nonRackArea: [], connections: [], errors: [] } } as never;
+  });
+  const operation = service.copyRackItem(source.id, { expectedRevision: workspace.revision, ctx: service.newCtx() });
+  if (dropChild) {
+    await expect(operation).rejects.toThrow(/nested|node|child/i);
+    expect(snapshot(service)).toEqual(before);
+    return;
+  }
+  const result = await operation;
+  expect(calls.map(c => c.endpoint)).toEqual(['racks_customize']);
+  const body = calls[0]!.body;
+  expect(body?.kind === 'json' && (body.value as Obj)['cloneDependency']).toEqual(priorDependency);
+  expect(result.nestedCopies).toHaveLength(1);
+  const child = result.nestedCopies[0]!;
+  expect(child.raw.name).toBe('Copy_Node');
+  expect(workspace.serverState.cloneDependency).toMatchObject({
+    'node-1': ['node-1'], [child.configurationId]: [child.configurationId],
+    'server-1': ['server-1'], [result.copy.configurationId]: [result.copy.configurationId],
+  });
+  expect(await service.sessions.undoWorkspace(workspace.id, workspace.revision)).toBe(true);
+  expect(workspace.configurations.size).toBe(3);
+  expect(await service.sessions.redoWorkspace(workspace.id, workspace.revision)).toBe(true);
+  expect(workspace.configurations.size).toBe(5);
+});

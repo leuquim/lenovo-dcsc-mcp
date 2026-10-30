@@ -68,6 +68,15 @@ describe('fabric vocabulary', () => {
 });
 
 describe('auto-connect state adapter', () => {
+  it('seeds connections only through the explicit manual-creation argument', async () => {
+    const calls: SendInput[] = [];
+    const seed = [{ type: 'MANUAL', cablePart: '3791' }];
+    await autoConnect(httpReturning({ auto_connect: fixture.autoConnectResponse }, calls), ctx,
+      { rackArea: [{ id: 'rack-1' }], configurations: [], connections: [{ type: 'STALE' }] }, undefined, seed);
+    const sent = calls[0]?.body?.kind === 'json' ? calls[0].body.value as Record<string, unknown> : {};
+    expect(sent.connections).toEqual(seed);
+    expect(sent.connections).not.toBe(seed);
+  });
   it('passes complete workspace state and preserves complete response state', async () => {
     const calls: SendInput[] = [];
     const priorConnections = [{ id: 'manual-or-stale-row', cablePart: 'OLD' }];

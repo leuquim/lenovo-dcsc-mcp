@@ -1,5 +1,6 @@
 import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
 import { readConnectionGraph } from '../domain/cabling.js';
+import { cablingDiagnostics } from '../domain/cablingDiagnostics.js';
 import type { WorkspaceSession } from '../session/SessionStore.js';
 import { projectJsonPage } from './pagedJson.js';
 import { storageConnectionNetworkSource, storageComponentQuantities, storagePhysicalTemplateIds } from '../domain/storagePreferences.js';
@@ -290,6 +291,8 @@ export function workspaceDetailSource(workspace: WorkspaceSession): Record<strin
     rawNonRackArea: structuredClone(workspace.nonRackArea),
     layoutErrors,
     rawConnections,
+    cablingDiagnostics: cablingDiagnostics([...workspace.configurations.values()].map(session => session.raw), workspace.serverState),
+    importDiagnostics: structuredClone(workspace.serverState.lastImportDiagnostics ?? {}),
     autoConnectMessages,
     standaloneSoftware,
     integrityWarnings: [...workspace.integrityWarnings],
@@ -455,6 +458,7 @@ export function projectWorkspaceSummary(
 
   const pages = {
     configurations: collectionNavigation(options, ['configurations'], totals.configurations, 0),
+    cablingDiagnostics: { inspect: continuation(options, ['cablingDiagnostics']) },
     ...(totals.cloneDependency > 0 ? { cloneDependency:
       collectionNavigation(options, ['cloneDependency'], totals.cloneDependency, 0) } : {}),
     ...(totals.cloneDependencyColor > 0 ? { cloneDependencyColor:
@@ -552,6 +556,7 @@ export function projectWorkspaceLayout(
 
   const pages = {
     racks: collectionNavigation(options, ['racks'], totals.racks, 0),
+    cablingDiagnostics: { inspect: continuation(options, ['cablingDiagnostics']) },
     ...(totals.cloneDependency > 0 ? { cloneDependency:
       collectionNavigation(options, ['cloneDependency'], totals.cloneDependency, 0) } : {}),
     ...(totals.cloneDependencyColor > 0 ? { cloneDependencyColor:

@@ -1,0 +1,49 @@
+{
+  "source": "Live Lenovo getTopologies catalog 2026-10-30; reduced to cable identity, category and topology metadata.",
+  "cables": [
+    {
+      "featureCode": "3791",
+      "description": "0.6m Yellow Cat5e Cable",
+      "category": "Cat5E",
+      "topologies": [
+        "Management_Ethernet",
+        "1GbE_Copper"
+      ],
+      "option": "40K8933",
+      "id": "cable:3791:40K8933:ms1752"
+    },
+    {
+      "featureCode": "AV1Z",
+      "description": "Lenovo 1m Passive 100G QSFP28 DAC Cable",
+      "category": "DAC",
+      "topologies": [
+        "100GbE_Copper",
+        "40GbE_Copper"
+      ],
+      "option": "7Z57A03561",
+      "id": "cable:AV1Z:7Z57A03561:r8z2eq"
+    },
+    {
+      "featureCode": "AV22",
+      "description": "Lenovo 1m 100G QSFP28 to 4x25G SFP28 Breakout DAC Cable",
+      "category": "DAC - Break Out",
+      "topologies": [
+        "100GbE_Copper",
+        "40GbE_Copper"
+      ],
+      "option": "7Z57A03564",
+      "id": "cable:AV22:7Z57A03564:1jt0u82"
+    },
+    {
+      "featureCode": "AT2R",
+      "description": "Lenovo 1m Active DAC SFP+ Cable",
+      "category": "DAC",
+      "topologies": [
+        "1GbE_Copper",
+        "10GbE_Copper"
+      ],
+      "option": "00VX111",
+      "id": "cable:AT2R:00VX111:11xx1yw"
+    }
+  ]
+}

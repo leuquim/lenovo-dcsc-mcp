@@ -183,7 +183,8 @@ async function moveNonRack(page: Page, code: string, outDir: string): Promise<vo
   }
   await writeFile(path.join(outDir, `move-source-${code}.html`), await container.evaluate(element => element.outerHTML));
   const pending = page.waitForResponse(response => response.request().method() === 'POST' &&
-    response.url().includes('/api/ctos/racks/customize'), { timeout: 180_000 });
+    response.url().includes('/api/ctos/racks/customize'), { timeout: 180_000 })
+    .then(response => ({ response }), (error: unknown) => ({ error }));
   if (code === CHASSIS) {
     const source = container.locator('.rack-chassis, .rack-horizontal-chassis, .rack-server').last();
     await source.waitFor({ state: 'visible', timeout: 15_000 });
@@ -199,15 +200,18 @@ async function moveNonRack(page: Page, code: string, outDir: string): Promise<vo
     await writeFile(path.join(outDir, `move-options-${code}.json`), JSON.stringify(await menus.allInnerTexts(), null, 2));
     for (const option of [
       page.getByText('Already Configured Nodes', { exact: true }).last(),
-      page.getByText(new RegExp(`\\[${code}\\].*Node.*Non Rack Area`, 'i')).last(),
+      page.getByText(new RegExp(`\\[\\s*${code}\\s*\\][\\s\\S]*Node[\\s\\S]*Non Rack Area`, 'i')).last(),
     ]) {
       await option.waitFor({ state: 'visible', timeout: 15_000 });
       await option.hover();
       await page.waitForTimeout(500);
+      await writeFile(path.join(outDir, `move-expanded-options-${code}.json`), JSON.stringify(await menus.allInnerTexts(), null, 2));
     }
     await page.getByText('As Copy', { exact: true }).last().click();
   }
-  assert.equal((await pending).status(), 200, `${code} move customize`);
+  const settled = await pending;
+  if ('error' in settled) throw settled.error;
+  assert.equal(settled.response.status(), 200, `${code} move customize`);
   await page.waitForTimeout(12_000);
 }
 

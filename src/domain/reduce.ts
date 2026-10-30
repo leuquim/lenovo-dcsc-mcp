@@ -1,4 +1,7 @@
+import { storageWizardOption, storageWizardSections } from './storageWizard.js';
+import { pciWizardSections, pciWizardWireFields } from './pciWizard.js';
 import { detachedNestedNodeIds } from './nestedPhysical.js';
+import { powerLoadFactor } from './power.js';
 import type { ConfigMode } from '../config/constants.js';
 import { hardwareModeFamily } from './modeFamily.js';
 import { randomUUID } from 'node:crypto';
@@ -233,8 +236,9 @@ export interface ReducedConfiguration {
   showExpressMode: boolean;
   expressModeAvailable: boolean;
   showExpressT2Mode: boolean;
+  selectedTceAudience?: unknown;
   serviceCtoFlag: unknown;
-  storageWizardOption: null;
+  storageWizardOption: Record<string, unknown> | null;
   operationHistories: unknown[];
   pinnedList: unknown[];
   delta?: ConfigDelta;
@@ -250,7 +254,8 @@ export function reduceConfiguration(
   mode: 'cto' | 'lfo' = 'cto',
   solutionMode = 'General Purpose',
 ): ReducedConfiguration {
-  const sections = serializeSections(raw);
+  const sections = storageWizardSections(raw, pciWizardSections(raw, serializeSections(raw)));
+  const selectedStorage = storageWizardOption(raw);
   const underlyingCto = nonemptyCode(raw.sliceCtoCode, raw.ctoCode, raw.code);
   const lfoCode = nonemptyCode(raw.lfoCode, mode === 'lfo' ? raw.code : null) || null;
   const modelNumber = mode === 'lfo' ? (lfoCode ?? underlyingCto) : underlyingCto;
@@ -292,13 +297,17 @@ export function reduceConfiguration(
     expansionMessages: Array.isArray(raw.expansionMessages) ? raw.expansionMessages : [],
     voltage: raw.voltage ?? {},
     currentPowerPolicy: raw.currentPowerPolicy ?? 5,
-    loadFactor: raw.loadFactor ?? 70,
+    loadFactor: powerLoadFactor(raw) ?? 70,
     shippingStatus: raw.shippingStatus ?? [],
-    showExpressMode: false,
+    showExpressMode: raw.showExpressMode === true,
     expressModeAvailable: raw.expressModeAvailable === true,
-    showExpressT2Mode: false,
+    showExpressT2Mode: raw.showExpressT2Mode === true,
+    ...(raw.selectedTceAudience !== undefined ? { selectedTceAudience: structuredClone(raw.selectedTceAudience) } : {}),
     serviceCtoFlag: raw.serviceCtoFlag ?? {},
-    storageWizardOption: null,
+    storageWizardOption: selectedStorage,
+    ...(selectedStorage?.['delta'] && typeof selectedStorage['delta'] === 'object'
+      ? { delta: structuredClone(selectedStorage['delta']) as ConfigDelta } : {}),
+    ...pciWizardWireFields(raw),
     operationHistories: [],
     pinnedList: [],
   };
@@ -601,14 +610,16 @@ export function buildExportConfiguration(
     selectedTopologies: config.selectedTopologies ?? {},
     selectedStorageNetwork: config.selectedStorageNetwork,
     serviceCtoFlag: config.serviceCtoFlag,
-    storageWizardOption: null,
+    storageWizardOption: storageWizardOption(raw),
+    ...pciWizardWireFields(raw, 'export'),
     shippingStatus: config.shippingStatus,
     voltage: config.voltage,
     currentPowerPolicy: config.currentPowerPolicy,
     loadFactor: config.loadFactor,
     expressModeAvailable: config.expressModeAvailable,
-    showExpressMode: false,
-    showExpressT2Mode: false,
+    showExpressMode: config.showExpressMode,
+    showExpressT2Mode: config.showExpressT2Mode,
+    ...(config.selectedTceAudience !== undefined ? { selectedTceAudience: structuredClone(config.selectedTceAudience) } : {}),
   };
 }
 
@@ -1081,6 +1092,10 @@ export function buildExportData(opts: {
       floorInformation: floor.information,
       networkingInformation: {
         ...exportNetwork,
+        // Live native state can carry preferences without the imported export mirror.
+        // Explicit empty current selections must also override stale imported values.
+        ...(state.clusterPreference !== undefined ? { clusterPreference: structuredClone(state.clusterPreference) } : {}),
+        ...(state.storageConnectionNetworks !== undefined ? { storageNetworks: structuredClone(state.storageConnectionNetworks) } : {}),
         // Website power-source preferences use {rack, selection, preferredPDU}.
         // Local selected-PDU summaries are derived from the rack BOM and must
         // not replace that distinct, lossless imported preference envelope.

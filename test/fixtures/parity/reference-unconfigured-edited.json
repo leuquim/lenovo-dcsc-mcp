@@ -1,0 +1,69 @@
+{
+  "source": "SID0000978 native Unconfigured edit, eight to four licenses, Express mode retained; 2026-10-30",
+  "totalPrice": 60759.54,
+  "products": [
+    {
+      "code": "7DGDCTO1WW",
+      "type": "hardware",
+      "quantity": 1,
+      "price": 37046.01,
+      "unitPrice": 37046.01
+    },
+    {
+      "code": "7S0XCTO6WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 306.5,
+      "unitPrice": 305.5
+    },
+    {
+      "code": "7S0XCTO8WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 191.5,
+      "unitPrice": 190.5
+    },
+    {
+      "code": "7S1SCTO8WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 1120,
+      "unitPrice": 1119
+    },
+    {
+      "code": "7S1SCTO5WW",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 1961.5,
+      "unitPrice": 1960.5
+    },
+    {
+      "code": "5372SWX",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "5372SWX",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "5374CM1",
+      "type": "hipo",
+      "quantity": 1,
+      "price": 0.02,
+      "unitPrice": 0.01
+    },
+    {
+      "code": "7S1M004HWW",
+      "type": "unconfigured",
+      "quantity": 4,
+      "price": 20138,
+      "unitPrice": 5034.5
+    }
+  ]
+}

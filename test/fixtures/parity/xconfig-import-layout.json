@@ -1,0 +1,103 @@
+{
+  "source": "Native x-config import followed by website rack customization, 2026-10-30",
+  "configuration": [
+    {
+      "id": "US__-7226-4e37-8b9c-6a60c08de0041001",
+      "code": "7DMKCTO1WW",
+      "sliceCtoCode": "7DMKCTO1WW",
+      "type": "server"
+    },
+    {
+      "id": "US__-3af3-4bb1-97c3-0b438b414ba11000",
+      "code": "7D6DCTO1WW",
+      "sliceCtoCode": "7D6DCTO1WW",
+      "type": "rack"
+    }
+  ],
+  "workspace": {
+    "rackArea": [
+      {
+        "id": "US__-3af3-4bb1-97c3-0b438b414ba11000",
+        "quantity": 1,
+        "type": "rack",
+        "size": 42,
+        "originalIds": [
+          "US__-3af3-4bb1-97c3-0b438b414ba11000"
+        ],
+        "derivedResults": [],
+        "autoConnectResults": [],
+        "removedResults": [],
+        "children": [
+          {
+            "id": "US__-7226-4e37-8b9c-6a60c08de0041001",
+            "quantity": 1,
+            "type": "server",
+            "size": 8,
+            "originalIds": [
+              "US__-7226-4e37-8b9c-6a60c08de0041001"
+            ],
+            "derivedResults": [
+              {
+                "featureCode": "3203",
+                "quantity": "1",
+                "name": "MI_P",
+                "description": null
+              }
+            ],
+            "autoConnectResults": [],
+            "removedResults": [],
+            "children": [],
+            "vlhId": null,
+            "asVLH": false,
+            "lockedSpace": [],
+            "childrenStability": {},
+            "hipoServiceCtoServices": [],
+            "configurationId": "US__-7226-4e37-8b9c-6a60c08de0041001"
+          }
+        ],
+        "vlhId": null,
+        "asVLH": false,
+        "lockedSpace": [],
+        "childrenStability": {},
+        "hipoServiceCtoServices": [],
+        "configurationId": "US__-3af3-4bb1-97c3-0b438b414ba11000"
+      }
+    ],
+    "nonRackArea": [],
+    "floorItems": null,
+    "cloneRackMapping": {}
+  },
+  "floorInformation": null,
+  "expectedFloor": [
+    {
+      "id": "US__-3af3-4bb1-97c3-0b438b414ba11000",
+      "rackId": "US__-3af3-4bb1-97c3-0b438b414ba11000",
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "expectedItems": [
+    {
+      "id": "US__-7226-4e37-8b9c-6a60c08de0041001",
+      "code": "7DMKCTO1WW",
+      "type": "server",
+      "size": 8,
+      "position": 3
+    }
+  ],
+  "envelopes": [
+    {
+      "id": "US__-3af3-4bb1-97c3-0b438b414ba11000",
+      "code": "7D6DCTO1WW",
+      "type": "rack",
+      "size": 42
+    },
+    {
+      "id": "US__-7226-4e37-8b9c-6a60c08de0041001",
+      "code": "7DMKCTO1WW",
+      "type": "server",
+      "size": 8,
+      "position": 3
+    }
+  ]
+}

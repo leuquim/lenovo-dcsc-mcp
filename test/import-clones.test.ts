@@ -213,7 +213,7 @@ describe('browser-equivalent compressed CFXML clone import', () => {
     expect(source).toEqual(before);
   });
 
-  it('accepts exact physical storage metadata backed by an explicit managed template dependency', () => {
+  it.each(['template', 'storage-a'])('accepts physical color owner %s backed by an explicit managed template dependency', colorRoot => {
     const source = {
       configuration: [
         { id: 'rack', code: 'RACK', type: 'rack', quantity: 1 },
@@ -229,7 +229,7 @@ describe('browser-equivalent compressed CFXML clone import', () => {
       }] },
       cloneDependency: { template: ['template', 'storage-a', 'storage-b'] },
       cloneDependencyColor: {
-        template: { dependBy: ['storage-a', 'storage-b'] },
+        [colorRoot]: { dependBy: ['storage-a', 'storage-b'] },
       },
     };
     const before = structuredClone(source);
@@ -253,5 +253,121 @@ describe('browser-equivalent compressed CFXML clone import', () => {
     const before = structuredClone(source);
     expect(() => expandImportedClones(source)).toThrow(/must contain its root exactly once/);
     expect(source).toEqual(before);
+  });
+});
+
+describe('compressed native rack groups', () => {
+  const captured = () => JSON.parse(readFileSync(new URL('./fixtures/parity/grouped-rack-import.json', import.meta.url), 'utf8')) as {
+    configuration: RawConfiguration[];
+    workspace: { rackArea: Array<{ children: Array<Record<string, unknown>> }>; nonRackArea: Array<Record<string, unknown>> };
+    floorInformation: { floorGrid: Array<{ items: Array<{ id: string; position: number }> | null }> };
+  };
+
+  it('preserves every native physical identity and matches the independent floor positions', () => {
+    const source = captured();
+    const before = structuredClone(source);
+    const expanded = expandImportedClones(source);
+    expect(source).toEqual(before);
+    expect(expanded.configuration).toHaveLength(31);
+    const dependency = (expanded as Record<string, unknown>).cloneDependency as Record<string, string[]>;
+    expect(Object.keys(dependency)).toHaveLength(5);
+    for (const raw of expanded.configuration) expect(Object.values(dependency).flat()).toContain(raw.id);
+    const children = expanded.workspace.rackArea[0]!.children;
+    expect(children).toHaveLength(29);
+    const floor = source.floorInformation.floorGrid[0]!.items!;
+    expect(children.map(c => c.id).sort()).toEqual(floor.map(c => c.id).sort());
+    for (const child of children) {
+      expect(child.quantity).toBe(1);
+      expect(child.originalIds).toEqual([child.id]);
+      expect(expanded.configuration.filter(c => c.id === child.id)).toHaveLength(1);
+      const results = child.derivedResults as Array<{ featureCode: string; quantity: number }>;
+      const placement = results.filter(r => /^32\d{2}$/.test(r.featureCode));
+      expect(placement).toHaveLength(1);
+      expect(Number(placement[0]!.featureCode.slice(2))).toBe(floor.find(c => c.id === child.id)!.position);
+    }
+    expect(expandImportedClones(expanded)).toEqual(expanded);
+  });
+
+  it('rejects truncated position groups without modifying the source', () => {
+    const source = captured();
+    const first = source.workspace.rackArea[0]!.children[0]!;
+    first.derivedResults = [{ featureCode: '3211', quantity: 8 }];
+    const before = structuredClone(source);
+    expect(() => expandImportedClones(source)).toThrow('inconsistent positions and identities');
+    expect(source).toEqual(before);
+  });
+});
+
+describe('native grouped chassis and children', () => {
+  const captured = () => JSON.parse(readFileSync(new URL('./fixtures/parity/nested-grouped-import.json', import.meta.url), 'utf8')) as {
+    configuration: RawConfiguration[];
+    workspace: { rackArea: Array<{ children: Array<Record<string, unknown>> }>; nonRackArea: unknown[] };
+  };
+  it('assigns each cloned node to its native parent and retains separate linked groups', () => {
+    const source = captured();
+    const parent = source.workspace.rackArea[0]!.children[0]!;
+    const child = (parent.children as Array<Record<string, unknown>>)[0]!;
+    const before = structuredClone(source);
+    const expanded = expandImportedClones(source);
+    expect(source).toEqual(before);
+    expect(expanded.configuration).toHaveLength(6);
+    const chassis = expanded.workspace.rackArea[0]!.children;
+    expect(chassis.map(c => c.id)).toEqual(parent.originalIds);
+    expect(chassis.map(c => (c.children as Array<Record<string, unknown>>)[0]!.id)).toEqual(child.originalIds);
+    expect(chassis.every(c => (c.children as unknown[]).length === 1)).toBe(true);
+    const state = expanded as Record<string, unknown>;
+    const dependency = state.cloneDependency as Record<string, string[]>;
+    expect(dependency[String(parent.id)]).toEqual(parent.originalIds);
+    expect(dependency[String(child.id)]).toEqual(child.originalIds);
+    expect((state.importCloneExpansion as Array<Record<string, unknown>>).find(e => e.sourceId === child.id)?.parentQuantity).toBe(2);
+    expect(expandImportedClones(expanded)).toEqual(expanded);
+  });
+
+  it('retains existing singleton node imports when their optional originalIds are absent', () => {
+    const source = captured();
+    const parent = source.workspace.rackArea[0]!.children[0]!;
+    parent.quantity = 1;
+    parent.originalIds = [parent.id];
+    const child = (parent.children as Array<Record<string, unknown>>)[0]!;
+    delete child.originalIds;
+    const before = structuredClone(source);
+    const expanded = expandImportedClones(source);
+    expect((expanded.workspace.rackArea[0]!.children[0]!.children as unknown[])[0]).toEqual(child);
+    expect(source).toEqual(before);
+    expect(expanded.configuration).toHaveLength(4);
+  });
+
+  it('rejects an incomplete child identity list without modifying the source', () => {
+    const source = captured();
+    const parent = source.workspace.rackArea[0]!.children[0]!;
+    const child = (parent.children as Array<Record<string, unknown>>)[0]!;
+    child.originalIds = [child.id];
+    const before = structuredClone(source);
+    expect(() => expandImportedClones(source)).toThrow('inconsistent child identities');
+    expect(source).toEqual(before);
+  });
+});
+
+
+describe('materialized managed-storage import ownership', () => {
+  const capture = JSON.parse(readFileSync(new URL('./fixtures/parity/storage-materialized-clone-import.json', import.meta.url), 'utf8')) as {
+    source: Record<string, unknown>; expectedDependency: Record<string, string[]>;
+  };
+  it('restores the website rooted group from explicit color ownership without changing the source', () => {
+    const before = structuredClone(capture.source);
+    const expanded = expandImportedClones(capture.source);
+    const expected = Object.fromEntries(Object.entries(capture.expectedDependency).filter(([, ids]) => ids.length > 1));
+    expect(expanded['cloneDependency']).toEqual(expected);
+    expect(expanded['configuration']).toEqual(capture.source['configuration']);
+    expect(capture.source).toEqual(before);
+  });
+  it('does not infer links from equal storage product codes without color ownership', () => {
+    const source = { ...capture.source, cloneDependencyColor: {} };
+    expect(expandImportedClones(source)).not.toHaveProperty('cloneDependency');
+  });
+  it('rejects conflicting explicit ownership instead of overwriting it', () => {
+    const [root, members] = Object.entries(capture.expectedDependency).find(([, ids]) => ids.length > 1)!;
+    const source = { ...capture.source, cloneDependency: { [root]: [root], [members[1]!]: [members[1]!] } };
+    expect(() => expandImportedClones(source)).toThrow(/conflicts with explicit clone dependency ownership/);
   });
 });

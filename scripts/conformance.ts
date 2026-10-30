@@ -363,7 +363,7 @@ async function main(): Promise<void> {
   const listJson = list.json as {
     total: number;
     returned: number;
-    sessions: Array<{ session: string; label?: string }>;
+    sessions: Array<{ session: string; configurationId?: string; label?: string }>;
   };
   check(
     'dcsc_session_list includes the session with its label',
@@ -681,7 +681,31 @@ async function main(): Promise<void> {
       `lineCord total=${pduJson.counts?.lineCord?.total}`,
     );
 
+    const pciChoices = await track('dcsc_pci_wizard', { session });
+    const pciPage = pciChoices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
+    check('dcsc_pci_wizard reports native availability', !pciChoices.isError &&
+      typeof pciPage.items?.find(item => item.key === 'available')?.value === 'boolean', JSON.stringify(pciChoices.json).slice(0, 180));
+    const invalidPci = await track('dcsc_set_pci_wizard', { session,
+      expectedWorkspaceRevision: pciPage.workspaceRevision, optionId: '__invalid_pci_option__' });
+    check('dcsc_set_pci_wizard rejects unavailable option IDs', invalidPci.isError === true, JSON.stringify(invalidPci.json).slice(0, 180));
+
     const power = await track('dcsc_power', { session });
+    const powerChoices = await track('dcsc_power_controls', { session });
+    const powerChoicePage = powerChoices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
+    const powerChoiceValues = Object.fromEntries((powerChoicePage.items ?? []).map(item => [item.key, item.value]));
+    check('dcsc_power_controls discovers native voltage and load-factor controls', !powerChoices.isError &&
+      powerChoiceValues['available'] === true, JSON.stringify(powerChoices.json).slice(0, 180));
+    const previousPower = powerChoiceValues['current'] as { loadFactor?: number } | undefined;
+    const savedPower = await track('dcsc_set_power_controls', { session,
+      expectedWorkspaceRevision: powerChoicePage.workspaceRevision, loadFactor: 30 });
+    check('dcsc_set_power_controls retains the accepted load factor', !savedPower.isError &&
+      (savedPower.json as { current?: { loadFactor?: number } }).current?.loadFactor === 30,
+    JSON.stringify(savedPower.json).slice(0, 180));
+    if (!savedPower.isError && previousPower?.loadFactor !== undefined) {
+      await track('dcsc_set_power_controls', { session,
+        expectedWorkspaceRevision: (savedPower.json as { workspaceRevision: number }).workspaceRevision,
+        loadFactor: previousPower.loadFactor });
+    }
     check(
       'dcsc_power aggregates the workspace',
       !power.isError && (power.json as { total?: unknown }).total !== undefined,
@@ -700,9 +724,10 @@ async function main(): Promise<void> {
 
   const cable = await track('dcsc_add_cabling', {
     session,
-    fromConfigId: session,
+    fromConfigId: listJson.sessions.find(s => s.session === session)?.configurationId,
+    mode: 'manual',
     fromPort: 'RJ45-1',
-    toConfigId: session,
+    toConfigId: listJson.sessions.find(s => s.session === session)?.configurationId,
     toPort: 'RJ45-mgmt',
     cableCode: '6400',
     description: 'Management Jumper',
@@ -823,6 +848,31 @@ async function main(): Promise<void> {
       }
     }
     await track('dcsc_session_close', { session: manualWorkspace });
+  }
+
+  // --- native manual creation on a populated graph -----------------------
+  const createImported = await track('dcsc_import', {
+    filePath: new URL('../test/fixtures/parity/xml/manual-cabling-shared-network.xml', import.meta.url).pathname,
+    solutionMode: 'HPC and AI - Systems',
+  });
+  const createWorkspace = (createImported.json as { workspace?: string }).workspace;
+  check('native creation fixture imports', !createImported.isError && !!createWorkspace, JSON.stringify(createImported.json).slice(0, 200));
+  if (createWorkspace) {
+    const root = await track('dcsc_cabling_connections', { session: createWorkspace });
+    const revision = (root.json as { workspaceRevision?: number }).workspaceRevision;
+    const example = JSON.parse(readFileSync(new URL('../test/fixtures/parity/manual-row-seeding.json', import.meta.url), 'utf8')).requestedManualRow;
+    const args = { session: createWorkspace, expectedRevision: revision, network: example.network, topology: example.topology,
+      source: { configurationId: example.sourceId, portName: 'RJ45', portNumber: '1' },
+      destination: { configurationId: example.destinationId, portName: 'RJ45', portNumber: '20' } };
+    const options = await track('dcsc_manual_cabling_options', { ...args, path: ['choices'], offset: 0, limit: 50 });
+    check('native manual discovery offers a compatible cable', !options.isError && JSON.stringify(options.json).includes('3791'), JSON.stringify(options.json).slice(0, 200));
+    const created = await track('dcsc_create_cabling_connection', { ...args, cablePart: '3791', pinExistingRoutes: true });
+    const accepted = created.json as { workspaceRevision?: number; pinnedConnectionCount?: number;
+      connection?: { type?: string; source?: { portName?: string }; cable?: { part?: string } } };
+    check('native manual creation pins prior routes and accepts requested cable', !created.isError &&
+      accepted.workspaceRevision === Number(revision) + 1 && Number(accepted.pinnedConnectionCount) > 0 &&
+      accepted.connection?.type === 'MANUAL' && accepted.connection.source?.portName === 'RJ45' && accepted.connection.cable?.part === '3791', JSON.stringify(created.json).slice(0, 250));
+    await track('dcsc_session_close', { session: createWorkspace });
   }
 
   // --- LFO session ---------------------------------------------------------
@@ -1202,6 +1252,54 @@ async function main(): Promise<void> {
   check('dcsc_service_categories responds', !svcCats.isError, JSON.stringify(svcCats.json).slice(0, 120));
 
   const blueprintSession = await checkBlueprints(track);
+  const referenceCatalog = await track('dcsc_reference_solutions', { view: 'categories', limit: 5 });
+  check('native reference categories are discoverable', !referenceCatalog.isError &&
+    Number((referenceCatalog.json as { total?: number }).total) > 0, JSON.stringify(referenceCatalog.json).slice(0, 200));
+  const reference = await track('dcsc_launch_reference_solution', { crnId: 'SID0000978', solutionMode: 'General Purpose' });
+  const originalReference = await track('dcsc_download_reference_solution', { crnId: 'SID0000978', solutionMode: 'General Purpose' });
+  check('original reference XML downloads', !originalReference.isError &&
+    typeof (originalReference.json as { path?: string }).path === 'string', JSON.stringify(originalReference.json).slice(0, 160));
+  check('native reference solution customizes into a workspace', !reference.isError &&
+    typeof (reference.json as { workspace?: string }).workspace === 'string', JSON.stringify(reference.json).slice(0, 200));
+  const referenceWorkspace = (reference.json as { workspace?: string; workspaceRevision?: number });
+  if (referenceWorkspace.workspace) {
+    const members = await track('dcsc_session_list', { workspace: referenceWorkspace.workspace });
+    const member = (members.json as { sessions?: Array<{ session: string; kind: string }> }).sessions?.find(s => s.kind === 'configuration');
+    if (member) {
+      const loaded = await track('dcsc_load_unconfigured', { session: member.session, expectedWorkspaceRevision: referenceWorkspace.workspaceRevision });
+      check('Unconfigured catalog loads', !loaded.isError, JSON.stringify(loaded.json).slice(0, 160));
+      const edited = await track('dcsc_set_unconfigured', { session: member.session,
+        expectedWorkspaceRevision: (loaded.json as { workspaceRevision?: number }).workspaceRevision,
+        changes: [{ section: 'UNCONFIGURED_COMMVAULT_SOFTWARE', code: '7S1M004HWW', quantity: 4 }] });
+      check('Unconfigured selection edit commits', !edited.isError, JSON.stringify(edited.json).slice(0, 160));
+      const pci = await track('dcsc_pci_wizard', { session: member.session });
+      const savedPci = await track('dcsc_set_pci_wizard', { session: member.session,
+        expectedWorkspaceRevision: (pci.json as { workspaceRevision?: number }).workspaceRevision,
+        optionId: '1P Rear5-a', rowId: '2', enabled: true });
+      check('PCI wizard commits a native validated slot change', !savedPci.isError &&
+        (savedPci.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 1,
+      JSON.stringify(savedPci.json).slice(0, 180));
+    }
+  }
+
+  const storageReference = await track('dcsc_launch_reference_solution', { crnId: 'SID0001064', solutionMode: 'General Purpose' });
+  const storageReferenceWorkspace = (storageReference.json as { workspace?: string }).workspace;
+  if (storageReferenceWorkspace) {
+    const listed = await track('dcsc_session_list', { workspace: storageReferenceWorkspace });
+    const member = (listed.json as { sessions?: Array<{ session: string; product?: string }> }).sessions?.find(s => s.product === '7DJRCTO1WW');
+    check('storage wizard reference exposes its server handle', !!member, JSON.stringify(listed.json).slice(0, 160));
+    if (member) {
+      const choices = await track('dcsc_storage_wizard', { session: member.session });
+      const page = choices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
+      check('storage wizard discovers native choices', !choices.isError && page.items?.find(i => i.key === 'available')?.value === true,
+        JSON.stringify(choices.json).slice(0, 160));
+      const selected = await track('dcsc_set_storage_wizard', { session: member.session,
+        expectedWorkspaceRevision: page.workspaceRevision, optionId: '4-2' });
+      check('storage wizard commits an explicit linked option', !selected.isError &&
+        (selected.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 4,
+        JSON.stringify(selected.json).slice(0, 160));
+    }
+  }
 
   // Solution tools use ordinary catalog-backed sessions so a stale optional
   // blueprint cannot prevent their contracts from being exercised.

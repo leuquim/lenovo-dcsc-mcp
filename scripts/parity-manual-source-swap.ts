@@ -1,0 +1,53 @@
+/** Correct atomic source swap, contrasted with the captured website duplicate-port defect. */
+import assert from 'node:assert/strict';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {chromium} from 'playwright';
+import {assertNativeConnectionsRetained} from '../src/domain/nativeManualCabling.js';
+import {assertGroupedCommercialParity} from './lib/groupedRackParity.js';
+import {selectBrowserSolutionMode} from './lib/browser-solution-mode.js';
+type Obj=Record<string,unknown>;
+const object=(v:unknown):Obj=>v&&typeof v==='object'?v as Obj:{};
+const rows=(v:unknown):Obj[]=>Array.isArray(v)?v.map(object):[];
+const i=process.argv.indexOf('--out');
+const out=path.resolve(i>=0?process.argv[i+1]!: `artifacts/parity-manual-source-swap/${new Date().toISOString().replace(/[:.]/g,'-')}`);
+await mkdir(out,{recursive:true});
+const sessionFile=path.join(out,'sessions.json'), configFile=path.join(out,'config.json');
+await writeFile(configFile,JSON.stringify({logLevel:'error',files:{persistSessions:true,sessionFile,artifactDir:path.join(out,'exports')}}));
+const env=Object.fromEntries(Object.entries(process.env).filter((e):e is [string,string]=>e[1]!==undefined&&!e[0].startsWith('DCSC_')));
+let client:Client|undefined,transport:StdioClientTransport|undefined;let stage='start';const calls:Obj[]=[];
+const start=async()=>{transport=new StdioClientTransport({command:process.execPath,args:['--import','tsx','src/mcp/server.ts'],stderr:'pipe',env:{...env,DCSC_CONFIG:configFile}});client=new Client({name:'source-swap-parity',version:'1'});await client.connect(transport);};
+const call=async(name:string,args:Obj,error=false)=>{const r=await client!.callTool({name,arguments:args},undefined,{timeout:300000});const text=(r.content as Array<{type:string;text?:string}>).find(c=>c.type==='text')?.text??'';const result=object(JSON.parse(text));calls.push({name,args,isError:r.isError===true,bytes:Buffer.byteLength(text),result});await writeFile(path.join(out,'calls.json'),JSON.stringify(calls,null,2));assert.equal(r.isError===true,error,text);assert(Buffer.byteLength(text)<8000);return result;};
+const snapshot=async()=>object(JSON.parse(await readFile(sessionFile,'utf8')));
+try{
+ await start();stage='import';
+ const imported=await call('dcsc_import',{filePath:path.resolve('test/fixtures/parity/xml/manual-cabling-source-swap.xml'),solutionMode:'HPC and AI - Systems'});const workspace=String(imported['workspace']);
+ const saved=async()=>rows((await snapshot())['workspaces']).find(w=>w['id']===workspace)!;
+ const graph=async()=>rows(object((await saved())['serverState'])['connections']);
+ const before=await graph();const editedIndex=before.findIndex(r=>r['topology']==='100GbE_Copper'&&r['sourcePortNumber']==='1');assert(editedIndex>=0);
+ const edited=before[editedIndex]!;const other=before.find(r=>r['sourceId']===edited['sourceId']&&r['sourcePortName']===edited['sourcePortName']&&r['sourcePortNumber']==='2');assert(other);
+ const details=await call('dcsc_cabling_connections',{session:workspace,expectedWorkspaceRevision:(await saved())['revision'],path:['connections',String(editedIndex)],limit:50});
+ const detail=Object.fromEntries(rows(details['items']).map(r=>[String(r['key']),r['value']]));assert(detail['id']);
+ const revision=(await saved())['revision'];
+ const args={session:workspace,expectedRevision:revision,connectionId:detail['id'],source:{configurationId:other['sourceId'],portName:other['sourcePortName'],portNumber:other['sourcePortNumber']}};
+ const expected=structuredClone(before);const a=expected[editedIndex]!,b=expected.find(r=>r['sourceId']===other['sourceId']&&r['sourcePortName']===other['sourcePortName']&&r['sourcePortNumber']==='2')!;
+ for(const k of ['sourcePortName','sourcePortNumber','sourceLocation'])[a[k],b[k]]=[b[k],a[k]];a['type']='MANUAL';b['type']='MANUAL';
+ const check=async(wanted:Obj[])=>{const actual=await graph();assert.equal(actual.length,wanted.length);assertNativeConnectionsRetained(wanted,actual);};
+ const configurations=rows((await saved())['configurations']).map(c=>c['raw']);
+ stage='swap';const changed=await call('dcsc_edit_cabling_connection',args);assert.equal(rows(changed['swappedConnections']).length,1);await check(expected);
+ assert.deepEqual(rows((await saved())['configurations']).map(c=>c['raw']),configurations,'Port swap changed commercial selections');
+ stage='stale';const persisted=await readFile(sessionFile,'utf8');await call('dcsc_edit_cabling_connection',args,true);assert.equal(await readFile(sessionFile,'utf8'),persisted);
+ stage='history';await call('dcsc_workspace_history',{session:workspace,action:'undo'});await check(before);await call('dcsc_workspace_history',{session:workspace,action:'redo'});await check(expected);
+ stage='restart';assert(transport!.pid);process.kill(transport!.pid!,'SIGKILL');await client!.close();client=undefined;transport=undefined;await start();await call('dcsc_cabling_connections',{session:workspace});await check(expected);
+ stage='export';const exported=await call('dcsc_export',{session:workspace,fileName:'source-swap',fileTypes:['XML','QUOTE']});const xml=String(exported['xml']);
+ stage='mcp-import';const reimported=await call('dcsc_import',{filePath:xml,solutionMode:'HPC and AI - Systems'});const recovered=rows((await snapshot())['workspaces']).find(w=>w['id']===reimported['workspace'])!;assertNativeConnectionsRetained(expected,rows(object(recovered['serverState'])['connections']));
+ stage='browser-import';const browser=await chromium.launch({headless:true});
+ try{const page=await browser.newPage();const layouts:Obj[]=[];const pending:Promise<void>[]=[];page.on('response',r=>{if(r.url().includes('/ctos/racks/customize?'))pending.push(r.json().then(v=>{layouts.push(object(v));}));});
+ await page.goto('https://dcsc.lenovo.com/',{waitUntil:'domcontentloaded'});await selectBrowserSolutionMode(page,'AI & HPC – ThinkSystem Hardware',{diagnosticsDir:out});
+ const response=page.waitForResponse(r=>r.url().includes('/multiple/cfxml_import')&&r.request().method()==='POST',{timeout:120000});await page.locator('input[type=file]').first().setInputFiles(xml);const raw:unknown=await(await response).json();const native=object(Array.isArray(raw)?raw[0]:raw);await writeFile(path.join(out,'browser-import.json'),JSON.stringify(native));
+ assertGroupedCommercialParity(native,{configurations:rows((await saved())['configurations']),graph:expected});await page.waitForURL(/rack-summary/,{timeout:120000});await page.waitForLoadState('networkidle');await page.waitForTimeout(3000);await Promise.all(pending);assert(layouts.length);const restored=rows(layouts.at(-1)!['connections']);assert.equal(restored.length,expected.length);assertNativeConnectionsRetained(expected,restored);await writeFile(path.join(out,'browser-layouts.json'),JSON.stringify(layouts));
+ }finally{await browser.close();}
+ const report={status:'pass',calls:calls.length,maxResponseBytes:Math.max(...calls.map(c=>Number(c['bytes']))),atomicSourceSwap:true,staleRejected:true,history:true,crashRestart:true,mcpImport:true,freshWebsiteImport:true,commercialParity:true,scope:'Same SR630 V3 QSFP56 connector, same 100GbE assigned network; both routes swap source ports1/2, destination ports49/60 remain fixed'};await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+}catch(error){await writeFile(path.join(out,'report.json'),JSON.stringify({status:'fail',stage,error:String(error)},null,2));throw error;}finally{await client?.close();}

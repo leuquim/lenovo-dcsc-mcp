@@ -1,0 +1,76 @@
+{
+  "source": "2026-10-30 native exported NetworkingInformation and cfxml_import response: saved Divider4 becomes1",
+  "networkingInformation": "H4sIAAAAAAAA/+1aXXOiSBR931/Rj7sPCM2nVlFUKWrGjVFHTVI1L6kGW0MptAvNZJxfv82XAjrRZJhkskseUvbt25fLObcP10Z9hOkT8deOtxp4S+K7iDrEM/4AQG+HlJjE87BNpzgINzSIzMWJAcVuYmX2NJRxgzy0wi72qM5ntsxnTrZkQ1Y7A15ZvQeTbLfY1/m9NXMzkbXBE+RTo33Xn+v8YVzwGG/jbAXhvgchTN1SYzGU79jYaDWULFQ8LrjMd1tsCA1NcUFnE2JgIqpE/9lUuij2yNbMSOjbeGHczh4ekA1V2GouORtigZNbSOAsW1K55kJDsiQuWlZTFXQ+W1IMEd+V1tUkcz7+dH+fuRVuNjHFYM8fHW892wXsM5hNVUkAdxIn7XzQQQEG98j3kUd3gAOfJiZghIL2IAtZICsxDYmdEN6G/K3IT/+WFeCuXJot2c+XciY+HYWuhX0D7hM+2E44IxcbR9H3M9mCLg6o48VXHCTQCqKitSQFMlSXMieLms01kaJxWNZEKImKImoyg7a48ES4FGWlz1DuRyiX506lEOE1uht0B20wG4miAEFUtSCp7wWYPTnUfgTs/yMwQzfchAH4czLr/VXMJ496zl6AXouhL6w7gj6f8QFrsXgrxySUZzMmjtflmZgTijZdJ6DIs6NtoYqiqEQbNW/eO0cb46Y9um0PmUthl4RWPB715vfj6TUjPjXss3O+OoukjLKPicjwJ1Wm1p6y9ki2ZCPLUjkJ2S1OVmTEWUJT5ZbqgqmRpSCkog+gPbDWno+nPdIbaY+qasLhD34AGYLC1XP6IwgXK5AonlMg7YuitQVJUeWzIgSF8zI0xB75SgB0QZQm+DzrT8QmoATI30TlCiTDjo/RmoQUdNvm/0ynYgB+iUYVIl+gT0sNy5JiWZyFBSZSCyRzLWRjzoKCirWWIipx2/kifbp+lT5JsigAVh2/RqAU/nMKzcslSm69RqNOXO+sSima1nwjlZL/4yoFa5V6Y5USa5V6T5UqAVCrVK1StUodq5RUq1StUu+hUgVj7jBcNxkVFPsTHy+xj/ep/cieiYPJNMo3rny8S7d6YjgWkFNKcIMcL6kI/qCVEZrjSZsJZR7XVDWHaMf0xTCxR320cb7jxV5Q06nSgvh6LBzHZGvvWkhi7ofeOjDYbPopmxhitCxnF9lu0DfHDd2I+njZkS3vfIieG2UOd8P2qBg7B2Gy4gSmm8yc4locl6M53ioXKhqlxfFThI+ZVq5wlZQPOuBTd5qwVBnxg87DPmhNfTXUV73X5bgpqoxyudBE1axXxPoZxqNj/t7ztGcmZuxjREMfG52Jqel8NjrMZy1s7qC51L3yx3H1AiVyM/I5wVFcaYV3K5WVHryw8mBdee+oN6whrZL0uL+t9eZ3Zz361lrpXhfq58yHaSx73WnFXWUSsSb9zTZ7dKLEJQdMYBzSl7cat1/E863G9WtaDSg+12rAWnc+Qgl2NsheVyk7JvECEh2AVsf9IWTN+m/8tOl3p1Cu+HnTr583F9D+I/OMEp9930vxC+Kk9Ql5yjvmjDO8wXb0DEg9Exhv0Da9uE3cxiZ+H9JAT2iNvaCBtk7Dx/+EOKANO8mhkR6ysjilp8eg+5IfZTHvUlE8+9NAGsHosvLUeZpH1CQLXPhGHRtSNH/qjqrC48IXFyfwOPle7RIgrisEQudzdbJPp/Rr9H8BDH3EPqUuAAA=",
+  "importedRows": [
+    {
+      "network": "Management",
+      "topology": "1GbE_Copper",
+      "cablePart": "AVFT",
+      "sourceId": "US__ac16198f-c1e0-49a0-bc36-8d7a432d9b860",
+      "sourcePortName": "RJ45 mgmt",
+      "sourcePortNumber": "1",
+      "destinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+      "destinationPortName": "RJ45",
+      "destinationPortNumber": "2",
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1
+    },
+    {
+      "network": "Management",
+      "topology": "1GbE_Copper",
+      "cablePart": "AVFT",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "RJ45 mgmt",
+      "sourcePortNumber": "1",
+      "destinationId": "US__02579351-49f4-427c-8a57-e472132552740",
+      "destinationPortName": "RJ45",
+      "destinationPortNumber": "3",
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "1",
+      "destinationId": "US__f7e435bb-be01-4da4-9ace-b106e79525860",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "49",
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "2",
+      "destinationId": "US__f7e435bb-be01-4da4-9ace-b106e79525860",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "60",
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1
+    },
+    {
+      "network": "10G",
+      "topology": "100GbE_Copper",
+      "cablePart": "AV22",
+      "sourceId": "US__3c3cabb6-3ac9-454a-b086-f6dc1eb5aa6a0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "3",
+      "destinationId": "US__f7e435bb-be01-4da4-9ace-b106e79525860",
+      "destinationPortName": "QSFP28",
+      "destinationPortNumber": "60",
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "divider": 1
+    }
+  ]
+}

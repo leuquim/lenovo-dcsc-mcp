@@ -1,0 +1,240 @@
+{
+  "connections": [
+    {
+      "network": "Fresh Manual Storage",
+      "topology": "10GbE_Copper",
+      "divider": 1,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "sourceId": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "2",
+      "destinationId": "US__8f9f6d8e-e6c9-4447-ba09-f8b39ca02f2b0",
+      "destinationPortName": "SFP+",
+      "destinationPortNumber": "1",
+      "cablePart": "A1PH"
+    },
+    {
+      "network": "Fresh Manual Storage",
+      "topology": "10GbE_Copper",
+      "divider": 1,
+      "type": "MANUAL",
+      "subType": "NETWORK",
+      "sourceId": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+      "sourcePortName": "SFP28",
+      "sourcePortNumber": "1",
+      "destinationId": "US__a729c3ae-1907-4d10-a7cf-743e399f471a0",
+      "destinationPortName": "SFP+",
+      "destinationPortNumber": "1",
+      "cablePart": "A1PJ"
+    }
+  ],
+  "configurations": [
+    {
+      "id": "US__0356bec8-a929-4aca-928f-22d8062dcb781",
+      "code": "7D6DCTO1WW",
+      "tabs": [
+        {
+          "subTabs": [
+            {
+              "sections": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US__95aa55a9-064c-43cc-b342-4a440bf98872",
+      "code": "7Y70CTOHWW",
+      "tabs": [
+        {
+          "subTabs": [
+            {
+              "sections": [
+                {
+                  "name": "DAC_SFP_CABLE",
+                  "features": [
+                    {
+                      "code": "A1PH"
+                    },
+                    {
+                      "code": "A1PJ"
+                    }
+                  ],
+                  "results": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US__a729c3ae-1907-4d10-a7cf-743e399f471a0",
+      "code": "7Y70CTOHWW",
+      "tabs": [
+        {
+          "subTabs": [
+            {
+              "sections": [
+                {
+                  "name": "DAC_SFP_CABLE",
+                  "features": [
+                    {
+                      "code": "A1PH"
+                    },
+                    {
+                      "code": "A1PJ"
+                    }
+                  ],
+                  "results": [
+                    {
+                      "code": "A1PH",
+                      "quantity": 2
+                    },
+                    {
+                      "code": "A1PJ",
+                      "quantity": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US__8f9f6d8e-e6c9-4447-ba09-f8b39ca02f2b0",
+      "code": "7Y70CTOHWW",
+      "tabs": [
+        {
+          "subTabs": [
+            {
+              "sections": [
+                {
+                  "name": "DAC_SFP_CABLE",
+                  "features": [
+                    {
+                      "code": "A1PH"
+                    },
+                    {
+                      "code": "A1PJ"
+                    }
+                  ],
+                  "results": [
+                    {
+                      "code": "A1PH",
+                      "quantity": 2
+                    },
+                    {
+                      "code": "A1PJ",
+                      "quantity": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+      "code": "7D73CTOHWW",
+      "tabs": [
+        {
+          "subTabs": [
+            {
+              "sections": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cloneDependency": {
+    "US__a729c3ae-1907-4d10-a7cf-743e399f471a0": [
+      "US__a729c3ae-1907-4d10-a7cf-743e399f471a0",
+      "US__8f9f6d8e-e6c9-4447-ba09-f8b39ca02f2b0"
+    ],
+    "US__0356bec8-a929-4aca-928f-22d8062dcb781": [
+      "US__0356bec8-a929-4aca-928f-22d8062dcb781"
+    ],
+    "US__95aa55a9-064c-43cc-b342-4a440bf98872": [
+      "US__95aa55a9-064c-43cc-b342-4a440bf98872"
+    ],
+    "US__71beca7d-cda4-4add-b78d-7837aa0be01b0": [
+      "US__71beca7d-cda4-4add-b78d-7837aa0be01b0"
+    ]
+  },
+  "rackArea": [
+    {
+      "id": "US__0356bec8-a929-4aca-928f-22d8062dcb781",
+      "rackItems": [
+        {
+          "id": "US__95aa55a9-064c-43cc-b342-4a440bf98872",
+          "features": []
+        },
+        {
+          "id": "US__a729c3ae-1907-4d10-a7cf-743e399f471a0",
+          "features": [
+            {
+              "name": "DAC_SFP_CABLE",
+              "results": [
+                {
+                  "code": "A1PH",
+                  "description": "1m Passive DAC SFP+ Cable",
+                  "quantity": 2,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "A1PJ",
+                  "description": "3m Passive DAC SFP+ Cable",
+                  "quantity": 1,
+                  "forAutoConnect": true,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "US__8f9f6d8e-e6c9-4447-ba09-f8b39ca02f2b0",
+          "features": [
+            {
+              "name": "DAC_SFP_CABLE",
+              "results": [
+                {
+                  "code": "A1PH",
+                  "description": "1m Passive DAC SFP+ Cable",
+                  "quantity": 1,
+                  "forAutoConnect": true,
+                  "installations": [],
+                  "attributeMap": null
+                },
+                {
+                  "code": "A1PJ",
+                  "description": "3m Passive DAC SFP+ Cable",
+                  "quantity": 2,
+                  "forAutoConnect": false,
+                  "installations": [],
+                  "attributeMap": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "US__71beca7d-cda4-4add-b78d-7837aa0be01b0",
+          "features": []
+        }
+      ]
+    }
+  ],
+  "nonRackArea": [],
+  "solutionMode": "HPC and AI - Systems"
+}
