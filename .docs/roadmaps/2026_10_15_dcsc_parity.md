@@ -1,15 +1,193 @@
 # DCSC MCP correctness and website-parity roadmap
 
 **Date:** 2026-10-15
-**Status:** Final frozen verification is complete for the implemented scope; website parity remains partial because no tested native storage design has produced a populated connection graph for the managed physical-alias cable-edit gate. See the [implementation ledger](2026_10_15_dcsc_progress.md) and [current context](../context.md).
-**Baseline:** Materialized snapshot `20261016T041423Z`, including its reviewed tracked patch, untracked runtime inputs and ignored roadmap documents.
+**Status (2026-10-31):** Active. The latest immutable 90-command release run completed 85 passed, 4 expected upstream blocks and 1 native nested-menu failure. The unchanged targeted rerun passed placement/export/fresh import; the original failure remains recorded. Source integrity passed before/after. Runtime files in the working tree match the frozen snapshot; only documentation and the separately passing populated-RAID regression/fixture differ. Evidence: `artifacts/release-2026-10-30-wizards-source-swap/results/report.json` and `nested-vlh-recheck/resolution.json`. The registry has 85 tools. This verifies documented actions and cases, not complete website parity. Follow the action inventory and Claude scope review below; avoid adding variant gates without a demonstrated gap.
+**Historical baseline:** Materialized snapshot `20261016T041423Z`, including its reviewed tracked patch, untracked runtime inputs and ignored roadmap documents.
 **Scope:** Resolve all 23 findings in the verified review (local `artifacts/review-2026-10-15/review.txt`), plus the import and validation defects confirmed during planning. Browser checks must run headless.
 
 The objective is an MCP that preserves the website's configuration, prices and deliverables, survives failed operations and restarts, and exposes the anonymous workflows identified in the review. Implement the work in the dependency order below. A passing HTTP request or existing unit suite is insufficient: acceptance requires matching the website's resulting state and artifacts.
 
-The remaining functional gap is a populated storage graph and managed-storage physical-alias cable editing. Clean FC and optical iSCSI cases return HTTP 200 with zero storage rows after export/import, but native import collapses the managed template root into its physical alias. A fresh optical-iSCSI pre-export control retained the distinct managed root and physical alias, controller reference, assigned racked server, compatible connector media and P2P settings, with no switches present; Lenovo again returned HTTP 200/no errors and zero connections. This is bounded evidence for the tested design, not a global storage-availability claim. Snapshot `20261016T041423Z` completed all 54 commands with **52 passed, 0 failed and 2 declared capability blocks**: GB300 numeric power with its dependent DWC check, and the qualified FC zero-storage-row case. Exact source verification passed before and after. The frozen run includes 846 unit tests / 114 files, 17 offline contracts, 89 live contracts, 170 assertions across all 72 registered tools, the 291-call nested lifecycle, strict valid/invalid manufacturing projection and a 15/15 headless suite with 99 captured wire entries. Broader VLH/container shapes are future compatibility-matrix growth, not an unresolved finite requirement in this roadmap.
+At the historical October 16 checkpoint, the reported remaining gap was a populated storage graph and managed-storage physical-alias cable editing. Clean FC and optical iSCSI cases return HTTP 200 with zero storage rows after export/import, but native import collapses the managed template root into its physical alias. A fresh optical-iSCSI pre-export control retained the distinct managed root and physical alias, controller reference, assigned racked server, compatible connector media and P2P settings, with no switches present; Lenovo again returned HTTP 200/no errors and zero connections. This is bounded evidence for the tested design, not a global storage-availability claim. Snapshot `20261016T041423Z` completed all 54 commands with **52 passed, 0 failed and 2 declared capability blocks**: GB300 numeric power with its dependent DWC check, and the qualified FC zero-storage-row case. Exact source verification passed before and after. The frozen run includes 846 unit tests / 114 files, 17 offline contracts, 89 live contracts, 170 assertions across all 72 registered tools, the 291-call nested lifecycle, strict valid/invalid manufacturing projection and a 15/15 headless suite with 99 captured wire entries. Broader VLH/container shapes remain unverified under the expanded website-parity objective.
 
-Authenticated Lenovo-ID saves, partner/bid pricing and other account-only features were not tested. They are outside this roadmap's parity claim; this does not imply they are unsupported by Lenovo. No credentials, purchases or changes to saved Lenovo accounts are needed for the parity work. Private GitHub publication was separately authorized on 2026-10-16; see the current context.
+Authenticated Lenovo-ID saves, partner/bid pricing and other account-only features were not tested. They were outside the historical anonymous-workflow claim but remain unverified against the expanded user objective; this does not imply they are unsupported by Lenovo. No credentials, purchases or changes to saved Lenovo accounts are needed for the parity work. Private GitHub publication was separately authorized on 2026-10-16; see the current context.
+
+## Audited user-action inventory and next-work rule (2026-10-30)
+
+This is a working inventory of inspected workflows, not a complete enumeration of
+all website menus or a website-parity percentage. Implemented means the action
+exists in the MCP with the documented product/context limits; it does not certify
+all possible configurations. The tool mapping is in README's Tools table; the
+current gap table below retains the supporting native evidence and limitations.
+
+| Website area / user action | MCP status / next action |
+| --- | --- |
+| Catalog: browse/search products, parts, locales and solution modes | Implemented. |
+| Reference solutions: browse, customize and download original XML | Implemented. |
+| Configurator: launch, choose options, quantities, Guided/Expert, Auto-Correct, undo | Implemented; linked configuration semantics documented. |
+| PCI/storage: choose wizard options and components; clear storage; switch CTO RAID mode | Implemented. Populated RAID1 reverse switch matches native live state; focused regression added. No additional lifecycle variant needed. |
+| Memory wizard and LFO storage-wizard mode changes | No enabled native case found in tested catalog scope; park until a concrete usable case is identified. |
+| Workspace: clone/copy, place/move/unplace/remove items and nested nodes, lock items/U positions, floor layout | Implemented for documented physical shapes; broader shapes are unverified breadth, not automatically new work. |
+| Power: inspect reports, change voltage/policy/load, configure PDUs and cords | Implemented; unavailable native power stays unknown. |
+| Networks: topology/connector preferences, automatic switches, Auto-Connect | Implemented with scoped native FC routing limitation. |
+| Connections: inspect existing rows, edit endpoints/cable, create manual routes | Implemented; original cabling complaint addressed. |
+| Connections: delete a single native row | Not established as a website action. Captured table/editor offers Edit, Close and Save; renderer agrees. Evidence: `artifacts/manual-delete-audit-2026-10-30/report.json`. Do not invent a delete API or infer API absence. |
+| Managed storage: create/edit/remove definitions, customize controllers/switches, assign and place | Implemented for documented shapes; expansion catalogs unavailable in tested scope. |
+| Standalone software and independent services: browse/select/quantity/remove/export | Implemented. Independent services have a separate native export shape. |
+| Validation, diagnostics and configuration comparison | Implemented with explicit scope and bounded inspection. |
+| Import/export and recovery | Modern XML/Excel and local recovery implemented; authentic legacy companion-workbook contract remains unverified. Native breakout import defect remains scoped. |
+| Account saves, partner/bid pricing | Access-dependent and unverified; not proven unsupported by APIs. |
+
+**Next milestone:** prepare the verified improvements for delivery; the frozen
+release run is complete with the qualified outcome recorded above. Keep the broader parity objective open. Add implementation
+work for a demonstrated missing user action or reproducible defect. Additional
+product variants get targeted evidence when needed; they do not automatically add
+a full lifecycle command. Do not repeat unavailable-catalog surveys without a
+concrete new case. This follows the requested Claude advisor review
+(`artifacts/claude-scope-review-2026-10-30/answer.md`).
+
+## Current gap classification (2026-10-30)
+
+| Workflow | Finding and next action |
+| --- | --- |
+| Manual connection creation and editing | Implemented and verified for documented direct, linked and managed-storage cases. This was MCP implementation work, not a general lack of Lenovo APIs. |
+| PCI and storage wizard choices | Native APIs support these. MCP now exposes option/component editing with linked transactions, history, recovery and XML handoff. SR850 V4 mixed SAS/SATA + AnyBay option 13-4 passes a 14-call lifecycle across four linked servers, including two forced restarts and fresh website import (`artifacts/parity-storage-wizard/2026-10-30-sr850/report.json`). Other option/product-family coverage remains bounded. |
+| Clear whole storage option | Native API captured; MCP supports `optionId: null` and rejects clearing while drives remain, matching the website. The 21-call linked lifecycle passes history, three forced restarts, derive and MCP/fresh website XML import: `artifacts/parity-storage-wizard/2026-10-30-clear/report.json`. |
+| RAID-mode switch | Implemented for storage-wizard CTOs. SR860 V4 5977→5978 passes the 19-call linked lifecycle, undo/redo, forced restart, subsequent derive and MCP/fresh website import (`artifacts/parity-storage-wizard/2026-10-30-raid/report.json`). The reverse switch also passes a 20-call lifecycle (`artifacts/parity-storage-wizard/2026-10-30-raid-reverse/report.json`), beginning with storage already cleared by the forward switch. Same-mode edits retain wizard intent; mode transitions must be separate calls. LFO fixed/preselected restoration remains unsupported pending verification. Eleven sampled LFOs covering every current US/DE server machine type report the wizard disabled (`artifacts/storage-lfo-audit-2026-10-30/report.json`); this does not establish universal API absence. |
+| Breakout XML handoff | Website-own export/import collapses the tested four-way breakout to a point-to-point connection. Preserve scoped limitation; do not present this as a fixable missing setter. |
+| GB300 power and tested FC routing | Tested native results are unavailable/null or empty. These are scoped upstream/case limitations, not proof all products lack support. |
+| Account saves and partner pricing | Access-dependent and unverified; API support has not been ruled out. |
+| Legacy cabling workbook recovery | Endpoints exist, but a genuine populated legacy input is still needed to verify the contract. |
+| Memory wizard | All 44 current US General Purpose server CTO catalog entries return false from the native availability endpoint (`artifacts/memory-wizard-audit-2026-10-30/survey.json`). The endpoint and launch catalogs exist, but no enabled case was found in this scope. Other locales/older products remain unverified. |
+| Occupied source-port swaps | Native 100GbE editor/export duplicates source port 2 across both rows rather than swapping 1↔2 (`artifacts/manual-source-swap-audit-2026-10-30/report.json`). A correctly constructed atomic swap is retained by Lenovo APIs. MCP now supports same-component source swaps with matching connector name, assigned network and topology; the 9-call lifecycle passes history, crash recovery, MCP/fresh website import and commercial parity (`artifacts/parity-manual-source-swap/2026-10-30-run1/report.json`). Cross-component and cross-network swaps remain unsupported. |
+| Other wizard families and physical shapes | Coverage gaps remain; unavailable tested catalogs do not establish universal API absence. |
+
+A percentage of total website parity is not defensible without a complete action inventory and weighting. Tool conformance measures the implemented MCP contract, not the percentage of website functionality.
+
+## Shared managed-storage replacement and imported-linked lifecycle verified (2026-10-30)
+
+**Final current result:** combined public gate40223 PASS24 MCP calls, both fresh
+and imported replacement, spares,crash recovery,re-export and website graph/price
+parity. Full check16118 PASS970tests/17contracts/build/81tools. Release inventory
+focused40303 PASS2tests. The frozen82-command matrix completed78pass/0fail/4declared blocks; see the consolidated
+[current context](../context.md). Intermediate statuses below are historical.
+
+
+Previous goal turn was progress: mixed import lifecycle and native UI replacement
+captured. The current implementation removes the managed-alias replacement guard.
+ManualConnectionEdit and dcsc_edit_cabling_connection accept optional cableQuantities
+{oldPart,newPart}, per product including spares. Planning resolves linked/template
+physical ownership and enforces maximum per-instance graph usage, including untouched
+siblings. Default direct replacement semantics remain unchanged. Shared replacement
+uses existing native configure plus seeded autoConnect and workspace derive, restoring
+both requested cable quantities across the native per-route layout projection. It
+checks exact graph cardinality/retention, every editable/physical destination's cable
+quantities, and native cable-section errors before committing the transaction. No
+new endpoints or registered tools. Native invalid cable rules also reject direct
+replacement atomically. It does not round quantities from prose rule messages.
+
+Live service92359 PASS on fresh shared managed template: one A1PH→A1PJ route,
+other route retained, both quantities2, export/reimport with no cable errors.
+Evidence artifacts/managed-replacement-service-2026-10-30/report.json and API captures.
+Full check64394 terminal PASS: 967 tests/124 files,17 contracts,typecheck/lint/build,
+81-tool startup (/tmp/dcsc-shared-replacement-full-check.log). Maintained public
+gate36654 terminal PASS22 MCP calls, including public replacement, two restart
+checks, reimport with paired quantities, recovered export and fresh browser graph/
+commercial parity. Evidence artifacts/parity-manual-create/2026-10-30-replace-storage-run1.
+Native invalid-pair rollback56374 terminal PASS: explicit1+1 returned native paired
+rule errors; graph/configurations/history/revision and persisted snapshot unchanged.
+Evidence artifacts/managed-replacement-negative-2026-10-30/report.json.
+
+Additional imported-linked replacement81748 failed before HTTP because the existing
+linked-configure guard excluded HPC storage. Extended the HPC linked path to storage
+with no managed-template role or alias owner, matching CTO product/validation controls
+and quantity1. Native retry20011 returned the linked root AND containing rack; now
+allow that physically related rack, preserve strict identities/target coverage, and
+require workspace undo for dependent rack edits. Node/storage root-only and switch/
+storage rack-dependent regressions pass (focused71 tests19047, static65938/85230).
+
+Imported retry85961 exposed unused spare A1PJ loss;12561 proved it vanished already
+in targeted derive. Control30758 changed only explicit A1PJ forAutoConnect flags to
+false and native derive retained quantity2 without errors. Shared replacement now
+marks explicitly retained parts with no remaining route as manual spares in the raw
+selections and physical rows before configure. Auto-connect may also remove a spare
+record; the quantity restager can restore its exact pre-call physical record, never
+inventing ownership. Regression covers last-route removal, retained quantity2,
+forAutoConnect:false, immutable inputs and missing-record rejection (focused69
+PASS77496; typecheck/lint28510/42364 before final ownership change).
+
+Imported linked retry66974 terminal PASS after all fixes: replacement A1PJ→A1PH,
+both codes qty2 on both physical products, no cable errors, export/reimport passes.
+Evidence artifacts/imported-linked-replacement-2026-10-30/run5/report.json and native
+captures. Earlier runs remain failed controls, not repeated blockers. Current full
+check16118 running /tmp/dcsc-shared-replacement-final-check.log. Maintained gate40223
+running /tmp/dcsc-shared-replacement-gate2.log, evidence
+artifacts/parity-manual-create/2026-10-30-replace-storage-run2. This extended gate
+performs public replacement both BEFORE and AFTER import, checks unused spare qty2,
+then restart/re-export and website graph/commercial parity. Poll exact live handles.
+
+New maintained command parity:manual-replace:shared-storage (inventory82, tools81).
+Gate covers paired preparation, two fresh physical instances sharing one template,
+public edit, crash recovery, export/import, recovered export and website comparison.
+Await extended public lifecycle results; broader storage models/topologies remain
+unverified. Goal remains active; no full parity claim.
+
+## Manual import spare quantities preserved; mixed-storage lifecycle verified (2026-10-30)
+
+A controlled two-instance storage case with A1PH and A1PJ manual routes exposed
+quantity loss during MCP import. Native CFXML initially returned both cable codes
+at quantity 2 on both physical products. racks/customize projected active-route
+counts of 1; the following workspace autoDerive consumed those counts and produced
+paired-cable validation errors. Restaging the explicitly imported quantities before
+derive returned quantity 2 for both codes with no cable errors.
+
+The import-only layout path now snapshots explicit manual P2P cable selections and
+restages them after layout customization, before configuration derive. It normalizes
+missing CFXML category with divider=1 only in the planning copy. It does not invent
+absent selections, infer pair rounding, or change the accepted connection graph.
+Reduced native evidence is tracked in test/fixtures/parity/manual-import-cable-spares.json.
+Focused native-manual/import tests: 33 passed. Service live import → export → reimport:
+PASS, two routes and both cable quantities 2; evidence
+artifacts/managed-replacement-seed-2026-10-30/fixed-import2/report.json.
+
+The first full check caught nullable result.quantity in the new helper; corrected
+with a zero default. Full check81295 terminal PASS: 966 tests/124 files, 17 contracts,
+typecheck, lint, build and 81-tool startup; log /tmp/dcsc-import-spares-full-check2.log.
+Maintained mixed-storage gate42209 terminal PASS, 21 public MCP calls: two distinct
+cable codes across two physical instances of one fresh template, two SIGKILL/restart
+checks, import quantities and zero cable errors, immutable fresh cable discovery,
+recovered re-export and fresh website import with exact graph/commercial parity.
+Evidence artifacts/parity-manual-create/2026-10-30-mixed-storage-run1/report.json,
+mcp-recovery-report.json, native-import.json, native-layouts.json and numbered calls.
+Inventory is now 81 maintained commands and 81 tools (distinct counts).
+
+Native replacement investigation44800 terminal captured, configurationValid:false.
+Evidence artifacts/storage-replacement-native-refresh-2026-10-30/replacement-report.json,
+4-derive.json, native-refresh.json, after.txt. The website's own distance-refresh
+action populated actual imported rows with 12/13 choices and DAC_SFP_CABLE metadata;
+then its existing-row editor changed one A1PH to A1PJ and issued targeted derive.
+No graph injection. This is a programmatic native-action refresh, not evidence of
+an ordinary UI refresh workflow. Saved frontend shows port changes/Save alone do
+not request fresh distances. The actual replacement request targeted the first
+physical root and customizingIds BOTH imported linked physical members. It selected
+A1PJ quantity1, removed A1PH from reduced selections; native derive returned A1PH1
+and A1PJ1 with paired-cable rule errors for both (valid quantities2/4/6/8). Thus the
+API DOES support replacement, but this native UI flow does not keep the paired BOM
+valid. Do not label it an upstream unsupported operation or a successful valid
+configuration. This imported physical-root control does not yet capture fresh
+managed-template replacement. Next: implement/verify atomic shared-template
+replacement with explicit valid cable quantities and native validation feedback.
+No live jobs remain.
+
+Managed-storage cable replacement remains guarded: subtract-one/add-one violates
+native paired quantities in the observed controller. The explicit valid-quantity
+route-seeding control is not public replacement acceptance. Full website parity,
+unverified topologies and final immutable release matrix remain open. Goal active.
+
+## Current acceptance boundary
+
+Manual creation now covers direct Management and 100GbE copper connections, linked source/destination cases, and managed DB710S source to direct SN2201 Management. The managed-source gate passed MCP creation, two crash recoveries, export/reimport and fresh website import. Four-way breakout creation/replacement and MCP recovery pass, while direct website breakout import has a demonstrated upstream shape-loss defect. Explicit network-port deselection passed its public MCP crash/restart and export/reimport gate.
+
+Imported DE2000H destination creation now passes public MCP port selection, creation, two crash recoveries and fresh website import; a second gate explicitly prepares DAC hardware from an optical starting configuration through MCP and passes the same lifecycle. Native import collapses the template to a physical singleton. Fresh managed-controller definition, hardware configuration, placement and manual creation now also pass the full MCP/recovery/browser lifecycle within an existing server/rack design. Remaining work includes shared storage instances and broader storage cabling coverage, additional breakout/complex physical layouts, genuine legacy companion-workbook recovery, account-dependent workflows when access is available, and a complete release matrix for the final source. Empty graphs in specific native storage controls and null GB300 power are bounded observations, not general API incapability claims. No historical gate or current unit count proves full website parity.
 
 ## What the additional research resolved
 
@@ -93,7 +271,7 @@ The 14 numbered changes below are the full specification and map to all 23 findi
 | R3 — State, history and validation | P1; 03/04/06; parallel with R2 | Retain the current 48-scenario crash inventory and extend it for new mutation workflows. Retain immutable recovery archives and physical-trust gates. Add failure injection at every step of generated switch/storage/PDU orchestration; preserve identity, references, revisions and history. | Acknowledged changes survive immediate SIGKILL; failures publish nothing. Stale/pending/failed validation cannot claim validity. Remote success plus disk failure is actionable and never silently retried. |
 | R4 — Remaining physical handoff | P1/P2; 07–09; R3 | Retain passing two-rack moves/unplace/arrange/export/reimport, separate MCP history, multi-code PDU, item/empty-U lock, Copy/Clone Multiple and 2U boundary checks. Retain the passing 291-call supported nested detach/remove/unplace lifecycle and its explicit native Delete Node handoff warning. Retain the passing quantity-eight commercial and XML differential. | Identity, placements, floor, commercial lines and power references survive browser↔MCP handoff, undo and restart. XML and workbook semantics match. Unsupported nested structures fail without data loss. Broader shapes are future compatibility-matrix growth. |
 | R5 — Shopping/discovery completeness | P2; 10/11; R2/R3 | Retain mixed CTO/LFO passing handoffs. Retain the now-passing base-plus-add-on service wire/groups/XML/browser import; verify any separate multi-product workflow before promising one. Enumerate current product/part/software catalogs and compatible racks through real MCP continuations. Verify all new flows are discoverable and their identifiers directly usable. | Complete distinct results without gaps; byte limits and executable continuations; stale pages rejected. Service selections/prices/editability survive refresh/export/import/restart. |
-| R6 — Populated network/storage integration | **P1 for the remaining storage graph; P2 for broader topology matrix**; 12; R3/R4 | Retain passing Centralized and Distributed main/leaf Management graphs, exact ports/cable parts, export/restart/fresh import, existing-row endpoint/cable edits, shared-part preservation and occupied-port swaps. Retain passing storage assignment/controller/SAN edits, physical placement/move/unplace, commercial export/reimport and exclusive deletion. Complete a real populated storage graph and managed-storage physical-alias cable replacement. Expansion remains upstream-unavailable while current catalogs expose zero choices. Local planning links remain explicitly separate from Lenovo connection rows. | Match any supported populated storage graph by identities, ports, cable parts and prices. Preserve full DTOs, preferences, settings and maps through export/import/validation/restart; rejected operations roll back and repeated provisioning does not add unnecessary switches. |
+| R6 — Populated network/storage integration | **P1 for the remaining storage graph; P2 for broader topology matrix**; 12; R3/R4 | Retain passing Centralized and Distributed main/leaf Management graphs, exact ports/cable parts, export/restart/fresh import, existing-row endpoint/cable edits, shared-part preservation and occupied-port swaps. Retain passing storage assignment/controller/SAN edits, physical placement/move/unplace, commercial export/reimport and exclusive deletion. Populated10GbE DAC storage and managed/shared physical-alias cable replacement now pass, including imported-linked replacement and retained paired spares; retain their maintained gates in the frozen matrix. Expansion remains upstream-unavailable while current catalogs expose zero choices. Local planning links remain explicitly separate from Lenovo connection rows. | Match any supported populated storage graph by identities, ports, cable parts and prices. Preserve full DTOs, preferences, settings and maps through export/import/validation/restart; rejected operations roll back and repeated provisioning does not add unnecessary switches. |
 | R7 — Release and finding closure | 13/14; all streams | Retain passing artifact resource-limit and all-advertised-blueprint launch gates; finish documentation. Rebuild and run local, live, headless and all-tool checks against a single source manifest; rerun authoritative validation after final wire changes. Map every original finding to regression and live evidence. | All 23 findings accounted for; no unresolved P1. Required unavailable cases remain visible and qualify the parity claim. Reproduce gates from a temporary checkout containing the complete reviewed patch and fixtures. |
 
 The core R1/R3 foundations and two-rack R4 dependency are already in place. Continue R6 from the integrated graph/provisioning implementation and passing failure/restart coverage; finish its live graph/commercial handoff. Run the remaining R2 configuration, R4 physical and R5 shopping captures in parallel with separate file ownership. Finish all streams before R7; do not wait for an unrelated catalog limitation to progress an independent packet.

@@ -1,6 +1,6 @@
 # Development and verification
 
-Read [current context](.docs/context.md) before changing behavior. It links the original requirements, current finding audit, remaining native-storage blocker and local evidence locations.
+Read [current context](.docs/context.md) before changing behavior. It links the original requirements, current finding audit, remaining coverage limitations and local evidence locations.
 
 ## Local checks
 
@@ -24,7 +24,7 @@ npx playwright install chromium
 npm run parity:headless
 ```
 
-All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `parity:*` scripts for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. The dated final matrix and its two known blocks are recorded in [current context](.docs/context.md).
+All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `parity:*` scripts for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. The source-bound matrix results and scoped native limitations are recorded in [current context](.docs/context.md).
 
 `scripts/recon/` contains historical experiments, some dependent on private local captures. It is intentionally excluded from maintained lint/typecheck. Raw `artifacts/` and old `/tmp/` evidence references describe the original development environment; they are not required to run local checks from a fresh clone.
 
