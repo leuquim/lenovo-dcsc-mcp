@@ -68,6 +68,15 @@ const READ_ONLY_UPSTREAM_TOOLS = new Set<string>([
   'dcsc_scale_out',
   'dcsc_fabric_options',
   'dcsc_network_connectors',
+  'dcsc_specialty_catalog',
+  'dcsc_subtab_recommendations',
+  'dcsc_feature_details',
+  'dcsc_smart_recommendations',
+  'dcsc_query_sids',
+  'dcsc_vlh_wizard_info',
+  'dcsc_vlh_attributes',
+  'dcsc_virtual_container_compatible_products',
+  'dcsc_virtual_container_check_rules',
 ]);
 
 const DESTRUCTIVE_TOOLS = new Set<string>([
@@ -101,6 +110,9 @@ const IDEMPOTENT_MUTATING_TOOLS = new Set<string>([
   'dcsc_set_node_role',
   'dcsc_set_topology',
   'dcsc_set_network_preferences',
+  'dcsc_generate_config_id',
+  'dcsc_import_config_id',
+  'dcsc_auto_fix',
 ]);
 
 const LOCAL_MUTATING_TOOLS = new Set<string>([

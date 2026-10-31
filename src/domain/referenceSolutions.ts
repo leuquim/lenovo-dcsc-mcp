@@ -1,10 +1,18 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 
 type Obj = Record<string, unknown>;
-export type ReferenceView = 'categories' | 'category' | 'solutions' | 'popular' | 'validation';
+export type ReferenceView =
+  | 'categories'
+  | 'category'
+  | 'solutions'
+  | 'popular'
+  | 'validation'
+  | 'promotions'
+  | 'promotion-sids'
+  | 'promotion-lfos';
 export interface ReferenceQuery {
   view: ReferenceView;
-  catalog?: 'deployment-ready' | 'truscale' | undefined;
+  catalog?: 'deployment-ready' | 'truscale' | 'promotion' | undefined;
   categoryId?: string | undefined;
   crnId?: string | undefined;
 }
@@ -21,6 +29,9 @@ export function referencePath(query: ReferenceQuery): string {
     case 'solutions': return `/reference_solution/categories/${referenceId(query.categoryId, 'categoryId')}/CRNs`;
     case 'popular': return '/reference_solution/new_or_popular_CRNs';
     case 'validation': return `/reference_solution/CRNs/${referenceId(query.crnId, 'crnId')}/validate`;
+    case 'promotions': return '/promotion/hierarchies';
+    case 'promotion-sids': return '/promotion/sid';
+    case 'promotion-lfos': return '/promotion/lfo';
   }
 }
 
@@ -57,11 +68,11 @@ export function referenceRows(raw: unknown, view: ReferenceView): Obj[] {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('DCSC returned an invalid reference-solution catalog row.');
     return value as Obj;
   };
-  if (view !== 'categories') return Array.isArray(raw) ? raw.map(object) : [object(raw)];
+  if (view !== 'categories' && view !== 'promotions') return Array.isArray(raw) ? raw.map(object) : [object(raw)];
   const result: Obj[] = [];
   const visit = (value: unknown, ancestors: string[]): void => {
     const node = object(value);
-    const breadcrumb = [...ancestors, String(node['name'] ?? node['id'] ?? '')];
+    const breadcrumb = [...ancestors, String(node['name'] ?? node['title'] ?? node['id'] ?? '')];
     const { children, ...fields } = node;
     result.push({ ...fields, breadcrumb, childIds: Array.isArray(children) ? children.map(c => object(c)['id']) : [] });
     if (Array.isArray(children)) for (const child of children) visit(child, breadcrumb);

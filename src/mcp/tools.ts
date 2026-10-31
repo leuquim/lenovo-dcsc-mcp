@@ -19,6 +19,7 @@ import { registerStorageWizardTools } from './storageWizardTools.js';
 import { registerCapabilitiesResource, withToolSupport } from './toolSupport.js';
 import { registerUnconfiguredTools } from './unconfiguredTools.js';
 import { registerValidationTools } from './validationTools.js';
+import { registerVlhTools } from './vlhTools.js';
 
 export function registerTools(rawServer: McpServer, service: DcscService): void {
   const server = withToolSupport(rawServer);
@@ -41,4 +42,5 @@ export function registerTools(rawServer: McpServer, service: DcscService): void 
   registerFabricPowerTools(server, service);
   registerConfigurationTools(server, service);
   registerImportExportTools(server, service);
+  registerVlhTools(server, service);
 }

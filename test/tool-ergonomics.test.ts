@@ -52,10 +52,10 @@ async function createConnectedHarness() {
 }
 
 describe('MCP tool annotations, context diet, resource, parameter aliasing, and inline dispatch', () => {
-  it('registers all 89 tools with complete MCP annotations and a tightened description footprint', async () => {
+  it('registers all 101 tools with complete MCP annotations and a tightened description footprint', async () => {
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(89);
+    expect(tools).toHaveLength(101);
 
     let totalDescChars = 0;
     for (const tool of tools) {
@@ -99,6 +99,30 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
       destructiveHint: true,
       idempotentHint: false,
       openWorldHint: false,
+    });
+    expect(byName.get('dcsc_specialty_catalog')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(byName.get('dcsc_vlh_wizard_info')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(byName.get('dcsc_auto_fix')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(byName.get('dcsc_generate_config_id')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
     });
 
     // Context diet: previously 36,352 description chars; verify substantial reduction

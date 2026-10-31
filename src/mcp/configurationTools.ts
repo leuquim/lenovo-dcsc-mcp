@@ -514,4 +514,37 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
         };
       }, 'dcsc_explain failed'),
   );
+
+  server.registerTool(
+    'dcsc_auto_fix',
+    {
+      title: 'Hardware auto-fix for CTO rule errors',
+      description: 'Automatically resolves rule validation errors for eligible hardware CTO sections.',
+      inputSchema: {
+        session: z.string().describe('Configuration session or workspace ID.'),
+        sections: z
+          .array(z.string())
+          .optional()
+          .describe('Optional list of section character names to fix (e.g. ["PROCESSOR"]). Defaults to all auto-fix candidates.'),
+        expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision for optimistic concurrency.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const report = await service.autoFix(args.session, {
+          sections: args.sections,
+          expectedRevision: args.expectedRevision,
+          ctx: service.newCtx(),
+        });
+        return {
+          session: report.session.id,
+          revision: report.session.revision,
+          applied: report.result.applied,
+          sectionsChanged: report.result.sectionsChanged,
+          notices: report.result.notices,
+          message: report.result.message,
+          totalPrice: configurationListPrice(report.session.raw),
+        };
+      }, 'dcsc_auto_fix failed'),
+  );
 }

@@ -211,4 +211,115 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
         };
       }, 'dcsc_export failed'),
   );
+
+  server.registerTool(
+    'dcsc_generate_config_id',
+    {
+      title: 'Generate an online Lenovo DCSC Configuration ID',
+      description: 'Generates a 10-character online configuration ID for an active session or workspace.',
+      inputSchema: {
+        session: z.string().optional().describe('Optional session or workspace ID to bind the Config ID to.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const result = await service.generateConfigId(args.session, service.newCtx());
+        return {
+          configId: result.configId,
+          ...(args.session !== undefined ? { session: args.session } : {}),
+        };
+      }, 'dcsc_generate_config_id failed'),
+  );
+
+  server.registerTool(
+    'dcsc_import_config_id',
+    {
+      title: 'Import an online configuration by Config ID',
+      description: 'Imports a saved configuration online from DCSC by its 10-character Configuration ID.',
+      inputSchema: {
+        configId: z.string().describe('The 10-character online Lenovo DCSC Configuration ID.'),
+        workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
+        expectedRevision: z.number().int().min(1).optional().describe('Fails if workspace moved on.'),
+        solutionMode: z.string().optional().describe('Solution mode to import under (e.g. "General Purpose").'),
+        mode: z.enum(CONFIG_MODES).optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const res = await service.retrieveConfigId(args.configId, {
+          workspaceId: args.workspace,
+          expectedRevision: args.expectedRevision,
+          solutionMode: args.solutionMode,
+          mode: args.mode,
+          ctx,
+        });
+
+        const { missingParts, removedParts, replacedParts, eccnRestricted } = res.diagnostics;
+        const lostParts = missingParts.length + removedParts.length;
+
+        return {
+          workspace: res.workspaceId,
+          importedConfigurations: res.sessions.length,
+          ...(res.standaloneKind ? { standaloneKind: res.standaloneKind } : {}),
+          warnings: res.diagnostics.warnings ?? [],
+          sessions: res.sessions.map((s) => ({
+            id: s.id,
+            productCode: s.product.code,
+            description: s.product.description,
+            quantity: s.raw.quantity ?? 1,
+            totalPrice: configurationListPrice(s.raw),
+            priceAvailable: configurationListPrice(s.raw) !== null,
+          })),
+          missingParts,
+          removedParts,
+          replacedParts,
+          eccnRestricted,
+          ...(lostParts > 0
+            ? {
+                warning:
+                  `DCSC could not carry ${lostParts} part(s) across the import. ` +
+                  'The imported configuration is incomplete and its price is not comparable ' +
+                  'to the original.',
+              }
+            : {}),
+        };
+      }, 'dcsc_import_config_id failed'),
+  );
+
+  server.registerTool(
+    'dcsc_query_sids',
+    {
+      title: 'Query preconfigured solution templates (SIDs)',
+      description: 'Queries preconfigured solution ID (SID) templates by category with pagination.',
+      inputSchema: {
+        categoryId: z.string().describe('Product category ID to query SIDs for.'),
+        pageIndex: z.number().int().min(1).optional().default(1).describe('1-based page index.'),
+        pageSize: z.number().int().min(1).max(100).optional().default(10).describe('Page size (1-100).'),
+        sidNumber: z.string().optional().describe('Optional SID number to filter by.'),
+        tceFlag: z.boolean().optional().describe('Optional TCE flag filter.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const result = await service.querySids(
+          {
+            categoryId: args.categoryId,
+            pageIndex: args.pageIndex,
+            pageSize: args.pageSize,
+            sidNumber: args.sidNumber,
+            tceFlag: args.tceFlag,
+          },
+          ctx,
+        );
+        return {
+          categoryId: args.categoryId,
+          pageIndex: result.number,
+          totalElements: result.totalElements,
+          returned: result.content.length,
+          content: result.content,
+        };
+      }, 'dcsc_query_sids failed'),
+  );
 }

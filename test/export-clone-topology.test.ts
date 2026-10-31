@@ -73,10 +73,69 @@ describe('workspace export clone dependency/color consistency', () => {
     }).toEqual(before);
   });
 
-  it('refuses an unracked multi-unit configuration the website cannot reopen', () => {
+  it('auto-expands an unracked multi-unit configuration into physical records on export', () => {
     const workspace = workspaceWith(['only']);
     for (const session of workspace.configurations.values()) session.raw.quantity = 3;
-    expect(() => exportWorkspace(workspace)).toThrow(/quantity 3 but is not in a rack/);
+    const exported = exportWorkspace(workspace);
+
+    const nonRackData = (exported.workspaceInformation as Record<string, unknown>).nonRackData as Array<Record<string, unknown>>;
+    expect(nonRackData).toHaveLength(3);
+    expect(nonRackData.map(r => r.id)).toEqual(['only', 'only__clone_1', 'only__clone_2']);
+    expect(nonRackData.every(r => r.quantity === 1)).toBe(true);
+
+    const nonRackArea = (exported.workspace as Record<string, unknown>).nonRackArea as Array<Record<string, unknown>>;
+    expect(nonRackArea).toEqual([
+      expect.objectContaining({
+        id: 'only',
+        quantity: 3,
+        originalIds: ['only', 'only__clone_1', 'only__clone_2'],
+      }),
+    ]);
+
+    expect((exported.workspaceInformation as Record<string, unknown>).cloneDependency).toEqual({
+      only: ['only', 'only__clone_1', 'only__clone_2'],
+    });
+    expect((exported.cloneDependencyColor as Record<string, Record<string, unknown>>).only?.dependBy).toEqual([
+      'only', 'only__clone_1', 'only__clone_2',
+    ]);
+  });
+
+  it('preserves connection graph topology when auto-expanding unracked multi-unit configurations', () => {
+    const workspace = workspaceWith(['only']);
+    for (const session of workspace.configurations.values()) session.raw.quantity = 3;
+    const connection = {
+      id: 'conn-1',
+      fromId: 'only',
+      fromPort: 'eth0',
+      toId: 'switch-1',
+      toPort: 'p1',
+      cablePart: 'CABLE-1',
+      network: 'Ethernet',
+    };
+    workspace.serverState = {
+      autoConnectResults: [connection],
+      networkingInformation: { autoConnectResults: [connection] },
+    };
+
+    const exported = exportWorkspace(workspace);
+    expect(exported.autoConnectResults).toEqual([connection]);
+    expect((exported.networkingInformation as Record<string, unknown>).autoConnectResults).toEqual([connection]);
+  });
+
+  it('clones configuration objects outside General Purpose mode', () => {
+    const workspace = workspaceWith(['only']);
+    for (const session of workspace.configurations.values()) session.raw.quantity = 3;
+    const aiSolution = { solutionMode: 'HPC and AI - Systems', masterSlices: ['HPCGP'] };
+    const exported = buildExportData({
+      workspace,
+      solution: aiSolution,
+      fileTypes: ['XML'],
+      validationMode: 'guided',
+    });
+    const configs = exported.configurations as Array<Record<string, unknown>>;
+    expect(configs).toHaveLength(3);
+    expect(configs.map(c => c.id)).toEqual(['only', 'only__clone_1', 'only__clone_2']);
+    expect(configs.every(c => c.quantity === 1)).toBe(true);
   });
 
   it('keeps genuinely independent singleton configurations independent', () => {

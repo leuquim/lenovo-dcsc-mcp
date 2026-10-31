@@ -3,6 +3,22 @@ import { z } from 'zod';
 
 import { BLUEPRINTS, findBlueprint } from '../domain/blueprints.js';
 import { browseCatalog, searchCatalogPage } from '../domain/catalog.js';
+import {
+  fetchConvergedCategoryDetail,
+  fetchConvergedCatalog,
+  fetchLvrCatalog,
+  fetchSpecialtyCatalog,
+} from '../domain/specialtyCatalog.js';
+import {
+  fetchUpstreamFeatureDetails,
+  summarizeFeatureSpec,
+} from '../domain/featureDetails.js';
+import {
+  fetchSmartLfoRecommendation,
+  fetchSubTabRecommendations,
+  fetchSummaryRecommendations,
+  type SummaryRecommendationPayload,
+} from '../domain/recommendations.js';
 import { projectCatalogBrowsePage } from '../model/catalogBrowsePage.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
 import { projectSummary } from '../model/project.js';
@@ -326,5 +342,364 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
           next: 'dcsc_list_options(session, tab: "Storage" | "PCI") to fill the gaps above, then dcsc_scale_out to size a cluster.',
         };
       }, 'dcsc_start_from_blueprint failed'),
+  );
+
+  server.registerTool(
+    'dcsc_specialty_catalog',
+    {
+      title: 'Browse specialty catalogs (LVR refurbished, Converged/MultiProd, Promotions)',
+      description:
+        'Discovers products in Lenovo DCSC specialty catalogs: LVR (Certified Refurbished), Converged (ThinkAgile multi-product systems), and Promotions (hierarchies, promotional SIDs, promotional LFOs).',
+      inputSchema: {
+        catalog: z
+          .enum(['lvr', 'converged', 'promotion'])
+          .default('lvr')
+          .describe('Specialty catalog type: lvr (refurbished), converged (ThinkAgile), or promotion.'),
+        subType: z
+          .enum(['hierarchies', 'sid', 'lfo', 'option'])
+          .optional()
+          .describe('For promotion catalog: hierarchies, sid (promotional SIDs), lfo, or option.'),
+        categoryId: z
+          .string()
+          .optional()
+          .describe('Category ID for converged category detail or promotion option filter.'),
+        query: z
+          .string()
+          .optional()
+          .describe('Optional search query over LVR or converged catalog entries.'),
+        offset: z.number().int().min(0).optional().default(0),
+        limit: z.number().int().min(1).max(50).optional().default(15),
+        solutionMode: z.string().optional(),
+      },
+      annotations: {
+        title: 'Browse specialty catalogs (LVR refurbished, Converged/MultiProd, Promotions)',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const resolvedCtx = { ...ctx, solution };
+
+        if (args.catalog === 'lvr') {
+          const catalog = await fetchLvrCatalog(service.http, resolvedCtx);
+          if (args.query) {
+            const page = searchCatalogPage(catalog, {
+              query: args.query,
+              offset: args.offset,
+              limit: args.limit,
+            });
+            return {
+              catalog: 'lvr',
+              total: page.total,
+              offset: page.offset,
+              limit: page.limit,
+              entries: page.items,
+            };
+          }
+          const offset = args.offset ?? 0;
+          const limit = args.limit ?? 15;
+          return {
+            catalog: 'lvr',
+            total: catalog.entries.length,
+            offset,
+            limit,
+            entries: catalog.entries.slice(offset, offset + limit),
+          };
+        }
+
+        if (args.catalog === 'converged') {
+          if (args.categoryId) {
+            const detail = await fetchConvergedCategoryDetail(
+              service.http,
+              resolvedCtx,
+              args.categoryId,
+            );
+            return {
+              catalog: 'converged',
+              categoryId: args.categoryId,
+              detail,
+            };
+          }
+          const catalog = await fetchConvergedCatalog(service.http, resolvedCtx);
+          if (args.query) {
+            const page = searchCatalogPage(catalog, {
+              query: args.query,
+              offset: args.offset,
+              limit: args.limit,
+            });
+            return {
+              catalog: 'converged',
+              total: page.total,
+              offset: page.offset,
+              limit: page.limit,
+              entries: page.items,
+            };
+          }
+          const offset = args.offset ?? 0;
+          const limit = args.limit ?? 15;
+          return {
+            catalog: 'converged',
+            total: catalog.entries.length,
+            offset,
+            limit,
+            entries: catalog.entries.slice(offset, offset + limit),
+          };
+        }
+
+        const promo = await fetchSpecialtyCatalog(service.http, resolvedCtx, {
+          type: 'promotion',
+          subType: args.subType,
+          categoryId: args.categoryId,
+        });
+        return {
+          catalog: 'promotion',
+          subType: promo.type === 'promotion' ? promo.subType : 'hierarchies',
+          data: (promo as { data: unknown }).data,
+        };
+      }, 'dcsc_specialty_catalog failed'),
+  );
+
+  server.registerTool(
+    'dcsc_subtab_recommendations',
+    {
+      title: 'Get smart recommendations and rules for configuration sub-tabs',
+      description:
+        'Returns context-aware recommendations, transition guides, and rule warnings for a model’s configuration tabs (e.g. Microsoft ROK OS, Storage bundle constraints).',
+      inputSchema: {
+        session: z
+          .string()
+          .optional()
+          .describe('Session or workspace ID to inspect productCode from.'),
+        productCode: z
+          .string()
+          .optional()
+          .describe('CTO product code (e.g. "7D73CTO1WW") if no session.'),
+        mode: z
+          .string()
+          .optional()
+          .default('CTO')
+          .describe('Configuration mode, e.g. CTO.'),
+        solutionMode: z.string().optional(),
+      },
+      annotations: {
+        title: 'Get smart recommendations and rules for configuration sub-tabs',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        let code = args.productCode?.trim();
+        if (!code && args.session) {
+          const session = service.sessions.get(args.session);
+          if (session && typeof session.raw.code === 'string') {
+            code = session.raw.code;
+          }
+        }
+        if (!code) {
+          throw new Error('Provide either a valid productCode or an active session.');
+        }
+
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const recommendations = await fetchSubTabRecommendations(
+          service.http,
+          { ...ctx, solution },
+          args.mode ?? 'CTO',
+          code,
+        );
+
+        return {
+          productCode: code,
+          count: recommendations.length,
+          recommendations,
+        };
+      }, 'dcsc_subtab_recommendations failed'),
+  );
+
+  server.registerTool(
+    'dcsc_feature_details',
+    {
+      title: 'Get rich upstream spec details for feature codes',
+      description:
+        'Queries Lenovo DCSC upstream for rich feature specifications, including shipping lead times (shippingStatus), lifecycle dates (announceDate, withdrawnDate), commercial recommendations (topChoice, recommendedFeature), marketing tags, and price breakdown.',
+      inputSchema: {
+        session: z
+          .string()
+          .optional()
+          .describe('Optional session or workspace ID to resolve CTO code and session context.'),
+        ctoCode: z
+          .string()
+          .optional()
+          .describe('CTO product code (e.g. "7D73CTO1WW").'),
+        codes: z
+          .array(z.string())
+          .min(1)
+          .max(20)
+          .describe('List of feature/option codes to query (1-20).'),
+        solutionMode: z.string().optional(),
+      },
+      annotations: {
+        title: 'Get rich upstream spec details for feature codes',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        let cto = args.ctoCode?.trim();
+        let sessionId = args.session ?? 'anon';
+        if (args.session) {
+          const session = service.sessions.get(args.session);
+          if (session) {
+            if (!cto && typeof session.raw.code === 'string') {
+              cto = session.raw.code;
+            }
+            sessionId = session.id;
+          }
+        }
+        if (!cto) {
+          throw new Error('Provide either ctoCode or an active session.');
+        }
+
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const rawFeatures = await fetchUpstreamFeatureDetails(
+          service.http,
+          { ...ctx, solution },
+          cto,
+          sessionId,
+          args.codes,
+        );
+        const specs = rawFeatures.map(summarizeFeatureSpec);
+
+        return {
+          ctoCode: cto,
+          count: specs.length,
+          features: specs,
+        };
+      }, 'dcsc_feature_details failed'),
+  );
+
+  server.registerTool(
+    'dcsc_smart_recommendations',
+    {
+      title: 'Get summary cross-sell and smart LFO top choice recommendations',
+      description:
+        'Queries Lenovo DCSC for cross-sell/summary attach recommendations or smart LFO top-choice preconfigured alternatives.',
+      inputSchema: {
+        type: z
+          .enum(['summary', 'smart-lfo'])
+          .default('summary')
+          .describe('Type of smart recommendation: summary (cross-sell attach) or smart-lfo (top-choice models).'),
+        session: z.string().optional().describe('Session or workspace ID.'),
+        ctoCode: z.string().optional().describe('CTO product code.'),
+        country: z.string().optional().describe('2-letter ISO country code for smart-lfo recommendations.'),
+        solutionMode: z.string().optional(),
+      },
+      annotations: {
+        title: 'Get summary cross-sell and smart LFO top choice recommendations',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const ctx = service.newCtx();
+        const solution = await service.resolveSolution(ctx, args.solutionMode);
+        const resolvedCtx = { ...ctx, solution };
+
+        if (args.type === 'smart-lfo') {
+          const country = (args.country ?? ctx.locale.country ?? 'US').toUpperCase();
+          let cto = args.ctoCode?.trim();
+          if (!cto && args.session) {
+            const session = service.sessions.get(args.session);
+            if (session && typeof session.raw.code === 'string') {
+              cto = session.raw.code;
+            }
+          }
+          if (!cto) {
+            throw new Error('Provide either ctoCode or an active session for smart LFO recommendations.');
+          }
+
+          const result = await fetchSmartLfoRecommendation(
+            service.http,
+            resolvedCtx,
+            country,
+            cto,
+          );
+          return {
+            type: 'smart-lfo',
+            country,
+            ctoCode: cto,
+            result,
+          };
+        }
+
+        let cto = args.ctoCode?.trim();
+        let payload: SummaryRecommendationPayload = {
+          selectedProductDataLists: [],
+        };
+
+        if (args.session) {
+          const session = service.sessions.get(args.session);
+          if (session) {
+            if (!cto && typeof session.raw.code === 'string') {
+              cto = session.raw.code;
+            }
+            const features: Array<{ code: string; quantity?: number }> = [];
+            for (const tab of session.raw.tabs ?? []) {
+              for (const subTab of tab.subTabs ?? []) {
+                for (const sec of subTab.sections ?? []) {
+                  for (const res of sec.results ?? []) {
+                    if (res.code) {
+                      features.push({ code: res.code, quantity: res.quantity ?? 1 });
+                    }
+                  }
+                }
+              }
+            }
+            payload = {
+              selectedProductDataLists: [
+                [
+                  {
+                    code: cto ?? 'CTO',
+                    id: session.id,
+                    quantity: session.raw.quantity ?? 1,
+                    features,
+                  },
+                ],
+              ],
+            };
+          }
+        } else if (cto) {
+          payload = {
+            selectedProductDataLists: [[{ code: cto, quantity: 1 }]],
+          };
+        }
+
+        const result = await fetchSummaryRecommendations(
+          service.http,
+          resolvedCtx,
+          payload,
+        );
+
+        return {
+          type: 'summary',
+          ctoCode: cto,
+          result,
+        };
+      }, 'dcsc_smart_recommendations failed'),
   );
 }

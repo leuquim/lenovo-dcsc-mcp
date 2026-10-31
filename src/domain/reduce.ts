@@ -25,6 +25,7 @@ import { projectRackFiller } from './rackFiller.js';
 import { managedStorageComponentIds, storagePhysicalTemplateIds, storageDependencyColors } from './storagePreferences.js';
 import { createCloneDependencyColor, projectCloneDependency } from './cloneDependency.js';
 import { physicalIds } from './workspaceReferences.js';
+import { cloneConfigurationRaw } from './configurationIdentity.js';
 import { projectChassisManufacturing } from './chassisManufacturing.js';
 import {
   cloneColorMembers,
@@ -1049,12 +1050,54 @@ export function buildExportData(opts: {
         ? looseConfigs.find(session => session.configurationId === item['id'])
         : undefined;
       const singletonQuantity = singleton?.raw.quantity ?? 1;
-      if (singletonQuantity > 1) {
-        throw new Error(
-          `Configuration ${singleton?.label ?? item['id']} has quantity ${singletonQuantity} but is not in a rack. ` +
-          'DCSC opens an unracked multi-unit line as an empty file. Place it in a rack, or set its quantity to 1 ' +
-          `and use dcsc_clone_configuration for the other ${singletonQuantity - 1} units.`,
+      if (singleton && singletonQuantity > 1) {
+        const syntheticIds = Array.from(
+          { length: singletonQuantity - 1 },
+          (_, i) => `${singleton.configurationId}__clone_${i + 1}`,
         );
+        const expandedOriginalIds = [singleton.configurationId, ...syntheticIds];
+
+        item['quantity'] = singletonQuantity;
+        item['originalIds'] = expandedOriginalIds;
+
+        const rootRecord = nonRackData.find(r => r['id'] === singleton.configurationId);
+        if (rootRecord) {
+          rootRecord['quantity'] = 1;
+          rootRecord['originalIds'] = [singleton.configurationId];
+        }
+        const slice = (exportConfigs[configs.indexOf(singleton)]?.slice as string) ?? 'GP';
+        for (const cloneId of syntheticIds) {
+          const clonedPlacement = rootRecord
+            ? { ...structuredClone(rootRecord), id: cloneId, quantity: 1, originalIds: [cloneId] }
+            : buildPlacement(cloneId, singleton.reduced.sliceCtoCode, 1, slice);
+          if (!rootRecord) clonedPlacement['originalIds'] = [cloneId];
+          nonRackData.push(clonedPlacement);
+        }
+
+        cloneDependency[singleton.configurationId] = expandedOriginalIds;
+        const existingColor = exportCloneDependencyColor[singleton.configurationId] as Record<string, unknown> | undefined;
+        exportCloneDependencyColor[singleton.configurationId] = existingColor
+          ? { ...existingColor, root: singleton.configurationId, dependBy: expandedOriginalIds }
+          : createCloneDependencyColor(singleton.configurationId, expandedOriginalIds);
+
+        if (opts.solution.solutionMode !== 'General Purpose') {
+          const rootConfig = exportConfigs[configs.indexOf(singleton)];
+          if (rootConfig) rootConfig['quantity'] = 1;
+          for (const cloneId of syntheticIds) {
+            const clonedRaw = cloneConfigurationRaw(singleton.raw, singleton.configurationId, cloneId);
+            clonedRaw.quantity = 1;
+            exportConfigs.push(buildExportConfiguration(
+              reduceConfiguration(clonedRaw, cloneId, hardwareModeFamily(singleton.mode), opts.solution.solutionMode),
+              clonedRaw,
+            ));
+          }
+        }
+
+        return {
+          ...hierarchy,
+          quantity: singletonQuantity,
+          originalIds: structuredClone(expandedOriginalIds),
+        };
       }
       return {
         ...hierarchy,

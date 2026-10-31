@@ -19,6 +19,23 @@ import { applySoftwareDerivePatch, isSoftwareDerivePatch } from '../domain/softw
 import { BLUEPRINTS } from '../domain/blueprints.js';
 import { fetchCatalog, type Catalog } from '../domain/catalog.js';
 import { downloadReferenceSolution, fetchReferenceSolutions, referenceId, referencePath, type ReferenceQuery } from '../domain/referenceSolutions.js';
+import {
+  generateConfigId as domainGenerateConfigId,
+  retrieveConfigId as domainRetrieveConfigId,
+  querySids as domainQuerySids,
+  customizeSid as domainCustomizeSid,
+  type SidItem,
+  type SidQueryOptions,
+  type SidQueryResult,
+} from '../domain/configId.js';
+import {
+  inspectAutoFixCandidates,
+  buildAutoFixCurrentSelections,
+  executeAutoFix,
+  applyAutoFixSections,
+  type AutoFixCandidate,
+  type AutoFixResult,
+} from '../domain/autoFix.js';
 import { writeCfxmlArtifact } from '../files/artifactStore.js';
 import {
   fetchSolutionModes,
@@ -146,7 +163,7 @@ import {
   type ScaleOutPlan,
 } from './serviceHelpers.js';
 
-export type { ImportDiagnostics, ImportPart, ImportResult, ScaleOutPlan };
+export type { ImportDiagnostics, ImportPart, ImportResult, ScaleOutPlan, AutoFixCandidate, AutoFixResult, SidItem, SidQueryResult, SidQueryOptions };
 
 interface LaunchOptions {
   expectedRevision?: number | undefined;
@@ -273,6 +290,267 @@ export class DcscService {
     const raw: unknown = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('DCSC returned no customizable reference solution.');
     return this.#acceptImportPayload({ ...raw, crnId: id }, { ctx, solution, fileName: `${id}.xml` });
+  }
+
+  /**
+   * Generates an online 10-character Lenovo DCSC Configuration ID.
+   * If a session or workspace handle is supplied, binds the ID to its state.
+   */
+  async generateConfigId(handle?: string, ctx?: RequestCtx): Promise<{ configId: string }> {
+    let effectiveCtx = ctx;
+    let session: ConfigSession | undefined;
+    let workspace: WorkspaceSession | undefined;
+
+    if (handle) {
+      const resolved = this.sessions.resolveHandle(handle);
+      session = resolved?.session;
+      workspace = resolved?.workspace;
+      if (session) {
+        effectiveCtx = ctx ?? this.newCtx({ locale: session.locale, solution: session.solution });
+      } else if (workspace) {
+        effectiveCtx = ctx ?? this.newCtx({ locale: workspace.locale, solution: workspace.solution });
+      }
+    }
+
+    if (!effectiveCtx) effectiveCtx = this.newCtx();
+    const result = await domainGenerateConfigId(this.http, effectiveCtx);
+
+    if (session) {
+      session.raw.userGeneratedConfigId = result.configId;
+    }
+    if (workspace) {
+      workspace.serverState.userGeneratedConfigId = result.configId;
+    }
+
+    return result;
+  }
+
+  /**
+   * Retrieves an online configuration by ID from DCSC and ingests it into a workspace session.
+   */
+  async retrieveConfigId(
+    configId: string,
+    opts: {
+      workspaceId?: string | undefined;
+      solutionMode?: string | undefined;
+      expectedRevision?: number | undefined;
+      mode?: ConfigMode | undefined;
+      ctx?: RequestCtx | undefined;
+    } = {},
+  ): Promise<ImportResult> {
+    const ctx = opts.ctx ?? this.newCtx();
+    const solution = await this.resolveSolution(ctx, opts.solutionMode);
+
+    let existingIds: string[] = [];
+    if (opts.workspaceId) {
+      const ws = this.sessions.getWorkspace(opts.workspaceId);
+      if (ws) {
+        existingIds = [...ws.configurations.values()].map((s) => s.configurationId);
+      }
+    }
+
+    const payload = await domainRetrieveConfigId(this.http, configId, existingIds, { ...ctx, solution });
+    return this.#acceptImportPayload(payload, {
+      ctx: { ...ctx, solution },
+      solution,
+      mode: opts.mode,
+      workspaceId: opts.workspaceId,
+      fileName: `${configId}.xml`,
+      expectedRevision: opts.expectedRevision,
+    });
+  }
+
+  /**
+   * Queries preconfigured Solution ID (SID) templates by product category with pagination.
+   */
+  async querySids(opts: SidQueryOptions, ctx?: RequestCtx): Promise<SidQueryResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return domainQuerySids(this.http, opts, effectiveCtx);
+  }
+
+  /**
+   * Customizes a preconfigured Solution ID (SID) template into a workspace session.
+   */
+  async customizeSid(
+    sidNumber: string,
+    opts: {
+      ctx?: RequestCtx | undefined;
+      solutionMode?: string | undefined;
+      workspaceId?: string | undefined;
+      expectedRevision?: number | undefined;
+      mode?: ConfigMode | undefined;
+    } = {},
+  ): Promise<ImportResult> {
+    const id = sidNumber.trim();
+    const ctx = opts.ctx ?? this.newCtx();
+    const solution = await this.resolveSolution(ctx, opts.solutionMode);
+    const raw = await domainCustomizeSid(this.http, id, { ...ctx, solution });
+    return this.#acceptImportPayload(
+      { ...(raw as Record<string, unknown>), crnId: id },
+      {
+        ctx: { ...ctx, solution },
+        solution,
+        mode: opts.mode,
+        workspaceId: opts.workspaceId,
+        fileName: `${id}.xml`,
+        expectedRevision: opts.expectedRevision,
+      },
+    );
+  }
+
+  /**
+   * Discovers candidate hardware sections eligible for auto-fix on a CTO configuration.
+   */
+  async inspectAutoFix(handle: string, ctx?: RequestCtx): Promise<{ candidates: AutoFixCandidate[] }> {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (!resolved?.session) {
+      throw new Error('Auto-fix candidate inspection requires a configuration session handle.');
+    }
+    const session = resolved.session;
+    if (!usesCtoWire(session.mode)) {
+      return { candidates: [] };
+    }
+    const effectiveCtx = ctx ?? this.newCtx({ locale: session.locale, solution: session.solution });
+    const candidates = await inspectAutoFixCandidates(this.http, session.product.code, effectiveCtx);
+    return { candidates };
+  }
+
+  /**
+   * Automatically resolves rule validation errors for eligible hardware CTO sections.
+   * Runs as a transactional mutation with CAS optimistic concurrency.
+   */
+  async autoFix(
+    handle: string,
+    opts: {
+      sections?: string[] | undefined;
+      expectedRevision?: number | undefined;
+      ctx?: RequestCtx | undefined;
+    } = {},
+  ): Promise<{ session: ConfigSession; result: AutoFixResult }> {
+    const resolved = this.sessions.resolveHandle(handle);
+    if (!resolved?.session) {
+      throw new Error('Auto-fix requires a configuration session handle.');
+    }
+    const target = resolved.session;
+    if (!usesCtoWire(target.mode)) {
+      throw new Error('Auto-fix is only supported for hardware CTO configurations.');
+    }
+    if (opts.expectedRevision !== undefined && target.revision !== opts.expectedRevision) {
+      throw new SessionConflictError(opts.expectedRevision, target.revision, 'configuration');
+    }
+
+    const effectiveCtx = opts.ctx ?? this.newCtx({ locale: target.locale, solution: target.solution });
+
+    let requiredSections = opts.sections;
+    if (!requiredSections || requiredSections.length === 0) {
+      const candidates = await inspectAutoFixCandidates(this.http, target.product.code, effectiveCtx);
+      requiredSections = candidates.map((c) => c.characterName);
+    }
+
+    if (requiredSections.length === 0) {
+      return {
+        session: target,
+        result: {
+          applied: false,
+          sectionsChanged: [],
+          notices: [],
+          errors: null,
+          message: 'No eligible auto-fix sections found for this configuration.',
+        },
+      };
+    }
+
+    let fixResult: AutoFixResult = {
+      applied: false,
+      sectionsChanged: [],
+      notices: [],
+      errors: null,
+      message: 'autoFix Failed',
+    };
+
+    const session = await this.sessions.transact(
+      target.id,
+      {
+        expectedRevision: opts.expectedRevision,
+        remoteApplied: true,
+        actionHistory: updateHistoryFactory(target.configurationId),
+      },
+      async (workspace, draft) => {
+        if (!draft) {
+          throw new Error('Auto-fix requires a configuration session.');
+        }
+
+        const currentSelections = buildAutoFixCurrentSelections(draft.raw);
+        const response = await executeAutoFix(
+          this.http,
+          draft.product.code,
+          requiredSections!,
+          currentSelections,
+          effectiveCtx,
+        );
+
+        if (response.autoFixResult !== 'FIX_SUCCESS' || response.sections.length === 0) {
+          fixResult = {
+            applied: false,
+            sectionsChanged: [],
+            notices: response.notices ?? [],
+            errors: response.errors ?? null,
+            message: response.message ?? 'autoFix Failed',
+          };
+          return draft;
+        }
+
+        const merged = applyAutoFixSections(draft.raw, response.sections);
+        draft.raw = merged.configuration;
+
+        const reduced = reduceConfiguration(
+          draft.raw,
+          draft.configurationId,
+          hardwareModeFamily(draft.mode),
+          draft.solution.solutionMode,
+        );
+
+        const derived = await this.#autoDerive(reduced, {
+          ctx: effectiveCtx,
+          solution: draft.solution,
+          mode: draft.mode,
+          validationMode: draft.validationMode,
+          autoCorrect: draft.autoCorrect,
+          sourceRaw: draft.raw,
+          ...(workspace ? { workspace } : {}),
+        });
+
+        if (derived) {
+          draft.raw = {
+            ...preserveUnconfiguredSelections(draft.raw, derived),
+            quantity: draft.raw.quantity ?? derived.quantity ?? 1,
+            hipoDerivedItems: derived.hipoDerivedItems ?? draft.raw.hipoDerivedItems,
+            hipoServiceCtoServices: derived.hipoServiceCtoServices ?? draft.raw.hipoServiceCtoServices,
+          };
+          draft.index = buildIndex(draft.raw);
+          draft.reduced = reduceConfiguration(
+            draft.raw,
+            draft.configurationId,
+            hardwareModeFamily(draft.mode),
+            draft.solution.solutionMode,
+          );
+        }
+
+        if (workspace) this.#refreshRackMetadata(workspace, true);
+
+        fixResult = {
+          applied: true,
+          sectionsChanged: merged.sectionsChanged,
+          notices: response.notices ?? [],
+          errors: response.errors ?? null,
+          message: response.message ?? 'Auto-fix applied successfully.',
+        };
+
+        return draft;
+      },
+    );
+
+    return { session, result: fixResult };
   }
 
   /**
