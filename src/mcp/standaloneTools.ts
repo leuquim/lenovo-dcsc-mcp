@@ -29,11 +29,10 @@ import {
   type StandaloneSoftwareState,
 } from '../domain/standalone.js';
 import { sanitiseFileName, writeExportBundle, type ExportBundle } from '../files/artifactStore.js';
-import { toToolError } from '../http/errors.js';
-import { logger } from '../http/trace.js';
 import type { WorkspaceSession } from '../session/SessionStore.js';
 import type { DcscService } from './service.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
+import { guard, withToolSupport } from './toolSupport.js';
 
 const SOFTWARE_STATE = 'standaloneSoftwareState';
 const SERVICE_STATE = 'standaloneServiceState';
@@ -43,35 +42,8 @@ const MAX_PART_LOOKUP_SNAPSHOTS = 4;
 /** Captured default choices in the standalone software export dialog. */
 export const SOFTWARE_EXPORT_TYPES: ExportFileType[] = ['XML', 'QUOTE', 'QUOTE_SUPPLYINFO', 'QUOTE_GROUP', 'SUMMARY', 'POWER_REPORT', 'QUOTE_CSV', 'EPRICE_CSV'];
 
-type ToolResult = {
-  content: Array<{ type: 'text'; text: string }>;
-  isError?: boolean | undefined;
-};
-
-function ok(value: unknown): ToolResult {
-  return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
-}
-
-function fail(error: unknown): ToolResult {
-  logger().error(
-    { err: error instanceof Error ? error.message : String(error) },
-    'Standalone tool failed',
-  );
-  return {
-    content: [{ type: 'text', text: JSON.stringify(toToolError(error), null, 2) }],
-    isError: true,
-  };
-}
-
-async function guard(fn: () => Promise<unknown>): Promise<ToolResult> {
-  try {
-    return ok(await fn());
-  } catch (error) {
-    return fail(error);
-  }
-}
-
-export function registerStandaloneTools(server: McpServer, service: DcscService): void {
+export function registerStandaloneTools(rawServer: McpServer, service: DcscService): void {
+  const server = withToolSupport(rawServer);
   type PartLookupProjection = {
     code: string;
     description: string;
@@ -535,9 +507,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     {
       title: 'Select a product service or add-on',
       description:
-        'Selects a currently offered base service or add-on, runs DCSC auto-derive and retrieves authoritative summary pricing. ' +
-        'The service quantity applies per covered product; the DCSC website normally selects one of each service per product. If DCSC rejects a requested quantity, this tool reports requested and accepted quantities without saving the rejected change. ' +
-        'Use dcsc_services_set_product_quantity for covered-product count. A base package replaces another base package; an add-on replaces only another term in the same add-on family.',
+        'Selects an offered base service or add-on (per covered product), runs DCSC auto-derive, and refreshes summary pricing. A base package replaces any active base package; an add-on replaces only terms in the same add-on family.',
       inputSchema: {
         workspace: z.string(),
         serviceCode: z.string().min(1),
@@ -564,9 +534,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     {
       title: 'Set selected product-service quantity',
       description:
-        'Requests a positive per-product quantity for a selected service or add-on. This is an API extension because the DCSC website exposes service selection rather than a service-line quantity editor. ' +
-        'If DCSC rejects the requested quantity, this tool reports requested and accepted quantities without saving the rejected change. Use dcsc_services_set_product_quantity for covered-product count and dcsc_services_remove to remove a service. ' +
-        'Supply serviceCode when more than one item is selected.',
+        'Requests a positive per-product quantity for a selected service or add-on and refreshes summary pricing. Use dcsc_services_set_product_quantity for covered-product count and dcsc_services_remove to remove a service.',
       inputSchema: {
         workspace: z.string(),
         serviceCode: z.string().min(1).optional(),

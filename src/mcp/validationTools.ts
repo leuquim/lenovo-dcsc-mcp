@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { toToolError } from '../http/errors.js';
 import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
+import { guard, withToolSupport } from './toolSupport.js';
 
 type Obj = Record<string, unknown>;
 
@@ -187,35 +187,31 @@ export function projectValidationToolResult(full: Obj, options: {
   return compact;
 }
 
-export function registerValidationTools(server: McpServer, service: DcscService): void {
+export function registerValidationTools(rawServer: McpServer, service: DcscService): void {
+  const server = withToolSupport(rawServer);
   server.registerTool('dcsc_validation_jobs', {
     title: 'Inspect saved manufacturing validation jobs',
-    description: 'Lists saved validation jobs in the containing workspace and recomputes staleness from the current target revision and payload. Pass jobId to inspect all recorded descriptors, messages, local diagnostics, headroom and raw report through executable continuations. This is read-only and never repeats the result request. Interrupted or unscoped legacy jobs require fresh validation.',
+    description: 'Lists saved validation jobs in the containing workspace and recomputes staleness from the current revision and payload. Pass jobId to inspect recorded descriptors, messages, local diagnostics, headroom and raw report through continuations.',
     inputSchema: {
       session: z.string(), jobId: z.string().optional(),
       path: z.array(z.string()).optional().default([]),
       offset: z.number().int().min(0).optional().default(0),
       limit: z.number().int().min(1).max(1000).optional().default(20),
     },
-  }, async args => {
-    try {
-      const jobs = service.validationJobs(args.session);
-      let source: unknown;
-      if (args.jobId) {
-        source = jobs.find(job => job.id === args.jobId);
-        if (!source) throw new Error(`Validation job ${args.jobId} is not stored in this workspace.`);
-      } else {
-        source = jobs.map(job => ({ jobId: job.id, target: job.target, status: job.currentStatus,
-          isValid: job.isValid, stale: job.stale, validatedRevision: job.validatedRevision,
-          startedAt: job.startedAt, terminal: job.terminal, freshValidationRequired: job.freshValidationRequired,
-          next: { tool: 'dcsc_validation_jobs', arguments: { session: args.session, jobId: job.id } } }));
-      }
-      const result = projectJsonPage(source, { tool: 'dcsc_validation_jobs',
-        arguments: { session: args.session, ...(args.jobId ? { jobId: args.jobId } : {}) },
-        path: args.path, offset: args.offset, limit: args.limit });
-      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify(toToolError(error), null, 2) }] };
+  }, async args => guard(() => {
+    const jobs = service.validationJobs(args.session);
+    let source: unknown;
+    if (args.jobId) {
+      source = jobs.find(job => job.id === args.jobId);
+      if (!source) throw new Error(`Validation job ${args.jobId} is not stored in this workspace.`);
+    } else {
+      source = jobs.map(job => ({ jobId: job.id, target: job.target, status: job.currentStatus,
+        isValid: job.isValid, stale: job.stale, validatedRevision: job.validatedRevision,
+        startedAt: job.startedAt, terminal: job.terminal, freshValidationRequired: job.freshValidationRequired,
+        next: { tool: 'dcsc_validation_jobs', arguments: { session: args.session, jobId: job.id } } }));
     }
-  });
+    return projectJsonPage(source, { tool: 'dcsc_validation_jobs',
+      arguments: { session: args.session, ...(args.jobId ? { jobId: args.jobId } : {}) },
+      path: args.path, offset: args.offset, limit: args.limit });
+  }, 'dcsc_validation_jobs failed'));
 }
