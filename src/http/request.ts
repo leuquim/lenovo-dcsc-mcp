@@ -45,7 +45,9 @@ export interface SendInput {
   /** Stable logical id, used for logging, fixtures and fingerprints. */
   endpoint: string;
   method: HttpMethod;
-  /** Path below /api, e.g. "/category_hierarchies". */
+  /** Custom prefix, defaults to API_PREFIX ('/api'). For Nightingale, use AI_PREFIX ('/ai-acceler'). */
+  prefix?: string | undefined;
+  /** Path below /api (or custom prefix), e.g. "/category_hierarchies". */
   path: string;
   query?: Record<string, QueryValue> | undefined;
   body?: ReqBody | undefined;
@@ -271,7 +273,8 @@ export class DcscHttpClient {
       requiresSolution,
     });
 
-    const url = `https://${this.config.host}${API_PREFIX}${input.path}?${params.toString()}`;
+    const prefix = input.prefix ?? API_PREFIX;
+    const url = `https://${this.config.host}${prefix}${input.path}?${params.toString()}`;
     const headers: Record<string, string> = composeHeaders(input.ctx.locale);
     let payload: string | Buffer | undefined;
 

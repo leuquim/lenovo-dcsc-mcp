@@ -77,6 +77,13 @@ const READ_ONLY_UPSTREAM_TOOLS = new Set<string>([
   'dcsc_vlh_attributes',
   'dcsc_virtual_container_compatible_products',
   'dcsc_virtual_container_check_rules',
+  'dcsc_category_detail',
+  'dcsc_cto_lfo_codes',
+  'dcsc_rack_position_rule',
+  'dcsc_verify_mandatory_software',
+  'dcsc_summary_insights',
+  'dcsc_export_configuration_tree',
+  'dcsc_ai_recommend',
 ]);
 
 const DESTRUCTIVE_TOOLS = new Set<string>([

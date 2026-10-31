@@ -11,6 +11,7 @@ import {
 } from '../model/workspaceProjection.js';
 import type { WorkspaceSession } from '../session/SessionStore.js';
 import type { DcscService } from './service.js';
+import type { RackPositionRuleInput } from '../domain/rackPositionRule.js';
 import { requireSession } from './sessionTools.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
@@ -601,5 +602,43 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
               : 'dcsc_session_info(rackSession) for the full rack BOM, or dcsc_workspace_layout(session).',
         };
       }, 'dcsc_configure_pdu failed'),
+    );
+
+  server.registerTool(
+    'dcsc_rack_position_rule',
+    {
+      title: 'Get hardware U-position rules in a rack',
+      description: 'Calculates lowest and highest valid U-positions and placement rules for a server or hardware item within a rack.',
+      inputSchema: {
+        rack: z.object({
+          code: z.string(),
+          machineType: z.string().optional(),
+          sliceCtoCode: z.string().nullable().optional(),
+          size: z.number(),
+          rackItem: z.object({
+            code: z.string(),
+            machineType: z.string().optional(),
+            sliceCtoCode: z.string().nullable().optional(),
+            type: z.string(),
+            asVLH: z.boolean().optional(),
+          }).passthrough(),
+        }).passthrough().describe('Rack container specification.'),
+        configurations: z.array(
+          z.object({
+            configurationId: z.string(),
+            core: z.record(z.string(), z.unknown()).optional(),
+            sectionResults: z.array(z.unknown()).optional(),
+            unSelectableCharacters: z.array(z.unknown()).optional(),
+            selectedTopologies: z.unknown().optional(),
+            selectedStorageNetwork: z.unknown().optional(),
+            connectors: z.array(z.unknown()).optional(),
+          }).passthrough(),
+        ).describe('Associated configurations.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.rackPositionRule(args as unknown as RackPositionRuleInput);
+      }, 'dcsc_rack_position_rule failed'),
   );
 }

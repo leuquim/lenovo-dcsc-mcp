@@ -13,6 +13,7 @@ import {
   projectTab,
 } from '../model/project.js';
 import type { DcscService } from './service.js';
+import type { VerifyMandatorySoftwareInput } from '../domain/mandatorySoftware.js';
 import { requireSession } from './sessionTools.js';
 import { guard, withToolSupport } from './toolSupport.js';
 import { projectValidationToolResult } from './validationTools.js';
@@ -546,5 +547,42 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
           totalPrice: configurationListPrice(report.session.raw),
         };
       }, 'dcsc_auto_fix failed'),
+  );
+
+  server.registerTool(
+    'dcsc_verify_mandatory_software',
+    {
+      title: 'Verify mandatory software selections',
+      description: 'Validates mandatory OS/hypervisor or software selections for a configuration or LFO.',
+      inputSchema: {
+        mode: z.enum(['cto', 'lfo']).optional().describe('Configuration mode.'),
+        configuration: z.object({
+          id: z.string(),
+          code: z.string(),
+          lfoCode: z.string().optional(),
+          sections: z.array(z.unknown()),
+        }).passthrough().describe('Configuration object.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.verifyMandatorySoftware(args as unknown as VerifyMandatorySoftwareInput);
+      }, 'dcsc_verify_mandatory_software failed'),
+  );
+
+  server.registerTool(
+    'dcsc_summary_insights',
+    {
+      title: 'Fetch service savings and flag summary insights',
+      description: 'Fetches service pricing savings or selectable special feature flag summary from the workspace snapshot.',
+      inputSchema: {
+        type: z.enum(['serviceSaving', 'flagSummary']).optional().describe('Insight type.'),
+        workspaceSnapshot: z.record(z.string(), z.unknown()).describe('Complete workspace export snapshot data.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.summaryInsights(args as unknown as { type?: 'serviceSaving' | 'flagSummary' | string; workspaceSnapshot: Record<string, unknown> });
+      }, 'dcsc_summary_insights failed'),
   );
 }

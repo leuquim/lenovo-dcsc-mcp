@@ -52,10 +52,10 @@ async function createConnectedHarness() {
 }
 
 describe('MCP tool annotations, context diet, resource, parameter aliasing, and inline dispatch', () => {
-  it('registers all 101 tools with complete MCP annotations and a tightened description footprint', async () => {
+  it('registers all 108 tools with complete MCP annotations and a tightened description footprint', async () => {
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(101);
+    expect(tools).toHaveLength(108);
 
     let totalDescChars = 0;
     for (const tool of tools) {

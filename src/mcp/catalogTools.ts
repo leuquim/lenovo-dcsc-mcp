@@ -701,5 +701,50 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
           result,
         };
       }, 'dcsc_smart_recommendations failed'),
+    );
+
+  server.registerTool(
+    'dcsc_category_detail',
+    {
+      title: 'Fetch sub-category detail & configurable products',
+      description: 'Fetches sub-category detail, products, and paths from standard, converged (SDI), or TruScale category IDs.',
+      inputSchema: {
+        categoryId: z.string().describe('Category identifier, e.g. "STG@Servers@Rack Server".'),
+        isTruScale: z.boolean().optional().describe('Set true to force TruScale reference solution category detail routing.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.categoryDetail({ categoryId: args.categoryId, isTruScale: args.isTruScale });
+      }, 'dcsc_category_detail failed'),
+  );
+
+  server.registerTool(
+    'dcsc_cto_lfo_codes',
+    {
+      title: 'List filtered CTO and LFO codes',
+      description: 'Fetches filtered list of CTO and LFO product codes from upstream catalog filter endpoint.',
+      inputSchema: {},
+    },
+    async () =>
+      guard(async () => {
+        return service.ctoLfoCodes();
+      }, 'dcsc_cto_lfo_codes failed'),
+  );
+
+  server.registerTool(
+    'dcsc_ai_recommend',
+    {
+      title: 'Nightingale AI configurator recommendations & feature validation',
+      description: 'Executes Nightingale AI recommendation or feature compatibility validation via /ai-acceler endpoints.',
+      inputSchema: {
+        action: z.enum(['ctoCandidates', 'featureCompat', 'bladeRecommendation']).describe('AI action type.'),
+        payload: z.record(z.string(), z.unknown()).describe('Payload object required by the specific AI endpoint.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.aiRecommend({ action: args.action, payload: args.payload });
+      }, 'dcsc_ai_recommend failed'),
   );
 }

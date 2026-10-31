@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import { CategoryHierarchySchema } from '../schemas/catalog.js';
 import { parseResponse } from '../schemas/parse.js';
@@ -257,3 +258,160 @@ export async function fetchSpecialtyCatalog(
     }
   }
 }
+
+export interface CategoryDetailOptions {
+  categoryId: string;
+  isTruScale?: boolean | undefined;
+}
+
+export interface CategoryDetailResult {
+  children?: unknown[] | undefined;
+  paths?: unknown[] | undefined;
+  totalCount?: number | undefined;
+  [key: string]: unknown;
+}
+
+export const CategoryDetailSchema = z
+  .object({
+    children: z.array(z.unknown()).optional(),
+    paths: z.array(z.unknown()).optional(),
+    totalCount: z.number().optional(),
+  })
+  .passthrough();
+
+export interface LfoCodesResult {
+  lfoCodes: string[];
+}
+
+const LfoCodesArraySchema = z.array(z.union([z.string(), z.object({ code: z.string() })]));
+const LfoCodesObjectSchema = z
+  .object({
+    lfoCodes: z.array(z.union([z.string(), z.object({ code: z.string() })])).optional(),
+    data: z.array(z.union([z.string(), z.object({ code: z.string() })])).optional(),
+  })
+  .passthrough();
+
+export const LfoCodesWireSchema = z.union([LfoCodesArraySchema, LfoCodesObjectSchema]);
+
+/**
+ * Resolves the appropriate category detail endpoint and path based on categoryId and TruScale flag.
+ * - TruScale: /reference_solution/categories/truscale/{id}
+ * - Converged/SDI (ThinkAgile HX/FX): /multiprod_category_detail/{normalized_prefix}
+ * - Standard catalog: /category_detail/{id}
+ */
+export function resolveCategoryDetailRoute(
+  categoryId: string,
+  isTruScale?: boolean,
+): { endpoint: string; path: string } {
+  if (isTruScale || categoryId.toLowerCase().includes('truscale')) {
+    return {
+      endpoint: 'truscale_category_detail',
+      path: `/reference_solution/categories/truscale/${encodeURIComponent(categoryId)}`,
+    };
+  }
+
+  const match = new RegExp(
+    '(STG)(@.+)?((@Software Defined Infrastructure|@Converged Systems)(.+)?)',
+  ).exec(categoryId);
+  if (match) {
+    let u = (match[1] ?? '') + (match[3] ?? '');
+    const parts = u.split('@');
+    if (parts.length === 3) {
+      u = parts.slice(0, 2).join('@');
+    }
+    return {
+      endpoint: 'multiprod_category_detail',
+      path: `/multiprod_category_detail/${encodeURIComponent(u)}`,
+    };
+  }
+
+  return {
+    endpoint: 'category_detail',
+    path: `/category_detail/${encodeURIComponent(categoryId)}`,
+  };
+}
+
+/**
+ * Fetches sub-category detail with automatic routing between standard, converged (SDI),
+ * and TruScale categories, appending signCustomize=true query parameter.
+ * Endpoints:
+ * - GET /category_detail/{id}
+ * - GET /multiprod_category_detail/{id}
+ * - GET /reference_solution/categories/truscale/{id}
+ */
+export async function fetchCategoryDetail(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  categoryIdOrOptions: string | CategoryDetailOptions,
+): Promise<CategoryDetailResult> {
+  const categoryId =
+    typeof categoryIdOrOptions === 'string'
+      ? categoryIdOrOptions
+      : categoryIdOrOptions?.categoryId;
+  const isTruScale =
+    typeof categoryIdOrOptions === 'object' && Boolean(categoryIdOrOptions?.isTruScale);
+
+  if (!categoryId || typeof categoryId !== 'string' || categoryId.trim().length === 0) {
+    throw new Error('A non-empty categoryId is required for category detail.');
+  }
+
+  const { endpoint, path } = resolveCategoryDetailRoute(categoryId, isTruScale);
+
+  const res = await http.send({
+    endpoint,
+    method: 'GET',
+    path,
+    query: { signCustomize: 'true' },
+    responseKind: 'json',
+    timeoutClass: 'fast',
+    ctx,
+  });
+
+  const parsed = parseResponse(CategoryDetailSchema, res.raw, {
+    endpoint,
+    corrId: ctx.corrId,
+    requestId: res.requestId,
+  });
+
+  return parsed as CategoryDetailResult;
+}
+
+/**
+ * Fetches filtered LFO/CTO codes from upstream catalog filter.
+ * Endpoint: GET /lfos/cto_filter_lfo
+ */
+export async function fetchLfoCodes(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+): Promise<LfoCodesResult> {
+  const res = await http.send({
+    endpoint: 'lfos_cto_filter_lfo',
+    method: 'GET',
+    path: '/lfos/cto_filter_lfo',
+    responseKind: 'json',
+    timeoutClass: 'fast',
+    ctx,
+  });
+
+  const parsed = parseResponse(LfoCodesWireSchema, res.raw, {
+    endpoint: 'lfos_cto_filter_lfo',
+    corrId: ctx.corrId,
+    requestId: res.requestId,
+  });
+
+  let rawList: Array<string | { code: string }> = [];
+  if (Array.isArray(parsed)) {
+    rawList = parsed;
+  } else if (Array.isArray(parsed.lfoCodes)) {
+    rawList = parsed.lfoCodes;
+  } else if (Array.isArray(parsed.data)) {
+    rawList = parsed.data;
+  }
+
+  const lfoCodes = rawList
+    .map((item) => (typeof item === 'string' ? item : item.code))
+    .filter((code) => typeof code === 'string' && code.trim().length > 0);
+
+  return { lfoCodes };
+}
+

@@ -1,3 +1,41 @@
+import {
+  fetchCategoryDetail,
+  fetchLfoCodes,
+  type CategoryDetailResult,
+  type LfoCodesResult,
+} from '../domain/specialtyCatalog.js';
+import {
+  getHardwareRuleInRack,
+  type RackPositionRuleInput,
+  type RackPositionRuleResult,
+} from '../domain/rackPositionRule.js';
+import {
+  mandatoryVerifyConfig,
+  type VerifyMandatorySoftwareInput,
+  type VerifyMandatorySoftwareResult,
+} from '../domain/mandatorySoftware.js';
+import {
+  fetchServiceSavings,
+  fetchFlagSummary,
+  type ServiceSavingsResult,
+  type FlagSummaryResult,
+} from '../domain/summaryInsights.js';
+import {
+  exportConfigurationTree,
+  type ExportConfigurationTreeInput,
+  type ExportConfigurationTreeResult,
+} from '../domain/exportConfigurationTree.js';
+import {
+  fetchAiRecommendCtos,
+  fetchAiFeatureCompat,
+  fetchAiBladeRecommendation,
+  type AiRecommendCtosInput,
+  type AiRecommendCtosResult,
+  type AiFeatureCompatResult,
+  type AiBladeRecommendResult,
+  type AiFeatureCompatInput,
+  type AiBladeRecommendInput,
+} from '../domain/aiConfigurator.js';
 import { storageWizardOptions, storageWizardOption, stageStorageWizardChange, type StorageWizardChange } from '../domain/storageWizard.js';
 import { pciWizardOptions, stagePciWizardChange, acceptPciWizardValidation, withPciWizardOption, type PciWizardChange } from '../domain/pciWizard.js';
 import { serializeSections } from '../domain/dcscWire.js';
@@ -4256,6 +4294,47 @@ export class DcscService {
     const workspace = this.sessions.getWorkspace(handle);
     if (!workspace) throw new Error(`Session / Workspace ${handle} not found`);
     return workspace.id;
+  }
+
+  async categoryDetail(input: { categoryId: string; isTruScale?: boolean | undefined }): Promise<CategoryDetailResult> {
+    return fetchCategoryDetail(this.http, this.newCtx(), input);
+  }
+
+  async ctoLfoCodes(): Promise<LfoCodesResult> {
+    return fetchLfoCodes(this.http, this.newCtx());
+  }
+
+  async rackPositionRule(input: RackPositionRuleInput): Promise<RackPositionRuleResult> {
+    return getHardwareRuleInRack(this.http, this.newCtx(), input);
+  }
+
+  async verifyMandatorySoftware(input: VerifyMandatorySoftwareInput): Promise<VerifyMandatorySoftwareResult> {
+    return mandatoryVerifyConfig(this.http, this.newCtx(), input);
+  }
+
+  async summaryInsights(input: { type?: 'serviceSaving' | 'flagSummary' | string; workspaceSnapshot: Record<string, unknown> }): Promise<ServiceSavingsResult | FlagSummaryResult> {
+    if (input.type === 'flagSummary') {
+      return fetchFlagSummary(this.http, this.newCtx(), input.workspaceSnapshot);
+    }
+    return fetchServiceSavings(this.http, this.newCtx(), input.workspaceSnapshot);
+  }
+
+  async exportConfigurationTree(input: ExportConfigurationTreeInput): Promise<ExportConfigurationTreeResult> {
+    return exportConfigurationTree(this.http, this.newCtx(), input);
+  }
+
+  async aiRecommend(input: {
+    action: 'ctoCandidates' | 'featureCompat' | 'bladeRecommendation';
+    payload: Record<string, unknown>;
+  }): Promise<AiRecommendCtosResult | AiFeatureCompatResult | AiBladeRecommendResult> {
+    const ctx = this.newCtx();
+    if (input.action === 'featureCompat') {
+      return fetchAiFeatureCompat(this.http, ctx, input.payload as unknown as AiFeatureCompatInput);
+    }
+    if (input.action === 'bladeRecommendation') {
+      return fetchAiBladeRecommendation(this.http, ctx, input.payload as unknown as AiBladeRecommendInput);
+    }
+    return fetchAiRecommendCtos(this.http, ctx, input.payload as unknown as AiRecommendCtosInput);
   }
 
   close(): Promise<void> {

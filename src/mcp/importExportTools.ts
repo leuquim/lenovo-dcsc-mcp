@@ -8,6 +8,7 @@ import { configurationListPrice } from '../domain/pricing.js';
 import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import type { DcscService } from './service.js';
+import type { ExportConfigurationTreeInput } from '../domain/exportConfigurationTree.js';
 import { exportProductServiceArtifact, exportStandaloneSoftwareArtifact } from './standaloneTools.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
@@ -321,5 +322,27 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           content: result.content,
         };
       }, 'dcsc_query_sids failed'),
+  );
+
+  server.registerTool(
+    'dcsc_export_configuration_tree',
+    {
+      title: 'Export configuration tree to Excel spreadsheet',
+      description: 'Exports configuration tree data list and category contents as an Excel spreadsheet (.xlsx).',
+      inputSchema: {
+        name: z.string().describe('Configuration name or display code.'),
+        dataList: z.array(
+          z.object({
+            typeName: z.string(),
+            contents: z.array(z.string()),
+          }),
+        ).describe('List of type categories and their contents.'),
+        outputPath: z.string().optional().describe('Optional file system path to save the exported spreadsheet.'),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        return service.exportConfigurationTree(args as unknown as ExportConfigurationTreeInput);
+      }, 'dcsc_export_configuration_tree failed'),
   );
 }
