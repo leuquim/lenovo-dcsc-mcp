@@ -1041,12 +1041,24 @@ export function buildExportData(opts: {
     ).map(item => {
       const hierarchy = buildItemHierarchy(item);
       const originals = Array.isArray(item['originalIds']) ? item['originalIds'] : [item['id']];
-      const singletonQuantity = originals.length === 1
-        ? looseConfigs.find(session => session.configurationId === item['id'])?.raw.quantity
+      // The website imports an unracked line as one physical copy per
+      // originalId. A quantity-N configuration with a single physical record
+      // makes /racks/customize fail and the CFXML opens empty, so refuse it
+      // rather than export a file that cannot be reopened.
+      const singleton = originals.length === 1
+        ? looseConfigs.find(session => session.configurationId === item['id'])
         : undefined;
+      const singletonQuantity = singleton?.raw.quantity ?? 1;
+      if (singletonQuantity > 1) {
+        throw new Error(
+          `Configuration ${singleton?.label ?? item['id']} has quantity ${singletonQuantity} but is not in a rack. ` +
+          'DCSC opens an unracked multi-unit line as an empty file. Place it in a rack, or set its quantity to 1 ' +
+          `and use dcsc_clone_configuration for the other ${singletonQuantity - 1} units.`,
+        );
+      }
       return {
         ...hierarchy,
-        quantity: singletonQuantity ?? item['quantity'] ?? 1,
+        quantity: item['quantity'] ?? 1,
         originalIds: structuredClone(originals),
       };
     });

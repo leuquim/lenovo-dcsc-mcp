@@ -55,10 +55,12 @@ import {
   sameWorkspaceCanonicalState,
   saveReconciliationProposal,
   stageConfiguration,
+  trimHistoryToBudget,
   validateKnownReferences,
+  WORKSPACE_HISTORY_BYTE_BUDGET,
 } from './sessionSnapshots.js';
 
-export { stageConfiguration };
+export { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET };
 
 export interface ConfigIntent {
   at: number;
@@ -818,6 +820,7 @@ export class SessionStore {
 
       const keepEmptyWorkspace = options.keepEmptyWorkspace === true ||
         draft.serverState.standaloneSoftwareState !== undefined ||
+        draft.serverState.standaloneHardwareState !== undefined ||
         draft.serverState.standaloneServiceState !== undefined;
       await this.#persistenceMutex.run(async () => {
         const candidate = [...this.#workspaces.values()]
@@ -1143,7 +1146,7 @@ export class SessionStore {
       const undo = [...originalHistory.undo];
       undo.push({ revision: original.revision, state: captureWorkspaceHistoryState(original) });
       draft.history = {
-        undo: undo.slice(-10),
+        undo: trimHistoryToBudget(undo.slice(-10)),
         redo: [],
       };
     } else {
@@ -1356,7 +1359,7 @@ export class SessionStore {
         ...((Array.isArray(w['recoveryData']) || discardedHistory.length > 0)
           ? { recoveryData: mergeRecoveryRecords(arrayOrEmpty(w['recoveryData']), discardedHistory) }
           : {}),
-        history: restoredHistory,
+        history: { undo: trimHistoryToBudget(restoredHistory.undo), redo: trimHistoryToBudget(restoredHistory.redo) },
         revision: typeof w['revision'] === 'number' ? w['revision'] : 1,
         createdAt: typeof w['createdAt'] === 'number' ? w['createdAt'] : now,
         lastAccessAt: typeof w['lastAccessAt'] === 'number' ? w['lastAccessAt'] : now,

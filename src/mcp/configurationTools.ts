@@ -362,7 +362,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
     {
       title: 'Set how many units of this configuration',
       description:
-        'Sets the sales quantity (1–99) of this configuration locally and updates extended price and exported line quantity.',
+        'Sets the sales quantity (1–99) of this configuration locally and updates extended price and exported line quantity (quantity > 1 must be placed in a rack to export).',
       inputSchema: {
         expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision.'),
         session: z.string(),

@@ -73,6 +73,12 @@ describe('workspace export clone dependency/color consistency', () => {
     }).toEqual(before);
   });
 
+  it('refuses an unracked multi-unit configuration the website cannot reopen', () => {
+    const workspace = workspaceWith(['only']);
+    for (const session of workspace.configurations.values()) session.raw.quantity = 3;
+    expect(() => exportWorkspace(workspace)).toThrow(/quantity 3 but is not in a rack/);
+  });
+
   it('keeps genuinely independent singleton configurations independent', () => {
     const ids = ['first', 'second'];
     const workspace = workspaceWith(ids);

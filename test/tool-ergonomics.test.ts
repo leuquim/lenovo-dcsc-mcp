@@ -52,10 +52,10 @@ async function createConnectedHarness() {
 }
 
 describe('MCP tool annotations, context diet, resource, parameter aliasing, and inline dispatch', () => {
-  it('registers all 85 tools with complete MCP annotations and a tightened description footprint', async () => {
+  it('registers all 89 tools with complete MCP annotations and a tightened description footprint', async () => {
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(85);
+    expect(tools).toHaveLength(89);
 
     let totalDescChars = 0;
     for (const tool of tools) {
@@ -76,6 +76,12 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
       idempotentHint: true,
       openWorldHint: false,
     });
+    expect(byName.get('dcsc_standalone_hardware_inspect')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
     expect(byName.get('dcsc_find_products')?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -83,6 +89,12 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
       openWorldHint: true,
     });
     expect(byName.get('dcsc_session_close')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    });
+    expect(byName.get('dcsc_standalone_hardware_remove')?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: false,

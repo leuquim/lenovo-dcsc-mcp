@@ -3002,7 +3002,7 @@ export class DcscService {
       workspaceContext: { locale: ctx.locale, solution },
       actionHistory: () => ({ command: 'IMPORT', fileName: opts.fileName ?? 'configuration.xml' }),
       prepare: async (workspace) => {
-        if (standalone?.kind === 'service' && (workspace.configurations.size > 0 || workspace.serverState.standaloneSoftwareState)) {
+        if (standalone?.kind === 'service' && (workspace.configurations.size > 0 || workspace.serverState.standaloneSoftwareState || workspace.serverState.standaloneHardwareState)) {
           throw new Error('Independent services require a separate service workspace. Import without workspace to create one.');
         }
         if (workspace.serverState.standaloneServiceState) {
@@ -3011,11 +3011,19 @@ export class DcscService {
         if (standalone?.kind === 'software' && workspace.serverState.standaloneSoftwareState) {
           throw new Error('This workspace already contains standalone software. Import into a new workspace to preserve both baskets.');
         }
+        const importedHardware = standalone?.kind === 'hardware' ? standalone.state
+          : standalone?.kind === 'software' ? standalone.hardware : undefined;
+        if (importedHardware && workspace.serverState.standaloneHardwareState) {
+          throw new Error('This workspace already contains standalone hardware. Import into a new workspace to preserve both baskets.');
+        }
         mergeImportedState(workspace, payload);
         workspace.serverState.lastImportDiagnostics = structuredClone(diagnostics);
-        if (standalone) {
+        if (importedHardware) workspace.serverState.standaloneHardwareState = importedHardware;
+        if (standalone && standalone.kind !== 'hardware') {
           const key = standalone.kind === 'software' ? 'standaloneSoftwareState' : 'standaloneServiceState';
           workspace.serverState[key] = standalone.state;
+        }
+        if (standalone) {
           workspace.integrityWarnings.push(...standalone.diagnostics.warnings);
         }
         await hydrateImportedLayout(this.http, { ...ctx, locale: workspace.locale, solution }, workspace, payload);

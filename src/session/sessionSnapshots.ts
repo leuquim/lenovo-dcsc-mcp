@@ -218,6 +218,39 @@ export function applyWorkspaceState(
   if ('recoveryData' in state) workspace.recoveryData = structuredClone(state.recoveryData);
 }
 
+/**
+ * Each undo entry is a full workspace snapshot, so ten of them on a solution
+ * with dozens of configurations reached ~400 MB and the persisted session file
+ * could no longer be loaded. Keep the newest entries that fit the budget, and
+ * always at least one so a single undo still works.
+ */
+export const WORKSPACE_HISTORY_BYTE_BUDGET = 48 * 1024 * 1024;
+const historyEntryBytes = new WeakMap<WorkspaceHistoryEntry, number>();
+
+function entryBytes(entry: WorkspaceHistoryEntry): number {
+  let bytes = historyEntryBytes.get(entry);
+  if (bytes === undefined) {
+    bytes = JSON.stringify(entry.state).length;
+    historyEntryBytes.set(entry, bytes);
+  }
+  return bytes;
+}
+
+export function trimHistoryToBudget(
+  entries: WorkspaceHistoryEntry[],
+  budget = WORKSPACE_HISTORY_BYTE_BUDGET,
+): WorkspaceHistoryEntry[] {
+  let total = 0;
+  let keepFrom = entries.length;
+  while (keepFrom > 0) {
+    const bytes = entryBytes(entries[keepFrom - 1]!);
+    if (keepFrom < entries.length && total + bytes > budget) break;
+    total += bytes;
+    keepFrom -= 1;
+  }
+  return entries.slice(keepFrom);
+}
+
 export function captureWorkspaceHistoryState(workspace: WorkspaceSession): Record<string, unknown> {
   return structuredClone({
     label: workspace.label,

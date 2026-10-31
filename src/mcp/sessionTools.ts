@@ -234,19 +234,22 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
         }
         if (resolved.kind === 'workspace' && resolved.workspace.configurations.size === 0) {
           const kind = workspace.serverState.standaloneServiceState ? 'service'
-            : workspace.serverState.standaloneSoftwareState ? 'software' : 'empty';
+            : workspace.serverState.standaloneSoftwareState ? 'software'
+              : workspace.serverState.standaloneHardwareState ? 'hardware' : 'empty';
           return { workspace: workspace.id, revision: workspace.revision, workspaceRevision: workspace.revision, revisionScope: 'workspace', kind,
             configurations: [],
             ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
               arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision } }),
             currency: workspace.locale.currency, country: workspace.locale.country,
-            ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect' : 'dcsc_software_inspect',
+            ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect'
+              : kind === 'hardware' ? 'dcsc_standalone_hardware_inspect' : 'dcsc_software_inspect',
               arguments: { workspace: workspace.id } } } : {}),
           };
         }
         if (
           resolved.kind === 'workspace' &&
           (workspace.configurations.size > 1 || workspace.serverState.standaloneSoftwareState ||
+            workspace.serverState.standaloneHardwareState ||
             unplacedManagedStorageComponentIds(workspace).size > 0)
         ) {
           return projectWorkspaceSummary(workspace, {

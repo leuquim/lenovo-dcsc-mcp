@@ -89,7 +89,17 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
                   'to the original.',
               }
             : {}),
-          next: res.standaloneKind ? { tool: res.standaloneKind === 'software' ? 'dcsc_software_inspect' : 'dcsc_services_inspect', arguments: { workspace: res.workspaceId } } : { tool: 'dcsc_session_info', arguments: { session: res.workspaceId } },
+          next: res.standaloneKind
+            ? {
+                tool:
+                  res.standaloneKind === 'software'
+                    ? 'dcsc_software_inspect'
+                    : res.standaloneKind === 'hardware'
+                      ? 'dcsc_standalone_hardware_inspect'
+                      : 'dcsc_services_inspect',
+                arguments: { workspace: res.workspaceId },
+              }
+            : { tool: 'dcsc_session_info', arguments: { session: res.workspaceId } },
         };
       }, 'dcsc_import failed'),
   );
@@ -147,8 +157,9 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
         const workspaceScope = args.scope === 'workspace' || (args.scope !== 'configuration' && args.session === workspace?.id);
         if (workspaceScope && workspace) {
           const software = workspace.serverState.standaloneSoftwareState as { selections?: unknown[] } | undefined;
+          const hardware = workspace.serverState.standaloneHardwareState as { selections?: unknown[] } | undefined;
           const services = workspace.serverState.standaloneServiceState as { selections?: unknown[] } | undefined;
-          const softwareSelected = (software?.selections?.length ?? 0) > 0;
+          const softwareSelected = (software?.selections?.length ?? 0) > 0 || (hardware?.selections?.length ?? 0) > 0;
           const servicesSelected = (services?.selections?.length ?? 0) > 0;
           if (servicesSelected && (softwareSelected || workspace.configurations.size > 0)) {
             throw new Error('Combined independent service and hardware/software export is not yet verified. Export independent services with dcsc_services_export; no products have been silently omitted.');

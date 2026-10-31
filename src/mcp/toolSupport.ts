@@ -50,6 +50,7 @@ const READ_ONLY_LOCAL_TOOLS = new Set<string>([
   'dcsc_explain',
   'dcsc_power',
   'dcsc_health',
+  'dcsc_standalone_hardware_inspect',
 ]);
 
 const READ_ONLY_UPSTREAM_TOOLS = new Set<string>([
@@ -72,6 +73,7 @@ const READ_ONLY_UPSTREAM_TOOLS = new Set<string>([
 const DESTRUCTIVE_TOOLS = new Set<string>([
   'dcsc_edit_storage_network',
   'dcsc_software_remove',
+  'dcsc_standalone_hardware_remove',
   'dcsc_services_remove',
   'dcsc_reconcile_workspace',
   'dcsc_session_close',
@@ -88,6 +90,7 @@ const IDEMPOTENT_MUTATING_TOOLS = new Set<string>([
   'dcsc_set_power_controls',
   'dcsc_set_pci_wizard',
   'dcsc_software_set_quantity',
+  'dcsc_standalone_hardware_set_quantity',
   'dcsc_services_set_quantity',
   'dcsc_services_set_product_quantity',
   'dcsc_place_on_floor',
@@ -104,6 +107,8 @@ const LOCAL_MUTATING_TOOLS = new Set<string>([
   'dcsc_software_select',
   'dcsc_software_set_quantity',
   'dcsc_software_remove',
+  'dcsc_standalone_hardware_set_quantity',
+  'dcsc_standalone_hardware_remove',
   'dcsc_recovery_export',
   'dcsc_session_close',
   'dcsc_workspace_history',

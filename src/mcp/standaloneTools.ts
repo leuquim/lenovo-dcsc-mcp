@@ -28,6 +28,17 @@ import {
   type SoftwareCatalogPath,
   type StandaloneSoftwareState,
 } from '../domain/standalone.js';
+import {
+  emptyStandaloneHardware,
+  lookupStandaloneHardwarePart,
+  removeStandaloneHardware,
+  selectStandaloneHardware,
+  setStandaloneHardwareQuantity,
+  standaloneHardwareExportItem,
+  standaloneHardwareGroupProduct,
+  standaloneHardwareTotal,
+  type StandaloneHardwareState,
+} from '../domain/standaloneHardware.js';
 import { sanitiseFileName, writeExportBundle, type ExportBundle } from '../files/artifactStore.js';
 import type { WorkspaceSession } from '../session/SessionStore.js';
 import type { DcscService } from './service.js';
@@ -36,6 +47,7 @@ import { guard, withToolSupport } from './toolSupport.js';
 
 const SOFTWARE_STATE = 'standaloneSoftwareState';
 const SERVICE_STATE = 'standaloneServiceState';
+export const HARDWARE_STATE = 'standaloneHardwareState';
 const MAX_PAGE = 50;
 const PART_LOOKUP_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
 const MAX_PART_LOOKUP_SNAPSHOTS = 4;
@@ -259,7 +271,143 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
   );
 
   registerSoftwareMutationTools(server, service);
+  registerHardwareTools(server, service);
   registerServiceTools(server, service);
+}
+
+function registerHardwareTools(server: McpServer, service: DcscService): void {
+  const exportHint = 'dcsc_export(session: workspace) includes these lines with the rest of the solution.';
+  server.registerTool(
+    'dcsc_standalone_hardware_add',
+    {
+      title: 'Add a standalone hardware part',
+      description:
+        'Adds an exact Lenovo hardware option PN (transceiver, cable, kit) as a standalone item via Part Search, replacing quantity if already selected. Omit workspace to create a standalone workspace.',
+      inputSchema: {
+        workspace: z.string().optional(),
+        code: z.string().min(1).describe('Option part number, e.g. "4TC7B10008".'),
+        quantity: z.number().int().min(1).max(99999).optional().default(1),
+        solutionMode: z.string().optional(),
+        label: z.string().optional(),
+        expectedRevision: z.number().int().min(1).optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        const existing = args.workspace ? requireWorkspace(service, args.workspace) : undefined;
+        if (existing?.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate workspace.');
+        const { ctx, solution } = await contextFor(service, existing, args.solutionMode);
+        const part = await lookupStandaloneHardwarePart(service.http, ctx, args.code);
+        const result = await service.sessions.createManyAtomic([], {
+          ...(existing ? { workspaceHandle: existing.id } : {}),
+          ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}),
+          ...(!existing
+            ? { workspaceContext: { locale: ctx.locale, solution, ...(args.label !== undefined ? { label: args.label } : {}) } }
+            : {}),
+          prepare: (draft) => {
+            if (draft.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate workspace.');
+            draft.serverState[HARDWARE_STATE] = selectStandaloneHardware(
+              hardwareState(draft, false) ?? emptyStandaloneHardware(), part, args.quantity ?? 1);
+          },
+        });
+        return projectHardwareWorkspace(result.workspace, exportHint);
+      }, 'dcsc_standalone_hardware_add failed'),
+  );
+
+  server.registerTool(
+    'dcsc_standalone_hardware_set_quantity',
+    {
+      title: 'Set standalone hardware quantity',
+      description: 'Changes the quantity of a selected standalone hardware part, as the website quantity box does.',
+      inputSchema: {
+        workspace: z.string(),
+        code: z.string().min(1),
+        quantity: z.number().int().min(1).max(99999),
+        expectedRevision: z.number().int().min(1).optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        await service.sessions.transact(
+          args.workspace,
+          { keepEmptyWorkspace: true, ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}) },
+          (draft) => {
+            draft.serverState[HARDWARE_STATE] = setStandaloneHardwareQuantity(hardwareState(draft), args.code, args.quantity);
+          },
+        );
+        return projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint);
+      }, 'dcsc_standalone_hardware_set_quantity failed'),
+  );
+
+  server.registerTool(
+    'dcsc_standalone_hardware_remove',
+    {
+      title: 'Remove standalone hardware',
+      description: 'Removes one standalone hardware part from the workspace.',
+      inputSchema: {
+        workspace: z.string(),
+        code: z.string().min(1),
+        expectedRevision: z.number().int().min(1).optional(),
+      },
+    },
+    async (args) =>
+      guard(async () => {
+        await service.sessions.transact(
+          args.workspace,
+          { keepEmptyWorkspace: true, ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}) },
+          (draft) => {
+            draft.serverState[HARDWARE_STATE] = removeStandaloneHardware(hardwareState(draft), args.code);
+          },
+        );
+        return projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint);
+      }, 'dcsc_standalone_hardware_remove failed'),
+  );
+
+  server.registerTool(
+    'dcsc_standalone_hardware_inspect',
+    {
+      title: 'Inspect standalone hardware',
+      description: 'Lists the standalone hardware parts in a workspace with unit and extended list prices.',
+      inputSchema: { workspace: z.string() },
+    },
+    async (args) =>
+      guard(
+        async () => projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint),
+        'dcsc_standalone_hardware_inspect failed',
+      ),
+  );
+}
+
+function hardwareState(workspace: WorkspaceSession): StandaloneHardwareState;
+function hardwareState(workspace: WorkspaceSession, required: false): StandaloneHardwareState | undefined;
+function hardwareState(workspace: WorkspaceSession, required = true): StandaloneHardwareState | undefined {
+  const value = workspace.serverState[HARDWARE_STATE];
+  if (isRecord(value) && value['kind'] === 'standalone-hardware') return value as unknown as StandaloneHardwareState;
+  if (required) throw new Error(`Workspace ${workspace.id} has no standalone hardware. Add a part with dcsc_standalone_hardware_add.`);
+  return undefined;
+}
+
+function projectHardwareWorkspace(workspace: WorkspaceSession, next: string) {
+  const state = hardwareState(workspace, false) ?? emptyStandaloneHardware();
+  const total = standaloneHardwareTotal(state);
+  return {
+    workspace: workspace.id,
+    revision: workspace.revision,
+    ...pricingContext(workspace.locale.country, workspace.locale.currency),
+    selections: state.selections.map((selection) => ({
+      code: selection.code,
+      featureCode: selection.featureCode,
+      description: selection.description,
+      quantity: selection.quantity,
+      unitPrice: selection.unitPrice,
+      totalPrice: selection.unitPrice !== undefined ? Math.round(selection.unitPrice * selection.quantity * 100) / 100 : undefined,
+    })),
+    totalListPrice: total,
+    priceIncomplete: total === undefined,
+    hardwareConfigurations: workspace.configurations.size,
+    note: 'Standalone option prices are list prices for the part on its own and can differ from the same feature selected inside a system.',
+    next,
+  };
 }
 
 function registerSoftwareMutationTools(server: McpServer, service: DcscService): void {
@@ -765,17 +913,30 @@ export async function exportStandaloneSoftwareArtifact(
   if (workspace.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate service-only export.');
   const fileTypes = options.fileTypes ?? (workspace.configurations.size > 0 ? DEFAULT_EXPORT_TYPES : SOFTWARE_EXPORT_TYPES);
   if (workspace.configurations.size === 0 && fileTypes.some((type) => !SOFTWARE_EXPORT_TYPES.includes(type))) {
-    throw new Error(`Software-only workspaces support these reports: ${SOFTWARE_EXPORT_TYPES.join(', ')}. Rack and connection reports require hardware.`);
+    throw new Error(`Standalone-only workspaces support these reports: ${SOFTWARE_EXPORT_TYPES.join(', ')}. Rack and connection reports require hardware.`);
   }
-  const state = softwareState(workspace);
-  if (state.selections.length === 0) throw new Error('Select at least one software item first.');
-  const envelope = buildStandaloneSoftwareExportEnvelope(
-    state,
-    softwareExportBase(workspace, state, fileTypes),
-  );
+  const software = softwareState(workspace, false);
+  const hardware = hardwareState(workspace, false);
+  const softwareSelected = (software?.selections.length ?? 0) > 0;
+  const hardwareSelected = (hardware?.selections.length ?? 0) > 0;
+  if (!softwareSelected && !hardwareSelected) throw new Error('Select at least one standalone software or hardware item first.');
+  const base = softwareExportBase(workspace, software, fileTypes);
+  const softwareEnvelope = software && softwareSelected
+    ? buildStandaloneSoftwareExportEnvelope(software, base)
+    : undefined;
+  const hardwareRows = hardware?.selections.map(standaloneHardwareExportItem) ?? [];
+  const hardwareProducts = hardware?.selections.map((selection) => standaloneHardwareGroupProduct(selection)) ?? [];
+  const data = {
+    ...(softwareEnvelope?.data ?? base),
+    standaloneData: [...(softwareEnvelope?.data.standaloneData ?? []), ...hardwareRows],
+  };
+  const standaloneGroups = [{
+    name: 'Config 1', parent: null, index: -1,
+    products: [...(softwareEnvelope?.groups[0]?.products ?? []), ...hardwareProducts],
+  }];
   const form = buildExportForm({
-    data: envelope.data,
-    groups: mergeExportGroups(buildGroups(workspace), envelope.groups),
+    data,
+    groups: mergeExportGroups(buildGroups(workspace), standaloneGroups),
   });
   if (options.image !== undefined) form['image'] = options.image;
   else if (workspace.rackArea.length > 0 && fileTypes.includes('RACK_REPORT')) {
@@ -787,7 +948,7 @@ export async function exportStandaloneSoftwareArtifact(
     method: 'POST',
     path: workspace.configurations.size > 0
       ? `/${[...workspace.configurations.values()][0]!.mode === 'cto' ? 'ctos' : 'lfos'}/export_zip`
-      : envelope.endpoint,
+      : '/lfos/export_zip',
     query: { fileName },
     requiresSolution: false,
     body: { kind: 'form', fields: form },
@@ -1076,13 +1237,17 @@ function projectSummary(value: unknown): unknown {
 
 function softwareExportBase(
   workspace: WorkspaceSession,
-  state: StandaloneSoftwareState,
+  state: StandaloneSoftwareState | undefined,
   fileTypes: ExportFileType[],
 ): Record<string, unknown> {
   const retained = structuredClone(workspace.serverState);
   delete retained[SOFTWARE_STATE];
   delete retained[SERVICE_STATE];
-  const launch = isRecord(state.launchRaw) ? structuredClone(state.launchRaw) : {};
+  delete retained[HARDWARE_STATE];
+  // Rebuilt from the typed baskets so imported rows are never sent twice.
+  delete retained['standaloneData'];
+  const launch = state && isRecord(state.launchRaw) ? structuredClone(state.launchRaw) : {};
+  delete launch['standaloneData'];
   const canonical = buildExportData({
     workspace,
     solution: workspace.solution,

@@ -263,6 +263,20 @@ export function workspaceDetailSource(workspace: WorkspaceSession): Record<strin
   const standaloneSoftware = isRecord(softwareState)
     ? clonedRecords(softwareState['selections'])
     : [];
+  const hardwareState = workspace.serverState['standaloneHardwareState'];
+  const standaloneHardware = isRecord(hardwareState)
+    ? clonedRecords(hardwareState['selections']).map(selection => {
+        const unitPrice = selection['unitPrice'];
+        const quantity = selection['quantity'];
+        const totalPrice =
+          typeof unitPrice === 'number' && Number.isFinite(unitPrice) &&
+          typeof quantity === 'number' && Number.isFinite(quantity) &&
+          selection['priceNotAvailable'] !== true
+            ? Math.round(unitPrice * quantity * 100) / 100
+            : undefined;
+        return { ...selection, ...(totalPrice !== undefined ? { totalPrice } : {}) };
+      })
+    : [];
   const rawConnections = readConnectionGraph(workspace.serverState);
   const autoConnectMessages = workspace.rackArea.flatMap(rack => {
     const errors = Array.isArray(rack['errors']) ? rack['errors'] : [];
@@ -295,6 +309,7 @@ export function workspaceDetailSource(workspace: WorkspaceSession): Record<strin
     importDiagnostics: structuredClone(workspace.serverState.lastImportDiagnostics ?? {}),
     autoConnectMessages,
     standaloneSoftware,
+    standaloneHardware,
     integrityWarnings: [...workspace.integrityWarnings],
   };
 }
@@ -378,6 +393,7 @@ export function projectWorkspaceSummary(
   const racks = source['racks'] as Array<Record<string, unknown>>;
   const cables = source['cables'] as Array<Record<string, unknown>>;
   const standaloneSoftware = source['standaloneSoftware'] as Array<Record<string, unknown>>;
+  const standaloneHardware = source['standaloneHardware'] as Array<Record<string, unknown>>;
   const warnings = source['integrityWarnings'] as string[];
 
   const configCandidates = configurations.map((configuration, index) => {
@@ -447,8 +463,13 @@ export function projectWorkspaceSummary(
     (sum, selection) => sum + (softwareSelectionPriceAvailable(selection) ? selection['totalPrice'] as number : 0),
     0,
   );
+  const standaloneHardwareSubtotal = standaloneHardware.reduce(
+    (sum, selection) => sum + (softwareSelectionPriceAvailable(selection) ? selection['totalPrice'] as number : 0),
+    0,
+  );
   const priceIncomplete = configurations.some(configuration => Number(configuration['quantity']) > 0 && configuration['priceAvailable'] !== true) ||
-    standaloneSoftware.some(selection => !softwareSelectionPriceAvailable(selection));
+    standaloneSoftware.some(selection => !softwareSelectionPriceAvailable(selection)) ||
+    standaloneHardware.some(selection => !softwareSelectionPriceAvailable(selection));
 
   const configPreview: Array<Record<string, unknown>> = [];
   const rackPreview: Array<Record<string, unknown>> = [];
@@ -474,6 +495,7 @@ export function projectWorkspaceSummary(
     integrityWarnings: collectionNavigation(options, ['integrityWarnings'], totals.integrityWarnings, 0),
   };
 
+  const combinedSubtotal = configurationSubtotal + standaloneSoftwareSubtotal + standaloneHardwareSubtotal;
   const result: Record<string, unknown> = {
     workspace: workspace.id,
     revision: workspace.revision,
@@ -486,12 +508,15 @@ export function projectWorkspaceSummary(
     integrity: workspace.integrity,
     integrityWarnings: warningPreview,
     isMultiProduct: true,
-    totalPrice: priceIncomplete ? null : Math.round((configurationSubtotal + standaloneSoftwareSubtotal) * 100) / 100,
-    ...(priceIncomplete ? { knownPriceSubtotal: Math.round((configurationSubtotal + standaloneSoftwareSubtotal) * 100) / 100 } : {}),
+    totalPrice: priceIncomplete ? null : Math.round(combinedSubtotal * 100) / 100,
+    ...(priceIncomplete ? { knownPriceSubtotal: Math.round(combinedSubtotal * 100) / 100 } : {}),
     priceIncomplete,
     subtotals: {
       configurations: Math.round(configurationSubtotal * 100) / 100,
       standaloneSoftware: Math.round(standaloneSoftwareSubtotal * 100) / 100,
+      ...(standaloneHardware.length > 0
+        ? { standaloneHardware: Math.round(standaloneHardwareSubtotal * 100) / 100 }
+        : {}),
     },
     currency: workspace.locale.currency,
     country: workspace.locale.country,

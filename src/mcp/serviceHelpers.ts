@@ -470,7 +470,7 @@ export interface ImportResult {
   workspaceId: string;
   sessions: ConfigSession[];
   diagnostics: ImportDiagnostics;
-  standaloneKind?: 'software' | 'service';
+  standaloneKind?: 'software' | 'service' | 'hardware';
 }
 
 /** The subset of /multiple/cfxml_import's response that we depend on. */
