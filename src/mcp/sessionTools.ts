@@ -1,43 +1,39 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { fetchRuleVersionsInfo } from '../domain/ruleVersions.js';
 import { z } from 'zod';
 
-import { CONFIG_MODES } from '../config/constants.js';
-import { redactConfig } from '../config/schema.js';
-import { aggregatePower, assessRackDensity, extractPowerReport } from '../domain/power.js';
-import { configurationListPrice } from '../domain/pricing.js';
-import { storageComponentQuantities, unplacedManagedStorageComponentIds } from '../domain/storagePreferences.js';
-import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js';
-import { projectSummary } from '../model/project.js';
+import { compareScenarios, sizeScaleOut } from '../app/compare.js';
+import { launchEntry, LAUNCH_MODES } from '../app/launchEntry.js';
+import { assertWorkspaceRevision } from '../app/serviceHelpers.js';
+import { inspectValidationJobs } from '../app/validation.js';
 import {
-  projectWorkspaceIntegrity,
-  projectWorkspacePage,
-  projectWorkspaceSummary,
-} from '../model/workspaceProjection.js';
+  inspectBaskets,
+  inspectHistory,
+  inspectWorkspace,
+  requireConfigSession,
+  requireWorkspaceOf,
+} from '../app/workspaceView.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
+import { redactConfig } from '../config/schema.js';
+import { projectSummary } from '../model/project.js';
+import { listSessionRecoveryArchives } from '../session/persist.js';
+import { projectJsonPage } from '../model/pagedJson.js';
+import { jsonBytes } from '../util/jsonBytes.js';
 import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
-import { jsonBytes } from '../util/jsonBytes.js';
-import { PAGE_BYTE_BUDGET } from '../config/constants.js';
+
+export { positiveQuantity } from '../app/compare.js';
 
 export function requireSession(service: DcscService, id: string) {
-  const resolved = service.sessions.resolveHandle(id);
-  if (!resolved) {
-    throw new Error(
-      `No such configuration session: ${id}. Use dcsc_session_list to see open sessions, or dcsc_launch to start one.`,
-    );
-  }
-  if (resolved.kind === 'configuration') return resolved.session;
-  const sessions = [...resolved.workspace.configurations.values()];
-  if (sessions.length === 1) return sessions[0]!;
-  throw new Error(
-    `Workspace ${id} contains ${sessions.length} configurations, so a configuration target is ambiguous. ` +
-      `Pass one configuration session ID: ${sessions.map((session) => session.id).join(', ')}.`,
-  );
+  return requireConfigSession(service, id);
 }
 
-export function positiveQuantity(quantity: number | null | undefined): number {
-  return typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+/** The `{ session, revision }` header every write returns; revision is the workspace revision. */
+export function writeHeader(service: DcscService, handle: string): { session: string; workspace?: string; revision: number } {
+  const workspace = requireWorkspaceOf(service, handle);
+  return { session: handle, ...(workspace.id !== handle ? { workspace: workspace.id } : {}), revision: workspace.revision };
 }
+
+const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
 
 export function registerSessionTools(server: McpServer, service: DcscService): void {
 
@@ -45,69 +41,88 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
     'dcsc_launch',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      title: 'Start configuring a DCSC product',
+      title: 'Start configuring',
       description:
-        'Launches a configuration session for a product code and returns a compact summary (tabs, price, constraints) and session handle. Pass session to add a product to an existing multi-product solution.',
+        'Opens a configuration, reference solution, software or services basket, or loads the Unconfigured options of a session. Pass session to add to an existing workspace.',
       inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision when adding a product to an existing workspace.'),
-        productCode: z.string().describe('Product code from dcsc_find_products, e.g. "7D73CTO1WW".'),
-        mode: z
-          .enum(CONFIG_MODES)
-          .optional()
-          .default('cto')
-          .describe('cto for configure-to-order, lfo for a preconfigured model.'),
-        label: z.string().optional().describe('Optional friendly name for this session.'),
-        session: z
-          .string()
-          .optional()
-          .describe('Optional existing workspace or session ID to add a product to a multi-product solution.'),
+        mode: z.enum(LAUNCH_MODES).optional().default('cto')
+          .describe('cto, lfo (preconfigured) or lfo-as-cto for hardware; reference-solution; software; services; unconfigured.'),
+        productCode: z.string().optional().describe('Product code, e.g. "7D73CTO1WW". Required for hardware and services.'),
+        sid: z.string().max(160).optional().describe('Reference solution SID or CRN id, for mode reference-solution.'),
+        session: z.string().optional().describe('Existing workspace to add to, or the configuration for mode unconfigured.'),
+        expectedRevision,
+        label: z.string().optional(),
         solutionMode: z.string().optional(),
+        replace: z.boolean().optional().default(false).describe('Software and services: reset the basket.'),
+        refresh: z.boolean().optional().default(false).describe('Software and services: reload the catalog and keep selections.'),
+        productQuantity: z.number().int().min(1).max(9999).optional().default(1).describe('Services: quantity of the serviced product.'),
+        productDescription: z.string().optional().describe('Services: description of the serviced product.'),
+        subCategory: z.string().optional().default('Point of Sale').describe('Services: sub-category.'),
       },
     },
     async (args) =>
       guard(async () => {
-        const workspace = args.session ? service.sessions.getWorkspace(args.session) : undefined;
-        if (args.session && !workspace) throw new Error(`Workspace ${args.session} not found.`);
-        const ctx = service.newCtx(workspace ? { locale: workspace.locale, solution: workspace.solution } : {});
-        const solution = await service.resolveSolution(ctx, args.solutionMode ?? workspace?.solution.solutionMode);
-
-        const availability = await service.modesContaining(ctx, [args.productCode]);
-        const availableIn = availability.get(args.productCode.toUpperCase()) ?? [];
-        const outOfCatalog = availableIn.length > 0 && !availableIn.includes(solution.solutionMode);
-
-        const session = await service.launch({
-          productCode: args.productCode,
-          mode: args.mode,
-          solution,
-          ctx,
-          workspaceId: args.session,
-          expectedRevision: args.expectedRevision,
-          ...(args.label !== undefined ? { label: args.label } : {}),
-        });
+        const outcome = await launchEntry(service, args);
+        if (outcome.kind === 'configuration' || outcome.kind === 'unconfigured') {
+          const session = outcome.session;
+          const workspace = requireWorkspaceOf(service, session.id);
+          return {
+            session: session.id,
+            workspace: workspace.id,
+            revision: workspace.revision,
+            ...projectSummary({
+              sessionId: session.id,
+              revision: workspace.revision,
+              raw: session.raw,
+              index: session.index,
+              currency: session.locale.currency,
+              country: session.locale.country,
+              pricedAt: session.pricedAt,
+            }),
+            ...(outcome.kind === 'configuration'
+              ? {
+                  solutionMode: outcome.solutionMode,
+                  availableIn: outcome.availableIn,
+                  ...(outcome.outOfCatalog
+                    ? {
+                        warning:
+                          `${args.productCode} is not in the "${outcome.solutionMode}" catalog ` +
+                          `(it belongs to: ${outcome.availableIn.join(', ')}). This session will configure and price ` +
+                          'normally, but exporting it and importing it back under this mode will fail. ' +
+                          `Relaunch with solutionMode "${outcome.availableIn[0]}" unless you have a reason not to.`,
+                      }
+                    : {}),
+                }
+              : { note: 'Unconfigured options are loaded; read them with dcsc_configuration_get and edit them with dcsc_configure.' }),
+          };
+        }
+        if (outcome.kind === 'reference-solution') {
+          const { result } = outcome;
+          const workspace = requireWorkspaceOf(service, result.workspaceId);
+          return {
+            session: workspace.id,
+            revision: workspace.revision,
+            importedConfigurations: result.sessions.length,
+            standaloneKind: result.standaloneKind,
+            diagnostics: {
+              missingParts: result.diagnostics.missingParts.length,
+              removedParts: result.diagnostics.removedParts.length,
+              replacedParts: result.diagnostics.replacedParts.length,
+              eccnRestricted: result.diagnostics.eccnRestricted,
+              warningCount: result.diagnostics.warnings?.length ?? 0,
+            },
+          };
+        }
+        const workspace = outcome.workspace;
         return {
-          workspace: session.workspaceId,
-          workspaceRevision: service.sessions.getWorkspace(session.workspaceId)!.revision,
-          ...projectSummary({
-            sessionId: session.id,
-            revision: session.revision,
-            raw: session.raw,
-            index: session.index,
-            currency: session.locale.currency,
-            country: session.locale.country,
-            pricedAt: session.pricedAt,
-          }),
-          solutionMode: solution.solutionMode,
-          availableIn,
-          ...(outOfCatalog
-            ? {
-                warning:
-                  `${args.productCode} is not in the "${solution.solutionMode}" catalog ` +
-                  `(it belongs to: ${availableIn.join(', ')}). This session will configure and price ` +
-                  'normally, but exporting it and importing it back under this mode will fail. ' +
-                  `Relaunch with solutionMode "${availableIn[0]}" unless you have a reason not to.`,
-              }
-            : {}),
-          next: 'dcsc_list_options(session, tab: "<tab title>") or dcsc_list_options(session, query: "...")',
+          session: workspace.id,
+          revision: workspace.revision,
+          basket: outcome.kind,
+          ...(outcome.kind === 'software' ? { catalogItems: outcome.state.features.length } : {}),
+          solutionMode: workspace.solution.solutionMode,
+          country: workspace.locale.country,
+          currency: workspace.locale.currency,
+          priceType: 'LIST',
         };
       }, 'dcsc_launch failed'),
   );
@@ -116,19 +131,39 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
     'dcsc_session_list',
     {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'List open DCSC configuration sessions',
+      title: 'List open sessions',
       description:
-        'Lists open configuration sessions and multi-product workspaces, most recently used first (paginated).',
+        'Lists open configurations and workspaces, most recent first. view health shows client health and restore diagnostics; view recovery pages through restore warnings and archives.',
       inputSchema: {
+        view: z.enum(['sessions', 'health', 'recovery']).optional().default('sessions'),
         session: z.string().optional().describe('Only list configurations in this workspace.'),
+        path: z.array(z.string()).optional().default([]).describe('Recovery detail path from a returned continuation.'),
         limit: z.number().int().min(1).max(100).optional().default(15),
         offset: z.number().int().min(0).optional().default(0),
       },
     },
     async (args) =>
       guard(async () => {
-        const limit = args.limit ?? 15;
-        const offset = args.offset ?? 0;
+        if (args.view === 'health') {
+          const report = service.sessions.lastRestoreReport;
+          return {
+            ...service.http.health,
+            activeLocale: service.locale,
+            openSessions: service.sessions.list().length,
+            recovery: {
+              warningCount: report.warnings.length,
+              quarantinedRecords: report.quarantined.length,
+              archiveCount: report.recoveryArchives.length,
+              inspect: { tool: 'dcsc_session_list', arguments: { view: 'recovery' } },
+            },
+            config: redactConfig(service.config),
+          };
+        }
+        if (args.view === 'recovery') {
+          const report = { ...service.sessions.lastRestoreReport, recoveryArchives: listSessionRecoveryArchives(service.config) };
+          return projectJsonPage(report, { tool: 'dcsc_session_list', arguments: { view: 'recovery' },
+            path: args.path, offset: args.offset, limit: args.limit });
+        }
         if (args.session && !service.sessions.getWorkspace(args.session)) {
           throw new Error(`Workspace ${args.session} not found.`);
         }
@@ -136,7 +171,8 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
           .filter(s => !args.session || s.workspaceId === args.session)
           .map(s => ({ session: s.id, configurationId: s.configurationId, workspace: s.workspaceId, kind: 'configuration',
             label: s.label?.slice(0, 128), product: s.product.code,
-            description: s.product.description.slice(0, 60), revision: s.revision,
+            description: s.product.description.slice(0, 60),
+            revision: service.sessions.getWorkspace(s.workspaceId)?.revision,
             totalPrice: s.raw.totalPrice ?? null, currency: s.locale.currency,
             updatedAt: new Date(s.lastAccessAt).toISOString() }));
         const standalone = service.sessions.listWorkspaces()
@@ -144,13 +180,13 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
           .map(ws => ({ session: ws.id, workspace: ws.id, kind: 'workspace',
             label: ws.label?.slice(0, 128), revision: ws.revision, currency: ws.locale.currency,
             updatedAt: new Date(ws.lastAccessAt).toISOString(),
-            next: { tool: 'dcsc_session_info', arguments: { session: ws.id } } }));
+            next: { tool: 'dcsc_workspace_get', arguments: { session: ws.id } } }));
         const all = [...configurations, ...standalone]
           .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.session.localeCompare(b.session));
-        const page = all.slice(offset, offset + limit);
-        const result = () => ({ total: all.length, offset, limit, returned: page.length, sessions: page,
-          ...(offset + page.length < all.length ? { next: { tool: 'dcsc_session_list',
-            arguments: { ...args, offset: offset + page.length, limit } } } : {}),
+        const page = all.slice(args.offset, args.offset + args.limit);
+        const result = () => ({ total: all.length, offset: args.offset, limit: args.limit, returned: page.length, sessions: page,
+          ...(args.offset + page.length < all.length ? { next: { tool: 'dcsc_session_list',
+            arguments: { ...args, offset: args.offset + page.length } } } : {}),
         });
         while (jsonBytes(result()) > PAGE_BYTE_BUDGET && page.length > 1) page.pop();
         return result();
@@ -161,471 +197,130 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
     'dcsc_session_close',
     {
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-      title: 'Close a DCSC configuration session',
-      description: 'Discards a configuration session or workspace and frees its memory.',
-      inputSchema: { session: z.string(), expectedRevision: z.number().int().min(1).optional().describe('Expected configuration for a configuration handle, or workspace for a workspace handle revision.') },
+      title: 'Close a session',
+      description: 'Discards a configuration or a whole workspace and frees its memory.',
+      inputSchema: { session: z.string(), expectedRevision },
     },
-    async (args) => guard(async () => ({ closed: await service.closeSession(args.session, args.expectedRevision) }), 'dcsc_session_close failed'),
+    async (args) =>
+      guard(async () => {
+        const resolved = service.sessions.resolveHandle(args.session);
+        const workspace = resolved?.workspace;
+        let closed = false;
+        if (resolved?.kind === 'workspace') {
+          closed = await service.closeSession(args.session, args.expectedRevision);
+        } else if (resolved?.kind === 'configuration' && workspace) {
+          assertWorkspaceRevision(workspace, args.expectedRevision);
+          closed = await service.closeSession(args.session, resolved.session.revision);
+        }
+        const current = workspace ? service.sessions.getWorkspace(workspace.id) : undefined;
+        return { session: args.session, revision: current?.revision ?? null, closed };
+      }, 'dcsc_session_close failed'),
   );
 
   server.registerTool(
-    'dcsc_workspace_history',
+    'dcsc_undo',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-      title: 'Undo or redo a workspace edit',
-      description: 'Restores the previous or next committed workspace state (configurations, floor placement, cabling and preferences) atomically. Bounded to 10 edits.',
-      inputSchema: { session: z.string(), action: z.enum(['undo', 'redo']),
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.') },
+      title: 'Undo or redo an edit',
+      description:
+        'Restores the previous or next committed workspace state (up to 10 edits). With scope configuration, reverts only the last dcsc_configure call on one configuration.',
+      inputSchema: {
+        session: z.string(),
+        action: z.enum(['undo', 'redo']).optional().default('undo'),
+        scope: z.enum(['workspace', 'configuration']).optional().default('workspace'),
+        expectedRevision,
+      },
     },
-    async (args) => guard(async () => {
-      const workspace = service.sessions.getWorkspace(args.session);
-      if (!workspace) throw new Error('Workspace not found.');
-      const changed = args.action === 'undo'
-        ? await service.sessions.undoWorkspace(workspace.id, args.expectedRevision)
-        : await service.sessions.redoWorkspace(workspace.id, args.expectedRevision);
-      return { workspace: workspace.id, revision: workspace.revision, changed,
-        undoAvailable: (workspace.history?.undo.length ?? 0) > 0,
-        redoAvailable: (workspace.history?.redo.length ?? 0) > 0 };
-    }, 'dcsc_workspace_history failed'),
+    async (args) =>
+      guard(async () => {
+        const workspace = requireWorkspaceOf(service, args.session);
+        let changed: boolean;
+        if (args.scope === 'configuration') {
+          if (args.action === 'redo') throw new Error('Redo is only available for scope workspace.');
+          assertWorkspaceRevision(workspace, args.expectedRevision);
+          const target = requireConfigSession(service, args.session);
+          changed = await service.undo(target, target.revision);
+        } else {
+          changed = args.action === 'undo'
+            ? await service.sessions.undoWorkspace(workspace.id, args.expectedRevision)
+            : await service.sessions.redoWorkspace(workspace.id, args.expectedRevision);
+        }
+        const history = inspectHistory(service, args.session);
+        return { ...writeHeader(service, args.session), changed,
+          undoAvailable: history['undoAvailable'], redoAvailable: history['redoAvailable'],
+          ...(workspace.serverState.connectionGraphInvalidation !== undefined
+            ? { connectionGraphStale: true, note: 'Configuration selections changed; regenerate connections with dcsc_auto_connect.' } : {}) };
+      }, 'dcsc_undo failed'),
   );
 
   server.registerTool(
-    'dcsc_session_info',
+    'dcsc_workspace_get',
     {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Summarise a DCSC configuration or workspace',
+      title: 'Inspect a workspace',
       description:
-        'Returns the compact summary of a configuration or workspace: products, quantities, prices, tabs, constraints, and revisions. Optionally inspects CTO and rule versions.',
+        'Reads a configuration or workspace: summary, rack and floor layout, standalone baskets, undo history or saved validation jobs. Follow returned continuations for large collections.',
       inputSchema: {
-        session: z.string().optional().describe('Session or workspace ID. Optional if inspecting rule versions via ctoCode.'),
-        path: z.array(z.string()).optional().describe('Detail path from a returned inspect/detail continuation.'),
+        session: z.string(),
+        view: z.enum(['summary', 'layout', 'baskets', 'history', 'validation']).optional().default('summary'),
+        jobId: z.string().optional().describe('View validation: one saved job to inspect.'),
+        path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
         offset: z.number().int().min(0).optional().default(0),
         limit: z.number().int().min(1).max(1000).optional().default(20),
-        expectedRevision: z.number().int().min(1).optional()
-          .describe('Revision supplied by a continuation; rejects pages from a workspace that changed.'),
-        includeRuleVersions: z.boolean().optional().describe('When true, fetches and includes CTO versions and rule versions.'),
-        ruleTableCode: z.string().optional().describe('Rule table code for rule versions lookup (defaults to 203).'),
-        ctoCode: z.string().optional().describe('CTO code for rule versions lookup when no session is supplied or to override.'),
+        expectedRevision: z.number().int().min(1).optional().describe('Revision carried by a continuation; rejects pages from a workspace that moved.'),
       },
     },
     async (args) =>
       guard(async () => {
-        if (args.ctoCode && !args.session) {
-          const info = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
-            ctoCode: args.ctoCode,
-            tableCode: args.ruleTableCode,
-          });
-          return {
-            ctoCode: info.ctoCode,
-            versions: info.versions,
-            tableCode: info.tableCode,
-            ruleVersions: info.ruleVersions,
-          };
-        }
-        if (!args.session) {
-          throw new Error('A session ID or ctoCode is required for dcsc_session_info.');
-        }
-        const resolved = service.sessions.resolveHandle(args.session);
-        if (!resolved) {
-          throw new Error(
-            `No such session or workspace: ${args.session}. Use dcsc_session_list to see open sessions.`,
-          );
-        }
-        const workspace = resolved.workspace;
-        if (!workspace) {
-          throw new Error(`Configuration ${args.session} is not attached to an open workspace.`);
-        }
-        if (args.expectedRevision !== undefined && args.expectedRevision !== workspace.revision) {
-          throw new Error(
-            `Workspace ${workspace.id} changed from revision ${args.expectedRevision} to ${workspace.revision}. ` +
-            'Restart dcsc_session_info without path before following new continuations.',
-          );
-        }
-        if (args.path !== undefined) {
-          if (args.expectedRevision === undefined) {
-            throw new Error(
-              'expectedRevision is required for detail pages. ' +
-              'Call dcsc_session_info without path and follow its continuation.',
-            );
+        switch (args.view) {
+          case 'history': return inspectHistory(service, args.session);
+          case 'baskets': return inspectBaskets(service, args);
+          case 'validation': {
+            const workspace = requireWorkspaceOf(service, args.session);
+            return { session: args.session, revision: workspace.revision,
+              ...inspectValidationJobs(service, { session: args.session, jobId: args.jobId, path: args.path ?? [], offset: args.offset, limit: args.limit }) };
           }
-          return projectWorkspacePage(workspace, {
-            tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedRevision: workspace.revision },
-            path: args.path,
-            offset: args.offset,
-            limit: args.limit,
-          });
+          default: return inspectWorkspace(service, { ...args, view: args.view });
         }
-        if (resolved.kind === 'workspace' && resolved.workspace.configurations.size === 0) {
-          const kind = workspace.serverState.standaloneServiceState ? 'service'
-            : workspace.serverState.standaloneSoftwareState ? 'software'
-              : workspace.serverState.standaloneHardwareState ? 'hardware' : 'empty';
-          return { workspace: workspace.id, revision: workspace.revision, workspaceRevision: workspace.revision, revisionScope: 'workspace', kind,
-            configurations: [],
-            ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
-              arguments: { session: workspace.id, expectedRevision: workspace.revision } }),
-            currency: workspace.locale.currency, country: workspace.locale.country,
-            ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect'
-              : kind === 'hardware' ? 'dcsc_standalone_hardware_inspect' : 'dcsc_software_inspect',
-              arguments: { session: workspace.id } } } : {}),
-          };
-        }
-        if (
-          resolved.kind === 'workspace' &&
-          (workspace.configurations.size > 1 || workspace.serverState.standaloneSoftwareState ||
-            workspace.serverState.standaloneHardwareState ||
-            unplacedManagedStorageComponentIds(workspace).size > 0)
-        ) {
-          const summary = projectWorkspaceSummary(workspace, {
-            tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedRevision: workspace.revision },
-          });
-          if (args.includeRuleVersions) {
-            const firstCto = args.ctoCode ?? [...workspace.configurations.values()][0]?.product.code;
-            if (firstCto) {
-              const ruleVersions = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
-                ctoCode: firstCto,
-                tableCode: args.ruleTableCode,
-              });
-              return { ...summary, ruleVersions };
-            }
-          }
-          return summary;
-        }
-
-        const session = requireSession(service, args.session);
-
-        let ruleVersions: unknown = undefined;
-        if (args.includeRuleVersions) {
-          const targetCto = args.ctoCode ?? session.product.code;
-          ruleVersions = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
-            ctoCode: targetCto,
-            tableCode: args.ruleTableCode,
-          });
-        }
-
-        return {
-          workspace: session.workspaceId,
-          workspaceRevision: resolved.workspace?.revision,
-          revisionScope: 'configuration',
-          ...projectSummary({
-            sessionId: session.id,
-            revision: session.revision,
-            raw: session.raw,
-            index: session.index,
-            currency: session.locale.currency,
-            country: session.locale.country,
-            pricedAt: session.pricedAt,
-          }),
-          ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedRevision: workspace.revision } }),
-          validationMode: session.validationMode,
-          autoCorrect: session.autoCorrect,
-          mode: session.mode,
-          primed: session.primed,
-          configurable: session.configurable,
-          ...(ruleVersions !== undefined ? { ruleVersions } : {}),
-          ...(session.primed
-            ? {}
-            : !session.configurable
-              ? {
-                  note:
-                    'Preconfigured model with no configurable sections: there is nothing to prime and ' +
-                    'dcsc_configure does not apply. Browsing, pricing and export all work.',
-                }
-              : session.mode === 'lfo'
-                ? {
-                    note:
-                      'DCSC rejects the priming body on /lfos/autoDerive for this model, so ' +
-                      'dcsc_configure will NOT work in "lfo" mode. Browsing, pricing and export do work. ' +
-                      'To change anything, relaunch the same code with mode "lfo-as-cto" — that returns ' +
-                      'a configurable tree and primes correctly (note it prices the CTO base, not the ' +
-                      'preconfigured bundle).',
-                  }
-                : {
-                    warning:
-                      'This configuration could not be primed, so dcsc_configure may fail. ' +
-                      'Browsing, pricing and export still work.',
-                  }),
-        };
-      }, 'dcsc_session_info failed'),
+      }, 'dcsc_workspace_get failed'),
   );
 
   server.registerTool(
-    'dcsc_diff_sessions',
-    {
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Compare two DCSC configurations side-by-side',
-      description:
-        'Compares two configuration sessions side-by-side and returns added, removed and replaced parts, quantity changes, price delta and resource headroom.',
-      inputSchema: {
-        sessionA: z.string().describe('First session ID to compare.'),
-        sessionB: z.string().describe('Second session ID to compare.'),
-      },
-    },
-    async (args) => guard(async () => service.diffSessions(args.sessionA, args.sessionB), 'dcsc_diff_sessions failed'),
-  );
-
-  server.registerTool(
-    'dcsc_compare_scenarios',
-    {
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Compare design scenarios side by side',
-      description:
-        'Compares 2–6 configurations or workspaces by list price, power and heat. Pass nodes with configuration session IDs to scale a repeated node while keeping other workspace products fixed.',
-      inputSchema: {
-        sessions: z
-          .array(z.string())
-          .min(2)
-          .max(6)
-          .describe('Session or workspace IDs to compare.'),
-        nodes: z
-          .number()
-          .int()
-          .min(1)
-          .max(10000)
-          .optional()
-          .describe('Scale each scenario to this many nodes before comparing.'),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        const scale = args.nodes;
-        const scenarios = args.sessions.map((handle) => {
-          const resolved = service.sessions.resolveHandle(handle);
-          if (!resolved) throw new Error(`Session / Workspace ${handle} not found`);
-
-          if (
-            scale !== undefined &&
-            resolved.kind === 'workspace' &&
-            resolved.workspace.configurations.size > 1
-          ) {
-            throw new Error(
-              `Workspace ${handle} contains ${resolved.workspace.configurations.size} configurations. ` +
-                'Pass the configuration session ID of the node to scale so the repeated and fixed products are explicit.',
-            );
-          }
-
-          const target =
-            resolved.kind === 'configuration'
-              ? resolved.session
-              : [...resolved.workspace.configurations.values()][0];
-          if (!target) throw new Error(`Workspace ${handle} contains no configurations.`);
-
-          const workspace = resolved.workspace;
-          const storageQuantities = workspace && (resolved.kind === 'workspace' || scale !== undefined)
-            ? storageComponentQuantities(workspace) : new Map<string, number>();
-          const scoped =
-            resolved.kind === 'workspace'
-              ? [...resolved.workspace.configurations.values()]
-              : scale !== undefined && workspace
-                ? [...workspace.configurations.values()]
-                : [target];
-          const quantities = new Map(
-            scoped.map((session) => [
-              session.id,
-              scale !== undefined && session.id === target.id
-                ? scale
-                : storageQuantities.get(session.configurationId) ?? positiveQuantity(session.raw.quantity),
-            ]),
-          );
-          const units = new Map(scoped.map(session => [session.id,
-            workspace && storageQuantities.has(session.configurationId) && !(scale !== undefined && session.id === target.id)
-              ? storagePhysicalConfigurations(workspace, session.configurationId, session.raw).map(instance => ({ raw: instance.raw, quantity: 1 }))
-              : [{ raw: session.raw, quantity: quantities.get(session.id) ?? 1 }],
-          ]));
-          const entries = scoped.flatMap((session) => {
-            return units.get(session.id)!.flatMap(unit => {
-              const report = extractPowerReport(unit.raw);
-              return report && unit.quantity > 0 ? [{ report, quantity: unit.quantity }] : [];
-            });
-          });
-          const power = entries.length > 0 ? aggregatePower(entries) : undefined;
-          const contributing = scoped.filter(session => (quantities.get(session.id) ?? 1) > 0);
-          const hasPrice = (session: typeof target) => units.get(session.id)!.every(unit => configurationListPrice(unit.raw) !== null);
-          const sessionPrice = (session: typeof target) => units.get(session.id)!.reduce((total, unit) =>
-            total + (configurationListPrice(unit.raw) ?? 0) * unit.quantity, 0);
-          const priceAvailable = contributing.every(hasPrice);
-          const knownListPriceSubtotal = contributing.reduce((total, session) =>
-            total + sessionPrice(session), 0);
-          const listPrice = priceAvailable ? knownListPriceSubtotal : null;
-          const missingPower = contributing.filter(session => session.product.type.toLowerCase() !== 'rack' &&
-            units.get(session.id)!.some(unit => !extractPowerReport(unit.raw)));
-          const powerAvailable = power !== undefined && missingPower.length === 0;
-          const physicalWorkspace = resolved.kind === 'workspace' ? resolved.workspace : undefined;
-          const racks = scale === undefined ? (physicalWorkspace?.rackSummaries ?? []) : [];
-          const products = scoped.map((session) => ({
-            session: session.id,
-            code: session.product.code,
-            description: session.product.description,
-            quantity: quantities.get(session.id) ?? 1,
-            role:
-              scale === undefined
-                ? 'included'
-                : session.id === target.id
-                  ? 'repeated'
-                  : 'fixed',
-            listPrice: (quantities.get(session.id) ?? 1) === 0 ? 0 : hasPrice(session)
-              ? sessionPrice(session) : null,
-          }));
-          return {
-            session: handle,
-            label: physicalWorkspace?.label ?? target.label ?? target.product.code,
-            currency: target.locale.currency,
-            scope:
-              scale !== undefined
-                ? workspace && workspace.configurations.size > 1
-                  ? 'scaled-configuration-with-fixed-workspace-products'
-                  : 'scaled-configuration'
-                : resolved.kind,
-            primaryProduct: target.product.code,
-            description: target.product.description,
-            configurations: scoped.length,
-            products,
-            ...(scale !== undefined
-              ? {
-                  scaledToNodes: scale,
-                  unitListPrice: hasPrice(target) ? target.raw.totalPrice : null,
-                  physicalLayout: 'not-calculated',
-                  physicalLayoutRequirement:
-                    'Use dcsc_scale_out with an explicit rackCode, or place independent configuration instances and validate the workspace layout.',
-                }
-              : {}),
-            listPrice,
-            priceAvailable,
-            ...(!priceAvailable ? { knownListPriceSubtotal,
-              unpricedConfigurations: contributing.filter(session => !hasPrice(session)).map(session => session.id) } : {}),
-            powerAvailable,
-            ...(!powerAvailable ? { missingPowerConfigurations: missingPower.map(session => session.id),
-              ...(power ? { knownPowerSubtotal: power } : {}) } : {}),
-            ...(power && powerAvailable
-              ? {
-                  expectedKW: power.expectedKW,
-                  maxKW: power.maxKW,
-                  heatBtuHrMax: Math.round(power.heatBtuHr.max),
-                  pricePerExpectedKW:
-                    listPrice !== null && power.expectedKW > 0 ? Math.round(listPrice / power.expectedKW) : undefined,
-                }
-              : {}),
-            ...(physicalWorkspace && scale === undefined
-              ? {
-                  racks: racks.length,
-                  rackWeightKg: racks.reduce((acc, rack) => acc + (rack.totalWeightKg ?? 0), 0),
-                  stability: racks.map((rack) => rack.stableStatus).filter(Boolean),
-                }
-              : {}),
-          };
-        });
-
-        const currencies = [...new Set(scenarios.map((scenario) => scenario.currency))];
-        if (currencies.length > 1) {
-          return {
-            scenarios,
-            ranking: {
-              status: 'rejected',
-              reason:
-                `Cannot rank list prices across currencies (${currencies.join(', ')}). ` +
-                'Relaunch the scenarios in one locale/currency or compare each independently.',
-            },
-            priceType: 'LIST',
-            disclaimer: 'List prices retrieved anonymously. Not a quote.',
-          };
-        }
-
-        const priceComplete = scenarios.every(scenario => scenario.priceAvailable);
-        const byPrice = priceComplete ? [...scenarios].sort((a, b) => (a.listPrice ?? 0) - (b.listPrice ?? 0)) : [];
-        const withPower = scenarios.filter(
-          (s): s is typeof s & { expectedKW: number } => typeof s.expectedKW === 'number',
-        );
-        const byPower = withPower.length === scenarios.length
-          ? [...withPower].sort((a, b) => a.expectedKW - b.expectedKW) : [];
-
-        return {
-          scenarios,
-          currency: currencies[0],
-          cheapest: byPrice[0]?.session,
-          lowestPower: byPower[0]?.session,
-          ...(!priceComplete ? { priceRanking: { status: 'unavailable',
-            reason: 'At least one included configuration has no available list price. Known subtotals cannot establish the cheapest complete scenario.' } } : {}),
-          ...(withPower.length !== scenarios.length ? { powerRanking: { status: 'unavailable',
-            reason: 'At least one scenario lacks complete DCSC power reports for its included powered products.' } } : {}),
-          priceType: 'LIST',
-          note:
-            'expectedKW applies DCSC\'s load factor and is the figure to size a room against. ' +
-            'pricePerExpectedKW is list price divided by that, useful for comparing accelerator generations.',
-          disclaimer:
-            'List prices for the configured country and currency, retrieved anonymously. Not a quote.',
-        };
-      }, 'dcsc_compare_scenarios failed'),
-  );
-
-  server.registerTool(
-    'dcsc_scale_out',
+    'dcsc_compare',
     {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      title: 'Size a cluster from one designed node',
+      title: 'Compare designs',
       description:
-        'Measures how many units of a configured node fit per rack against DCSC placement rules, how many racks N nodes require, and the resulting list price, weight, power and cooling advisory. Does not create N separate configurations (use dcsc_clone_configuration for that).',
+        'Local analysis: scenarios compares 2-6 designs by price, power and heat; scale-out sizes racks for N nodes; parts lists the differences between two configurations; insights fetches service savings or flag summary.',
       inputSchema: {
-        session: z.string().describe('Session holding the designed node.'),
-        nodes: z.number().int().min(1).max(10000).describe('How many nodes in the cluster.'),
-        rackCode: z.string().describe('Rack cabinet code from dcsc_list_racks.'),
+        analysis: z.enum(['scenarios', 'scale-out', 'parts', 'insights']),
+        sessions: z.array(z.string()).min(2).max(6).optional().describe('scenarios: session or workspace ids.'),
+        session: z.string().optional().describe('scale-out and insights: the session to analyse.'),
+        sessionA: z.string().optional().describe('parts: first configuration.'),
+        sessionB: z.string().optional().describe('parts: second configuration.'),
+        nodes: z.number().int().min(1).max(10000).optional().describe('scale-out: cluster size; scenarios: scale each scenario to this many nodes.'),
+        rackCode: z.string().optional().describe('scale-out: rack cabinet code from dcsc_rack_get.'),
+        insight: z.enum(['serviceSaving', 'flagSummary']).optional().default('serviceSaving').describe('insights: which summary to fetch.'),
       },
     },
     async (args) =>
       guard(async () => {
-        const plan = await service.scaleOut({
-          sessionHandle: args.session,
-          nodes: args.nodes,
-          rackCode: args.rackCode,
-          ctx: service.newCtx(),
-        });
-
-        const advisory = assessRackDensity(
-          plan.powerPerRack?.maxKW ?? 0,
-          'unknown',
-        );
-
-        return {
-          ...plan,
-          ...(advisory && advisory.level !== 'standard' ? { coolingAdvisory: advisory } : {}),
-          ...(plan.powerPerRack?.maxKW === undefined
-            ? {
-                powerNote:
-                  'DCSC returned no power report for this product, so per-rack density could NOT be ' +
-                  'assessed and no cooling advisory was produced. Absence of a warning here means ' +
-                  'unknown, not acceptable — size the facility from the vendor datasheet.',
-              }
-            : {}),
-          priceType: 'LIST',
-          disclaimer:
-            'List prices for the configured country and currency. Not a quote. ' +
-            'Power figures are DCSC\'s for the node as configured, multiplied by node count.',
-        };
-      }, 'dcsc_scale_out failed'),
-  );
-
-  server.registerTool(
-    'dcsc_health',
-    {
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'DCSC client health',
-      description:
-        'Reports circuit breaker state, WAF cooldown, open session count, recovery archive diagnostics and redacted configuration.',
-      inputSchema: {},
-    },
-    async () =>
-      guard(async () => ({
-        ...service.http.health,
-        activeLocale: service.locale,
-        openSessions: service.sessions.list().length,
-        recovery: {
-          warningCount: service.sessions.lastRestoreReport.warnings.length,
-          quarantinedRecords: service.sessions.lastRestoreReport.quarantined.length,
-          archiveCount: service.sessions.lastRestoreReport.recoveryArchives.length,
-          inspect: { tool: 'dcsc_recovery_inspect', arguments: { path: [], offset: 0, limit: 20 } },
-        },
-        config: redactConfig(service.config),
-      }), 'dcsc_health failed'),
+        switch (args.analysis) {
+          case 'scenarios':
+            if (!args.sessions) throw new Error('sessions is required for analysis scenarios.');
+            return compareScenarios(service, args.sessions, args.nodes);
+          case 'scale-out':
+            if (!args.session || args.nodes === undefined || !args.rackCode) {
+              throw new Error('session, nodes and rackCode are required for analysis scale-out.');
+            }
+            return sizeScaleOut(service, { session: args.session, nodes: args.nodes, rackCode: args.rackCode });
+          case 'parts':
+            if (!args.sessionA || !args.sessionB) throw new Error('sessionA and sessionB are required for analysis parts.');
+            return service.diffSessions(args.sessionA, args.sessionB);
+          default:
+            if (!args.session) throw new Error('session is required for analysis insights.');
+            return service.summaryInsights({ session: args.session, type: args.insight });
+        }
+      }, 'dcsc_compare failed'),
   );
 }

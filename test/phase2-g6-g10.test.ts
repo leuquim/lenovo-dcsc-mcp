@@ -105,31 +105,6 @@ describe('Phase 2 Part B: G7 — Batch & Error Customize', () => {
     );
     expect(res).toEqual([]);
   });
-
-  it('dcsc_auto_fix tool handles errorCustomizeConfigurations without session', async () => {
-    const { service, handlers } = await setupTestEnvironment();
-    vi.spyOn(service.http, 'send').mockResolvedValue({
-      raw: [{ id: 'fixed-1' }],
-      status: 200,
-    } as never);
-
-    const handler = handlers.get('dcsc_auto_fix')!;
-    const reply = await handler({
-      errorCustomizeConfigurations: [{ id: 'node-1' }],
-      mode: 'cto',
-    });
-    const parsed = parse(reply);
-    expect(parsed.mode).toBe('cto');
-    expect(parsed.configurations).toEqual([{ id: 'fixed-1' }]);
-  });
-
-  it('dcsc_auto_fix tool rejects when neither session nor errorCustomizeConfigurations is provided', async () => {
-    const { handlers } = await setupTestEnvironment();
-    const handler = handlers.get('dcsc_auto_fix')!;
-    const reply = await handler({});
-    expect(reply.isError).toBe(true);
-    expect(reply.content[0]?.text).toContain('A session ID or errorCustomizeConfigurations is required');
-  });
 });
 
 describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
@@ -191,7 +166,7 @@ describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
     expect(info.ruleVersions).toEqual({ rules: 'ok' });
   });
 
-  it('dcsc_session_info inspects rule versions with explicit ctoCode and no session', async () => {
+  it('dcsc_configuration_get inspects rule versions with explicit ctoCode and no session', async () => {
     const { service, handlers } = await setupTestEnvironment();
     vi.spyOn(service.http, 'send').mockImplementation((input: { path: string }) => {
       if (input.path.endsWith('/versions')) {
@@ -200,9 +175,9 @@ describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
       return Promise.resolve({ raw: null, status: 200 } as never);
     });
 
-    const handler = handlers.get('dcsc_session_info')!;
+    const handler = handlers.get('dcsc_configuration_get')!;
     const reply = await handler({
-      ctoCode: '7D73CTO1WW',
+      view: 'rules', ctoCode: '7D73CTO1WW',
       ruleTableCode: '203',
     });
     const parsed = parse(reply);
@@ -211,7 +186,7 @@ describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
     expect(parsed.tableCode).toBe('203');
   });
 
-  it('dcsc_session_info merges rule versions when includeRuleVersions is true on active session', async () => {
+  it('dcsc_configuration_get returns rule versions for an active session', async () => {
     const { service, handlers } = await setupTestEnvironment();
     const raw: RawConfiguration = {
       id: 'session-rule-test',
@@ -238,14 +213,13 @@ describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
       return Promise.resolve({ raw: { ruleCount: 42 }, status: 200 } as never);
     });
 
-    const handler = handlers.get('dcsc_session_info')!;
+    const handler = handlers.get('dcsc_configuration_get')!;
     const reply = await handler({
       session: session.id,
-      includeRuleVersions: true,
+      view: 'rules',
     });
     const parsed = parse(reply);
-    expect(parsed.session).toBe(session.id);
-    expect(parsed.ruleVersions).toEqual({
+    expect(parsed).toMatchObject({
       ctoCode: '7D73CTO1WW',
       tableCode: '203',
       versions: ['v1', 'v2'],

@@ -13,6 +13,7 @@ import { reduceConfiguration } from '../../src/domain/reduce.js';
 import type { RawConfiguration } from '../../src/model/types.js';
 import { DcscService } from '../../src/mcp/service.js';
 import { saveSessions } from '../../src/session/persist.js';
+import { registerSessionTools } from '../../src/mcp/sessionTools.js';
 import { registerStandaloneTools } from '../../src/mcp/standaloneTools.js';
 import type { ConfigSession, WorkspaceSession } from '../../src/model/session.js';
 
@@ -95,17 +96,17 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   if (selected === 'software-launch' || selected === 'software-set-quantity' ||
       selected === 'software-remove' || selected === 'software-refresh' || selected === 'software-replace') {
     const handlers = standaloneHandlers(target);
-    const launched = await handlers.get('dcsc_software_launch')!({ replace: false });
+    const launched = await launchHandler(target)({ mode: 'software', replace: false });
     assert(!launched.isError, `software launch failed: ${launched.content[0]?.text ?? ''}`);
     if (selected === 'software-launch') return;
-    const workspace = String((JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>)['workspace']);
+    const workspace = String((JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>)['session']);
     const selectedReply = await handlers.get('dcsc_software_select')!({
       session: workspace, code: '7S1S002WWW', quantity: 2,
     });
     assert(!selectedReply.isError, `software selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'software-refresh' || selected === 'software-replace') {
-      const reply = await handlers.get('dcsc_software_launch')!({
-        session: workspace, refresh: selected === 'software-refresh', replace: selected === 'software-replace',
+      const reply = await launchHandler(target)({
+        mode: 'software', session: workspace, refresh: selected === 'software-refresh', replace: selected === 'software-replace',
       });
       assert(!reply.isError, `software ${selected} failed: ${reply.content[0]?.text ?? ''}`);
       return;
@@ -120,19 +121,19 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
       selected === 'service-set-product-quantity' || selected === 'service-remove' ||
       selected === 'service-refresh' || selected === 'service-replace') {
     const handlers = standaloneHandlers(target);
-    const launched = await handlers.get('dcsc_services_launch')!({
-      productCode: '7D73CTO1WW', productQuantity: 1, subCategory: 'Point of Sale',
+    const launched = await launchHandler(target)({
+      mode: 'services', productCode: '7D73CTO1WW', productQuantity: 1, subCategory: 'Point of Sale',
     });
     assert(!launched.isError, `service basket launch failed: ${launched.content[0]?.text ?? ''}`);
     const launchedBody = JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>;
-    const workspace = String(launchedBody['workspace']);
+    const workspace = String(launchedBody['session']);
     const selectedReply = await handlers.get('dcsc_services_select')!({
       session: workspace, serviceCode: '5WS7B99623', quantity: 2,
     });
     assert(!selectedReply.isError, `service basket selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'service-refresh' || selected === 'service-replace') {
-      const reply = await handlers.get('dcsc_services_launch')!({
-        session: workspace, productCode: '7D73CTO1WW', productQuantity: 1,
+      const reply = await launchHandler(target)({
+        mode: 'services', session: workspace, productCode: '7D73CTO1WW', productQuantity: 1,
         subCategory: 'Point of Sale', refresh: selected === 'service-refresh',
         replace: selected === 'service-replace',
       });
@@ -1185,6 +1186,14 @@ function completeDerivedFixture(target: DcscService, requested: RawConfiguration
 
 type ToolReply = { isError?: boolean; content: Array<{ text?: string }> };
 type ToolHandler = (args: Record<string, unknown>) => Promise<ToolReply>;
+
+function launchHandler(target: DcscService): ToolHandler {
+  const handlers = new Map<string, ToolHandler>();
+  registerSessionTools({
+    registerTool(name: string, _config: unknown, handler: ToolHandler) { handlers.set(name, handler); },
+  } as unknown as McpServer, target);
+  return handlers.get('dcsc_launch')!;
+}
 
 function standaloneHandlers(target: DcscService): Map<string, ToolHandler> {
   const handlers = new Map<string, ToolHandler>();

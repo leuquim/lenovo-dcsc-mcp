@@ -7,13 +7,10 @@ import { configurationListPrice } from '../domain/pricing.js';
 import type { LayoutResult } from '../domain/rack.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
 import { projectSummary } from '../model/project.js';
-import {
-  projectWorkspaceLayout,
-  projectWorkspacePage,
-} from '../model/workspaceProjection.js';
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
-import { requireSession } from './sessionTools.js';
+import { requireWorkspaceOf } from '../app/workspaceView.js';
+import { requireSession, writeHeader } from './sessionTools.js';
 import { guard } from './toolSupport.js';
 import { jsonBytes } from '../util/jsonBytes.js';
 import { PAGE_BYTE_BUDGET } from '../config/constants.js';
@@ -27,9 +24,10 @@ import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession): Record<string, unknown> {
   const unstable = layout.racks.filter((r) => r.stableStatus && r.stableStatus !== 'PASSED');
   const page = (path: string[]) => ({
-    tool: 'dcsc_workspace_layout',
+    tool: 'dcsc_workspace_get',
     arguments: {
       session: workspace.id,
+      view: 'layout',
       expectedRevision: workspace.revision,
       path,
       offset: 0,
@@ -141,23 +139,62 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
   return compact;
 }
 
+const workspaceRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
+
+function projectPduListing(service: DcscService, session: string, result: Awaited<ReturnType<DcscService['configurePdu']>>) {
+  const catalog = result.catalog;
+  if (!catalog) throw new Error('DCSC returned no PDU options for this rack.');
+  const project = (o: (typeof catalog.options)[number]) => ({
+    code: o.code, desc: o.description.slice(0, 64), max: o.max, unitPrice: o.unitPrice,
+    ...(o.selectedQty > 0 ? { selectedQty: o.selectedQty } : {}),
+  });
+  const bucket = (pred: (s: string) => boolean, limit: number) => {
+    const all = catalog.options.filter((o) => pred(o.section.toUpperCase()));
+    return { total: all.length, truncated: all.length > limit, options: all.slice(0, limit).map(project) };
+  };
+  return {
+    session,
+    revision: requireWorkspaceOf(service, session).revision,
+    rackId: result.rackId,
+    rackSession: result.rackSessionId,
+    pduOptions: bucket((s) => s === 'PDU', 14),
+    lineCordOptions: bucket((s) => s === 'LINECORD', 18),
+    jumperCordOptions: bucket((s) => s === 'RACK_POWERCABLE', 6),
+    otherPowerOptions: bucket((s) => s !== 'PDU' && s !== 'LINECORD' && s !== 'RACK_POWERCABLE', 4),
+    placementRules: catalog.placementRules,
+    totalCombinedSlots: catalog.totalCombinedSlots,
+    selected: result.selected,
+    totalPrice: result.totalPrice,
+    priceType: 'LIST',
+    note: 'A PDU needs a LINECORD to reach facility power; jumper cords only connect equipment to the PDU.',
+  };
+}
+
 export function registerRackLayoutTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
-    'dcsc_list_racks',
+    'dcsc_rack_get',
     {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      title: 'List rack cabinets and compatible chassis or nodes',
+      title: 'List rack cabinets and PDU options',
       description:
-        'Lists rack cabinets (or compatible chassis/nodes via hardwareType). Pass session or productCode to filter by compatibility.',
-      inputSchema: { solutionMode: z.string().optional(), session: z.string().optional(), productCode: z.string().optional(),
+        "Lists rack cabinets, or compatible chassis or nodes, optionally filtered by a session or product. With session and rackId, lists that rack's PDU and power cord options instead.",
+      inputSchema: {
+        solutionMode: z.string().optional(), session: z.string().optional(), productCode: z.string().optional(),
         hardwareType: z.enum(['rack', 'chassis', 'node']).optional().default('rack'),
-        path: z.array(z.string()).optional().describe('Lossless detail path from a returned continuation.'),
-        expectedCatalogFingerprint: z.string().optional().describe('Returned continuation fingerprint; rejects changed compatibility catalog or context.'),
-        offset: z.number().int().min(0).optional().default(0), limit: z.number().int().min(1).max(50).optional().default(20) },
+        rackId: z.string().optional().describe('With session: list PDU and power cord options for this rack.'),
+        path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
+        expectedCatalogFingerprint: z.string().optional().describe('Fingerprint from a returned continuation.'),
+        offset: z.number().int().min(0).optional().default(0), limit: z.number().int().min(1).max(50).optional().default(20),
+      },
     },
     async (args) =>
       guard(async () => {
+        if (args.rackId !== undefined) {
+          if (!args.session) throw new Error('session is required to list PDU options for a rack.');
+          const result = await service.configurePdu(args.session, args.rackId, { ctx: service.newCtx() });
+          return projectPduListing(service, args.session, result);
+        }
         const session = args.session ? requireSession(service, args.session) : undefined;
         if (session && args.productCode && args.productCode !== session.product.code) throw new Error('productCode conflicts with the selected configuration.');
         const masterCode = session?.product.code ?? args.productCode;
@@ -167,460 +204,191 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
         const hardwareType = args.hardwareType ?? 'rack';
         const racks = await fetchRackCabinets(service.http, { ...ctx, solution }, masterCode, hardwareType);
         const result = projectCatalogPage({
-          tool: 'dcsc_list_racks', collection: 'racks', context: ctx.locale,
+          tool: 'dcsc_rack_get', collection: 'racks', context: ctx.locale,
           arguments: { session: args.session, productCode: args.productCode, solutionMode: solution.solutionMode, hardwareType },
           offset: args.offset, limit: args.limit, path: args.path,
           expectedCatalogFingerprint: args.expectedCatalogFingerprint, items: racks.map(rack => ({ ...rack })),
           base: { solutionMode: solution.solutionMode, hardwareType, total: racks.length, compatibleWith: masterCode ?? null,
-            offset: args.offset, nextAction: hardwareType === 'rack'
-              ? 'dcsc_add_rack(session, rackCode) to add one to a workspace.'
-              : 'dcsc_launch(productCode, workspace) to configure the selected product, then dcsc_place_in_rack; include chassisId to copy a node into its chassis.' },
+            offset: args.offset },
         });
         return args.path !== undefined ? result : { ...result, returned: (result.page as Record<string, unknown>).returned };
-      }, 'dcsc_list_racks failed'),
+      }, 'dcsc_rack_get failed'),
   );
 
   server.registerTool(
-    'dcsc_add_rack',
+    'dcsc_rack_add',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      title: 'Add a rack enclosure to a solution workspace',
-      description:
-        'Adds a rack cabinet (rackCode from dcsc_list_racks) to a workspace and returns the DCSC-validated layout.',
+      title: 'Add a rack',
+      description: 'Adds a rack cabinet (rackCode from dcsc_rack_get) to a workspace and returns the DCSC-validated layout.',
       inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-        session: z.string().describe('Session or workspace ID.'),
-        rackCode: z.string().describe('Rack product code from dcsc_list_racks, e.g. "7D6DCTO1WW".'),
+        session: z.string().describe('Workspace or configuration handle.'),
+        rackCode: z.string().describe('Rack product code, e.g. "7D6DCTO1WW".'),
+        expectedRevision: workspaceRevision,
       },
     },
     async (args) =>
       guard(async () => {
-        const ctx = service.newCtx();
-        const layout = await service.addRack(args.session, args.rackCode, ctx, args.expectedRevision);
-        const workspace = service.sessions.getWorkspace(args.session)!;
-        return {
-          session: args.session,
-          revision: workspace.revision,
-          ...projectLayout(layout, workspace),
-          next: 'dcsc_place_in_rack(session, rackId, sessionId) to place a configuration in this rack.',
-        };
-      }, 'dcsc_add_rack failed'),
+        const workspaceId = requireWorkspaceOf(service, args.session).id;
+        const layout = await service.addRack(workspaceId, args.rackCode, service.newCtx(), args.expectedRevision);
+        const workspace = service.sessions.getWorkspace(workspaceId)!;
+        return { ...writeHeader(service, args.session), ...projectLayout(layout, workspace) };
+      }, 'dcsc_rack_add failed'),
   );
 
   server.registerTool(
-    'dcsc_place_in_rack',
-    {
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      title: 'Place a configuration in a rack enclosure',
-      description:
-        'Places one configured product into a rack and returns DCSC\'s validated U positions, weight and stability verdict. Omit uPosition to let DCSC choose a valid slot. Places ONE physical unit per configuration (use dcsc_clone_configuration for multiple units). Pass chassisId to copy a non-rack node into a placed chassis.',
-      inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-        session: z.string().describe('Session or workspace ID.'),
-        rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
-        configuration: z.string().describe('Configuration session/ID to place, or an existing managed-storage physical ID to move.'),
-        chassisId: z.string().optional().describe('Placed chassis ID for Add Node As Copy. The source node remains in the non-rack area.'),
-        uPosition: z
-          .number()
-          .int()
-          .min(1)
-          .max(60)
-          .optional()
-          .describe('Starting U position. Omit to let DCSC arrange it.'),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        const ctx = service.newCtx();
-        const placed = service.sessions.get(args.configuration);
-        const quantity = placed?.raw.quantity ?? 1;
-
-        const layout = await service.placeInRack(args.session, {
-          rackId: args.rackId,
-          expectedRevision: args.expectedRevision,
-          sessionId: args.configuration,
-          ...(args.chassisId !== undefined ? { chassisId: args.chassisId } : {}),
-          ...(args.uPosition !== undefined ? { position: args.uPosition } : {}),
-          ctx,
-        });
-        const workspace = service.sessions.getWorkspace(args.session)!;
-        return {
-          session: args.session,
-          revision: workspace.revision,
-          ...projectLayout(layout, workspace),
-          ...(layout.nestedPlacement ? { nestedPlacement: layout.nestedPlacement } : {}),
-          ...(quantity > 1
-            ? {
-                quantityWarning:
-                  `${args.configuration} has quantity ${quantity}, but placement added ONE item ` +
-                  `(${placed?.product.code ?? 'unknown'}) to the rack. The rack elevation, used U and ` +
-                  'weight therefore reflect a single unit while the price reflects ' +
-                  `${quantity}. Use dcsc_clone_configuration(session, count: ${quantity - 1}) and place ` +
-                  'each copy to model the real cabinet.',
-              }
-            : {}),
-        };
-      }, 'dcsc_place_in_rack failed'),
-  );
-
-  server.registerTool(
-    'dcsc_edit_layout',
+    'dcsc_rack_edit',
     {
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
-      title: 'Move, unplace, detach, remove or arrange workspace items',
-      description: 'Edits workspace layout atomically through DCSC: move (to rackId/uPosition), unplace (to non-rack area), detach (Delete Node from chassis while keeping commercial line; use unplace for roundtrip reimport retention), remove (delete configuration), or arrange (reorder rack contents).',
+      title: 'Edit rack contents',
+      description:
+        'Places, moves, unplaces, detaches or removes items, arranges rack contents, locks or unlocks an item or empty U, clones a configuration, or copies a racked item. Layout actions return the validated layout.',
       inputSchema: {
-        session: z.string().describe('Workspace ID, or a configuration handle in that workspace.'),
-        action: z.enum(['move', 'unplace', 'detach', 'remove', 'arrange']),
-        configuration: z.string().optional().describe('Configuration session handle or physical instance ID; required except for arrange.'),
-        rackId: z.string().optional().describe('Destination rack ID for move.'),
-        uPosition: z.number().int().min(1).optional(),
-        contents: z.enum(['unplace', 'delete']).default('unplace').describe('Disposition of products inside a removed rack or chassis.'),
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
+        session: z.string().describe('Workspace handle, or a configuration handle in it.'),
+        action: z.enum(['place', 'move', 'unplace', 'detach', 'remove', 'arrange', 'lock', 'unlock', 'clone', 'copy']),
+        configuration: z.string().optional().describe('Configuration or physical item to act on.'),
+        rackId: z.string().optional().describe('place, move: destination rack. lock: rack of an empty U.'),
+        uPosition: z.number().int().min(1).max(60).optional().describe('place, move: starting U (omit to let DCSC choose). lock: the empty U.'),
+        chassisId: z.string().optional().describe('place: placed chassis to copy a non-rack node into.'),
+        itemId: z.string().optional().describe('lock, unlock: physical item id.'),
+        contents: z.enum(['unplace', 'delete']).optional().default('unplace').describe('remove: what happens to products inside a removed rack or chassis.'),
+        count: z.number().int().min(1).max(32).optional().default(1).describe('clone: additional copies.'),
+        placement: z.enum(['none', 'same-rack']).optional().describe('clone: same-rack performs the website Clone Multiple.'),
+        labelPrefix: z.string().optional().describe('clone: name prefix for the copies.'),
+        expectedRevision: workspaceRevision,
       },
     },
     async (args) => guard(async () => {
-      const workspace = service.sessions.getWorkspace(args.session);
-      if (!workspace) throw new Error('Workspace not found.');
+      const workspace = requireWorkspaceOf(service, args.session);
       const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-      if (args.action !== 'arrange' && !args.configuration) throw new Error('configuration is required for this action.');
-      let layout: LayoutResult;
-      if (args.action === 'move') {
-        if (!args.rackId) throw new Error('rackId is required when moving a configuration.');
-        layout = await service.placeInRack(workspace.id, { rackId: args.rackId,
-          sessionId: args.configuration!, position: args.uPosition, expectedRevision: args.expectedRevision, ctx });
-      } else {
-        layout = await service.editLayout(workspace.id, { action: args.action, configurationId: args.configuration,
-          contents: args.contents, expectedRevision: args.expectedRevision, ctx });
+      const need = (value: string | undefined, name: string): string => {
+        if (!value) throw new Error(`${name} is required for action ${args.action}.`);
+        return value;
+      };
+      const layoutResult = (layout: LayoutResult, extra: Record<string, unknown> = {}) => ({
+        ...writeHeader(service, args.session), ...projectLayout(layout, service.sessions.getWorkspace(workspace.id)!), ...extra });
+      switch (args.action) {
+        case 'place': {
+          const configuration = need(args.configuration, 'configuration');
+          const quantity = service.sessions.get(configuration)?.raw.quantity ?? 1;
+          const layout = await service.placeInRack(workspace.id, {
+            rackId: need(args.rackId, 'rackId'), expectedRevision: args.expectedRevision, sessionId: configuration,
+            ...(args.chassisId !== undefined ? { chassisId: args.chassisId } : {}),
+            ...(args.uPosition !== undefined ? { position: args.uPosition } : {}), ctx });
+          return layoutResult(layout, {
+            ...(layout.nestedPlacement ? { nestedPlacement: layout.nestedPlacement } : {}),
+            ...(quantity > 1 ? { quantityWarning:
+              `${configuration} has quantity ${quantity}, but placement added ONE item to the rack. ` +
+              `Use action clone with count ${quantity - 1} and place each copy to model the real cabinet.` } : {}) });
+        }
+        case 'move': {
+          const layout = await service.placeInRack(workspace.id, { rackId: need(args.rackId, 'rackId'),
+            sessionId: need(args.configuration, 'configuration'), position: args.uPosition,
+            expectedRevision: args.expectedRevision, ctx });
+          return layoutResult(layout);
+        }
+        case 'unplace': case 'detach': case 'remove': case 'arrange': {
+          if (args.action !== 'arrange') need(args.configuration, 'configuration');
+          const layout = await service.editLayout(workspace.id, { action: args.action, configurationId: args.configuration,
+            contents: args.contents, expectedRevision: args.expectedRevision, ctx });
+          return layoutResult(layout, args.action === 'detach' ? { warning:
+            'The node configuration remains in this workspace and its commercial export. Lenovo reimport drops detached nodes. Undo this action and use unplace to retain the node through an export/import roundtrip.' } : {});
+        }
+        case 'lock': case 'unlock': {
+          const position = args.uPosition;
+          if (args.itemId === undefined && position === undefined) throw new Error('itemId, or rackId with uPosition, is required to lock.');
+          const target = args.itemId !== undefined ? { itemId: args.itemId } : { rackId: need(args.rackId, 'rackId'), position: position! };
+          const { layout: _layout, ...accepted } = await service.setRackLock(workspace.id, {
+            target, locked: args.action === 'lock', expectedRevision: args.expectedRevision, ctx });
+          return { ...writeHeader(service, args.session), ...accepted };
+        }
+        case 'clone': {
+          const { source, clones, placements, nestedConfigurations } = await service.cloneConfiguration({
+            sessionHandle: args.configuration ?? args.session, count: args.count,
+            expectedRevision: args.expectedRevision, placement: args.placement, ctx,
+            ...(args.labelPrefix !== undefined ? { labelPrefix: args.labelPrefix } : {}) });
+          const configurations = [source, ...clones, ...nestedConfigurations ?? []];
+          const priceAvailable = configurations.every(session => configurationListPrice(session.raw) !== null);
+          const total = configurations.reduce((sum, session) =>
+            sum + (configurationListPrice(session.raw) ?? 0) * (session.raw.quantity ?? 1), 0);
+          return { ...writeHeader(service, args.session),
+            source: { session: source.id, productCode: source.product.code, unitPrice: configurationListPrice(source.raw) },
+            created: clones.map(c => ({ session: c.id, configurationId: c.configurationId, label: c.label, unitPrice: configurationListPrice(c.raw) })),
+            totalConfigurations: configurations.length,
+            combinedListPrice: priceAvailable ? Math.round(total * 100) / 100 : null, priceAvailable,
+            ...(!priceAvailable ? { knownListPriceSubtotal: Math.round(total * 100) / 100 } : {}),
+            currency: source.locale.currency, priceType: 'LIST', nodeRole: source.reduced.nodeRole,
+            ...(placements ? { placements } : {}) };
+        }
+        default: {
+          const { source, copy, placement, nestedCopies } = await service.copyRackItem(args.configuration ?? args.session, {
+            expectedRevision: args.expectedRevision, ctx });
+          return { ...writeHeader(service, args.session),
+            copy: projectSummary({ sessionId: copy.id, revision: service.sessions.getWorkspace(copy.workspaceId)!.revision, raw: copy.raw, index: copy.index,
+              currency: copy.locale.currency, country: copy.locale.country, pricedAt: copy.pricedAt }),
+            configurationId: copy.configurationId, name: copy.raw.name,
+            nestedConfigurationsCreated: nestedCopies.length,
+            source: { session: source.id, configurationId: source.configurationId }, placement };
+        }
       }
-      return { workspace: workspace.id, revision: workspace.revision, ...projectLayout(layout, workspace),
-        ...(args.action === 'detach' ? { warning: 'The node configuration remains in this workspace and its commercial export. Lenovo reimport drops detached nodes. Undo this action and use unplace to retain the node through an export/import roundtrip.' } : {}) };
-    }, 'dcsc_edit_layout failed'),
+    }, 'dcsc_rack_edit failed'),
   );
 
   server.registerTool(
-    'dcsc_place_on_floor',
+    'dcsc_floor_set',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Place a rack on the floor grid (planning only)',
-      description:
-        'Positions a rack on client-side floor-tile coordinates (x, y) for layout planning and workspace exports.',
+      title: 'Place a rack on the floor',
+      description: 'Positions a rack on floor-tile coordinates for layout planning and workspace exports.',
       inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-        session: z.string().describe('Session or workspace ID.'),
-        rackId: z.string().describe('Rack ID from dcsc_add_rack (configuration id of the rack).'),
-        x: z.number().int().min(0).describe('Floor tile X coordinate (0-based).'),
-        y: z.number().int().min(0).describe('Floor tile Y coordinate (0-based).'),
+        session: z.string().describe('Workspace or configuration handle.'),
+        rackId: z.string().describe('Rack id from dcsc_rack_add.'),
+        x: z.number().int().min(0).describe('Floor tile X (0-based).'),
+        y: z.number().int().min(0).describe('Floor tile Y (0-based).'),
+        expectedRevision: workspaceRevision,
       },
     },
     async (args) =>
       guard(async () => {
         const result = await service.placeOnFloor(args.session, args.rackId, args.x, args.y, args.expectedRevision);
-        return {
-          session: args.session,
-          revision: service.sessions.getWorkspace(args.session)!.revision,
-          floorPlacement: result.item,
-          clientSide: result.clientSide,
-          warning: result.warning,
-          next: 'dcsc_workspace_layout(session) to list floor items.',
-        };
-      }, 'dcsc_place_on_floor failed'),
+        return { ...writeHeader(service, args.session), floorPlacement: result.item, clientSide: result.clientSide, warning: result.warning };
+      }, 'dcsc_floor_set failed'),
   );
 
-  server.registerTool('dcsc_set_rack_lock', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    title: 'Lock or unlock a rack item or empty U position',
-    description: 'Locks or unlocks an existing direct rack item (itemId) or empty U slot (rackId + 1-based position) and commits atomically with history.',
-    inputSchema: {
-      session: z.string().describe('Workspace or configuration handle.'),
-      target: z.union([
-        z.object({ itemId: z.string().min(1).describe('Physical item ID from dcsc_workspace_layout.') }).strict(),
-        z.object({ rackId: z.string().min(1), position: z.number().int().min(1).describe('Empty U position, one-based.') }).strict(),
-      ]),
-      locked: z.boolean().describe('true to lock; false to unlock.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-    },
-  }, async args => guard(async () => {
-    const { layout: _layout, ...accepted } = await service.setRackLock(args.session, {
-      target: args.target, locked: args.locked, expectedRevision: args.expectedRevision, ctx: service.newCtx(),
-    });
-    const workspace = service.sessions.getWorkspace(args.session)!;
-    return { ...accepted, workspace: workspace.id, workspaceRevision: workspace.revision,
-      revisionScope: 'workspace', next: { tool: 'dcsc_workspace_layout', arguments: { session: workspace.id } } };
-  }, 'dcsc_set_rack_lock failed'));
-
-  server.registerTool('dcsc_copy_rack_item', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    title: 'Copy a configured rack item independently',
-    description: 'Performs the website rack Copy action for a direct CTO item (or populated HPC chassis with direct node children), creating an independent configuration Copy_<name> in the same rack whose future edits do not propagate to the source.',
-    inputSchema: {
-      session: z.string().describe('Explicit configuration handle of the racked item to copy.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-    },
-  }, async args => guard(async () => {
-    const { source, copy, placement, nestedCopies } = await service.copyRackItem(args.session, {
-      expectedRevision: args.expectedRevision, ctx: service.newCtx(),
-    });
-    return {
-      ...projectSummary({ sessionId: copy.id, revision: copy.revision, raw: copy.raw, index: copy.index,
-        currency: copy.locale.currency, country: copy.locale.country, pricedAt: copy.pricedAt }),
-      workspace: copy.workspaceId,
-      workspaceRevision: service.sessions.getWorkspace(copy.workspaceId)!.revision,
-      configurationId: copy.configurationId, name: copy.raw.name,
-      nestedConfigurationsCreated: nestedCopies.length,
-      source: { session: source.id, configurationId: source.configurationId },
-      placement,
-      inspect: { tool: 'dcsc_workspace_layout', arguments: { session: copy.workspaceId } },
-      next: { tool: 'dcsc_list_options', arguments: { session: copy.id } },
-    };
-  }, 'dcsc_copy_rack_item failed'));
-
   server.registerTool(
-    'dcsc_clone_configuration',
+    'dcsc_pdu_set',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      title: 'Duplicate a configured product N times in the same workspace',
-      description:
-        'Duplicates a configured product into N additional configurations in the same workspace. Default placement="none" creates unplaced copies; placement="same-rack" performs the website Clone Multiple workflow (linked copies placed in free U slots of the same rack).',
+      title: 'Select PDUs and power cords',
+      description: 'Sets PDUs and line or jumper cords on a rack cabinet. List the options first with dcsc_rack_get and rackId.',
       inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-        session: z.string().describe('Session holding the configured template product.'),
-        placement: z.enum(['none', 'same-rack']).optional().describe('Default none creates configuration copies; same-rack also performs physical Clone Multiple.'),
-        count: z
-          .number()
-          .int()
-          .min(1)
-          .max(32)
-          .describe('How many additional copies to create (the source is not counted).'),
-        labelPrefix: z
-          .string()
-          .optional()
-          .describe('Names clones "<prefix> 2", "<prefix> 3", … Defaults to the source label.'),
+        session: z.string().describe('Workspace or configuration handle.'),
+        rackId: z.string().describe('Rack id from dcsc_rack_add.'),
+        pduCode: z.string().optional().describe('PDU feature code, e.g. "C0CS".'),
+        cordCode: z.string().optional().describe('Line cord or rack power cable feature code, e.g. "6500".'),
+        quantity: z.number().int().min(0).optional().default(1).describe('Quantity for the codes. 0 removes.'),
+        expectedRevision: workspaceRevision,
       },
     },
     async (args) =>
       guard(async () => {
-        const { source, clones, placements, nestedConfigurations } = await service.cloneConfiguration({
-          sessionHandle: args.session,
-          count: args.count,
-          expectedRevision: args.expectedRevision,
-          placement: args.placement,
-          ctx: service.newCtx(),
-          ...(args.labelPrefix !== undefined ? { labelPrefix: args.labelPrefix } : {}),
-        });
-        const unit = configurationListPrice(source.raw);
-        const configurations = [source, ...clones, ...nestedConfigurations ?? []];
-        const priceAvailable = configurations.every(session => configurationListPrice(session.raw) !== null);
-        const total = configurations.reduce((sum, session) =>
-          sum + (configurationListPrice(session.raw) ?? 0) * (session.raw.quantity ?? 1), 0);
-        return {
-          workspace: source.workspaceId,
-          revision: source.revision,
-          workspaceRevision: service.sessions.getWorkspace(source.workspaceId)!.revision,
-          source: { session: source.id, productCode: source.product.code, unitPrice: unit },
-          created: clones.map((c) => ({
-            session: c.id,
-            configurationId: c.configurationId,
-            label: c.label,
-            unitPrice: configurationListPrice(c.raw),
-          })),
-          totalConfigurations: configurations.length,
-          ...(nestedConfigurations ? { nestedConfigurationsCreated: nestedConfigurations.length * clones.length / (clones.length + 1) } : {}),
-          combinedListPrice: priceAvailable ? Math.round(total * 100) / 100 : null,
-          priceAvailable,
-          ...(!priceAvailable ? { knownListPriceSubtotal: Math.round(total * 100) / 100 } : {}),
-          currency: source.locale.currency,
-          priceType: 'LIST',
-          nodeRole: source.reduced.nodeRole,
-          ...(placements ? { placements } : {}),
-          next: placements
-            ? { tool: 'dcsc_workspace_layout', arguments: { session: source.workspaceId } }
-            : 'dcsc_place_in_rack(session, rackId, sessionId) for each, or dcsc_scale_out to size racks first.',
-        };
-      }, 'dcsc_clone_configuration failed'),
-  );
-
-  server.registerTool(
-    'dcsc_workspace_layout',
-    {
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Read back the validated rack and floor layout',
-      description:
-        'Returns the physical layout of a workspace: racks (U occupancy, weight, stability verdict, items), cables, floor tiles and power selections. Large collections return revision-bound continuations.',
-      inputSchema: {
-        session: z.string().describe('Session or workspace ID.'),
-        path: z.array(z.string()).optional().describe('Detail path from a returned inspect/detail continuation.'),
-        offset: z.number().int().min(0).optional().default(0),
-        limit: z.number().int().min(1).max(1000).optional().default(20),
-        expectedRevision: z.number().int().min(1).optional()
-          .describe('Revision supplied by a continuation; rejects pages from a workspace that changed.'),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        const ws = service.sessions.getWorkspace(args.session);
-        if (!ws) throw new Error(`Session / Workspace ${args.session} not found`);
-        if (args.expectedRevision !== undefined && args.expectedRevision !== ws.revision) {
-          throw new Error(
-            `Workspace ${ws.id} changed from revision ${args.expectedRevision} to ${ws.revision}. ` +
-            'Restart dcsc_workspace_layout without path before following new continuations.',
-          );
-        }
-        if (args.path !== undefined) {
-          if (args.expectedRevision === undefined) {
-            throw new Error(
-              'expectedRevision is required for detail pages. ' +
-              'Call dcsc_workspace_layout without path and follow its continuation.',
-            );
-          }
-          return projectWorkspacePage(ws, {
-            tool: 'dcsc_workspace_layout',
-            arguments: { session: ws.id, expectedRevision: ws.revision },
-            path: args.path,
-            offset: args.offset,
-            limit: args.limit,
-          });
-        }
-        return projectWorkspaceLayout(ws, {
-          tool: 'dcsc_workspace_layout',
-          arguments: { session: ws.id, expectedRevision: ws.revision },
-        });
-      }, 'dcsc_workspace_layout failed'),
-  );
-
-  server.registerTool(
-    'dcsc_configure_pdu',
-    {
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-      title: 'Select PDUs and power cords on a rack',
-      description:
-        'Configures PDUs and line/jumper cords on a rack cabinet through DCSC autoDerive. Call with session+rackId alone to list options and placement rules; call with pduCode (and optional cordCode, quantity) to apply.',
-      inputSchema: {
-        expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
-        session: z.string().describe('Session or workspace ID.'),
-        rackId: z.string().describe('Rack ID from dcsc_add_rack (configuration id of the rack).'),
-        pduCode: z
-          .string()
-          .optional()
-          .describe('PDU feature code from the catalog, e.g. "C0CS". Omit to list options only.'),
-        cordCode: z
-          .string()
-          .optional()
-          .describe('Line cord or rack power cable feature code, e.g. "6500".'),
-        quantity: z
-          .number()
-          .int()
-          .min(0)
-          .optional()
-          .default(1)
-          .describe('Quantity for pduCode/cordCode. 0 removes. Default 1.'),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        const ctx = service.newCtx();
+        if (!args.pduCode && !args.cordCode) throw new Error('Provide pduCode or cordCode.');
         const result = await service.configurePdu(args.session, args.rackId, {
           ...(args.pduCode !== undefined ? { pduCode: args.pduCode } : {}),
           ...(args.cordCode !== undefined ? { cordCode: args.cordCode } : {}),
-          quantity: args.quantity ?? 1,
-          expectedRevision: args.expectedRevision,
-          ctx,
+          quantity: args.quantity, expectedRevision: args.expectedRevision, ctx: service.newCtx(),
         });
-
-        if (result.catalog) {
-          const project = (o: (typeof result.catalog.options)[number]) => ({
-            code: o.code,
-            desc: o.description.slice(0, 64),
-            max: o.max,
-            unitPrice: o.unitPrice,
-            ...(o.selectedQty > 0 ? { selectedQty: o.selectedQty } : {}),
-          });
-          const bucket = (pred: (s: string) => boolean, limit: number) => {
-            const all = result.catalog!.options.filter((o) => pred(o.section.toUpperCase()));
-            return {
-              total: all.length,
-              shown: Math.min(all.length, limit),
-              truncated: all.length > limit,
-              options: all.slice(0, limit).map(project),
-            };
-          };
-
-          const pdus = bucket((s) => s === 'PDU', 14);
-          const lineCords = bucket((s) => s === 'LINECORD', 18);
-          const jumpers = bucket((s) => s === 'RACK_POWERCABLE', 6);
-          const other = bucket(
-            (s) => s !== 'PDU' && s !== 'LINECORD' && s !== 'RACK_POWERCABLE',
-            4,
-          );
-
-          return {
-            session: args.session,
-            rackId: result.rackId,
-            revision: service.sessions.getWorkspace(args.session)!.revision,
-            rackSession: result.rackSessionId,
-            listing: true,
-            pduOptions: pdus.options,
-            lineCordOptions: lineCords.options,
-            jumperCordOptions: jumpers.options,
-            otherPowerOptions: other.options,
-            counts: {
-              pdu: { total: pdus.total, shown: pdus.shown, truncated: pdus.truncated },
-              lineCord: {
-                total: lineCords.total,
-                shown: lineCords.shown,
-                truncated: lineCords.truncated,
-              },
-              jumperCord: {
-                total: jumpers.total,
-                shown: jumpers.shown,
-                truncated: jumpers.truncated,
-              },
-              other: { total: other.total, shown: other.shown, truncated: other.truncated },
-            },
-            placementRules: result.catalog.placementRules,
-            totalCombinedSlots: result.catalog.totalCombinedSlots,
-            selected: result.selected,
-            totalPrice: result.totalPrice,
-            priceType: 'LIST',
-            lineCordNote:
-              lineCords.total === 0
-                ? 'This rack tree carries no LINECORD options — check dcsc_list_options(rackSession, tab: "Power").'
-                : 'A PDU needs a LINECORD to reach facility power; jumper cords only connect equipment ' +
-                  'to the PDU. Line cords are country- and voltage-specific, so pick one that matches ' +
-                  'the site feed.',
-            next:
-              'dcsc_configure_pdu(session, rackId, pduCode: "<code>", cordCode: "<lineCord>", quantity: N). ' +
-              'Prices are anonymous LIST prices.',
-          };
-        }
-
-        return {
-          session: args.session,
-          rackId: result.rackId,
-          revision: service.sessions.getWorkspace(args.session)!.revision,
-          rackSession: result.rackSessionId,
-          powerSelection: result.selection,
-          selected: result.selected,
-          totalPrice: result.totalPrice,
-          priceType: 'LIST',
-          powerReadiness: result.powerReadiness,
-          note:
-            'Selection was applied through DCSC autoDerive. totalPrice is the rack cabinet LIST price ' +
-            'after the change, not a quote.',
-          next:
-            result.powerReadiness && !result.powerReadiness.complete
-              ? 'dcsc_configure_pdu(session, rackId, cordCode: "<code>", quantity: N) to add the line cords ' +
-                'this rack still needs.'
-              : 'dcsc_session_info(rackSession) for the full rack BOM, or dcsc_workspace_layout(session).',
-        };
-      }, 'dcsc_configure_pdu failed'),
-    );
+        return { ...writeHeader(service, args.session), rackId: result.rackId, rackSession: result.rackSessionId,
+          powerSelection: result.selection, selected: result.selected, totalPrice: result.totalPrice, priceType: 'LIST',
+          powerReadiness: result.powerReadiness };
+      }, 'dcsc_pdu_set failed'),
+  );
 
   server.registerTool(
     'dcsc_rack_position_rule',
     {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      title: 'Get hardware U-position rules in a rack',
+      title: 'Get U-position rules in a rack',
       description: 'Calculates lowest and highest valid U-positions and placement rules for a server or hardware item within a rack.',
       inputSchema: {
         rack: z.object({

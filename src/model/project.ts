@@ -206,7 +206,7 @@ export function projectTab(opts: {
     tabId: refs[0]?.tab ?? opts.tab,
     tabSubtotal: round(subtotal),
     sections,
-    next: `dcsc_list_options(session, section: "<id>") to see the options in a section`,
+    next: `dcsc_configuration_get(session, view: "options", section: "<id>") to see the options in a section`,
   };
 }
 
@@ -376,8 +376,9 @@ function withContinuation(view: OptionsView): OptionsView {
 }
 
 function continuation(view: OptionsView): NonNullable<OptionsView['next']> {
-  return { tool: 'dcsc_list_options', arguments: {
+  return { tool: 'dcsc_configuration_get', arguments: {
     session: view.session,
+    view: 'options',
     ...(view.query !== undefined ? { query: view.query } : {}),
     ...(view.tab !== undefined ? { tab: view.tab } : {}),
     ...(view.section !== undefined ? { section: view.section } : {}),

@@ -266,7 +266,7 @@ describe('bounded discovery tool projections', () => {
     }));
     vi.spyOn(service.http, 'send').mockImplementation(async () =>
       ({ raw: [{ products: racks.map(rack => ({ ...rack, hardwareType: 'rack' })) }] }) as never);
-    const list = handler(handlers, 'dcsc_list_racks');
+    const list = handler(handlers, 'dcsc_rack_get');
     const initial = { solutionMode: 'General Purpose', offset: 0, limit: 50 };
     const result = await enumerate(list, initial, 'racks');
     expect(result.values.map(item => item['code'])).toEqual(racks.map(rack => rack.code));
@@ -288,7 +288,7 @@ describe('bounded discovery tool projections', () => {
       { code: 'CHASSIS-1', hardwareType: 'chassis', description: 'Chassis 1' },
       { code: 'CHASSIS-2', hardwareType: 'chassis', description: 'Chassis 2' },
     ], children: [{ products: [{ code: 'NODE', hardwareType: 'node', description: 'Node' }] }] }] } as never);
-    const list = handler(handlers, 'dcsc_list_racks');
+    const list = handler(handlers, 'dcsc_rack_get');
     const first = parse(await list({ productCode: 'RACK', hardwareType: 'chassis', offset: 0, limit: 1 }));
     expect(first).toMatchObject({ hardwareType: 'chassis', compatibleWith: 'RACK', total: 2,
       racks: [{ code: 'CHASSIS-1' }] });

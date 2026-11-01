@@ -49,9 +49,9 @@ describe('mutating tool revision contracts', () => {
     service.sessions.setPersistenceWriter(write);
     const list = json(await handlers.get('dcsc_session_list')!({ session: 'standalone', limit: 15, offset: 0 }));
     expect(list.total).toBe(1);
-    const info = json(await handlers.get('dcsc_session_info')!({ session: 'standalone' }));
+    const info = json(await handlers.get('dcsc_workspace_get')!({ session: 'standalone' }));
     expect(info.revision).toBe(created.workspace.revision);
-    expect(info.next).toHaveProperty('tool', key === 'standaloneSoftwareState' ? 'dcsc_software_inspect' : 'dcsc_services_inspect');
+    expect(info.next).toHaveProperty('tool', 'dcsc_workspace_get');
     const closed = await handlers.get('dcsc_session_close')!({ session: 'standalone', expectedRevision: 1 });
     expect(json(closed).closed).toBe(true);
     expect(service.sessions.getWorkspace('standalone')).toBeUndefined();
@@ -101,16 +101,16 @@ describe('mutating tool revision contracts', () => {
   });
 
   it.each([
-    ['dcsc_set_quantity', { quantity: 2 }],
-    ['dcsc_undo', {}],
+    ['dcsc_configure', { salesQuantity: 2 }],
+    ['dcsc_undo', { scope: 'configuration' }],
     ['dcsc_session_close', {}],
-    ['dcsc_add_rack', { rackCode: 'NODE' }],
-    ['dcsc_place_in_rack', { rackId: 'US__node', configuration: 'missing' }],
+    ['dcsc_rack_add', { rackCode: 'NODE' }],
+    ['dcsc_rack_edit', { action: 'place', rackId: 'US__node', configuration: 'missing' }],
     ['dcsc_add_cabling', { mode: 'auto' }],
     ['dcsc_add_cabling', { mode: 'manual', fromConfigId: 'US__node', toConfigId: 'US__node', fromPort: '1', toPort: '2' }],
-    ['dcsc_place_on_floor', { rackId: 'US__node', x: 0, y: 0 }],
-    ['dcsc_clone_configuration', { count: 1 }],
-    ['dcsc_configure_pdu', { rackId: 'US__node', pduCode: 'PDU', quantity: 1 }],
+    ['dcsc_floor_set', { rackId: 'US__node', x: 0, y: 0 }],
+    ['dcsc_rack_edit', { action: 'clone', count: 1 }],
+    ['dcsc_pdu_set', { rackId: 'US__node', pduCode: 'PDU', quantity: 1 }],
     ['dcsc_set_node_role', { role: 'Compute' }],
   ])('%s rejects stale revisions before changing state', async (name, args) => {
     const { service, session, workspace, handlers, schemas, send } = setup();
@@ -125,10 +125,10 @@ describe('mutating tool revision contracts', () => {
   });
 
   it.each([
-    ['dcsc_set_quantity', { quantity: 2 }, { quantity: 3 }],
-    ['dcsc_clone_configuration', { count: 1 }, { count: 2 }],
+    ['dcsc_configure', { salesQuantity: 2 }, { salesQuantity: 3 }],
+    ['dcsc_rack_edit', { action: 'clone', count: 1 }, { action: 'clone', count: 2 }],
     ['dcsc_set_node_role', { role: 'Compute' }, { role: 'Storage' }],
-    ['dcsc_place_on_floor', { rackId: 'US__node', x: 0, y: 0 }, { rackId: 'US__node', x: 1, y: 0 }],
+    ['dcsc_floor_set', { rackId: 'US__node', x: 0, y: 0 }, { rackId: 'US__node', x: 1, y: 0 }],
   ])('%s commits exactly once for concurrent calls at the same revision', async (name, first, second) => {
     const { session, workspace, handlers } = setup();
     const handler = handlers.get(name)!;
@@ -143,20 +143,23 @@ describe('mutating tool revision contracts', () => {
     await service.sessions.transact(workspace.id, {}, draft => { draft.label = 'workspace-only change'; });
     expect(session.revision).toBe(1);
     expect(workspace.revision).toBe(2);
-    const result = await handlers.get('dcsc_place_in_rack')!({ session: session.id,
+    const result = await handlers.get('dcsc_rack_edit')!({ session: session.id, action: 'place',
       rackId: 'US__node', configuration: session.id, expectedRevision: 1 });
     expect(result.isError).toBe(true);
     expect(JSON.stringify(json(result))).toMatch(/workspace/);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('keeps configuration-only edits tied to the configuration revision', async () => {
+  it('compares the workspace revision for configuration edits given a configuration handle', async () => {
     const { service, session, workspace, handlers } = setup();
     await service.sessions.transact(workspace.id, {}, draft => { draft.label = 'workspace-only change'; });
-    const result = await handlers.get('dcsc_set_quantity')!({ session: session.id, quantity: 2, expectedRevision: 1 });
+    const stale = await handlers.get('dcsc_configure')!({ session: session.id, salesQuantity: 2, expectedRevision: 1 });
+    expect(stale.isError).toBe(true);
+    expect(JSON.stringify(json(stale))).toMatch(/revision conflict/i);
+    const result = await handlers.get('dcsc_configure')!({ session: session.id, salesQuantity: 2, expectedRevision: 2 });
     expect(result.isError).not.toBe(true);
     expect(session.raw.quantity).toBe(2);
-    expect(json(result).revision).toBe(2);
+    expect(json(result).revision).toBe(3);
     expect(workspace.revision).toBe(3);
   });
 });

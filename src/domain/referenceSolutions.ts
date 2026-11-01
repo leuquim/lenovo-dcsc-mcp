@@ -47,7 +47,7 @@ export async function downloadReferenceSolution(http: DcscHttpClient, ctx: Reque
   const validation = await fetchReferenceSolutions(http, ctx, { view: 'validation', crnId: id });
   const status = validation && typeof validation === 'object' ? (validation as Obj)['type'] : undefined;
   if (status !== 'SUCCESS') {
-    throw new Error(`Lenovo did not approve original-template download (${String(status ?? 'unknown status')}). Use dcsc_launch_reference_solution to customize and inspect the design.`);
+    throw new Error(`Lenovo did not approve original-template download (${String(status ?? 'unknown status')}). Use dcsc_launch (mode reference-solution) to customize and inspect the design.`);
   }
   const response = await http.send({ endpoint: 'reference_download', method: 'GET',
     path: `/reference_solution/CRNs/${id}/download`, responseKind: 'stream', timeoutClass: 'export', ctx });

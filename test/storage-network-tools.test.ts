@@ -243,7 +243,7 @@ describe('storage definition creation', () => {
   it('keeps malformed imported definitions inspectable while refusing destructive edits', async () => {
     const { service, workspace, handlers } = setup();
     workspace.serverState.storageConnectionNetworks = { unknownEnvelope: 'retained' };
-    const detail = await handlers.get('dcsc_workspace_layout')!({ session: workspace.id,
+    const detail = await handlers.get('dcsc_workspace_get')!({ session: workspace.id,
       path: ['storageNetworks'], expectedRevision: workspace.revision, offset: 0, limit: 20 });
     expect(detail.isError).not.toBe(true);
     expect(detail.content[0]!.text).toContain('retained');

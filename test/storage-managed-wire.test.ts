@@ -172,7 +172,7 @@ it.each([false, true])('derives a controller edit with full context and target-o
   expect(controller.index.selected.get('AV1W')).toBe(4);
   if (placed) {
     const beforeUndo = structuredClone({ raw: controller.raw, rack: workspace.rackArea, state: workspace.serverState });
-    await expect(service.undo(controller, controller.revision)).rejects.toThrow('dcsc_workspace_history');
+    await expect(service.undo(controller, controller.revision)).rejects.toThrow('dcsc_undo');
     expect({ raw: controller.raw, rack: workspace.rackArea, state: workspace.serverState }).toEqual(beforeUndo);
     await service.sessions.undoWorkspace(workspace.id, workspace.revision);
     expect(controller.index.selected.get('AV1W')).toBe(2);

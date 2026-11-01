@@ -361,7 +361,7 @@ it('commits dependent HPC parent updates with nodes and requires workspace undo'
   await service.configure(clone, [{ section: 'PROCESSOR', code: 'BYW3', quantity: 2 }], service.newCtx(), clone.revision);
   expect(parent.raw.totalPrice).toBe(20);
   expect(selection(source)).toBe(2);
-  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/workspace_history/);
+  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/dcsc_undo/);
   expect(await service.sessions.undoWorkspace(workspace.id, workspace.revision)).toBe(true);
   expect(workspace.configurations.get(parent.id)!.raw.totalPrice).toBe(10);
   expect(selection(workspace.configurations.get(source.id)!)).toBe(1);
@@ -382,7 +382,7 @@ it('edits a linked HPC chassis from a member and commits its dependent child upd
   expect(child.raw.totalPrice).toBe(25);
   expect(send.mock.calls[0]![0].query).toMatchObject({ configurationId: 'server-1' });
   expect(send.mock.calls[0]![0].query).not.toHaveProperty('entranceFlag');
-  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/workspace_history/);
+  await expect(service.undo(clone, clone.revision)).rejects.toThrow(/dcsc_undo/);
   await service.sessions.undoWorkspace(workspace.id, workspace.revision);
   expect(workspace.configurations.get(child.id)!.raw.totalPrice).toBe(10);
 });

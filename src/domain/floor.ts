@@ -51,7 +51,7 @@ export function placeRackOnFloor(opts: {
   const rack = opts.rackArea.find((r) => String(r['id']) === opts.rackId);
   if (!rack) {
     throw new Error(
-      `Rack ${opts.rackId} is not in this workspace. Add one with dcsc_add_rack first.`,
+      `Rack ${opts.rackId} is not in this workspace. Add one with dcsc_rack_add first.`,
     );
   }
   if (!Number.isInteger(opts.x) || opts.x < 0 || !Number.isInteger(opts.y) || opts.y < 0) {

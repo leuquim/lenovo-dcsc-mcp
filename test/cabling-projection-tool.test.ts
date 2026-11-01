@@ -51,9 +51,9 @@ describe('bounded auto-connect tool result', () => {
       requestedNetworkCount: 2, requestedNetworksWithoutConnections: 1, completeness: 'unverified',
     } });
     const pages = result['pages'] as Record<string, { inspect: Link }>;
-    const inspection = await handlers.get('dcsc_workspace_layout')!(pages['diagnostics']!.inspect.arguments);
+    const inspection = await handlers.get('dcsc_workspace_get')!(pages['diagnostics']!.inspect.arguments);
     expect(inspection.isError).not.toBe(true);
-    const networks = json(await handlers.get('dcsc_workspace_layout')!({
+    const networks = json(await handlers.get('dcsc_workspace_get')!({
       ...pages['diagnostics']!.inspect.arguments, path: ['cablingDiagnostics', 'networks'],
     }));
     expect(JSON.stringify(networks)).toContain('no_connections');
@@ -107,7 +107,7 @@ describe('bounded auto-connect tool result', () => {
     });
 
     const pages = cabling['pages'] as Record<string, { inspect: Link }>;
-    const layout = handlers.get('dcsc_workspace_layout')!;
+    const layout = handlers.get('dcsc_workspace_get')!;
     const rawPageReply = await layout(pages['rawConnections']!.inspect.arguments);
     const rawPage = json(rawPageReply);
     expect(rawPage).toMatchObject({ path: ['rawConnections'], total: 90 });

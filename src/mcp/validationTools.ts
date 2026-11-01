@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { projectJsonPage } from '../model/pagedJson.js';
+import { verifyMandatorySoftware } from '../app/validation.js';
 import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
 import { type Obj, objectOrEmpty } from '../util/coerce.js';
@@ -45,8 +45,8 @@ export function projectValidationToolResult(full: Obj, options: {
   const localDiagnostics = Array.isArray(full['localDiagnostics']) ? full.localDiagnostics : [];
   const headroom = Array.isArray(full['headroom']) ? full.headroom : [];
   const inspect = (path: string[]) => ({
-    tool: 'dcsc_validation_jobs',
-    arguments: { session: options.session, jobId: options.jobId, path, offset: 0, limit: 20 },
+    tool: 'dcsc_workspace_get',
+    arguments: { session: options.session, view: 'validation', jobId: options.jobId, path, offset: 0, limit: 20 },
   });
   const pages: Obj = {
     savedJob: { inspect: inspect([]) },
@@ -185,30 +185,62 @@ export function projectValidationToolResult(full: Obj, options: {
 }
 
 export function registerValidationTools(server: McpServer, service: DcscService): void {
-  server.registerTool('dcsc_validation_jobs', {
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    title: 'Inspect saved manufacturing validation jobs',
-    description: 'Lists saved validation jobs in the containing workspace and recomputes staleness from the current revision and payload. Pass jobId to inspect recorded descriptors, messages, local diagnostics, headroom and raw report through continuations.',
+  server.registerTool('dcsc_validate', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    title: 'Validate for manufacturing',
+    description: 'Runs DCSC manufacturing validation on a configuration or workspace and saves the job. Optionally also checks mandatory OS and hypervisor selections.',
     inputSchema: {
-      session: z.string(), jobId: z.string().optional(),
-      path: z.array(z.string()).optional().default([]),
-      offset: z.number().int().min(0).optional().default(0),
-      limit: z.number().int().min(1).max(1000).optional().default(20),
+      session: z.string(),
+      deadlineMs: z.number().int().min(1000).max(300000).optional().describe('Total validation deadline, at most five minutes.'),
+      includeMandatorySoftware: z.boolean().optional().describe('Also verify mandatory software (configuration handles only).'),
     },
-  }, async args => guard(() => {
-    const jobs = service.validationJobs(args.session);
-    let source: unknown;
-    if (args.jobId) {
-      source = jobs.find(job => job.id === args.jobId);
-      if (!source) throw new Error(`Validation job ${args.jobId} is not stored in this workspace.`);
-    } else {
-      source = jobs.map(job => ({ jobId: job.id, target: job.target, status: job.currentStatus,
-        isValid: job.isValid, stale: job.stale, validatedRevision: job.validatedRevision,
-        startedAt: job.startedAt, terminal: job.terminal, freshValidationRequired: job.freshValidationRequired,
-        next: { tool: 'dcsc_validation_jobs', arguments: { session: args.session, jobId: job.id } } }));
-    }
-    return projectJsonPage(source, { tool: 'dcsc_validation_jobs',
-      arguments: { session: args.session, ...(args.jobId ? { jobId: args.jobId } : {}) },
-      path: args.path, offset: args.offset, limit: args.limit });
-  }, 'dcsc_validation_jobs failed'));
+  }, async args => guard(async () => {
+    const session = service.sessions.get(args.session);
+    const ws = service.sessions.getWorkspace(args.session);
+    if (!session && !ws) throw new Error(`No such session/workspace: ${args.session}`);
+    const ctx = service.newCtx({
+      locale: session?.locale ?? ws!.locale,
+      solution: session?.solution ?? ws!.solution,
+    });
+    const report = await service.validate(args.session, ctx, { deadlineMs: args.deadlineMs });
+    const mandatory = args.includeMandatorySoftware
+      ? await verifyMandatorySoftware(service, args.session, ctx) : undefined;
+    const workspace = service.sessions.resolveHandle(args.session)?.workspace;
+    const result = {
+      session: args.session,
+      revision: workspace?.revision,
+      workspaceId: report.workspaceId,
+      source: report.source,
+      isValid: report.isValid,
+      status: report.status,
+      jobId: report.jobId,
+      payloadSha256: report.payloadSha256,
+      validatedRevision: report.validatedRevision,
+      stale: report.stale,
+      freshValidationRequired: report.freshValidationRequired,
+      validatedScope: report.validatedScope,
+      localDiagnostics: report.localDiagnostics,
+      localErrorCount: report.localErrorCount,
+      localWarningCount: report.localWarningCount,
+      localInfoCount: report.localInfoCount,
+      errorCount: report.errorCount,
+      warningCount: report.warningCount,
+      infoCount: report.infoCount,
+      messages: report.messages,
+      lmc: report.server
+        ? { buildEntityNumber: report.server.buildEntityNumber, uuid: report.server.uuid, lmcURL: report.server.lmcURL }
+        : undefined,
+      rackDataOmitted: report.rackDataOmitted,
+      ...(report.warning !== undefined ? { warning: report.warning } : {}),
+      headroom: report.headroom,
+      ...(mandatory ? { mandatorySoftware: { ok: mandatory.status, message: mandatory.message,
+        tabs: mandatory.tabs.map(tab => tab.description) } } : {}),
+      next: report.isValid
+        ? 'dcsc_export for deliverables.'
+        : report.freshValidationRequired
+          ? 'Run dcsc_validate again for a fresh validation job.'
+          : 'Inspect the server and local diagnostics, correct the configuration, then validate again.',
+    };
+    return projectValidationToolResult(result, { session: args.session, jobId: report.jobId });
+  }, 'dcsc_validate failed'));
 }

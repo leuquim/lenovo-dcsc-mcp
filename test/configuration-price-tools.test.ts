@@ -37,14 +37,14 @@ describe('configuration tool price availability', () => {
   it.each([undefined, null, Number.NaN, Number.POSITIVE_INFINITY])(
     'does not turn totalPrice=%s into a quoted zero when inspecting, changing quantity or cloning', async price => {
       const { session, call } = setup(price);
-      expect(await call('dcsc_session_info', { session: session.id })).toMatchObject({
+      expect(await call('dcsc_workspace_get', { session: session.id })).toMatchObject({
         totalPrice: null, extendedPrice: null, priceAvailable: false, unitPrice: null,
       });
-      expect(await call('dcsc_set_quantity', { session: session.id, quantity: 3 })).toMatchObject({
+      expect(await call('dcsc_configure', { session: session.id, salesQuantity: 3 })).toMatchObject({
         totalPrice: null, extendedPrice: null, priceAvailable: false,
         priceChange: { before: null, after: null },
       });
-      expect(await call('dcsc_clone_configuration', { session: session.id, count: 2 })).toMatchObject({
+      expect(await call('dcsc_rack_edit', { session: session.id, action: 'clone', count: 2 })).toMatchObject({
         combinedListPrice: null, priceAvailable: false, knownListPriceSubtotal: 0,
         source: { unitPrice: null }, created: [{ unitPrice: null }, { unitPrice: null }],
       });
@@ -53,7 +53,7 @@ describe('configuration tool price availability', () => {
 
   it('honors explicit unavailability even when a numeric value is present', async () => {
     const { session, call } = setup(100, true);
-    expect(await call('dcsc_set_quantity', { session: session.id, quantity: 2 })).toMatchObject({
+    expect(await call('dcsc_configure', { session: session.id, salesQuantity: 2 })).toMatchObject({
       totalPrice: null, extendedPrice: null, priceAvailable: false,
       priceChange: { before: null, after: null },
     });
@@ -61,11 +61,11 @@ describe('configuration tool price availability', () => {
 
   it.each([0, 12.34])('retains a genuine quoted total of %s', async price => {
     const { session, call } = setup(price);
-    expect(await call('dcsc_set_quantity', { session: session.id, quantity: 2 })).toMatchObject({
+    expect(await call('dcsc_configure', { session: session.id, salesQuantity: 2 })).toMatchObject({
       totalPrice: price, extendedPrice: price * 2, priceAvailable: true,
       priceChange: { before: price, after: price * 2 },
     });
-    expect(await call('dcsc_clone_configuration', { session: session.id, count: 2 })).toMatchObject({
+    expect(await call('dcsc_rack_edit', { session: session.id, action: 'clone', count: 2 })).toMatchObject({
       combinedListPrice: Math.round(price * 6 * 100) / 100, priceAvailable: true,
     });
   });
