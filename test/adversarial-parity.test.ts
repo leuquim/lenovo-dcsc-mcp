@@ -8,8 +8,6 @@ import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
 import type { RawConfiguration } from '../src/model/types.js';
 import {
-  generateConfigId,
-  retrieveConfigId,
   querySids,
   customizeSid,
 } from '../src/domain/configId.js';
@@ -145,84 +143,7 @@ function createSession(
 }
 
 describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
-  describe('R1: Online Config ID & SIDs — Stress & Boundary Attacks', () => {
-    it('generateConfigId: handles malformed upstream responses without leaking unhandled errors', async () => {
-      const { service } = await createHarness();
-      const ctx = service.newCtx();
-
-      // Empty string
-      vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: '   ' } as never);
-      await expect(generateConfigId(service.http, ctx)).rejects.toThrow(
-        /empty or invalid Configuration ID/,
-      );
-
-      // Quoted string extraction
-      vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: '"ABC123XYZ0"' } as never);
-      const res1 = await generateConfigId(service.http, ctx);
-      expect(res1.configId).toBe('ABC123XYZ0');
-
-      // Object with configuration_id
-      vi.spyOn(service.http, 'send').mockResolvedValueOnce({
-        raw: { configuration_id: 'CONF999888' },
-      } as never);
-      const res2 = await generateConfigId(service.http, ctx);
-      expect(res2.configId).toBe('CONF999888');
-
-      // Object with empty fields
-      vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: {} } as never);
-      await expect(generateConfigId(service.http, ctx)).rejects.toThrow(
-        /empty or invalid Configuration ID/,
-      );
-    });
-
-    it('retrieveConfigId: verifies boundary rejections, error messages, and currentFileType normalization', async () => {
-      const { service } = await createHarness();
-      const ctx = service.newCtx();
-      const httpSpy = vi.spyOn(service.http, 'send');
-
-      // Whitespace rejection
-      await expect(retrieveConfigId(service.http, '   ', [], ctx)).rejects.toThrow(
-        /non-empty configuration ID is required/,
-      );
-      expect(httpSpy).not.toHaveBeenCalled();
-
-      // Upstream errorMessage extraction
-      httpSpy.mockResolvedValueOnce({
-        raw: { errorMessage: 'Configuration expired or already claimed' },
-      } as never);
-      await expect(retrieveConfigId(service.http, 'EXPIRED_ID', [], ctx)).rejects.toThrow(
-        /Configuration expired or already claimed/,
-      );
-
-      // Empty array response
-      httpSpy.mockResolvedValueOnce({ raw: [] } as never);
-      await expect(retrieveConfigId(service.http, 'EMPTY_ID', [], ctx)).rejects.toThrow(
-        /returned no configuration data/,
-      );
-
-      // currentFileType normalization to CTO for arbitrary strings
-      httpSpy.mockResolvedValueOnce({ raw: [{ id: 'hydrated-1' }] } as never);
-      await retrieveConfigId(service.http, 'VALID_ID', ['existing-1'], ctx, 'arbitrary_type<script>');
-      expect(httpSpy).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          query: expect.objectContaining({ currentFileType: 'CTO' }),
-          body: {
-            kind: 'multipart',
-            parts: [{ name: 'configurationIds', value: 'existing-1' }],
-          },
-        }),
-      );
-
-      // currentFileType normalization for LFO
-      httpSpy.mockResolvedValueOnce({ raw: [{ id: 'hydrated-lfo' }] } as never);
-      await retrieveConfigId(service.http, 'VALID_ID', [], ctx, 'lfo');
-      expect(httpSpy).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          query: expect.objectContaining({ currentFileType: 'LFO' }),
-        }),
-      );
-    });
-
+  describe('R1: SIDs — Stress & Boundary Attacks', () => {
     it('querySids & customizeSid: adversarial inputs (URL special chars, empty inputs, pagination edge cases)', async () => {
       const { service } = await createHarness();
       const ctx = service.newCtx();

@@ -5,7 +5,6 @@ import {
   buildExportData,
   buildExportForm,
   buildGroups,
-  DEFAULT_EXPORT_TYPES,
   type ExportFileType,
 } from '../domain/reduce.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
@@ -15,6 +14,8 @@ import {
   browseStandaloneSoftware,
   type SoftwareCatalogPath,
   buildProductServiceExportEnvelope,
+  buildServiceCatalogDownload,
+  serviceCatalogCodes,
   buildStandaloneSoftwareExportEnvelope,
   findParts,
   launchProductServices,
@@ -576,7 +577,7 @@ export async function exportStandaloneSoftwareArtifact(
   const modes = new Set([...workspace.configurations.values()].map((session) => hardwareEndpointFamily(session.mode)));
   if (modes.size > 1) throw new Error('Mixed CTO and LFO hardware requires separate workspaces.');
   if (workspace.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate service-only export.');
-  const fileTypes = options.fileTypes ?? (workspace.configurations.size > 0 ? DEFAULT_EXPORT_TYPES : SOFTWARE_EXPORT_TYPES);
+  const fileTypes = options.fileTypes ?? (workspace.configurations.size > 0 ? await rt.defaultExportTypes(workspace.solution) : SOFTWARE_EXPORT_TYPES);
   if (workspace.configurations.size === 0 && fileTypes.some((type) => !SOFTWARE_EXPORT_TYPES.includes(type))) {
     throw new Error(`Standalone-only workspaces support these reports: ${SOFTWARE_EXPORT_TYPES.join(', ')}. Rack and connection reports require hardware.`);
   }
@@ -648,6 +649,34 @@ export async function exportProductServiceArtifact(
   });
   return {
     ...(await writeExportBundle(response.stream, fileName, rt.config)),
+    contentDisposition: response.contentDisposition,
+  };
+}
+
+/** The Services page Export (one product's catalog) or Download Catalog (the country catalog) button. */
+export async function exportServiceCatalogArtifact(
+  rt: Runtime,
+  args: { productCode?: string | undefined; fileName: string },
+): Promise<ExportBundle & { contentDisposition: string | undefined }> {
+  const ctx = rt.newCtx();
+  const catalog = args.productCode === undefined ? undefined : await rt.http.send({
+    endpoint: 'service_pacs_product', method: 'GET', path: `/service_pacs/${encodeURIComponent(args.productCode)}`,
+    query: { serviceCto: true }, responseKind: 'json', timeoutClass: 'heavy',
+    ctx: { ...ctx, solution: await rt.resolveSolution(ctx) },
+  });
+  const request = buildServiceCatalogDownload({
+    productCode: args.productCode,
+    serviceCodes: serviceCatalogCodes(catalog?.raw),
+    country: ctx.locale.country,
+    downloadToken: Date.now(),
+  });
+  const response = await rt.http.send({
+    endpoint: 'service_pacs_download', method: 'POST', path: request.path, query: request.query,
+    requiresSolution: false, body: { kind: 'form', fields: request.fields },
+    responseKind: 'stream', timeoutClass: 'export', ctx,
+  });
+  return {
+    ...(await writeExportBundle(response.stream, args.fileName, rt.config)),
     contentDisposition: response.contentDisposition,
   };
 }

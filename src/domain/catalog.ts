@@ -38,6 +38,7 @@ export async function fetchCatalog(
     endpoint: 'category_hierarchies',
     method: 'GET',
     path: '/category_hierarchies',
+    query: { serviceCto: true },
     responseKind: 'json',
     timeoutClass: 'fast',
     ctx,

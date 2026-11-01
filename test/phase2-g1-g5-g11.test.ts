@@ -231,6 +231,9 @@ describe('Phase 2 Part A: Tool Surface Extensions', () => {
       if (opts.path === '/copy/url') {
         return { raw: 'https://us-dcsc.lenovo.com/share/test1234', requestId: 'req-share' } as never;
       }
+      if (opts.path === '/solution_modes') {
+        return { raw: [{ mode: 'General Purpose', masterSlices: ['GP'] }] } as never;
+      }
       return {
         stream: createMockStream(fakePowerXls),
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

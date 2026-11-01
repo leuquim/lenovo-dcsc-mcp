@@ -23,7 +23,7 @@ import { parseCfxml } from '../src/domain/import.js';
 import { writeExportBundle } from '../src/files/artifactStore.js';
 import { DcscService } from '../src/mcp/service.js';
 import { buildGroups } from '../src/domain/reduce.js';
-import { captureBrowserExport, normalizedGroups } from './parity-software-lfo.js';
+import { captureBrowserExport, normalizedGroups } from './parity/softwareSummaryUi.js';
 
 type JsonObject = Record<string, unknown>;
 type Suite = 'offline' | 'baseline' | 'handoff' | 'discovery' | 'all';

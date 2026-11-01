@@ -598,9 +598,9 @@ npx tsx scripts/mcp-smoke.ts     # bounded stdio responses, mutation and nonempt
 npx tsx scripts/conformance.ts   # dynamic tool inventory, continuations and response budgets
 npx tsx scripts/verify-fixes.ts  # export regression checks across configuration shapes
 npm run parity:headless          # isolated Chromium; reports pass/fail/blocked per case
-npm run parity:software          # fresh headless browser/MCP OS & Software differential
+npm run parity -- software-embedded # fresh headless browser/MCP OS & Software differential
 npm run parity:recovery          # real MCP stdio recovery, SIGKILL/restart and live legacy validation
-npm run parity:projections       # real MCP stdio large-workspace paging and exact detail reconstruction
+npm run parity -- projections # real MCP stdio large-workspace paging and exact detail reconstruction
 npm run parity:storage           # live MCP controller edit/assignment and immediate SIGKILL/restart
 npm run parity:storage-reimport -- --mcp-xml /path/to/managed-controller.xml
 npm run parity:rack-clone -- --action=clone --fresh # headless physical-clone browser oracle
@@ -609,10 +609,10 @@ npm run parity:nested-stdio     # real MCP nested edit/history/crash/import/expo
 npm run parity:nested-remove-chassis -- --out=/path/to/report # native populated-chassis Delete wire oracle
 npm run parity:nested-detach -- --out=/path/to/report         # native Delete Node wire/export oracle
 npm run parity:nested-unplace -- --out=/path/to/report        # native Move To Non Rack wire/export oracle
-npm run parity:controls-locale   # headless DE/EUR conflicting-control differential
-npm run parity:catalogs          # exhaustive bounded catalog/fabric/software continuations
+npm run parity -- controls-locale # headless DE/EUR conflicting-control differential
+npm run parity -- catalogs # exhaustive bounded catalog/fabric/software continuations
 npm run parity:validation        # strict authoritative verdict, payload/hash and stale-job gate
-npm run parity:services          # base service + add-on selection, removal, export and reimport
+npm run parity -- services # base service + add-on selection, removal, export and reimport
 npm run parity:network           # populated Management graph and fresh-browser handoff
 npm run parity:network-leaf      # Distributed main/leaf graph, restart, export and browser handoff
 npm run parity:rack-power        # captured two-rack PDU/cord handoff, history and restart
@@ -630,11 +630,11 @@ npm run parity:chassis-linked-copy # preserve linked sources while creating an i
 npm run parity:chassis-member-copy # Copy from a linked member; preserve original parent/child groups
 npm run parity:nested-grouped-import # populated chassis/node groups, restart and native reimport
 npm run parity:grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
-npm run parity:xconfig-import    # native x-config import/layout, restart and export handoff
-npm run parity:workbook-import   # Excel import over stdio, crash/restart, export and native browser controls
-npm run parity:unconfigured      # Unconfigured quantity edit, restart and browser XML handoff
+npm run parity -- xconfig-import # native x-config import/layout, restart and export handoff
+npm run parity -- workbook-import # Excel import over stdio, crash/restart, export and native browser controls
+npm run parity -- reference-unconfigured # Unconfigured quantity edit, restart and browser XML handoff
 npm run parity:reference-download # original-template bytes versus native Export, import and restart
-npm run parity:reference-solutions # native template catalog/customize, crash/restart and browser handoff
+npm run parity -- reference-solutions # native template catalog/customize, crash/restart and browser handoff
 npm run parity:storage-placement # managed storage physical placement, derive and export
 npm run parity:storage-placement-reimport -- --mcp-report /path/to/storage-placement/report.json --out /path/to/reimport-report
 npm run parity:storage-fc -- --out /path/to/report # post-import Direct Attached FC control; currently exits 2 on HTTP 200/zero storage rows

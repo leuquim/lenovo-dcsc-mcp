@@ -2,6 +2,7 @@ import type { Config, Locale, SolutionContext } from '../config/schema.js';
 import { fetchCatalog, type Catalog } from '../domain/catalog.js';
 import { fetchFabricOptions, type FabricOptions } from '../domain/fabric.js';
 import { fetchLocales, localeFromOption } from '../domain/locale.js';
+import { defaultExportTypes, type ExportFileType } from '../domain/reduce.js';
 import { fetchSolutionModes, toSolutionContext, type SolutionModeInfo } from '../domain/context.js';
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
 import { logger, newCorrId } from '../http/trace.js';
@@ -10,6 +11,24 @@ import { SessionStore } from '../session/SessionStore.js';
 
 const SOLUTION_MODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Time-boxed async cache that stores in-flight promises, so concurrent callers share one fetch and failures are not kept. */
+export class AsyncTtlCache<T> {
+  readonly #entries = new Map<string, { promise: Promise<T>; at: number }>();
+
+  constructor(private readonly ttlMs: number) {}
+
+  get(key: string, load: () => Promise<T>): Promise<T> {
+    const hit = this.#entries.get(key);
+    if (hit && Date.now() - hit.at < this.ttlMs) return hit.promise;
+    const entry = { promise: load(), at: Date.now() };
+    this.#entries.set(key, entry);
+    entry.promise.catch(() => {
+      if (this.#entries.get(key) === entry) this.#entries.delete(key);
+    });
+    return entry.promise;
+  }
+}
 
 export interface Cached<T> {
   value: T;
@@ -24,13 +43,14 @@ export class Runtime {
   readonly http: DcscHttpClient;
   readonly sessions = new SessionStore();
   readonly mipCatalogCache = new Map<string, Cached<unknown>>();
-  readonly referencesCache = new Map<string, Cached<unknown>>();
+  readonly referencesCache = new AsyncTtlCache<unknown>(CATALOG_TTL_MS);
 
-  #modes: Cached<SolutionModeInfo[]> | undefined;
-  #catalog = new Map<string, Cached<Catalog>>();
-  #fabric = new Map<string, Cached<FabricOptions>>();
+  readonly #modes = new AsyncTtlCache<SolutionModeInfo[]>(SOLUTION_MODE_TTL_MS);
+  readonly #catalog = new AsyncTtlCache<Catalog>(CATALOG_TTL_MS);
+  readonly #fabric = new AsyncTtlCache<FabricOptions>(CATALOG_TTL_MS);
   #closing: Promise<void> | undefined;
   #localeOverride: Locale | undefined;
+  #withdrawnSince: string | undefined;
 
   constructor(readonly config: Config) {
     this.http = new DcscHttpClient(config);
@@ -50,11 +70,21 @@ export class Runtime {
     this.#localeOverride = locale;
   }
 
+  get withdrawnSince(): string | undefined {
+    return this.#withdrawnSince;
+  }
+
+  /** Sets the website's "withdrawn since" date for subsequent catalog fetches; undefined means available only. */
+  setWithdrawnSince(date: string | undefined): void {
+    this.#withdrawnSince = date;
+  }
+
   /** A fresh request context with its own correlation id and request budget. */
   newCtx(overrides: { locale?: Locale; solution?: SolutionContext } = {}): RequestCtx {
     return {
       corrId: newCorrId(),
       locale: overrides.locale ?? this.locale,
+      withdrawnSince: this.#withdrawnSince,
       ...(overrides.solution !== undefined ? { solution: overrides.solution } : {}),
       budget: new RequestBudget(this.config.pacing.perToolRequestBudget),
     };
@@ -73,12 +103,13 @@ export class Runtime {
   }
 
   async solutionModes(ctx: RequestCtx): Promise<SolutionModeInfo[]> {
-    if (this.#modes && Date.now() - this.#modes.at < SOLUTION_MODE_TTL_MS) {
-      return this.#modes.value;
-    }
-    const value = await fetchSolutionModes(this.http, ctx);
-    this.#modes = { value, at: Date.now() };
-    return value;
+    return this.#modes.get('modes', () => fetchSolutionModes(this.http, ctx));
+  }
+
+  /** The export types the website offers for a solution mode. */
+  async defaultExportTypes(solution: SolutionContext): Promise<ExportFileType[]> {
+    const info = (await this.solutionModes(this.newCtx())).find(mode => mode.mode === solution.solutionMode);
+    return defaultExportTypes(info?.websiteFunctions);
   }
 
   /** Resolves the solution context, fetching modes if they are not cached. */
@@ -114,13 +145,8 @@ export class Runtime {
   }
 
   async catalog(ctx: RequestCtx, solution: SolutionContext): Promise<Catalog> {
-    const key = `${ctx.locale.country}|${ctx.locale.language}|${ctx.locale.currency}|${solution.solutionMode}`;
-    const hit = this.#catalog.get(key);
-    if (hit && Date.now() - hit.at < CATALOG_TTL_MS) return hit.value;
-
-    const value = await fetchCatalog(this.http, { ...ctx, solution });
-    this.#catalog.set(key, { value, at: Date.now() });
-    return value;
+    const key = `${ctx.locale.country}|${ctx.locale.language}|${ctx.locale.currency}|${solution.solutionMode}|${ctx.withdrawnSince ?? ''}`;
+    return this.#catalog.get(key, () => fetchCatalog(this.http, { ...ctx, solution }));
   }
 
   /**
@@ -131,12 +157,7 @@ export class Runtime {
    */
   async fabricOptions(ctx: RequestCtx, solution: SolutionContext): Promise<FabricOptions> {
     const key = `${ctx.locale.country}|${solution.solutionMode}`;
-    const hit = this.#fabric.get(key);
-    if (hit && Date.now() - hit.at < CATALOG_TTL_MS) return hit.value;
-
-    const value = await fetchFabricOptions(this.http, { ...ctx, solution });
-    this.#fabric.set(key, { value, at: Date.now() });
-    return value;
+    return this.#fabric.get(key, () => fetchFabricOptions(this.http, { ...ctx, solution }));
   }
 
   close(): Promise<void> {

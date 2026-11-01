@@ -5,6 +5,7 @@ import { ConfigSchema } from '../src/config/schema.js';
 import type { Catalog, CatalogEntry } from '../src/domain/catalog.js';
 import type { FabricOptions } from '../src/domain/fabric.js';
 import type { RackCabinet } from '../src/domain/rack.js';
+import { withdrawnDateQuery } from '../src/http/preamble.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
 
@@ -174,7 +175,7 @@ describe('bounded discovery tool projections', () => {
     vi.spyOn(service, 'catalog').mockImplementation(async () => current);
     const browse = handler(handlers, 'dcsc_search');
     const defaults = { kind: 'tree', categoryOffset: 0, offset: 0, limit: 50,
-      includeWithdrawn: false, solutionMode: 'General Purpose' };
+      solutionMode: 'General Purpose' };
 
     const root = await enumerateBrowse(browse, { search: { ...defaults, categoryPath: [] } });
     expect(root.categories.map(item => item['id'])).toEqual(current.tree.map(node => node.id));
@@ -229,7 +230,7 @@ describe('bounded discovery tool projections', () => {
     vi.spyOn(service, 'catalog').mockImplementation(async () => catalog(entries));
     vi.spyOn(service, 'solutionModes').mockResolvedValue([{ mode: 'General Purpose' }] as never);
     const find = handler(handlers, 'dcsc_search');
-    const initial = { kind: 'products', query: 'catalog', type: 'CTO', includeWithdrawn: false,
+    const initial = { kind: 'products', query: 'catalog', type: 'CTO',
       solutionMode: 'General Purpose', offset: 0, limit: 50 };
     const result = await enumerate(find, { search: initial }, 'products');
     expect(result.values.map(item => item['code'])).toEqual(entries.map(entry => entry.code));
@@ -366,5 +367,24 @@ describe('bounded discovery tool projections', () => {
     const detail = await category(next.arguments);
     expect(detail.isError).not.toBe(true);
     expect(textBytes(detail)).toBeLessThanOrEqual(8_000);
+  });
+});
+
+describe('withdrawn-since setting', () => {
+  it('sends withdrawnDate only to the catalog endpoints the website refetches', () => {
+    expect(withdrawnDateQuery('/category_hierarchies', '2026-11-01')).toEqual({ withdrawnDate: '2026-11-01' });
+    expect(withdrawnDateQuery('/categories/getProductListBySubCategory', '2026-11-01')).toEqual({ withdrawnDate: '2026-11-01' });
+    expect(withdrawnDateQuery('/solution_modes', '2026-11-01')).toEqual({});
+    expect(withdrawnDateQuery('/category_hierarchies', undefined)).toEqual({});
+  });
+
+  it('is set and cleared through dcsc_settings_set and reaches every new request context', async () => {
+    const { service, handlers } = setup();
+    const set = handler(handlers, 'dcsc_settings_set');
+    expect(parse(await set({ withdrawnSince: '2026-11-01' }))).toMatchObject({ withdrawnSince: '2026-11-01' });
+    expect(service.newCtx().withdrawnSince).toBe('2026-11-01');
+    expect((await set({ withdrawnSince: 'last month' })).isError).toBe(true);
+    expect(parse(await set({ withdrawnSince: '' }))).toMatchObject({ withdrawnSince: null });
+    expect(service.newCtx().withdrawnSince).toBeUndefined();
   });
 });

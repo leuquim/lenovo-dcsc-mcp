@@ -51,6 +51,40 @@ export function configurations(raws: unknown) {
   }).sort(byJson);
 }
 
+/** Configurations reduced to code and quantity, in stable order. */
+export function products(raws: unknown) {
+  return array(raws).map(raw => ({ code: object(raw)['code'], quantity: object(raw)['quantity'] ?? 1 }))
+    .sort((left, right) => String(left.code).localeCompare(String(right.code)));
+}
+
+/**
+ * Products of a native import response. Lenovo compresses loose clones into one configuration and lists
+ * their physical ids and the total count in nonRackArea; this expands them back to one entry each.
+ */
+export function importedProducts(body: unknown) {
+  const loose = array(object(object(body)['workspace'])['nonRackArea']).map(object);
+  return products(array(object(body)['configuration']).flatMap(raw => {
+    const configuration = object(raw);
+    const item = loose.find(entry => (entry['configurationId'] ?? entry['id']) === configuration['id']);
+    const ids = item?.['originalIds'];
+    if (!Array.isArray(ids) || ids.length < 2) return [configuration];
+    return ids.map(() => ({ ...configuration, quantity: 1 }));
+  }));
+}
+
+/** Authoritative service summary: the serviced product's lines and total. */
+export function serviceSummary(summary: unknown) {
+  const product = object(array(summary)[0]);
+  return {
+    productQuantity: product['quantity'],
+    total: product['totalPrice'],
+    lines: array(product['results']).map(raw => {
+      const line = object(raw);
+      return { code: line['code'], quantity: line['quantity'], unitPrice: line['unitPrice'] };
+    }).sort((left, right) => String(left.code).localeCompare(String(right.code))),
+  };
+}
+
 /** Rack contents by part, position and size. */
 export function layout(rackItems: unknown) {
   return array(rackItems).map(raw => {
@@ -73,4 +107,4 @@ export function wireRequest(fields: Record<string, string>) {
   return { ...decoded, groups };
 }
 
-export const normalizers = { cfxml, price, layout, wireRequest, configurations };
+export const normalizers = { cfxml, price, layout, wireRequest, configurations, products, importedProducts, serviceSummary };

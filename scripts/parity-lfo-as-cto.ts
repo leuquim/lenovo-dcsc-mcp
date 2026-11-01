@@ -19,7 +19,7 @@ import {
   sha256,
   type ExportCapture,
   type Json,
-} from './parity-software-lfo.js';
+} from './parity/softwareSummaryUi.js';
 
 const PRODUCT = '7DCE100GNA';
 const FEATURE = 'BFYB';

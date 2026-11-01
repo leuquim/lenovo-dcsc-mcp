@@ -1611,17 +1611,6 @@ async function main(): Promise<void> {
   const paritySession = (parityLaunch.json as { session?: string }).session;
   const parityWs = (parityLaunch.json as { workspace?: string }).workspace;
   if (paritySession) {
-    const genCid = await track('dcsc_export', { kind: 'configId', session: paritySession });
-    const configId = (genCid.json as { configId?: string }).configId;
-    check('dcsc_export configId generates 10-char ID', !genCid.isError && typeof configId === 'string' && configId.length === 10, JSON.stringify(genCid.json).slice(0, 160));
-
-    if (configId) {
-      const impCid = await track('dcsc_import', { configId });
-      check('dcsc_import configId imports online configuration', !impCid.isError, JSON.stringify(impCid.json).slice(0, 160));
-      const impWs = (impCid.json as { session?: string }).session;
-      if (impWs) await track('dcsc_session_close', { session: impWs });
-    }
-
     const qSids = await track('dcsc_search', { search: { kind: 'sids', categoryId: 'STG@Servers@Rack Server', offset: 0, limit: 5 } });
     check('dcsc_search sids queries category SIDs', !qSids.isError, JSON.stringify(qSids.json).slice(0, 160));
 

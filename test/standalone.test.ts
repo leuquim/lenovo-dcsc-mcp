@@ -3,11 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   browseStandaloneSoftware,
   buildProductServiceExportEnvelope,
+  buildServiceCatalogDownload,
   buildStandaloneSoftwareExportEnvelope,
   findParts,
   launchProductServices,
   launchStandaloneSoftware,
   removeProductService,
+  searchServiceProducts,
+  searchSoftwareForProduct,
+  serviceCatalogCodes,
   selectProductService,
   selectStandaloneSoftware,
   setStandaloneSoftwareQuantity,
@@ -556,5 +560,49 @@ describe('product-bound standalone services', () => {
       selectProductService(http, ctx, state, { serviceCode: '5WS7B99623', quantity: 0 }),
     ).rejects.toThrow('positive integer');
     expect(send).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Services page downloads and product searches', () => {
+  it('builds the captured Export form for one product and the Download Catalog form for the country', () => {
+    const codes = serviceCatalogCodes({ services: [{ code: '5WS7B99612' }, { code: '5WS7B99608' }, { description: 'no code' }] });
+    expect(codes).toEqual(['5WS7B99612', '5WS7B99608']);
+
+    const exported = buildServiceCatalogDownload({ productCode: '7D73CTO1WW', serviceCodes: codes, country: 'US', downloadToken: 1 });
+    expect(exported.path).toBe('/service_pacs_download/7D73CTO1WW');
+    expect(exported.query).toEqual({});
+    expect(JSON.parse(exported.fields['data']!)).toEqual({
+      services: [{ serviceCode: '5WS7B99612', facets: '' }, { serviceCode: '5WS7B99608', facets: '' }],
+    });
+    expect(exported.fields).toMatchObject({ serviceAndorRequest: '', excelData: 'null', cancelDownload: 'false', groups: '' });
+    expect(Object.keys(exported.fields)).toHaveLength(14);
+
+    const catalog = buildServiceCatalogDownload({ serviceCodes: codes, country: 'DE', downloadToken: 1793547039768 });
+    expect(catalog.path).toBe('/service_pacs_downloadV2');
+    expect(catalog.query).toEqual({ download: 'DE', country_or_regions: 'DE', downloadToken: '1793547039768' });
+    expect(JSON.parse(catalog.fields['data']!)).toEqual({ services: [] });
+  });
+
+  it('searches service products by code or description and software by product ID with the captured query', async () => {
+    const send = vi.fn()
+      .mockResolvedValueOnce({ raw: [
+        { code: '044913X', type: 'LFO', description: 'Intel OPA 100 Series switch', withdrawn: false },
+        { code: '7D73CTO1WW', type: 'CTO', description: 'ThinkSystem SR630 V3', withdrawn: true },
+      ] })
+      .mockResolvedValueOnce({ raw: softwarePortal });
+    const http = { send } as unknown as DcscHttpClient;
+
+    expect(await searchServiceProducts(http, ctx, ' sr630 ')).toEqual([
+      { code: '7D73CTO1WW', type: 'CTO', description: 'ThinkSystem SR630 V3', withdrawn: true },
+    ]);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({
+      method: 'GET', path: '/service_pacs_product', query: { serviceCto: true },
+    }));
+
+    const features = await searchSoftwareForProduct(http, ctx, '7D73CTO1WW', 'CTO');
+    expect(features.map(feature => feature.code)).toEqual([softwareFeature.code]);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({
+      method: 'GET', path: '/software/portal/search/7D73CTO1WW', query: { mode: 'cto', serviceCto: true },
+    }));
   });
 });

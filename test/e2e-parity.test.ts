@@ -29,7 +29,6 @@ async function appResult(run: () => Promise<unknown>) {
 type Obj = Record<string, unknown>;
 
 // Shared mock fixtures derived from upstream reverse engineering (Surveys 1-3)
-const mockConfigId = 'CIDU00CKWN';
 
 const mockSidItem = {
   sidShortDesc: 'Lenovo ThinkSystem SR650 V3 Solution',
@@ -281,59 +280,7 @@ function setupMockHttp(service: DcscService) {
     const path = req.path ?? '';
     const query = req.query as Record<string, unknown> | undefined;
 
-    // R1: Config ID & SIDs
-    if (path === '/generateConfigId') {
-      return { raw: mockConfigId } as never;
-    }
-    if (path === '/restore') {
-      const configId = String(query?.['configuration_id'] ?? '');
-      if (configId === 'INVALID_ID' || configId === 'NONEXISTENT') {
-        return {
-          raw: {
-            url: null,
-            message: 'Invalid Config ID, Not available in DCSC database for retrieval',
-            success: false,
-          },
-        } as never;
-      }
-      return {
-        raw: {
-          url: `https://dcsc.lenovo.com/#/summary/${configId}`,
-          message: null,
-          success: true,
-        },
-      } as never;
-    }
-    if (path === '/retrieve/configId') {
-      const configId = String(query?.['configuration_id'] ?? '');
-      if (configId === 'INVALID_ID') {
-        return {
-          raw: {
-            errorMessage: 'Unable to import the configID. Please verify the configID',
-          },
-        } as never;
-      }
-      const raw = sampleRaw('restored-node', '7D73CTO1WW', 1);
-      return {
-        raw: [
-          {
-            configuration: [raw],
-            workspace: {
-              rackArea: [],
-              nonRackArea: [{ id: raw.id, code: raw.code, type: 'server', size: 1, quantity: 1, originalIds: [raw.id] }],
-            },
-            workspaceInformation: {
-              rackData: [],
-              nonRackData: [{ id: raw.id, code: raw.code, type: 'server', size: 1, quantity: 1, originalIds: [raw.id] }],
-            },
-            differentPartMap: {},
-            missingParts: [],
-            removedParts: [],
-            type: 'cto',
-          },
-        ],
-      } as never;
-    }
+    // R1: SIDs
     if (path.includes('/racks/customize/non_rack')) {
       return { raw: [{ code: '7D73CTO1WW', uheight: 1, type: 'server' }] } as never;
     }
@@ -536,46 +483,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
   // Tier 1: Feature Coverage (Happy Path for R1 - R6)
   // --------------------------------------------------------------------------
   describe('Tier 1: Feature Coverage (Primary Capabilities)', () => {
-    it('T1.1: R1 — generate online Config ID and bind to session & workspace', async () => {
-      const { service, client } = await createHarness();
-      const raw = sampleRaw('node-1');
-      const session = service.sessions.create({
-        raw,
-        configurationId: raw.id!,
-        locale: service.locale,
-        solution: { solutionMode: 'General Purpose', masterSlices: ['GP'] },
-        mode: 'cto',
-        reduced: reduceConfiguration(raw, raw.id!),
-        primed: true,
-      });
-
-      const toolRes = await client.callTool({
-        name: 'dcsc_export',
-        arguments: { kind: 'configId', session: session.id },
-      });
-      const data = parseResult(toolRes);
-
-      expect(data['configId']).toBe(mockConfigId);
-      expect(session.raw.userGeneratedConfigId).toBe(mockConfigId);
-      const ws = service.sessions.getWorkspace(session.workspaceId);
-      expect(ws?.serverState.userGeneratedConfigId).toBe(mockConfigId);
-    });
-
-    it('T1.2: R1 — retrieve and reconstitute online configuration by Config ID', async () => {
-      const { client } = await createHarness();
-
-      const toolRes = await client.callTool({
-        name: 'dcsc_import',
-        arguments: { configId: mockConfigId },
-      });
-      const data = parseResult(toolRes);
-
-      expect(data['session']).toBeDefined();
-      expect(data['importedConfigurations']).toBe(1);
-      const sessions = data['configurations'] as Array<{ productCode: string }>;
-      expect(sessions[0]?.productCode).toBe('7D73CTO1WW');
-    });
-
     it('T1.3: R1 — query SIDs with pagination and customize preconfigured SID solution', async () => {
       const { service, client } = await createHarness();
 
@@ -803,14 +710,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       expect(data['content']).toEqual([]);
     });
 
-    it('T2.3: R1 — retrieveConfigId throws structured error on invalid Config ID without corrupting session store', async () => {
-      const { service } = await createHarness();
-      const initialCount = service.sessions.list().length;
-
-      await expect(service.retrieveConfigId('INVALID_ID')).rejects.toThrow(/Unable to import the configID/);
-      expect(service.sessions.list()).toHaveLength(initialCount);
-    });
-
     it('T2.4: R2 — auto-fix gracefully rejects non-CTO mode sessions without HTTP call', async () => {
       const { service, client, send } = await createHarness();
       const raw = sampleRaw('lfo-node');
@@ -997,8 +896,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
   // Tier 3: Cross-Feature Combinations (System Integrations)
   // --------------------------------------------------------------------------
   describe('Tier 3: Cross-Feature Combinations (Interactions & Data Pipelines)', () => {
-    it('T3.1: Cross R1 + R5 — Config ID generation, multi-unit export auto-expansion, and online retrieval', async () => {
-      const { service, client } = await createHarness();
+    it('T3.1: Cross R1 + R5 — multi-unit export auto-expansion', async () => {
+      const { service } = await createHarness();
 
       // 1. Create multi-unit configuration (quantity = 3)
       const raw = sampleRaw('cross-node', '7D73CTO1WW', 3);
@@ -1017,15 +916,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
         { id: raw.id!, code: raw.code, type: 'server', size: 1, quantity: 3, originalIds: [raw.id!] },
       ];
 
-      // 2. Generate online Config ID via MCP
-      const genRes = await client.callTool({
-        name: 'dcsc_export',
-        arguments: { kind: 'configId', session: session.id },
-      });
-      const genData = parseResult(genRes);
-      expect(genData['configId']).toBe(mockConfigId);
-
-      // 3. Export with multi-unit auto-expansion
+      // 2. Export with multi-unit auto-expansion
       const exported = buildExportData({
         workspace: ws,
         solution: ws.solution,
@@ -1034,14 +925,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
       const nonRackData = (exported.workspaceInformation as Obj).nonRackData as Array<Record<string, unknown>>;
       expect(nonRackData).toHaveLength(3);
-
-      // 4. Retrieve online configuration by Config ID via MCP
-      const impRes = await client.callTool({
-        name: 'dcsc_import',
-        arguments: { configId: mockConfigId },
-      });
-      const impData = parseResult(impRes);
-      expect(impData['importedConfigurations']).toBe(1);
     });
 
     it('T3.2: Cross R2 + R3 — discover model in LVR specialty catalog, launch session, and resolve hardware rule error with auto-fix', async () => {
@@ -1199,15 +1082,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
       expect(parseResult(fixRes)['applied']).toBe(true);
 
-      // Step 6: Generate official online Config ID
-      const genRes = await client.callTool({
-        name: 'dcsc_export',
-        arguments: { kind: 'configId', session: session.id },
-      });
-      const configId = parseResult(genRes)['configId'] as string;
-      expect(configId).toBe(mockConfigId);
-
-      // Step 7: Scale quantity to 3 units unracked
+      // Step 6: Scale quantity to 3 units unracked
       await service.sessions.transact(session.id, {}, (draftWorkspace, draft) => {
         draft!.raw.quantity = 3;
         draftWorkspace.nonRackArea = [
@@ -1216,7 +1091,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
       const ws = service.sessions.getWorkspace(session.workspaceId)!;
 
-      // Step 8: Export solution bundle (verifying physical auto-expansion)
+      // Step 7: Export solution bundle (verifying physical auto-expansion)
       const exported = buildExportData({
         workspace: ws,
         solution: ws.solution,
@@ -1226,12 +1101,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       const nonRackData = (exported.workspaceInformation as Obj).nonRackData as Array<Record<string, unknown>>;
       expect(nonRackData).toHaveLength(3);
 
-      // Step 9: Re-import via online Config ID
-      const impRes = await client.callTool({
-        name: 'dcsc_import',
-        arguments: { configId },
-      });
-      expect(parseResult(impRes)['importedConfigurations']).toBe(1);
     });
 
     it('T4.2: Scenario B — Complex Solution Design: SIDs -> VLH Neptune Cooling -> Virtual Containers -> Quote Validation', async () => {
@@ -1280,12 +1149,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
       expect(parseResult(rulesRes)['rules']).toEqual([]);
 
-      // Step 6: Validate and generate online Config ID for quote handoff
-      const genRes = await client.callTool({
-        name: 'dcsc_export',
-        arguments: { kind: 'configId', session: session.id },
-      });
-      expect(parseResult(genRes)['configId']).toBe(mockConfigId);
     });
   });
 });

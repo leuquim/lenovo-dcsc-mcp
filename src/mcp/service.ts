@@ -1,5 +1,5 @@
-import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, retrieveConfigId, customizeSid, importConfig, exportZip, summaryInsights, exportPowerReport, shareUrlFields } from '../app/importExport.js';
-import { generateConfigId, modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
+import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, customizeSid, importConfig, exportZip, summaryInsights, exportPowerReport, shareUrlFields } from '../app/importExport.js';
+import { modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
@@ -23,9 +23,6 @@ export class DcscService extends Runtime {
     return launchReferenceSolution(this, ...args);
   }
 
-  retrieveConfigId(...args: AppArgs<typeof retrieveConfigId>): ReturnType<typeof retrieveConfigId> {
-    return retrieveConfigId(this, ...args);
-  }
 
   customizeSid(...args: AppArgs<typeof customizeSid>): ReturnType<typeof customizeSid> {
     return customizeSid(this, ...args);
@@ -51,9 +48,6 @@ export class DcscService extends Runtime {
     return shareUrlFields(this, ...args);
   }
 
-  generateConfigId(...args: AppArgs<typeof generateConfigId>): ReturnType<typeof generateConfigId> {
-    return generateConfigId(this, ...args);
-  }
 
   modesContaining(...args: AppArgs<typeof modesContaining>): ReturnType<typeof modesContaining> {
     return modesContaining(this, ...args);
