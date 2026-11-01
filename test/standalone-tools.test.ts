@@ -225,7 +225,7 @@ describe('standalone MCP tools', () => {
       throw new Error(`Unexpected ${request.path}`);
     });
     const launched = parse(await launchTool(handlers, 'software')({ replace: false }));
-    expect(parse(await handler(handlers, 'dcsc_workspace_get')({ session: launched.session, view: 'baskets', offset: 0, limit: 20 })))
+    expect(parse(await handler(handlers, 'dcsc_workspace_get')({ session: launched.session, view: { kind: 'baskets', offset: 0, limit: 20 } })))
       .toMatchObject({ basket: 'software', session: launched.session, selections: [] });
     const browseTool = handler(handlers, 'dcsc_basket_browse');
     const browse = (args: Record<string, unknown>) => browseTool({ basket: 'software', ...args });

@@ -4,6 +4,7 @@ import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import {
   fetchLmcValidationResult,
   parseLmcValidationResult,
+  lmcValidationBody,
   startLmcValidation,
   type LmcValidationResult,
   type ValidationRequestError,
@@ -72,7 +73,7 @@ export interface RunValidationJobOptions {
 
 /** Hashes the exact semantic start body, independent of object key insertion order. */
 export function validationPayloadSha256(payload: Record<string, unknown>, mode: string): string {
-  return createHash('sha256').update(canonicalJson({ ...payload, mode })).digest('hex');
+  return createHash('sha256').update(canonicalJson(lmcValidationBody(payload, mode))).digest('hex');
 }
 
 /**

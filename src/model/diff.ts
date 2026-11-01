@@ -1,5 +1,6 @@
 import type { ConfigIndex } from './index.js';
 import type { RawConfiguration } from './types.js';
+import { configurationListPrice } from '../domain/pricing.js';
 import { projectConstraints, type Constraint } from './project.js';
 
 /**
@@ -37,9 +38,9 @@ export interface ConfigDiff {
   replaced: Replacement[];
   quantityChanged: PartChange[];
   price: {
-    before: number;
-    after: number;
-    delta: number;
+    before: number | null;
+    after: number | null;
+    delta: number | null;
     currency: string;
   };
   constraints: Constraint[];
@@ -142,8 +143,8 @@ export function diffConfigurations(opts: {
     added.splice(replacementIdx, 1);
   }
 
-  const priceBefore = opts.beforeRaw.totalPrice ?? 0;
-  const priceAfter = opts.afterRaw.totalPrice ?? 0;
+  const priceBefore = configurationListPrice(opts.beforeRaw);
+  const priceAfter = configurationListPrice(opts.afterRaw);
 
   return {
     added,
@@ -151,9 +152,9 @@ export function diffConfigurations(opts: {
     replaced,
     quantityChanged,
     price: {
-      before: round(priceBefore),
-      after: round(priceAfter),
-      delta: round(priceAfter - priceBefore),
+      before: priceBefore,
+      after: priceAfter,
+      delta: priceBefore === null || priceAfter === null ? null : round(priceAfter - priceBefore),
       currency: opts.currency,
     },
     constraints: projectConstraints(opts.afterRaw),

@@ -51,7 +51,7 @@ import {
   rebuildDerived,
 } from './serviceHelpers.js';
 import { errorMessage } from '../util/coerce.js';
-import { autoDerivePath, launchPath } from '../domain/endpoints.js';
+import { autoDerivePath, launchPath, launchQuery } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
 import { acceptDerivedWorkspaceConfigurations, acceptWorkspaceConfigurations, prepareConfigIdsDraft, refreshRackMetadata, refreshStorageLayoutDraft } from './workspaceRefresh.js';
 
@@ -164,16 +164,18 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
   const { productCode, mode, solution, ctx } = opts;
   const path = launchPath(mode, productCode);
 
-  const res = await rt.http.send({
+  const send = (scope?: 'SW' | 'HW') => rt.http.send({
     endpoint: `${mode}_launch`,
     method: 'POST',
     path,
-    query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: true },
+    query: launchQuery(solution.solutionMode, scope),
     body: { kind: 'json', value: {} },
     responseKind: 'json',
     timeoutClass: 'interactive',
     ctx: { ...ctx, solution },
-  }).catch((err: unknown) => {
+  });
+  // The website loads the SW scope first, then the HW scope, which carries the configurable tree.
+  const res = await (mode === 'lfo' ? send('SW').then(() => send('HW')) : send()).catch((err: unknown) => {
     // Verified 2026-08-08: /lfos/{code}/add_options_launch is 404 across
     // models ("No static resource"). The route is gone from this release;
     // lfo-as-cto is the mode that actually yields a configurable tree.
@@ -262,6 +264,7 @@ export async function autoDerive(rt: Runtime, reduced: ReducedConfiguration,
     validationMode: 'guided' | 'expert';
     autoCorrect?: boolean;
     softwareEdit?: boolean;
+    switchedFullModeToExpress?: boolean;
     sourceRaw?: RawConfiguration;
     workspace?: WorkspaceSession;
   },): Promise<RawConfiguration | undefined> {
@@ -291,7 +294,8 @@ export async function autoDerive(rt: Runtime, reduced: ReducedConfiguration,
     endpoint: isLfo ? 'lfo_autoDerive' : 'cto_autoDerive',
     method: 'POST',
     path: autoDerivePath(family),
-    query: { configurationId: reduced.id, ...(storageComponent ? {} : { entranceFlag: 'customize' }),
+    query: { ...(opts.switchedFullModeToExpress ? { isFullModeToExpress: true } : {}),
+      configurationId: reduced.id, ...(storageComponent ? {} : { entranceFlag: 'customize' }),
       ...(lfoHardware ? { isLfo: true, scope: 'HW' }
         : opts.softwareEdit ? { isCustomizeOSSoftware: true, isCustomizeNewSoftwareEngine: true }
         : { guideMode: opts.validationMode === 'guided' }) },
@@ -420,7 +424,8 @@ async function prepareRackCustomizationDraft(rt: Runtime, workspace: WorkspaceSe
 export async function configureDraft(rt: Runtime, session: ConfigSession,
   changes: Array<{ section: string; code: string; quantity: number }>,
   ctx: RequestCtx,
-  workspace?: WorkspaceSession,): Promise<ConfigSession> {
+  workspace?: WorkspaceSession,
+  switchedFullModeToExpress = false,): Promise<ConfigSession> {
 const previousSelections = new Map(session.index.selected);
 if (workspace) await prepareConfigIdsDraft(rt, workspace, ctx);
 if (workspace) {
@@ -445,6 +450,7 @@ const updated = await autoDerive(rt, forDerive, {
   validationMode: session.validationMode,
   autoCorrect: session.autoCorrect,
   softwareEdit,
+  switchedFullModeToExpress,
   sourceRaw: session.raw,
   ...(workspace ? { workspace } : {}),
 });
@@ -643,6 +649,20 @@ export async function setConfigurationControls(rt: Runtime, handle: string, opts
   const workspace = rt.sessions.getWorkspace(resolved.workspace.id)!;
   const controls = workspace.serverState.configurationControls as { validationMode: 'guided' | 'expert'; autoCorrect: boolean };
   return { workspace: workspace.id, revision: workspace.revision, ...controls };
+}
+
+/** The configurator's Lenovo AI Express / Full Mode switch: re-derives with showExpressMode flipped. */
+export async function setExpressMode(rt: Runtime, session: ConfigSession, express: boolean, ctx: RequestCtx,
+  expectedRevision?: number): Promise<ConfigSession> {
+  return rt.sessions.transact(session.id, { expectedRevision, remoteApplied: true,
+    actionHistory: updateHistoryFactory(session.configurationId) }, async (workspace, draft) => {
+    if (!draft) throw new Error('A configuration handle is required.');
+    if (!draft.reduced.expressModeAvailable) throw new Error('This configuration has no AI Express mode.');
+    if (draft.reduced.showExpressMode === express) return draft;
+    draft.raw = { ...draft.raw, showExpressMode: express };
+    rebuildDerived(draft, workspace);
+    return configureDraft(rt, draft, [], { ...ctx, locale: workspace.locale }, workspace, express);
+  });
 }
 
 /**

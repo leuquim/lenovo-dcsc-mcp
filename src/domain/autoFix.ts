@@ -149,6 +149,12 @@ export function buildAutoFixCurrentSelections(raw: RawConfiguration): AutoFixSec
   }));
 }
 
+export interface AutoFixConfiguration {
+  configurationId: string;
+  showExpressMode: boolean;
+  selectedTceAudience?: unknown;
+}
+
 /**
  * Executes hardware auto-fix against DCSC to resolve rule validation errors.
  *
@@ -160,6 +166,7 @@ export async function executeAutoFix(
   requiredSections: string[],
   currentSelections: AutoFixSectionSelection[],
   ctx: RequestCtx,
+  configuration: AutoFixConfiguration,
 ): Promise<AutoFixResponse> {
   const code = ctoCode.trim();
   if (!code) {
@@ -170,14 +177,15 @@ export async function executeAutoFix(
     endpoint: 'execute_auto_fix',
     method: 'POST',
     path: '/cto/hardware/autoFix',
+    query: { configurationId: configuration.configurationId },
     body: {
       kind: 'json',
       value: {
         cto: code,
         requiredSections,
         currentSelections,
-        delta: null,
-        showExpressMode: false,
+        showExpressMode: configuration.showExpressMode,
+        selectedTceAudience: configuration.selectedTceAudience ?? null,
       },
     },
     requiresSolution: false,

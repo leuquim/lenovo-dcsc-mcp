@@ -58,7 +58,7 @@ describe('registered bounded workspace readers', () => {
     }];
 
     const handler = handlers.get('dcsc_workspace_get')!;
-    const summaryReply = await handler({ session: workspace.id, view: 'layout' });
+    const summaryReply = await handler({ session: workspace.id, view: { kind: 'layout' } });
     expect(summaryReply.isError).not.toBe(true);
     const summary = json(summaryReply);
     expect(Buffer.byteLength(summaryReply.content[0]!.text)).toBeLessThan(7_500);
@@ -70,7 +70,7 @@ describe('registered bounded workspace readers', () => {
     const rawLink = ((summary['pages'] as Record<string, { inspect: Continuation }>)['rawConnections']!).inspect;
     expect(rawLink).toMatchObject({
       tool: 'dcsc_workspace_get',
-      arguments: { session: workspace.id, expectedRevision: workspace.revision, path: ['rawConnections'] },
+      arguments: { session: workspace.id, expectedRevision: workspace.revision, view: { kind: 'layout', path: ['rawConnections'] } },
     });
     const rawPage = json(await handler(rawLink.arguments));
     expect(rawPage).toMatchObject({ path: ['rawConnections'], total: 1, returned: 1 });
@@ -81,7 +81,7 @@ describe('registered bounded workspace readers', () => {
     expect(stale.content[0]!.text).toContain('changed from revision');
     expect(stale.content[0]!.text).toContain('Restart dcsc_workspace_get');
 
-    const unbound = await handler({ session: workspace.id, path: ['cables'], offset: 0, limit: 20 });
+    const unbound = await handler({ session: workspace.id, view: { kind: 'summary', path: ['cables'], offset: 0, limit: 20 } });
     expect(unbound.isError).toBe(true);
     expect(unbound.content[0]!.text).toContain('expectedRevision is required');
   });

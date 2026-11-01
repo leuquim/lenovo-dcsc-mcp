@@ -36,6 +36,7 @@ import {
   type AutoConnectResult,
 } from '../domain/cabling.js';
 import { physicalIds } from '../domain/workspaceReferences.js';
+import { layoutToggleOverrides } from '../domain/floor.js';
 import { buildFloorState } from '../domain/floorWire.js';
 import { workspaceHardwareMode } from '../domain/workspaceWire.js';
 import { buildSwitchCalculationRequest, parseSwitchCalculationResponse, buildGeneratedSwitch } from '../domain/switchProvisioning.js';
@@ -68,6 +69,7 @@ export async function syncLayout(rt: Runtime, ws: WorkspaceSession,
   opts: CustomizeOptions & { cloneMultiple?: boolean; cloneHpcSwitch?: string; clonePopulatedChassis?: boolean; copyPopulatedChassisDependency?: unknown; copyConfigurationId?: string; lockMutation?: boolean;
     preserveImportedManualCables?: boolean;
     deletedLinkedRootConfigurations?: RawConfiguration[];
+    forceArrange?: boolean;
     nestedPhysicalEdit?: { configurations: RawConfiguration[]; cloneDependency: unknown } } = {},): Promise<LayoutResult> {
   const requestContext = { ...ctx, locale: ws.locale, solution: ws.solution };
   const mode = workspaceHardwareMode(ws.configurations.values());
@@ -84,7 +86,7 @@ export async function syncLayout(rt: Runtime, ws: WorkspaceSession,
         ...(opts.copyPopulatedChassisDependency ? { cloneDependency: opts.copyPopulatedChassisDependency } : {}),
         nonRackArea: ws.nonRackArea }, opts.nestedPhysicalEdit?.configurations ??
         opts.deletedLinkedRootConfigurations ?? [...ws.configurations.values()].map((session) => session.raw)),
-      { autoConnect: true, cogValidation: true, ...opts, mode });
+      { autoConnect: true, cogValidation: true, ...opts, ...layoutToggleOverrides(ws.serverState, opts.forceArrange), mode });
     if (opts.cloneMultiple || opts.cloneHpcSwitch || opts.clonePopulatedChassis || opts.copyConfigurationId || opts.lockMutation || opts.deletedLinkedRootConfigurations || opts.nestedPhysicalEdit) {
       const state = result.rawState;
       if (!Array.isArray(state.rackArea) || !Array.isArray(state.nonRackArea) || !Array.isArray(state.connections)) {
@@ -240,7 +242,7 @@ async function deriveNetworkDraft(rt: Runtime, ws: WorkspaceSession, ctx: Reques
 export async function refreshStorageLayoutDraft(rt: Runtime, ws: WorkspaceSession, ctx: RequestCtx): Promise<void> {
   await provisionSwitchesDraft(rt, ws, ctx, { deferLayout: true });
   const result = await customizeLayout(rt.http, { ...ctx, locale: ws.locale, solution: ws.solution }, workspaceCablingPayload(ws),
-    { autoArrange: true, autoConnect: true, cogValidation: true });
+    { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(ws.serverState) });
   if (!Array.isArray(result.rawState.rackArea) || !Array.isArray(result.rawState.nonRackArea) ||
       !Array.isArray(result.rawState.connections) || result.errors.length ||
       result.rawState.errors && (!Array.isArray(result.rawState.errors) || result.rawState.errors.length)) {
@@ -295,7 +297,7 @@ export async function provisionSwitchesDraft(rt: Runtime, ws: WorkspaceSession, 
   ws.serverState.cloneDependency = cloneDependency;
   if (opts.deferLayout) return;
   const layout = await customizeLayout(rt.http, context, workspaceCablingPayload(ws),
-    { autoArrange: true, autoConnect: true, cogValidation: true });
+    { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(ws.serverState) });
   if (!Array.isArray(layout.rawState.rackArea) || !Array.isArray(layout.rawState.nonRackArea) ||
       !Array.isArray(layout.rawState.connections) || layout.errors.length > 0 ||
       layout.rawState.errors && (!Array.isArray(layout.rawState.errors) || layout.rawState.errors.length > 0)) {
@@ -328,7 +330,7 @@ export async function autoConnectDraft(rt: Runtime, ws: WorkspaceSession, ctx: R
     ? structuredClone({ rackArea: ws.rackArea, nonRackArea: ws.nonRackArea }) : undefined;
   const result = await autoConnect(rt.http, { ...ctx, locale: ws.locale, solution: ws.solution },
     workspaceCablingPayload(ws), ws.solution.solutionMode === 'HPC and AI - Systems'
-      ? { autoArrange: seedConnections === undefined, autoConnect: true, cogValidation: true } : undefined, seedConnections);
+      ? { autoArrange: seedConnections === undefined, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(ws.serverState) } : undefined, seedConnections);
   if (!Array.isArray(result.rawState.connections) || result.rawState.errors && !Array.isArray(result.rawState.errors)) {
     throw new Error('DCSC returned an incomplete connection graph. Workspace was not committed.');
   }

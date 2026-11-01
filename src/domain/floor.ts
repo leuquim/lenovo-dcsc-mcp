@@ -84,3 +84,46 @@ export function placeRackOnFloor(opts: {
       'FLOOR export remains blocked (export endpoint rejects the rack payload shape).',
   };
 }
+
+export const FLOOR_PREFERENCE_KEYS = [
+  'growthRatioHorizontal', 'growthRatioVertical', 'rackDist', 'vertDist', 'coldDist', 'hotDist', 'slackDist', 'useTrayCabling',
+] as const;
+
+export interface FloorPreferenceChange {
+  rowCount?: number | undefined;
+  colCount?: number | undefined;
+  growthRatioHorizontal?: number | undefined;
+  growthRatioVertical?: number | undefined;
+  rackDist?: number | undefined;
+  vertDist?: number | undefined;
+  coldDist?: number | undefined;
+  hotDist?: number | undefined;
+  slackDist?: number | undefined;
+  useTrayCabling?: boolean | undefined;
+}
+
+/** Applies the Floor Preference modal fields to the stored floor information. */
+export function applyFloorPreference(info: Record<string, unknown>, change: FloorPreferenceChange): Record<string, unknown> {
+  const preference = { ...DEFAULT_FLOOR_PREFERENCE, ...(info['floorPreference'] as object | undefined) } as Record<string, unknown>;
+  for (const key of FLOOR_PREFERENCE_KEYS) if (change[key] !== undefined) preference[key] = change[key];
+  const settings = { ...(info['floorGridSettings'] as object | undefined) } as Record<string, unknown>;
+  if (change.rowCount !== undefined) settings['rowCount'] = change.rowCount;
+  if (change.colCount !== undefined) settings['colCount'] = change.colCount;
+  return { ...info, floorPreference: preference, floorGridSettings: settings };
+}
+
+/** Workspace Auto Arrange / COG Validation switches override the per-call defaults of every layout request. */
+export function layoutToggleOverrides(serverState: Record<string, unknown>, forceArrange = false): { autoArrange?: false; cogValidation?: boolean } {
+  const flags = (serverState['customizingFlags'] ?? {}) as Record<string, unknown>;
+  return {
+    ...(flags['autoArrange'] === false && !forceArrange ? { autoArrange: false as const } : {}),
+    ...(typeof flags['cogValidation'] === 'boolean' ? { cogValidation: flags['cogValidation'] } : {}),
+  };
+}
+
+/** Sets the colour of a rack cell on the floor grid. */
+export function colourRackCell(info: Record<string, unknown>, rackId: string, color: string): Record<string, unknown> {
+  const grid = Array.isArray(info['floorGrid']) ? info['floorGrid'] as Array<Record<string, unknown>> : [];
+  const cell = grid.find(entry => entry['id'] === rackId) ?? { id: rackId, sourceId: rackId, type: 'rack' };
+  return { ...info, floorGrid: grid.filter(entry => entry['id'] !== rackId).concat({ ...cell, color }) };
+}

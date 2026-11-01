@@ -191,6 +191,7 @@ describe('Domain: Auto Fix', () => {
       ['PROCESSOR'],
       [{ name: 'PROCESSOR', results: [{ featureCode: 'B0MA', quantity: 1 }] }],
       ctx,
+      { configurationId: 'US__cfg-1', showExpressMode: true, selectedTceAudience: 'MID' },
     );
 
     expect(send).toHaveBeenCalledWith(
@@ -198,14 +199,15 @@ describe('Domain: Auto Fix', () => {
         endpoint: 'execute_auto_fix',
         method: 'POST',
         path: '/cto/hardware/autoFix',
+        query: { configurationId: 'US__cfg-1' },
         body: {
           kind: 'json',
           value: {
             cto: '7D73CTO1WW',
             requiredSections: ['PROCESSOR'],
             currentSelections: [{ name: 'PROCESSOR', results: [{ featureCode: 'B0MA', quantity: 1 }] }],
-            delta: null,
-            showExpressMode: false,
+            showExpressMode: true,
+            selectedTceAudience: 'MID',
           },
         },
       }),

@@ -13,8 +13,10 @@ import { configurationListPrice } from '../domain/pricing.js';
 import { diffConfigurations } from '../model/diff.js';
 import { resolveSection, searchFeatures } from '../model/index.js';
 import {
+  projectConfigurationErrors,
   projectFeatureDetail,
   projectOptions,
+  projectResourceTrackers,
   projectSummary,
   projectTab,
 } from '../model/project.js';
@@ -33,11 +35,11 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Read a configuration',
       description:
-        'Reads one configuration: summary and tabs, options (search, tab or section), selected parts, feature detail, DCSC rule changes, recommendations or rule versions.',
+        'Reads one configuration: summary and tabs, options (search, tab or section), selected parts, feature detail, rule errors, resource tracker (slot and bay occupancy), DCSC rule changes, recommendations or rule versions.',
       inputSchema: {
         session: z.string().optional().describe('Required except for view rules with ctoCode.'),
         ctoCode: z.string().optional().describe('rules: CTO code to inspect without a session.'),
-        view: z.enum(['summary', 'options', 'selections', 'features', 'explain', 'recommendations', 'rules'])
+        view: z.enum(['summary', 'options', 'selections', 'features', 'errors', 'resources', 'explain', 'recommendations', 'rules'])
           .optional().default('summary'),
         query: z.string().optional().describe('options: free text, e.g. "64gb rdimm" or a feature code.'),
         tab: z.string().optional().describe('options: tab title, e.g. "Processors".'),
@@ -144,6 +146,13 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
               ...(args.upstream ? { upstream: (await featureSpecs(service, { session: session.id, codes: args.codes })).features } : {}),
             };
           }
+          case 'errors': {
+            const errors = projectConfigurationErrors(session.index);
+            const page = errors.slice(args.offset, args.offset + args.limit);
+            return { ...header, total: errors.length, offset: args.offset, errors: page };
+          }
+          case 'resources':
+            return { ...header, resourceTrackers: projectResourceTrackers(session.raw) };
           case 'explain':
             return { ...header, ...explainConfiguration(session, args.sinceRevision) };
           case 'recommendations':
@@ -162,7 +171,7 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Change a configuration',
       description:
-        'Applies option changes in one round trip and returns the diff, including changes DCSC made itself. Optionally sets the sales quantity, name-independent Guided/Expert mode or Auto-Correct for the workspace.',
+        'Applies option changes in one round trip and returns the diff, including changes DCSC made itself. Optionally sets the sales quantity, Guided/Expert mode or Auto-Correct for the workspace, or the AI Express / Full Mode switch.',
       inputSchema: {
         session: z.string(),
         changes: z
@@ -176,6 +185,7 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
         salesQuantity: z.number().int().min(1).max(99).optional().describe('How many units of this configuration.'),
         validationMode: z.enum(['guided', 'expert']).optional().describe('Applies to the whole workspace.'),
         autoCorrect: z.boolean().optional().describe('Applies to the whole workspace; Expert mode forces it off.'),
+        expressMode: z.boolean().optional().describe('true: Lenovo AI Express; false: Full Mode. Only for configurations with an Express mode.'),
         expectedRevision,
       },
     },
@@ -183,8 +193,8 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
       guard(async () => {
         const changes = args.changes ?? [];
         const wantsControls = args.validationMode !== undefined || args.autoCorrect !== undefined;
-        if (changes.length === 0 && args.salesQuantity === undefined && !wantsControls) {
-          throw new Error('Provide changes, salesQuantity, validationMode or autoCorrect.');
+        if (changes.length === 0 && args.salesQuantity === undefined && !wantsControls && args.expressMode === undefined) {
+          throw new Error('Provide changes, salesQuantity, validationMode, autoCorrect or expressMode.');
         }
         let session = requireSession(service, args.session);
         const workspace = service.sessions.getWorkspace(session.workspaceId)!;
@@ -202,6 +212,9 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
             expectedRevision: args.expectedRevision, ctx,
           });
           session = requireSession(service, args.session);
+        }
+        if (args.expressMode !== undefined) {
+          session = await service.setExpressMode(session, args.expressMode, ctx, session.revision);
         }
         if (args.salesQuantity !== undefined) {
           session = await service.setQuantity(session, args.salesQuantity, session.revision);
@@ -259,6 +272,7 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
           ...(group.linked ? { linkedUpdate: { configurationIds: group.memberIds, rootConfigurationId: group.rootId } } : {}),
           validationMode: session.validationMode,
           autoCorrect: session.autoCorrect,
+          expressMode: session.reduced.showExpressMode,
           quantity: session.raw.quantity ?? 1,
           totalPrice,
           extendedPrice: priceAfter,
