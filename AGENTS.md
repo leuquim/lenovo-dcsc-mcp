@@ -43,4 +43,5 @@ Parity target: [.docs/website-actions.md](.docs/website-actions.md) lists every 
 - **Fail visibly.** Don't swallow upstream errors; report them through the central error handling.
 - **No compatibility shims.** Nothing depends on current tool names; rename, merge and delete freely.
 - **Commits go on a branch, through a PR.** Never push to `main`.
+- **Worktrees:** start from the working branch (`git checkout <branch>` first; new worktrees default to `main`). Remove merged worktrees under `.claude/worktrees/` before `npm run check`; lint scans them.
 - **Keep data out of commits:** no sessions, exports, traces, cookies or credentials. Fixtures are anonymous and minimal.
