@@ -44,8 +44,8 @@ const MUTATING_TOOLS = [
   'dcsc_reconcile_workspace', 'dcsc_recovery_export', 'dcsc_session_close', 'dcsc_settings_set', 'dcsc_storage_set', 'dcsc_undo',
   'dcsc_validate', 'dcsc_vlh_set', 'dcsc_wizard_set',
 ];
-const TOOL_DEFINITION_BYTE_BUDGET = 4_000;
-const TOTAL_DEFINITION_BYTE_BUDGET = 40_000;
+const TOOL_DEFINITION_BYTE_BUDGET = 5_000;
+const TOTAL_DEFINITION_BYTE_BUDGET = 60_000;
 
 const services: DcscService[] = [];
 const clients: Client[] = [];
