@@ -246,14 +246,16 @@ describe('configured storage definition removal', () => {
     const value = setup();
     await openController(value);
     const aliases = ['controller-physical-1', 'controller-physical-2'];
-    value.workspace.rackArea = [{ id: 'rack-id', code: 'RACK', size: 42, rackItems: aliases.map((id, index) => ({
-      id, code: value.option, type: 'storage', position: index * 2 + 1, size: 2, quantity: 0,
-    })) }];
-    value.workspace.serverState.cloneDependency = { 'controller-id': ['controller-id', ...aliases] };
-    value.workspace.serverState.cloneDependencyColor = { 'controller-id': { color: '#abcdef', dependBy: ['controller-id', ...aliases] } };
-    value.workspace.serverState.connections = [{ sourceId: 'server-id', destinationId: aliases[0] }];
-    value.workspace.serverState.floorInformation = { floorGrid: [{ id: 'rack-id', row: 0, col: 0,
-      items: aliases.map(id => ({ id })) }] };
+    await value.service.sessions.transact(value.workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [{ id: 'rack-id', code: 'RACK', size: 42, rackItems: aliases.map((id, index) => ({
+        id, code: value.option, type: 'storage', position: index * 2 + 1, size: 2, quantity: 0,
+      })) }];
+      draft.serverState.cloneDependency = { 'controller-id': ['controller-id', ...aliases] };
+      draft.serverState.cloneDependencyColor = { 'controller-id': { color: '#abcdef', dependBy: ['controller-id', ...aliases] } };
+      draft.serverState.connections = [{ sourceId: 'server-id', destinationId: aliases[0] }];
+      draft.serverState.floorInformation = { floorGrid: [{ id: 'rack-id', row: 0, col: 0,
+        items: aliases.map(id => ({ id })) }] };
+    });
     await value.service.editStorageNetwork(value.workspace.id, { action: 'remove', name: 'Primary SAN',
       expectedRevision: value.workspace.revision });
     expect(value.workspace.rackArea[0]!.rackItems).toEqual([]);
@@ -272,10 +274,12 @@ describe('configured storage definition removal', () => {
   it('cascades an exclusively owned managed controller, its graph references and commercial group', async () => {
     const value = setup();
     const opened = await openController(value);
-    value.workspace.serverState.connections = [{ sourceId: 'server-id', destinationId: 'controller-id' }];
-    value.workspace.serverState.switchMap = [{ id: 'controller-id', network: 'Storage' }];
-    value.workspace.cables = [{ id: 'storage-cable', fromConfigId: 'server-id', toConfigId: 'controller-id',
-      fromPort: '1', toPort: '1', cableCode: 'AV1W' }];
+    await value.service.sessions.transact(value.workspace.id, { history: 'restore' }, draft => {
+      draft.serverState.connections = [{ sourceId: 'server-id', destinationId: 'controller-id' }];
+      draft.serverState.switchMap = [{ id: 'controller-id', network: 'Storage' }];
+      draft.cables = [{ id: 'storage-cable', fromConfigId: 'server-id', toConfigId: 'controller-id',
+        fromPort: '1', toPort: '1', cableCode: 'AV1W' }];
+    });
     const revision = value.workspace.revision;
     const removed = await value.service.editStorageNetwork(value.workspace.id, {
       action: 'remove', name: 'Primary SAN', expectedRevision: revision,
@@ -313,7 +317,9 @@ describe('configured storage definition removal', () => {
   it('keeps the definition and managed controller until assignments are explicitly cleared', async () => {
     const value = setup();
     const opened = await openController(value);
-    value.server.raw.selectedStorageNetwork = 'Primary SAN';
+    await value.service.sessions.transact(value.server.id, { history: 'restore' }, (_workspace, draft) => {
+      draft!.raw.selectedStorageNetwork = 'Primary SAN';
+    });
     const revision = value.workspace.revision;
     await expect(value.service.editStorageNetwork(value.workspace.id, {
       action: 'remove', name: 'Primary SAN', expectedRevision: revision,
@@ -334,10 +340,12 @@ describe('configured storage definition removal', () => {
   it('preserves a managed controller still referenced by another storage definition', async () => {
     const value = setup();
     const opened = await openController(value);
-    const primary = (value.workspace.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!;
-    value.workspace.serverState.storageConnectionNetworks = [primary, {
-      ...structuredClone(primary), name: 'Secondary SAN',
-    }];
+    await value.service.sessions.transact(value.workspace.id, { history: 'restore' }, draft => {
+      const primary = (draft.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!;
+      draft.serverState.storageConnectionNetworks = [primary, {
+        ...structuredClone(primary), name: 'Secondary SAN',
+      }];
+    });
     const removed = await value.service.editStorageNetwork(value.workspace.id, {
       action: 'remove', name: 'Primary SAN', expectedRevision: value.workspace.revision,
     });

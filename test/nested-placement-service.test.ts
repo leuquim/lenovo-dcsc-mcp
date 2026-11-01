@@ -140,17 +140,21 @@ it('rejects stale revisions and conflicting placement arguments before any HTTP'
   await expect(service.placeInRack(workspace.id, { ...args, expectedRevision: workspace.revision + 1 })).rejects.toThrow(/revision/i);
   await expect(service.placeInRack(workspace.id, { ...args, position: 1 })).rejects.toThrow(/omit uPosition/);
   await expect(service.placeInRack(workspace.id, { ...args, rackId: 'other' })).rejects.toThrow(/does not belong/);
-  workspace.serverState.cloneDependency = { 'chassis-1': ['chassis-1', source.configurationId] };
+  await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+    draft.serverState.cloneDependency = { 'chassis-1': ['chassis-1', source.configurationId] };
+  });
   await expect(service.placeInRack(workspace.id, args)).rejects.toThrow(/linked cloned chassis/);
   expect(calls).toHaveLength(0);
 });
 
 it('exports an unplaced chassis with its copied node nested exactly once', async () => {
-  const { workspace, place, solution } = setup();
+  const { service, workspace, place, solution } = setup();
   const result = await place();
-  const chassis = (workspace.rackArea[0]!.rackItems as RackObject[])[0]!;
-  workspace.rackArea[0]!.rackItems = [];
-  workspace.nonRackArea.push(chassis);
+  await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+    const chassis = (draft.rackArea[0]!.rackItems as RackObject[])[0]!;
+    draft.rackArea[0]!.rackItems = [];
+    draft.nonRackArea.push(chassis);
+  });
   const exported = buildExportData({ workspace, solution, fileTypes: ['XML'], validationMode: 'guided' });
   const loose = (exported.workspace as Obj).nonRackArea as Obj[];
   expect(loose.map(item => item.id)).toEqual(['node-source', 'chassis-1']);
@@ -193,7 +197,9 @@ it.each(['racked', 'loose'])('does not orphan nested configurations when closing
   const { service, workspace, place } = setup();
   await place();
   if (area === 'loose') {
-    workspace.nonRackArea.push((workspace.rackArea[0]!.rackItems as RackObject[]).pop()!);
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.nonRackArea.push((draft.rackArea[0]!.rackItems as RackObject[]).pop()!);
+    });
   }
   const chassis = [...workspace.configurations.values()].find(session => session.configurationId === 'chassis-1')!;
   const physicalBefore = structuredClone({ rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea });

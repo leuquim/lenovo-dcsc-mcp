@@ -200,7 +200,8 @@ describe('SessionStore transactions', () => {
     expect(workspace.revision).toBe(workspaceRevision + 1);
     expect(session.snapshots).toHaveLength(1);
     expect(session.snapshots[0]?.raw).toEqual(originalRaw);
-    session.raw.quantity = 9;
+    expect(Object.isFrozen(session.raw)).toBe(true);
+    expect(() => { session.raw.quantity = 9; }).toThrow(TypeError);
     expect(session.snapshots[0]?.raw.quantity).toBe(1);
   });
 

@@ -235,9 +235,11 @@ describe('dcsc_customize_storage_switch', () => {
       name: 'Primary SAN', expectedRevision: exclusive.workspace.revision, ctx: exclusive.service.newCtx(),
     });
     const opened = await openSwitch(exclusive);
-    exclusive.workspace.serverState.connections = [{ sourceId: 'server-id', destinationId: 'switch-id' }];
-    exclusive.workspace.cables = [{ id: 'storage-cable', fromConfigId: 'server-id', toConfigId: 'switch-id',
-      fromPort: '1', toPort: '1', cableCode: 'B4B3' }];
+    await exclusive.service.sessions.transact(exclusive.workspace.id, { history: 'restore' }, draft => {
+      draft.serverState.connections = [{ sourceId: 'server-id', destinationId: 'switch-id' }];
+      draft.cables = [{ id: 'storage-cable', fromConfigId: 'server-id', toConfigId: 'switch-id',
+        fromPort: '1', toPort: '1', cableCode: 'B4B3' }];
+    });
     const removed = await exclusive.service.editStorageNetwork(exclusive.workspace.id, {
       action: 'remove', name: 'Primary SAN', expectedRevision: exclusive.workspace.revision,
     });
@@ -265,10 +267,12 @@ describe('dcsc_customize_storage_switch', () => {
 
     const shared = setup();
     const sharedOpened = await openSwitch(shared);
-    const primary = (shared.workspace.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!;
-    shared.workspace.serverState.storageConnectionNetworks = [primary, {
-      ...structuredClone(primary), name: 'Secondary SAN',
-    }];
+    await shared.service.sessions.transact(shared.workspace.id, { history: 'restore' }, draft => {
+      const primary = (draft.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!;
+      draft.serverState.storageConnectionNetworks = [primary, {
+        ...structuredClone(primary), name: 'Secondary SAN',
+      }];
+    });
     const sharedRemoval = await shared.service.editStorageNetwork(shared.workspace.id, {
       action: 'remove', name: 'Primary SAN', expectedRevision: shared.workspace.revision,
     });

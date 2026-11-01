@@ -54,13 +54,17 @@ describe('configuration state regressions', () => {
   it('marks existing connections stale after a changed selection or configuration undo', async () => {
     const { service, session, ctx } = setup();
     const workspace = service.sessions.getWorkspace(session.id)!;
-    workspace.serverState.connections = [{ sourceId: session.configurationId, destinationId: 'switch', cablePart: 'CABLE' }];
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.serverState.connections = [{ sourceId: session.configurationId, destinationId: 'switch', cablePart: 'CABLE' }];
+    });
     vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [raw(2)] } } as never);
     await service.configure(session, [{ section: 'MEMORY', code: 'DIMM', quantity: 2 }], ctx);
     expect(workspace.serverState.connectionGraphInvalidation).toBeDefined();
     expect(() => buildExportData({ workspace, solution: workspace.solution, fileTypes: ['XML'], validationMode: 'guided' }))
       .toThrow('connection graph predates');
-    delete workspace.serverState.connectionGraphInvalidation;
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      delete draft.serverState.connectionGraphInvalidation;
+    });
     await service.undo(session, session.revision);
     expect(session.index.selected.get('DIMM')).toBe(1);
     expect(workspace.serverState.connectionGraphInvalidation).toBeDefined();

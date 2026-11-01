@@ -219,17 +219,19 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     const first = target.sessions.create(input('US__durable_a'));
     const rack = target.sessions.create(rackInput('US__durable_rack', first.workspaceId));
     const workspace = target.sessions.getWorkspace(first.id)!;
-    workspace.rackArea = [{
-      id: rack.configurationId, configurationId: rack.configurationId,
-      code: 'RACKCTO', type: 'rack', size: 42, lockedSpace: [],
-      rackItems: [{ ...physicalNode(first.configurationId, 1), configurationId: first.configurationId,
-        lowestPosition: 1, highestPosition: 42, defaultPosition: 1, lock: false,
-        rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [] }],
-    }];
-    workspace.serverState.cloneDependency = {
-      [first.configurationId]: [first.configurationId],
-      [rack.configurationId]: [rack.configurationId],
-    };
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [{
+        id: rack.configurationId, configurationId: rack.configurationId,
+        code: 'RACKCTO', type: 'rack', size: 42, lockedSpace: [],
+        rackItems: [{ ...physicalNode(first.configurationId, 1), configurationId: first.configurationId,
+          lowestPosition: 1, highestPosition: 42, defaultPosition: 1, lock: false,
+          rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [] }],
+      }];
+      draft.serverState.cloneDependency = {
+        [first.configurationId]: [first.configurationId],
+        [rack.configurationId]: [rack.configurationId],
+      };
+    });
     saveSessions(target.sessions, target.config);
     await target.cloneConfiguration({
       sessionHandle: first.id, count: 1, labelPrefix: 'Durable racked clone', placement: 'same-rack',
@@ -246,18 +248,20 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     rackInputValue.raw.name = 'Rack';
     const rack = target.sessions.create(rackInputValue);
     const workspace = target.sessions.getWorkspace(first.id)!;
-    workspace.rackArea = [{
-      id: rack.configurationId, configurationId: rack.configurationId,
-      code: 'RACKCTO', name: 'Rack', type: 'rack', size: 42, lockedSpace: [],
-      rackItems: [{ ...physicalNode(first.configurationId, 1), name: 'Server',
-        configurationId: first.configurationId, lowestPosition: 1, highestPosition: 42,
-        defaultPosition: 1, lock: false,
-        rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [] }],
-    }];
-    workspace.serverState.cloneDependency = {
-      [first.configurationId]: [first.configurationId],
-      [rack.configurationId]: [rack.configurationId],
-    };
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [{
+        id: rack.configurationId, configurationId: rack.configurationId,
+        code: 'RACKCTO', name: 'Rack', type: 'rack', size: 42, lockedSpace: [],
+        rackItems: [{ ...physicalNode(first.configurationId, 1), name: 'Server',
+          configurationId: first.configurationId, lowestPosition: 1, highestPosition: 42,
+          defaultPosition: 1, lock: false,
+          rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [] }],
+      }];
+      draft.serverState.cloneDependency = {
+        [first.configurationId]: [first.configurationId],
+        [rack.configurationId]: [rack.configurationId],
+      };
+    });
     saveSessions(target.sessions, target.config);
     await target.copyRackItem(first.id, {
       expectedRevision: workspace.revision,
@@ -268,12 +272,14 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
 
   const { first, second, workspace } = baseline(target);
   if (selected === 'rack-lock') {
-    workspace.rackArea[0]!.lockedSpace = [];
-    workspace.rackArea[0]!.rackItems = [{
-      ...physicalNode(first.configurationId, 1), configurationId: first.configurationId,
-      lowestPosition: 1, highestPosition: 42, defaultPosition: 1, lock: false,
-      rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [],
-    }];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea[0]!.lockedSpace = [];
+      draft.rackArea[0]!.rackItems = [{
+        ...physicalNode(first.configurationId, 1), configurationId: first.configurationId,
+        lowestPosition: 1, highestPosition: 42, defaultPosition: 1, lock: false,
+        rule: { mtMinMaxRule: null, productMinMaxRule: null }, nodes: [],
+      }];
+    });
     await target.setRackLock(first.id, {
       target: { itemId: first.configurationId }, locked: true,
       expectedRevision: workspace.revision, ctx: target.newCtx({ solution: workspace.solution }),
@@ -325,9 +331,11 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   }
   if (selected === 'pdu') {
     const rack = target.sessions.create(rackInput('US__durable_rack', workspace.id));
-    workspace.rackArea = [{
-      id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42, rackItems: [],
-    }];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [{
+        id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42, rackItems: [],
+      }];
+    });
     saveSessions(target.sessions, target.config);
     await target.configurePdu(workspace.id, rack.configurationId, {
       pduCode: 'PDU1', quantity: 2, expectedRevision: workspace.revision,
@@ -350,11 +358,13 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     return;
   }
   if (selected === 'layout-move') {
-    workspace.rackArea = [
-      { id: 'rack-source', code: 'RACKCTO', type: 'rack', size: 42,
-        rackItems: [physicalNode(first.configurationId, 8)] },
-      { id: 'rack-destination', code: 'RACKCTO', type: 'rack', size: 42, rackItems: [] },
-    ];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [
+        { id: 'rack-source', code: 'RACKCTO', type: 'rack', size: 42,
+          rackItems: [physicalNode(first.configurationId, 8)] },
+        { id: 'rack-destination', code: 'RACKCTO', type: 'rack', size: 42, rackItems: [] },
+      ];
+    });
     saveSessions(target.sessions, target.config);
     await target.placeInRack(workspace.id, {
       rackId: 'rack-destination', sessionId: first.id, position: 12,
@@ -364,8 +374,10 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   }
   if (selected === 'layout-remove-rack-unplace' || selected === 'layout-remove-rack-delete') {
     const rack = target.sessions.create(rackInput('US__durable_rack_remove', workspace.id));
-    workspace.rackArea = [{ id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42,
-      rackItems: [physicalNode(first.configurationId, 8)] }];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea = [{ id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42,
+        rackItems: [physicalNode(first.configurationId, 8)] }];
+    });
     saveSessions(target.sessions, target.config);
     await target.editLayout(workspace.id, {
       action: 'remove', configurationId: rack.id,
@@ -375,8 +387,10 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     return;
   }
   if (selected === 'layout-unplace' || selected === 'layout-remove' || selected === 'layout-arrange') {
-    workspace.rackArea[0]!.rackItems = [physicalNode(first.configurationId, 8)];
-    workspace.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea[0]!.rackItems = [physicalNode(first.configurationId, 8)];
+      draft.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
+    });
     saveSessions(target.sessions, target.config);
     if (selected === 'layout-unplace') {
       await target.editLayout(workspace.id, {
@@ -397,14 +411,16 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     return;
   }
   if (selected === 'config-close') {
-    workspace.rackArea[0]!.rackItems = [physicalNode(first.configurationId, 4)];
-    workspace.cables = [{
-      id: 'fixture-cable',
-      fromConfigId: first.configurationId, fromPort: 'eth0',
-      toConfigId: second.configurationId, toPort: 'eth1', cableCode: '3760',
-    }];
-    workspace.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
-    workspace.serverState.imports = [{ sourceId: first.configurationId, retained: true }];
+    await target.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.rackArea[0]!.rackItems = [physicalNode(first.configurationId, 4)];
+      draft.cables = [{
+        id: 'fixture-cable',
+        fromConfigId: first.configurationId, fromPort: 'eth0',
+        toConfigId: second.configurationId, toPort: 'eth1', cableCode: '3760',
+      }];
+      draft.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
+      draft.serverState.imports = [{ sourceId: first.configurationId, retained: true }];
+    });
     saveSessions(target.sessions, target.config);
     assert(await target.closeSession(first.id, first.revision), 'configuration close returned false');
     return;

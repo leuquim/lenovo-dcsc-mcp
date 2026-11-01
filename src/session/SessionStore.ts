@@ -69,7 +69,7 @@ import {
 } from './sessionSnapshots.js';
 import { errorMessage } from '../util/coerce.js';
 import { newId } from './ids.js';
-import { forgetDigest, sameValue } from './valueDigest.js';
+import { deepFreeze, forgetDigest, sameValue } from './valueDigest.js';
 
 export { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET };
 
@@ -1074,6 +1074,7 @@ export class SessionStore {
     original.createdAt = draft.createdAt;
     original.lastAccessAt = draft.lastAccessAt;
     original.pricedAt = draft.pricedAt;
+    freezePublishedValues(original);
   }
 
   /** Rebuilds canonical workspaces while retaining diagnostics for recovery. */
@@ -1393,4 +1394,15 @@ export class SessionStore {
     };
     return acquireNext();
   }
+}
+
+function freezePublishedValues(workspace: WorkspaceSession): void {
+  deepFreeze(workspace.rackArea);
+  deepFreeze(workspace.nonRackArea);
+  deepFreeze(workspace.serverState);
+  deepFreeze(workspace.rackSummaries);
+  deepFreeze(workspace.cables);
+  deepFreeze(workspace.floorItems);
+  deepFreeze(workspace.powerSelections);
+  for (const session of workspace.configurations.values()) deepFreeze(session.raw);
 }

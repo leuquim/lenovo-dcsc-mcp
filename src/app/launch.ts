@@ -101,11 +101,11 @@ export async function generateConfigId(rt: Runtime, handle?: string, ctx?: Reque
   if (!effectiveCtx) effectiveCtx = rt.newCtx();
   const result = await domainGenerateConfigId(rt.http, effectiveCtx);
 
-  if (session) {
-    session.raw.userGeneratedConfigId = result.configId;
-  }
-  if (workspace) {
-    workspace.serverState.userGeneratedConfigId = result.configId;
+  if (session || workspace) {
+    await rt.sessions.transact(session?.id ?? workspace!.id, {}, (draftWorkspace, draft) => {
+      if (draft) draft.raw.userGeneratedConfigId = result.configId;
+      if (workspace) draftWorkspace.serverState.userGeneratedConfigId = result.configId;
+    });
   }
 
   return result;

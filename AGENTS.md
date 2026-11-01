@@ -40,6 +40,7 @@ Parity target: [.docs/website-actions.md](.docs/website-actions.md) lists every 
 - **Browsers are headless.** Use the repo's Playwright Chromium.
 - **Live traffic is throttled and serial.** Anonymous requests only. No credentials, accounts or purchases.
 - **Tool responses stay small.** Keep responses under the conformance budget (8000 bytes). Return file paths for artifacts written through `src/files`, never file contents or base64.
+- **Published state is immutable.** Change workspace or configuration state only inside `sessions.transact(...)` on the draft; published values are deep-frozen and shared with history, and an in-place edit throws. Tests set up state the same way.
 - **Fail visibly.** Don't swallow upstream errors; report them through the central error handling.
 - **No compatibility shims.** Nothing depends on current tool names; rename, merge and delete freely.
 - **Commits go on a branch, through a PR.** Never push to `main`.

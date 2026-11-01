@@ -61,11 +61,13 @@ describe('storage definition creation', () => {
     const raw = { id: 'san-template', code: 'SAN', type: 'switch', quantity: 1, totalPrice: 100, tabs: [] };
     const san = service.sessions.create({ locale: workspace.locale, solution: workspace.solution, mode: 'cto',
       raw, configurationId: raw.id, reduced: reduceConfiguration(raw, raw.id), primed: true, workspaceId: workspace.id });
-    (workspace.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!.mainSwitch = {
-      id: raw.id, option: raw.code, featureCode: 'BASE', hardwareType: 'switch',
-    };
-    workspace.nonRackArea = [{ id: 'san-alias', code: 'SAN', type: 'switch', size: 1 }];
-    workspace.serverState.cloneDependency = { [raw.id]: [raw.id, 'san-alias'] };
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      (draft.serverState.storageConnectionNetworks as Array<Record<string, unknown>>)[0]!.mainSwitch = {
+        id: raw.id, option: raw.code, featureCode: 'BASE', hardwareType: 'switch',
+      };
+      draft.nonRackArea = [{ id: 'san-alias', code: 'SAN', type: 'switch', size: 1 }];
+      draft.serverState.cloneDependency = { [raw.id]: [raw.id, 'san-alias'] };
+    });
     const before = structuredClone({ raw: san.raw, state: workspace.serverState, physical: workspace.nonRackArea });
     const reply = await handlers.get('dcsc_edit_storage_network')!({ session: workspace.id, action: 'update',
       name: input.name, changes: { switchId: 'direct-attached' }, expectedRevision: workspace.revision });
@@ -91,8 +93,10 @@ describe('storage definition creation', () => {
   it('updates preferences through the registered tool with CAS, stale-graph protection and undo', async () => {
     const { service, workspace, handlers, send, catalog } = setup();
     await service.addStorageNetwork(workspace.id, { input, ctx: service.newCtx() });
-    workspace.serverState.connections = [{ id: 'prior-connection', network: 'Management',
-      from: { id: 'node', port: '1' }, to: { id: 'switch', port: '1' } }];
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.serverState.connections = [{ id: 'prior-connection', network: 'Management',
+        from: { id: 'node', port: '1' }, to: { id: 'switch', port: '1' } }];
+    });
     const before = structuredClone(workspace.serverState);
     const handler = handlers.get('dcsc_edit_storage_network')!;
     const missingCas = await handler({ session: workspace.id, action: 'update', name: input.name,

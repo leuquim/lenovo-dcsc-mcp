@@ -40,9 +40,11 @@ function setup() {
   } } as unknown as McpServer, service);
   return { service, session, workspace, catalog, send, handlers };
 }
-function setGraph(workspace: ReturnType<typeof setup>['workspace']) {
-  workspace.serverState.connections = [{ sourceId: 'node', destinationId: 'switch', cablePart: 'CABLE' }];
-  delete workspace.serverState.connectionGraphInvalidation;
+function setGraph(service: DcscService, workspace: ReturnType<typeof setup>['workspace']) {
+  return service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+    draft.serverState.connections = [{ sourceId: 'node', destinationId: 'switch', cablePart: 'CABLE' }];
+    delete draft.serverState.connectionGraphInvalidation;
+  });
 }
 
 describe('network preference consistency', () => {
@@ -74,11 +76,13 @@ describe('network preference consistency', () => {
 
   it('discovers and edits imported network preferences without resetting their device or other networks', async () => {
     const { service, workspace, handlers } = setup();
-    workspace.serverState.networkingInformation = { clusterPreference: [{
-      name: 'Imported Network', networkType: '1GbE_Copper', networkLayout: 'Centralized',
-      cableType: 'Cat5E', cableColor: 'Green', mainSwitch: { feature: 'B', option: 'SWITCH-B' },
-      trunks: 3, vlan: [], leafSwitch: {}, leafTrunks: 0,
-    }] };
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.serverState.networkingInformation = { clusterPreference: [{
+        name: 'Imported Network', networkType: '1GbE_Copper', networkLayout: 'Centralized',
+        cableType: 'Cat5E', cableColor: 'Green', mainSwitch: { feature: 'B', option: 'SWITCH-B' },
+        trunks: 3, vlan: [], leafSwitch: {}, leafTrunks: 0,
+      }] };
+    });
     const options = await handlers.get('dcsc_fabric_options')!({ session: workspace.id,
       collection: 'networkTypes', offset: 0, limit: 20 });
     expect(options.isError).not.toBe(true);
@@ -100,7 +104,7 @@ describe('network preference consistency', () => {
     const { service, workspace, handlers, catalog } = setup();
     await service.setNetworkPreferences(workspace.id, { selections: [{ networkTypeId: 'network:Management',
       mainDeviceId: 'device:B' }], ctx: service.newCtx() });
-    setGraph(workspace);
+    await setGraph(service, workspace);
     const handler = handlers.get('dcsc_set_network_preferences')!;
     const revision = workspace.revision;
     const reply = await handler({ session: workspace.id, selections: [
@@ -125,10 +129,12 @@ describe('network preference consistency', () => {
     const { service, workspace, send } = setup();
     const selections = [{ networkTypeId: 'network:Management', mainDeviceId: 'device:B' }];
     await service.setNetworkPreferences(workspace.id, { selections, ctx: service.newCtx() });
-    setGraph(workspace);
+    await setGraph(service, workspace);
     const same = await service.setNetworkPreferences(workspace.id, { selections, ctx: service.newCtx() });
     expect(same).toMatchObject({ connectionGraphStale: false, autoConnectRequired: false });
-    workspace.nonRackArea = [{ id: 'node', code: 'SERVER', type: 'server', size: 1 }];
+    await service.sessions.transact(workspace.id, { history: 'restore' }, draft => {
+      draft.nonRackArea = [{ id: 'node', code: 'SERVER', type: 'server', size: 1 }];
+    });
     const before = structuredClone(workspace.serverState);
     const revision = workspace.revision;
     send.mockRejectedValue(new Error('connection calculation failed'));
@@ -140,19 +146,19 @@ describe('network preference consistency', () => {
   });
 
   it('invalidates the graph after topology or role changes and preserves it on repeat selection', async () => {
-    const { session, workspace, handlers } = setup();
-    setGraph(workspace);
+    const { service, session, workspace, handlers } = setup();
+    await setGraph(service, workspace);
     const topology = handlers.get('dcsc_set_topology')!;
     const input = { session: session.id, topology: '1GbE_Copper', networkName: 'Management', autoConnect: false };
     const changed = JSON.parse((await topology(input)).content[0]!.text);
     expect(changed).toMatchObject({ connectionGraphStale: true, workspace: workspace.id,
       regenerateConnections: { arguments: { expectedRevision: workspace.revision } } });
-    setGraph(workspace);
+    await setGraph(service, workspace);
     expect(JSON.parse((await topology(input)).content[0]!.text).connectionGraphStale).toBe(false);
     const role = handlers.get('dcsc_set_node_role')!;
     const selected = JSON.parse((await role({ session: session.id, role: 'Compute' })).content[0]!.text);
     expect(selected.connectionGraphStale).toBe(true);
-    setGraph(workspace);
+    await setGraph(service, workspace);
     expect(JSON.parse((await role({ session: session.id, role: 'Compute' })).content[0]!.text).connectionGraphStale).toBe(false);
   });
 });

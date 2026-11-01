@@ -1220,11 +1220,13 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       expect(configId).toBe(mockConfigId);
 
       // Step 7: Scale quantity to 3 units unracked
-      session.raw.quantity = 3;
+      await service.sessions.transact(session.id, {}, (draftWorkspace, draft) => {
+        draft!.raw.quantity = 3;
+        draftWorkspace.nonRackArea = [
+          { id: draft!.raw.id!, code: draft!.raw.code, type: 'server', size: 1, quantity: 3, originalIds: [draft!.raw.id!] },
+        ];
+      });
       const ws = service.sessions.getWorkspace(session.workspaceId)!;
-      ws.nonRackArea = [
-        { id: session.raw.id!, code: session.raw.code, type: 'server', size: 1, quantity: 3, originalIds: [session.raw.id!] },
-      ];
 
       // Step 8: Export solution bundle (verifying physical auto-expansion)
       const exported = buildExportData({

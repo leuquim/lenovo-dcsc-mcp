@@ -51,7 +51,9 @@ describe('service action history', () => {
       }),
     ]);
 
-    session.raw.selectedTopologies = { Alpha: { value: 1 }, Beta: { value: 2 } };
+    await service.sessions.transact(session.id, { history: 'restore' }, (_workspace, draft) => {
+      draft!.raw.selectedTopologies = { Alpha: { value: 1 }, Beta: { value: 2 } };
+    });
     const reordered = raw(2);
     reordered.selectedTopologies = { Beta: { value: 2 }, Alpha: { value: 1 } };
     send.mockResolvedValueOnce({ raw: { configurations: [reordered] } } as never);
