@@ -44,16 +44,16 @@ describe('bounded auto-connect tool result', () => {
       connections: [{ network: 'Management', sourceId: 'server', destinationId: 'switch', cablePart: 'DAC' }],
       configurations: [], errors: [],
     } } as never);
-    const reply = await handlers.get('dcsc_add_cabling')!({ session: workspace.id, mode: 'auto' });
+    const reply = await handlers.get('dcsc_auto_connect')!({ session: workspace.id });
     expect(reply.isError).not.toBe(true);
     const result = json(reply);
     expect(result).toMatchObject({ connectionCount: 1, diagnostics: {
       requestedNetworkCount: 2, requestedNetworksWithoutConnections: 1, completeness: 'unverified',
     } });
     const pages = result['pages'] as Record<string, { inspect: Link }>;
-    const inspection = await handlers.get('dcsc_workspace_layout')!(pages['diagnostics']!.inspect.arguments);
+    const inspection = await handlers.get('dcsc_workspace_get')!(pages['diagnostics']!.inspect.arguments);
     expect(inspection.isError).not.toBe(true);
-    const networks = json(await handlers.get('dcsc_workspace_layout')!({
+    const networks = json(await handlers.get('dcsc_workspace_get')!({
       ...pages['diagnostics']!.inspect.arguments, path: ['cablingDiagnostics', 'networks'],
     }));
     expect(JSON.stringify(networks)).toContain('no_connections');
@@ -70,7 +70,7 @@ describe('bounded auto-connect tool result', () => {
         destinationId: 'server', destinationPortName: 'B', destinationPortNumber: '2', cablePart: 'DAC' }],
       errors: [],
     } } as never);
-    const reply = await handlers.get('dcsc_add_cabling')!({ session: workspace.id, mode: 'auto' });
+    const reply = await handlers.get('dcsc_auto_connect')!({ session: workspace.id });
     const result = json(reply);
     expect(result['compacted']).toBeUndefined();
     expect(result).toMatchObject({
@@ -95,7 +95,7 @@ describe('bounded auto-connect tool result', () => {
       nonRackArea: workspace.nonRackArea, configurations: [], connections: rawConnections, errors: [],
     } } as never);
 
-    const cablingReply = await handlers.get('dcsc_add_cabling')!({ session: workspace.id, mode: 'auto' });
+    const cablingReply = await handlers.get('dcsc_auto_connect')!({ session: workspace.id });
     const cabling = json(cablingReply);
     expect(Buffer.byteLength(cablingReply.content[0]!.text)).toBeLessThan(8_000);
     expect(cabling).toMatchObject({
@@ -107,7 +107,7 @@ describe('bounded auto-connect tool result', () => {
     });
 
     const pages = cabling['pages'] as Record<string, { inspect: Link }>;
-    const layout = handlers.get('dcsc_workspace_layout')!;
+    const layout = handlers.get('dcsc_workspace_get')!;
     const rawPageReply = await layout(pages['rawConnections']!.inspect.arguments);
     const rawPage = json(rawPageReply);
     expect(rawPage).toMatchObject({ path: ['rawConnections'], total: 90 });
@@ -122,34 +122,4 @@ describe('bounded auto-connect tool result', () => {
       expect.objectContaining({ key: 'messages', type: 'array' }),
     ]));
   });
-});
-
-
-it.each([undefined, 'auto'])('rejects manual endpoints before default/explicit Auto-Connect (%s)', async mode => {
-  const { service, workspace, handlers } = setup();
-  const send = vi.spyOn(service.http, 'send');
-  const before = JSON.stringify(service.sessions.listWorkspaces());
-  const reply = await handlers.get('dcsc_add_cabling')!({ session: workspace.id,
-    ...(mode ? { mode } : {}), fromConfigId: 'server', fromPort: '1', toConfigId: 'switch', toPort: '2' });
-  expect(reply.isError).toBe(true);
-  expect(reply.content[0]!.text).toContain('excluded from Lenovo exports');
-  expect(reply.content[0]!.text).toContain('dcsc_edit_cabling_connection');
-  expect(send).not.toHaveBeenCalled();
-  expect(JSON.stringify(service.sessions.listWorkspaces())).toBe(before);
-});
-
-
-it('discovers native configuration IDs for an explicit local planning link', async () => {
-  const { service, workspace, handlers } = setup();
-  const send = vi.spyOn(service.http, 'send');
-  const listing = json(await handlers.get('dcsc_session_list')!({ session: workspace.id, offset: 0, limit: 15 }));
-  const listed = (listing['sessions'] as Array<{ session: string; configurationId: string }>)[0]!;
-  expect(listed.configurationId).toBe('server');
-  expect(listed.session).not.toBe(listed.configurationId);
-  const reply = await handlers.get('dcsc_add_cabling')!({ session: listed.session, mode: 'manual',
-    fromConfigId: listed.configurationId, fromPort: 'RJ45-1', toConfigId: listed.configurationId,
-    toPort: 'RJ45-mgmt', cableCode: '6400', description: 'Management Jumper' });
-  expect(reply.isError).not.toBe(true);
-  expect(json(reply)).toMatchObject({ mode: 'manual', includedInLenovoExport: false });
-  expect(send).not.toHaveBeenCalled();
 });

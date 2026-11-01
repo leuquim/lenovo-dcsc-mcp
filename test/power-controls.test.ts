@@ -144,16 +144,16 @@ it('discovers bounded choices through the tool and invalidates navigation after 
     handlers.set(name, handler);
   } } as unknown as McpServer, service);
   first.raw.powerPolicies = Array.from({ length: 100 }, (_, index) => ({ value: index, description: `Policy ${index} `.repeat(500) }));
-  const args = { session: first.id, path: [], offset: 0, limit: 20 };
-  const reply = await handlers.get('dcsc_power_controls')!(args);
+  const args = { session: first.id, section: 'controls', path: [], offset: 0, limit: 20 };
+  const reply = await handlers.get('dcsc_power_get')!(args);
   expect(reply.isError).not.toBe(true);
   expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(7_500);
   const page = JSON.parse(reply.content[0]!.text) as { items: Array<{ key: string; next?: { arguments: Obj } }> };
   const continuation = page.items.find(item => item.key === 'policies')!.next!;
   expect(continuation.arguments['expectedRevision']).toBe(workspace.revision);
   vi.spyOn(service.http, 'send').mockResolvedValue({ raw: fixture.response } as never);
-  const saved = await handlers.get('dcsc_set_power_controls')!({ session: first.id,
+  const saved = await handlers.get('dcsc_power_set')!({ session: first.id,
     expectedRevision: workspace.revision, voltage: '230V@AC', loadFactor: 100 });
   expect(saved.isError).not.toBe(true);
-  expect((await handlers.get('dcsc_power_controls')!(continuation.arguments)).isError).toBe(true);
+  expect((await handlers.get('dcsc_power_get')!(continuation.arguments)).isError).toBe(true);
 });

@@ -751,7 +751,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 1. VLH Wizard Info
       const wizRes = await client.callTool({
-        name: 'dcsc_vlh_wizard_info',
+        name: 'dcsc_vlh_get',
         arguments: {},
       });
       const wizData = parseResult(wizRes);
@@ -760,7 +760,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 2. VLH Attributes
       const attrRes = await client.callTool({
-        name: 'dcsc_vlh_attributes',
+        name: 'dcsc_vlh_get',
         arguments: { code: '7D73CTO1WW' },
       });
       const attrData = parseResult(attrRes);
@@ -769,15 +769,15 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 3. Virtual Containers Compatibility & Rules
       const compRes = await client.callTool({
-        name: 'dcsc_virtual_container_compatible_products',
-        arguments: { session: session.workspaceId },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: session.workspaceId, check: 'compatibleProducts' },
       });
       const compData = parseResult(compRes);
       expect(compData['categories']).toHaveLength(1);
 
       const rulesRes = await client.callTool({
-        name: 'dcsc_virtual_container_check_rules',
-        arguments: { session: session.workspaceId },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: session.workspaceId, check: 'rules' },
       });
       const rulesData = parseResult(rulesRes);
       expect(rulesData['rules']).toEqual([]);
@@ -1119,7 +1119,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 1. Inspect VLH physical constraints
       const vlhRes = await client.callTool({
-        name: 'dcsc_vlh_attributes',
+        name: 'dcsc_vlh_get',
         arguments: { code: '7D73CTO1WW' },
       });
       const vlhData = parseResult(vlhRes);
@@ -1253,7 +1253,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 3: Query VLH wizard info for liquid-cooling topologies
       const vlhWizRes = await client.callTool({
-        name: 'dcsc_vlh_wizard_info',
+        name: 'dcsc_vlh_get',
         arguments: {},
       });
       const wizInfo = parseResult(vlhWizRes);
@@ -1261,7 +1261,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 4: Query VLH physical attributes for server chassis
       const vlhAttrRes = await client.callTool({
-        name: 'dcsc_vlh_attributes',
+        name: 'dcsc_vlh_get',
         arguments: { code: session.product.code },
       });
       const attrs = parseResult(vlhAttrRes);
@@ -1269,14 +1269,14 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 5: Evaluate virtual container compatibility and multi-product rules
       const compRes = await client.callTool({
-        name: 'dcsc_virtual_container_compatible_products',
-        arguments: { session: session.workspaceId },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: session.workspaceId, check: 'compatibleProducts' },
       });
       expect(parseResult(compRes)['categories']).toHaveLength(1);
 
       const rulesRes = await client.callTool({
-        name: 'dcsc_virtual_container_check_rules',
-        arguments: { session: session.workspaceId },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: session.workspaceId, check: 'rules' },
       });
       expect(parseResult(rulesRes)['rules']).toEqual([]);
 

@@ -47,12 +47,13 @@ import {
   assertWorkspaceRevision,
   linkedGroup,
 } from './serviceHelpers.js';
-import { newId } from '../session/ids.js';
 import { autoDerivePath } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
 import { workspaceId } from './runtime.js';
 import { acceptDerivedWorkspaceConfigurations, autoConnectDraft, manualCablingInput, workspaceNetworkState } from './workspaceRefresh.js';
+import { newId } from '../session/ids.js';
 import { configureDraft } from './launch.js';
+import { errorMessage } from '../util/coerce.js';
 
 /**
  * Runs DCSC auto-connect and replaces the workspace cable list with the
@@ -393,6 +394,59 @@ export async function editManualCabling(rt: Runtime, handle: string, edit: Manua
     ...(configurationChange ? { configurationChange } : {}) };
 }
 
+export interface CablingCandidate extends Omit<NativeManualConnectionRequest, 'cablePart' | 'pinExistingRoutes'> {
+  expectedRevision: number;
+}
+
+/** Reads the cable configuration panel: the connection list, one connection's refreshed cable choices, or the cable choices for a new connection. */
+export async function inspectCabling(rt: Runtime, handle: string, opts: {
+  expectedRevision?: number | undefined; refreshConnectionId?: string | undefined;
+  candidate?: Omit<CablingCandidate, 'expectedRevision'> | undefined; ctx: RequestCtx;
+}) {
+  if (opts.candidate !== undefined && opts.refreshConnectionId !== undefined) {
+    throw new Error('Pass either candidate or refreshConnectionId, not both.');
+  }
+  if (opts.candidate !== undefined) {
+    if (opts.expectedRevision === undefined) throw new Error('expectedRevision is required to look up cable choices for a new connection.');
+    return inspectNativeManualCabling(rt, handle, { ...opts.candidate, expectedRevision: opts.expectedRevision, ctx: opts.ctx });
+  }
+  if (opts.refreshConnectionId !== undefined) {
+    return inspectManualCableChoices(rt, handle, opts.refreshConnectionId, opts.expectedRevision, opts.ctx);
+  }
+  return inspectManualCabling(rt, handle, opts.expectedRevision);
+}
+
+export type CablingChange =
+  | ({ action: 'create' } & NativeManualConnectionRequest)
+  | ({ action: 'edit' } & ManualConnectionEdit);
+
+/** Applies connection changes in order, each against the revision the previous one produced. */
+export async function applyCablingChanges(rt: Runtime, handle: string, changes: readonly CablingChange[],
+  expectedRevision: number, ctx: RequestCtx) {
+  let revision = expectedRevision;
+  const results: Array<{ action: CablingChange['action'];
+    result: Awaited<ReturnType<typeof createNativeManualCabling>> | Awaited<ReturnType<typeof editManualCabling>> }> = [];
+  for (const [index, change] of changes.entries()) {
+    try {
+      const result = change.action === 'create'
+        ? await createNativeManualCabling(rt, handle, { ...omitAction(change), expectedRevision: revision, ctx })
+        : await editManualCabling(rt, handle, { ...omitAction(change), expectedRevision: revision, ctx });
+      revision = result.revision;
+      results.push({ action: change.action, result });
+    } catch (error) {
+      if (index === 0) throw error;
+      throw new Error(`Change ${index + 1} of ${changes.length} failed after ${index} were applied ` +
+        `(workspace revision now ${revision}): ${errorMessage(error)}`);
+    }
+  }
+  return { workspace: workspaceId(rt, handle), revision, results };
+}
+
+function omitAction<T extends { action: string }>(change: T): Omit<T, 'action'> {
+  const { action: _action, ...rest } = change;
+  return rest;
+}
+
 /** Local planning annotation; excluded from the authoritative export connection graph. */
 export async function addManualCabling(rt: Runtime, sessionHandle: string, cable: Omit<CableLink, 'id'>, expectedRevision?: number): Promise<CableLink> {
   return rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
@@ -427,6 +481,7 @@ export async function applyTopology(rt: Runtime, opts: {
 }> {
   const session = rt.sessions.get(opts.sessionHandle);
   if (!session) throw new Error(`Session ${opts.sessionHandle} not found`);
+  const inWorkspace = workspaceId(rt, opts.sessionHandle);
 
   const fabric = await rt.fabricOptions(opts.ctx, session.solution);
   const match = fabric.topologies.find(
@@ -434,7 +489,7 @@ export async function applyTopology(rt: Runtime, opts: {
   );
   if (!match) {
     throw new Error(
-      `Unknown topology "${opts.topology}". Use dcsc_fabric_options for valid shortNames ` +
+      `Unknown topology "${opts.topology}". Use dcsc_network_get for valid shortNames ` +
         `(e.g. ${fabric.topologies
           .slice(0, 8)
           .map((t) => t.shortName)
@@ -444,7 +499,8 @@ export async function applyTopology(rt: Runtime, opts: {
 
   const transaction = { expectedRevision: opts.expectedRevision, remoteApplied: false,
     actionHistory: updateHistoryFactory(session.configurationId) };
-  return rt.sessions.transact(session.id, transaction, async (workspace, draft) => {
+  return rt.sessions.transact(inWorkspace, transaction, async (workspace) => {
+    const draft = workspace.configurations.get(session.id);
     if (!draft) throw new Error('Choose a configuration handle for topology selection.');
     const selected = buildSelectedTopologies(draft.raw, { ...fabric,
       networkTypes: workspaceNetworkTypes(fabric, workspace.serverState) }, {

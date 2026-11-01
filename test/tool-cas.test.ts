@@ -106,12 +106,11 @@ describe('mutating tool revision contracts', () => {
     ['dcsc_session_close', {}],
     ['dcsc_add_rack', { rackCode: 'NODE' }],
     ['dcsc_place_in_rack', { rackId: 'US__node', configuration: 'missing' }],
-    ['dcsc_add_cabling', { mode: 'auto' }],
-    ['dcsc_add_cabling', { mode: 'manual', fromConfigId: 'US__node', toConfigId: 'US__node', fromPort: '1', toPort: '2' }],
+    ['dcsc_auto_connect', {}],
     ['dcsc_place_on_floor', { rackId: 'US__node', x: 0, y: 0 }],
     ['dcsc_clone_configuration', { count: 1 }],
     ['dcsc_configure_pdu', { rackId: 'US__node', pduCode: 'PDU', quantity: 1 }],
-    ['dcsc_set_node_role', { role: 'Compute' }],
+    ['dcsc_network_set', { change: { kind: 'nodeRole', role: 'Compute' } }],
   ])('%s rejects stale revisions before changing state', async (name, args) => {
     const { service, session, workspace, handlers, schemas, send } = setup();
     expect(schemas.get(name)).toHaveProperty('expectedRevision');
@@ -127,7 +126,7 @@ describe('mutating tool revision contracts', () => {
   it.each([
     ['dcsc_set_quantity', { quantity: 2 }, { quantity: 3 }],
     ['dcsc_clone_configuration', { count: 1 }, { count: 2 }],
-    ['dcsc_set_node_role', { role: 'Compute' }, { role: 'Storage' }],
+    ['dcsc_network_set', { change: { kind: 'nodeRole', role: 'Compute' } }, { change: { kind: 'nodeRole', role: 'Storage' } }],
     ['dcsc_place_on_floor', { rackId: 'US__node', x: 0, y: 0 }, { rackId: 'US__node', x: 1, y: 0 }],
   ])('%s commits exactly once for concurrent calls at the same revision', async (name, first, second) => {
     const { session, workspace, handlers } = setup();

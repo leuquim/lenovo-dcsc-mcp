@@ -227,20 +227,18 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
   });
 
   describe('mcp: vlhTools', () => {
-    it('registers all 4 tools on the MCP server', async () => {
+    it('registers both tools on the MCP server', async () => {
       const service = createTestService();
       const { client } = await createConnectedVlhHarness(service);
 
       const { tools } = await client.listTools();
       const toolNames = tools.map((t) => t.name);
 
-      expect(toolNames).toContain('dcsc_vlh_wizard_info');
-      expect(toolNames).toContain('dcsc_vlh_attributes');
-      expect(toolNames).toContain('dcsc_virtual_container_compatible_products');
-      expect(toolNames).toContain('dcsc_virtual_container_check_rules');
+      expect(toolNames).toContain('dcsc_vlh_get');
+      expect(toolNames).toContain('dcsc_virtual_container_get');
     });
 
-    it('dcsc_vlh_wizard_info executes and returns wizard data', async () => {
+    it('dcsc_vlh_get executes and returns wizard data', async () => {
       const service = createTestService();
       vi.spyOn(service.http, 'send').mockResolvedValueOnce({
         status: 200,
@@ -250,7 +248,7 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       const { client } = await createConnectedVlhHarness(service);
 
       const res = await client.callTool({
-        name: 'dcsc_vlh_wizard_info',
+        name: 'dcsc_vlh_get',
         arguments: {},
       });
 
@@ -259,7 +257,7 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       expect(parsed).toEqual(mockWizardInfo);
     });
 
-    it('dcsc_vlh_attributes executes and returns physical specifications', async () => {
+    it('dcsc_vlh_get with a code executes and returns physical specifications', async () => {
       const service = createTestService();
       vi.spyOn(service.http, 'send').mockResolvedValueOnce({
         status: 200,
@@ -269,7 +267,7 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       const { client } = await createConnectedVlhHarness(service);
 
       const res = await client.callTool({
-        name: 'dcsc_vlh_attributes',
+        name: 'dcsc_vlh_get',
         arguments: { code: '7D73CTO1WW' },
       });
 
@@ -279,7 +277,7 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       expect(parsed.attributes.PRODUCT_TYPE).toBe('SERVER');
     });
 
-    it('dcsc_virtual_container_compatible_products executes and supports parameter aliasing', async () => {
+    it('dcsc_virtual_container_get executes compatibleProducts', async () => {
       const service = createTestService();
       const { workspace } = setupWorkspace(service);
       vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -289,33 +287,32 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       } as never);
       const { client } = await createConnectedVlhHarness(service);
 
-      // Call using 'session' parameter
       const resSession = await client.callTool({
-        name: 'dcsc_virtual_container_compatible_products',
-        arguments: { session: workspace.id },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: workspace.id, check: 'compatibleProducts' },
       });
       expect(resSession.isError).toBeFalsy();
       const parsedSession = JSON.parse(textContent(resSession));
-      expect(parsedSession.workspace).toBe(workspace.id);
+      expect(parsedSession.session).toBe(workspace.id);
       expect(parsedSession.categories).toEqual(mockCategories);
     });
 
-    it('dcsc_virtual_container_compatible_products enforces expectedRevision CAS check', async () => {
+    it('dcsc_virtual_container_get enforces expectedRevision CAS check', async () => {
       const service = createTestService();
       const { workspace } = setupWorkspace(service);
       const { client } = await createConnectedVlhHarness(service);
 
       const res = await client.callTool({
-        name: 'dcsc_virtual_container_compatible_products',
-        arguments: { session: workspace.id, expectedRevision: 9999 },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: workspace.id, expectedRevision: 9999, check: 'compatibleProducts' },
       });
 
       expect(res.isError).toBe(true);
       const text = textContent(res);
-      expect(text).toContain('Workspace revision conflict');
+      expect(text).toMatch(/revision conflict/i);
     });
 
-    it('dcsc_virtual_container_check_rules executes and handles missing workspace cleanly', async () => {
+    it('dcsc_virtual_container_get rules executes and handles missing workspace cleanly', async () => {
       const service = createTestService();
       const { workspace } = setupWorkspace(service);
       vi.spyOn(service.http, 'send').mockResolvedValueOnce({
@@ -326,8 +323,8 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       const { client } = await createConnectedVlhHarness(service);
 
       const res = await client.callTool({
-        name: 'dcsc_virtual_container_check_rules',
-        arguments: { session: workspace.id },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: workspace.id, check: 'rules' },
       });
       expect(res.isError).toBeFalsy();
       const parsed = JSON.parse(textContent(res));
@@ -335,8 +332,8 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
 
       // Missing workspace session
       const resMissing = await client.callTool({
-        name: 'dcsc_virtual_container_check_rules',
-        arguments: { session: 'nonexistent-session-id' },
+        name: 'dcsc_virtual_container_get',
+        arguments: { session: 'nonexistent-session-id', check: 'rules' },
       });
       expect(resMissing.isError).toBe(true);
       const missingText = textContent(resMissing);

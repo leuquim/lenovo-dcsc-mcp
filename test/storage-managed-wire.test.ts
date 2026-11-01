@@ -264,7 +264,7 @@ it('moves one existing storage alias while retaining its template, sibling and c
     return { raw: { rackArea: body.rackArea, nonRackArea: body.nonRackArea, connections: [], errors: [] } } as never;
   });
   await expect(service.placeInRack(workspace.id, { rackId: 'rack', sessionId: controller.id, ctx: service.newCtx() }))
-    .rejects.toThrow('dcsc_place_storage_network');
+    .rejects.toThrow('dcsc_storage_set');
   expect(send).not.toHaveBeenCalled();
   await service.placeInRack(workspace.id, { rackId: 'rack', sessionId: 'controller-2', position: 8,
     expectedRevision: revision, ctx: service.newCtx() });

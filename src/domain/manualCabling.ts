@@ -300,7 +300,7 @@ function findPort(ports: ManualPortChoice[], endpoint: ManualConnectionEndpointP
     choice.name === endpoint.portName && choice.number === endpoint.portNumber &&
     (!topology || choice.topologies.length === 0 || choice.topologies.includes(topology)));
   if (matches.length !== 1) {
-    throw new Error(`Endpoint ${endpoint.configurationId} ${endpoint.portName} - ${endpoint.portNumber} is not one selectable ${topology || 'network'} port. Inspect dcsc_cabling_connections again.`);
+    throw new Error(`Endpoint ${endpoint.configurationId} ${endpoint.portName} - ${endpoint.portNumber} is not one selectable ${topology || 'network'} port. Inspect dcsc_cabling_get again.`);
   }
   return matches[0]!;
 }

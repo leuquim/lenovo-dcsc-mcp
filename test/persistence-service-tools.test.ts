@@ -176,11 +176,10 @@ describe('registered tool persistence diagnostics', () => {
     const writer = vi.fn(() => { throw new Error('SECRET_NETWORK_PATH: read only'); });
     service.sessions.setPersistenceWriter(writer);
 
-    const reply = await handlers.get('dcsc_set_network_preferences')!({
+    const reply = await handlers.get('dcsc_network_set')!({
       session: workspace.id,
       expectedRevision: workspace.revision,
-      autoConnect: false,
-      selections: [{ networkTypeId: 'network-type:management' }],
+      change: { kind: 'preferences', autoConnect: false, selections: [{ networkTypeId: 'network-type:management' }] },
     });
 
     expect(reply.isError).toBe(true);

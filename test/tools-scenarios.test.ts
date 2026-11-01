@@ -208,7 +208,7 @@ describe('tool power accounting', () => {
       emptyWeightKg: 0, totalWeightKg: 0, items, errors: [] }] as unknown as WorkspaceSession['rackSummaries'];
     ws.serverState.cloneDependency = { [controller.configurationId]: [controller.configurationId, 'physical-1', 'physical-2'] };
     const handlers = register(fakeService([ws]));
-    const power = parse(await handlers.get('dcsc_power')!({ session: ws.id }));
+    const power = parse(await handlers.get('dcsc_power_get')!({ session: ws.id }));
     expect(power).toMatchObject({ total: { maxKW: 5 }, perConfiguration: [{ salesQuantity: 2 }],
       perRack: [{ maxKW: 5, physicallyPlacedUnits: 2 }], unplacedSalesUnits: [] });
     expect(parse(await handlers.get('dcsc_compare_scenarios')!({ sessions: [ws.id] }))).toMatchObject({
@@ -229,7 +229,7 @@ describe('tool power accounting', () => {
       type: 'storage', price: 22000, maxPowerW: 4000 }).raw;
     firstPhysical.id = secondPhysical.id = controller.configurationId;
     ws.serverState.storagePhysicalConfigurations = { 'physical-1': firstPhysical, 'physical-2': secondPhysical };
-    expect(parse(await handlers.get('dcsc_power')!({ session: ws.id }))).toMatchObject({
+    expect(parse(await handlers.get('dcsc_power_get')!({ session: ws.id }))).toMatchObject({
       total: { maxKW: 7 }, perRack: [{ maxKW: 7 }], perConfiguration: [{ salesQuantity: 2, physicalInstances: [
         { physicalId: 'physical-1', power: { inputPowerW: { max: 3000 } } },
         { physicalId: 'physical-2', power: { inputPowerW: { max: 4000 } } },
@@ -252,7 +252,7 @@ describe('tool power accounting', () => {
       scenarios: [{ listPrice: null, priceAvailable: false, knownListPriceSubtotal: 21000,
         powerAvailable: false, knownPowerSubtotal: { maxKW: 3 } }],
     });
-    expect(parse(await handlers.get('dcsc_power')!({ session: ws.id }))).toMatchObject({
+    expect(parse(await handlers.get('dcsc_power_get')!({ session: ws.id }))).toMatchObject({
       totalPowerAvailable: false, knownPowerSubtotal: { maxKW: 3 }, perRack: [{ powerAvailable: false, knownPowerSubtotal: { maxKW: 3 } }],
     });
   });
@@ -264,7 +264,7 @@ describe('tool power accounting', () => {
       sizeU: 42, usedU: 2, freeU: 40, errors: [], items: [known, unknown].map((config, index) => ({
         id: config.configurationId, code: config.product.code, position: index + 1, endPosition: index + 1, sizeU: 1,
       })) }]);
-    const result = parse(await register(fakeService([ws])).get('dcsc_power')!({ session: ws.id }));
+    const result = parse(await register(fakeService([ws])).get('dcsc_power_get')!({ session: ws.id }));
     expect(result).toMatchObject({ totalPowerAvailable: false, missingPowerConfigurations: ['unknown'],
       knownPowerSubtotal: { maxKW: 1 }, perRack: [{ powerAvailable: false,
         missingPowerConfigurations: ['unknown'], knownPowerSubtotal: { maxKW: 1 } }] });
@@ -279,7 +279,7 @@ describe('tool power accounting', () => {
     const ws = workspace('managed', [node, controller]);
     ws.serverState.storageConnectionNetworks = [{ name: 'SAN', controller: { id: controller.configurationId } }];
     const handlers = register(fakeService([ws]));
-    const power = handlers.get('dcsc_power')!;
+    const power = handlers.get('dcsc_power_get')!;
     const compare = handlers.get('dcsc_compare_scenarios')!;
     const workspacePower = parse(await power({ session: ws.id }));
     expect(workspacePower.total).toMatchObject({ maxKW: 1 });
@@ -343,7 +343,7 @@ describe('tool power accounting', () => {
         errors: [],
       },
     ]);
-    const handler = register(fakeService([ws])).get('dcsc_power');
+    const handler = register(fakeService([ws])).get('dcsc_power_get');
     if (!handler) throw new Error('power tool not registered');
 
     const body = parse(await handler({ session: ws.id }));
@@ -483,12 +483,12 @@ describe('configuration targeting and mutation', () => {
     const node = configuration({ id: 'node', workspaceId: 'role-workspace' });
     const service = fakeService([workspace('role-workspace', [node])]);
     const transact = vi.spyOn(service.sessions, 'transact');
-    const handler = register(service).get('dcsc_set_node_role');
+    const handler = register(service).get('dcsc_network_set');
     if (!handler) throw new Error('node role tool not registered');
 
-    const body = parse(await handler({ session: node.id, role: 'compute' }));
+    const body = parse(await handler({ session: node.id, change: { kind: 'nodeRole', role: 'compute' } }));
     expect(transact).toHaveBeenCalledOnce();
-    expect(transact.mock.calls[0]?.[0]).toBe(node.id);
+    expect(transact.mock.calls[0]?.[0]).toBe('role-workspace');
     expect(node.raw.nodeRole).toBe('Compute');
     expect(body).toMatchObject({ session: node.id, nodeRole: 'Compute' });
   });

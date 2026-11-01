@@ -32,6 +32,7 @@ import {
   addStorageConnectionNetwork,
   editStorageConnectionNetwork,
   readStorageConnectionNetworks,
+  storageConnectionNetworkSource,
   storagePhysicalTemplateIds,
   storageDependencyColors,
   type StorageNetworkInput,
@@ -222,7 +223,7 @@ export async function placeStorageNetwork(rt: Runtime, handle: string, opts: {
     const networkState = workspaceNetworkState(draft);
     if (readAutoConnectSettings(draft.serverState).autoAddPDU === true &&
         (!Array.isArray(networkState.powerPreference) || networkState.powerPreference.length === 0)) {
-      throw new Error('Automated Rack PDU is enabled without a PDU preference. Set dcsc_add_cabling settings.autoAddPDU=false before placing storage, or configure a PDU preference.');
+      throw new Error('Automated Rack PDU is enabled without a PDU preference. Set dcsc_auto_connect settings.autoAddPDU=false before placing storage, or configure a PDU preference.');
     }
     const components: StoragePlacementComponent[] = [];
     const templates: Array<{ session: string; configurationId: string; created: boolean }> = [];
@@ -399,8 +400,9 @@ export async function assignStorageNetwork(rt: Runtime, handle: string, opts: {
   }
   const session = resolved.session;
   let connectionCount: number | undefined;
-  await rt.sessions.transact(session.id, { expectedRevision: opts.expectedRevision, remoteApplied: true,
-    actionHistory: updateHistoryFactory(session.configurationId) }, async (workspace, draft) => {
+  await rt.sessions.transact(resolved.workspace.id, { expectedRevision: opts.expectedRevision, remoteApplied: true,
+    actionHistory: updateHistoryFactory(session.configurationId) }, async (workspace) => {
+    const draft = workspace.configurations.get(session.id);
     if (!draft) throw new Error('Storage assignment requires one configuration.');
     await prepareConfigIdsDraft(rt, workspace, opts.ctx);
     const request = buildStorageAssignmentRequest(workspace, draft.configurationId, opts.networkName);
@@ -629,4 +631,70 @@ export async function setNetworkPreferences(rt: Runtime, handle: string, opts: {
     autoConnectRequired: workspace.serverState.connectionGraphInvalidation !== undefined ||
       preferencesChanged && opts.autoConnect !== true,
     ...(connectionCount !== undefined ? { connectionCount } : {}) };
+}
+
+/** The Storage preference panel: definitions, which configurations use them, and hardware left behind by edits. */
+export function inspectStorageNetworks(rt: Runtime, handle: string, expectedRevision?: number) {
+  const workspace = rt.sessions.getWorkspace(handle);
+  if (!workspace) throw new Error(`Workspace ${handle} not found. Use dcsc_session_list to see open sessions.`);
+  assertWorkspaceRevision(workspace, expectedRevision);
+  const assignments = [...workspace.configurations.values()]
+    .filter(session => session.raw.selectedStorageNetwork)
+    .map(session => ({ session: session.id, configurationId: session.configurationId,
+      storageNetwork: String(session.raw.selectedStorageNetwork) }));
+  return { workspace: workspace.id, revision: workspace.revision, report: {
+    storageNetworks: structuredClone(storageConnectionNetworkSource(workspace.serverState)),
+    assignments,
+    detachedStorageComponents: structuredClone(workspace.serverState.detachedStorageComponents ?? []),
+  } };
+}
+
+export type StorageDefinitionFields = Omit<StorageNetworkInput, 'name' | 'controllerId'> & { controllerId?: string | undefined };
+
+export type StorageChange =
+  | ({ action: 'add'; name: string } & StorageDefinitionFields)
+  | { action: 'update'; name: string; changes: StorageNetworkChanges; autoConnect?: boolean | undefined }
+  | { action: 'rename'; name: string; newName: string }
+  | { action: 'remove'; name: string; clearAssignments?: boolean | undefined }
+  | { action: 'assign'; networkName: string | null; autoConnect?: boolean | undefined }
+  | { action: 'place'; name: string; rackId: string }
+  | { action: 'customize'; name: string; component: 'controller' | 'switch' };
+
+/** Applies one Storage panel change; the result reports the new workspace revision and the action's details. */
+export async function applyStorageChange(rt: Runtime, handle: string, change: StorageChange,
+  expectedRevision: number | undefined, ctx: RequestCtx): Promise<Record<string, unknown>> {
+  let result: { workspace: string; revision: number; session?: string } & Record<string, unknown>;
+  switch (change.action) {
+    case 'add': {
+      const { action: _action, ...input } = change;
+      result = await addStorageNetwork(rt, handle, { input, expectedRevision, ctx });
+      break;
+    }
+    case 'update':
+      if (expectedRevision === undefined) throw new Error('Storage update requires expectedRevision.');
+      result = await reconfigureStorageNetwork(rt, handle, { name: change.name, changes: change.changes,
+        expectedRevision, autoConnect: change.autoConnect, ctx });
+      break;
+    case 'rename':
+    case 'remove':
+      result = await editStorageNetwork(rt, handle, { ...change, expectedRevision });
+      break;
+    case 'assign':
+      result = await assignStorageNetwork(rt, handle, { networkName: change.networkName,
+        autoConnect: change.autoConnect, expectedRevision, ctx });
+      break;
+    case 'place': {
+      const placed = await placeStorageNetwork(rt, handle, { name: change.name, rackId: change.rackId, expectedRevision, ctx });
+      result = { ...placed, placements: placed.placements.map(({ raw: _raw, controllerExpansion: _expansion, ...placement }) => placement) };
+      break;
+    }
+    case 'customize':
+      result = change.component === 'controller'
+        ? await openStorageController(rt, handle, { name: change.name, expectedRevision, ctx })
+        : await openStorageSwitch(rt, handle, { name: change.name, expectedRevision, ctx });
+      break;
+  }
+  const { workspace, revision, session, ...details } = result;
+  return { session: handle, revision, ...(session !== undefined && session !== handle ? { configuration: session } : {}),
+    workspace, ...details };
 }
