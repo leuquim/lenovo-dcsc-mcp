@@ -11,7 +11,7 @@ import {
   readSessionRecoveryArchive,
   saveSessions,
 } from '../src/session/persist.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 
 const roots: string[] = [];

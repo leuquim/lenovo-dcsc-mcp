@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { buildFloorState } from '../src/domain/floorWire.js';
-import type { WorkspaceSession } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 it('uses native slim numeric floor nodes while preserving full physical placement metadata', () => {
   const node = { id: 'node', code: '7DD1CTOLWW', sliceCtoCode: '7DD1CTOLWW', type: 'node',

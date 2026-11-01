@@ -6,8 +6,8 @@ import type {
   NetworkTopology,
   NetworkType,
 } from './fabric.js';
+import { type Obj, objectOrUndefined, stringOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface ConnectorChoice {
   /** Stable key accepted by `connectorIds`. */
@@ -78,16 +78,6 @@ export interface WorkspaceNetworkPreferences {
   selections: ResolvedWorkspaceNetworkSelection[];
 }
 
-function object(value: unknown): Obj | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Obj
-    : undefined;
-}
-
-function str(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
 function strings(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
@@ -99,7 +89,7 @@ function unique<T>(items: readonly T[]): T[] {
 }
 
 function keyPart(value: unknown): string {
-  return encodeURIComponent(str(value));
+  return encodeURIComponent(stringOrEmpty(value));
 }
 
 function connectorId(connector: Obj): string {
@@ -123,14 +113,14 @@ function resolveTopology(fabric: FabricOptions, requested: string): NetworkTopol
 
 function topologyChoices(rawConfiguration: Obj, topology: NetworkTopology): ConnectorChoice[] {
   const connectors = Array.isArray(rawConfiguration['connectors'])
-    ? rawConfiguration['connectors'].flatMap((value): Obj[] => object(value) ? [object(value)!] : [])
+    ? rawConfiguration['connectors'].flatMap((value): Obj[] => objectOrUndefined(value) ? [objectOrUndefined(value)!] : [])
     : [];
   return connectors.filter((connector) => strings(connector['topologies']).includes(topology.shortName))
     .map((connector) => ({
       id: connectorId(connector),
-      port: str(connector['port']),
-      portNumber: str(connector['portNumber']),
-      description: str(connector['portDescription']),
+      port: stringOrEmpty(connector['port']),
+      portNumber: stringOrEmpty(connector['portNumber']),
+      description: stringOrEmpty(connector['portDescription']),
       raw: structuredClone(connector),
     }));
 }
@@ -217,14 +207,14 @@ export function buildSelectedTopologies(
     throw new Error('Storage port selection requires one uniquely named storage network assigned to this configuration.');
   }
   const network = storageMatch
-    ? { name: input.networkName!, defaultCableColor: object(object(rawConfiguration['selectedTopologies'])?.[input.networkName!])?.['color'] }
+    ? { name: input.networkName!, defaultCableColor: objectOrUndefined(objectOrUndefined(rawConfiguration['selectedTopologies'])?.[input.networkName!])?.['color'] }
     : resolveNetwork(fabric, topology, input.networkName);
   const selected = resolveConnectors(topologyChoices(rawConfiguration, topology), input);
   const existingValue = rawConfiguration['selectedTopologies'];
-  if (existingValue !== undefined && object(existingValue) === undefined) {
+  if (existingValue !== undefined && objectOrUndefined(existingValue) === undefined) {
     throw new Error('Configuration selectedTopologies must be an object keyed by network name.');
   }
-  const existing = structuredClone(object(existingValue) ?? {});
+  const existing = structuredClone(objectOrUndefined(existingValue) ?? {});
   existing[network.name] = {
     color: network['defaultCableColor'],
     maxConnectors: selected.length,
@@ -270,17 +260,17 @@ function resolveDevice(
         'the fabric catalog. Refresh the catalog before selecting it.');
     }
     device = matches[0];
-  } else if (str(defaultFeature) || str(defaultOption)) {
+  } else if (stringOrEmpty(defaultFeature) || stringOrEmpty(defaultOption)) {
     const matches = fabric.networkDevices.filter((item) =>
       item.feature === defaultFeature && item.option === defaultOption);
     if (matches.length === 0) {
       throw new Error(`The active network's default ${role} device ` +
-        `(${str(defaultFeature) || '?'}/${str(defaultOption) || '?'}) is unavailable. ` +
+        `(${stringOrEmpty(defaultFeature) || '?'}/${stringOrEmpty(defaultOption) || '?'}) is unavailable. ` +
         `Choose ${role}DeviceId from: ${candidatesText(compatible)}.`);
     }
     if (matches.length > 1) {
       throw new Error(`The active network's default ${role} device ` +
-        `(${str(defaultFeature) || '?'}/${str(defaultOption) || '?'}) is ambiguous. ` +
+        `(${stringOrEmpty(defaultFeature) || '?'}/${stringOrEmpty(defaultOption) || '?'}) is ambiguous. ` +
         `Choose ${role}DeviceId from: ${candidatesText(matches)}.`);
     }
     device = matches[0];
@@ -297,7 +287,7 @@ function resolveDevice(
 }
 
 function cableCategory(cable: CableOption): string {
-  return str(cable['category']);
+  return stringOrEmpty(cable['category']);
 }
 
 function compatibleCables(fabric: FabricOptions, topology: NetworkTopology): CableOption[] {
@@ -328,7 +318,7 @@ function resolveCable(
     if (!cableCategory(cable)) throw new Error(`Cable "${requestedId}" has no category; DCSC cannot store it as defaultCableType.`);
     return cable;
   }
-  const category = str(currentCategory);
+  const category = stringOrEmpty(currentCategory);
   if (!category) return undefined;
   const matches = compatible.filter((cable) => cableCategory(cable) === category);
   if (matches.length === 1) return matches[0];
@@ -346,7 +336,7 @@ function resolveCableColor(fabric: FabricOptions, topology: NetworkTopology, cab
   if (typeof requested !== 'string') throw new Error(`${field} must be a color or an empty string to clear it.`);
   if (requested === '') return '';
   const colors = unique(fabric.cables.filter(item => item.topologies.includes(topology.shortName) &&
-    (!cable || cableCategory(item) === cableCategory(cable))).map(item => str(item['color'])).filter(Boolean));
+    (!cable || cableCategory(item) === cableCategory(cable))).map(item => stringOrEmpty(item['color'])).filter(Boolean));
   const color = colors.find(value => value.toLocaleLowerCase() === requested.toLocaleLowerCase());
   if (!color) throw new Error(`Unknown ${field} "${requested}". Available: ${colors.join(', ') || 'none'}; use "" for no preference.`);
   return color;
@@ -400,7 +390,7 @@ function validateTrunks(value: number, device: NetworkDevice | undefined, topolo
 
 function resolveLeafCabling(fabric: FabricOptions, requested: string | undefined,
   current: unknown): string | undefined {
-  if (requested === undefined) return str(current) || undefined;
+  if (requested === undefined) return stringOrEmpty(current) || undefined;
   const catalog = listNetworkLeafCablingChoices(fabric).map(choice => choice.description)
     .filter((value, index, values) => value && values.indexOf(value) === index);
   const match = catalog.find(value => value.toLocaleLowerCase() === requested.toLocaleLowerCase());
@@ -419,7 +409,7 @@ function resolveCustomCable(fabric: FabricOptions, topology: NetworkTopology,
       throw new Error(`Unknown or incompatible customCableId "${requested}". Available: ` +
         `${candidatesText(candidates)}; or ${MANUAL_CABLE_ID}.`);
     }
-    const featureCode = str(matches[0]!['featureCode']);
+    const featureCode = stringOrEmpty(matches[0]!['featureCode']);
     if (!featureCode) throw new Error(`Custom cable ${requested} has no featureCode.`);
     return { value: featureCode, id: matches[0]!.id };
   }
@@ -467,8 +457,8 @@ export function buildWorkspaceNetworkPreferences(
     }
     const cable = resolveCable(fabric, topology, selection.cableId, network['defaultCableType'], 'cableId');
     const clearMain = selection.mainDeviceId === EXISTING_CUSTOMER_SWITCH_ID;
-    const needsMain = !clearMain && (selection.mainDeviceId !== undefined || str(network['defaultMainSwitch']) !== '' ||
-      str(network['defaultMainSwitchOption']) !== '' || truthyNumber(network['mainSwitchTrunks']));
+    const needsMain = !clearMain && (selection.mainDeviceId !== undefined || stringOrEmpty(network['defaultMainSwitch']) !== '' ||
+      stringOrEmpty(network['defaultMainSwitchOption']) !== '' || truthyNumber(network['mainSwitchTrunks']));
     const main = clearMain ? undefined : resolveDevice(fabric, topology, cable, selection.mainDeviceId,
       network['defaultMainSwitch'], network['defaultMainSwitchOption'], 'main', needsMain);
 
@@ -482,7 +472,7 @@ export function buildWorkspaceNetworkPreferences(
       : undefined;
     const clearLeaf = selection.leafDeviceId === EXISTING_CUSTOMER_SWITCH_ID;
     const needsLeaf = distributed && !clearLeaf && (selection.leafDeviceId !== undefined ||
-      str(network['defaultLeafSwitch']) !== '' || str(network['defaultLeafSwitchOption']) !== '' ||
+      stringOrEmpty(network['defaultLeafSwitch']) !== '' || stringOrEmpty(network['defaultLeafSwitchOption']) !== '' ||
       truthyNumber(network['leafSwitchTrunks']));
     const leaf = distributed && !clearLeaf
       ? resolveDevice(fabric, topology, leafCable ?? cable, selection.leafDeviceId,
@@ -500,12 +490,12 @@ export function buildWorkspaceNetworkPreferences(
       : integer(Number(network['leafSwitchTrunks'] ?? 0), 'current leafTrunks');
     const leafCabling = distributed
       ? resolveLeafCabling(fabric, selection.leafCabling, network['defaultLeafCabling']) : undefined;
-    const mainChanged = clearMain ? !!(str(network['defaultMainSwitch']) || str(network['defaultMainSwitchOption']))
+    const mainChanged = clearMain ? !!(stringOrEmpty(network['defaultMainSwitch']) || stringOrEmpty(network['defaultMainSwitchOption']))
       : selection.mainDeviceId !== undefined && !!main &&
-        (main.feature !== str(network['defaultMainSwitch']) || main.option !== str(network['defaultMainSwitchOption']));
-    const leafChanged = clearLeaf ? !!(str(network['defaultLeafSwitch']) || str(network['defaultLeafSwitchOption']))
+        (main.feature !== stringOrEmpty(network['defaultMainSwitch']) || main.option !== stringOrEmpty(network['defaultMainSwitchOption']));
+    const leafChanged = clearLeaf ? !!(stringOrEmpty(network['defaultLeafSwitch']) || stringOrEmpty(network['defaultLeafSwitchOption']))
       : selection.leafDeviceId !== undefined && !!leaf &&
-        (leaf.feature !== str(network['defaultLeafSwitch']) || leaf.option !== str(network['defaultLeafSwitchOption']));
+        (leaf.feature !== stringOrEmpty(network['defaultLeafSwitch']) || leaf.option !== stringOrEmpty(network['defaultLeafSwitchOption']));
     const clearVlan = layout !== network.defaultLayout || mainChanged || leafChanged;
     let vlanNetworkTypeIds: string[];
     let defaultVlan: Array<{ name: string; networkType: string }>;
@@ -528,8 +518,8 @@ export function buildWorkspaceNetworkPreferences(
         const peer = candidates[0]!;
         if (peer.id === network.id) throw new Error('A network cannot join itself as a VLAN peer.');
         const peerRequest = requestedById.get(peer.id);
-        let peerFeature = str(peer['defaultMainSwitch']);
-        let peerOption = str(peer['defaultMainSwitchOption']);
+        let peerFeature = stringOrEmpty(peer['defaultMainSwitch']);
+        let peerOption = stringOrEmpty(peer['defaultMainSwitchOption']);
         if (peerRequest?.mainDeviceId === EXISTING_CUSTOMER_SWITCH_ID) {
           peerFeature = ''; peerOption = '';
         } else if (peerRequest?.mainDeviceId !== undefined) {
@@ -552,8 +542,8 @@ export function buildWorkspaceNetworkPreferences(
     } else {
       defaultVlan = Array.isArray(network['defaultVlan'])
         ? network['defaultVlan'].flatMap(value => {
-          const item = object(value);
-          const name = str(item?.['name']); const networkType = str(item?.['networkType']);
+          const item = objectOrUndefined(value);
+          const name = stringOrEmpty(item?.['name']); const networkType = stringOrEmpty(item?.['networkType']);
           return name && networkType ? [{ name, networkType }] : [];
         }) : [];
       vlanNetworkTypeIds = defaultVlan.flatMap(value => {
@@ -565,7 +555,7 @@ export function buildWorkspaceNetworkPreferences(
     if (selection.customCableId !== undefined && main) {
       throw new Error('customCableId is available only when no main switch is selected.');
     }
-    const customCable = resolveCustomCable(fabric, topology, cable ? cableCategory(cable) : str(network['defaultCableType']),
+    const customCable = resolveCustomCable(fabric, topology, cable ? cableCategory(cable) : stringOrEmpty(network['defaultCableType']),
       selection.customCableId, network['customCable']);
     const resolved: NetworkType = {
       ...structuredClone(network),

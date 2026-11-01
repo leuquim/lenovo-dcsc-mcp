@@ -10,7 +10,7 @@ import {
 import { buildAutoDeriveRequest, buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 import { buildIndex } from '../src/model/index.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import type { ConfigSession, WorkspaceSession } from '../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 
 const fixturePath = fileURLToPath(new URL('./fixtures/parity/rack-recustomize-contract.json', import.meta.url));
 const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as Record<string, unknown>;

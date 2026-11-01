@@ -8,7 +8,7 @@ import { buildExportGroups } from '../src/domain/exportGroups.js';
 import type { FabricOptions } from '../src/domain/fabric.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 
 const services: DcscService[] = [];
 afterEach(async () => { await Promise.all(services.splice(0).map(service => service.close())); });

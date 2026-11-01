@@ -7,9 +7,9 @@ import { VALIDATION_JOBS_STATE_KEY } from './validationJobs.js';
 import { assertConfigurationReconciliationAllowed, hasPhysicalState } from './workspaceIntegrity.js';
 import { buildIndex } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
-import type { ConfigSession, WorkspaceSession } from '../session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
+import { type Obj, objectOrEmpty, stringOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export const RECONCILIATION_HISTORY_STATE_KEY = 'reconciliationHistory';
 /** Pending proposals are metadata and must not invalidate their own source hash. */
@@ -416,7 +416,7 @@ function assertCompleteDerivedRaw(raw: RawConfiguration, session: ConfigSession)
   if (typeof raw.quantity !== 'number' || !Number.isFinite(raw.quantity) || raw.quantity <= 0) {
     throw new Error(`Derived configuration ${session.id} has no valid sales quantity.`);
   }
-  const rawId = string(raw.id);
+  const rawId = stringOrEmpty(raw.id);
   if (rawId && rawId !== session.configurationId) {
     throw new Error(`Derived configuration ${session.id} has a mismatched canonical id.`);
   }
@@ -455,27 +455,27 @@ function compareConfiguration(
 function selectionSnapshot(raw: RawConfiguration): SelectionLine[] {
   const lines: SelectionLine[] = [];
   for (const tabValue of array(raw.tabs)) {
-    const tab = object(tabValue);
+    const tab = objectOrEmpty(tabValue);
     for (const subTabValue of array(tab['subTabs'])) {
-      const subTab = object(subTabValue);
+      const subTab = objectOrEmpty(subTabValue);
       for (const sectionValue of array(subTab['sections'])) {
-        const section = object(sectionValue);
+        const section = objectOrEmpty(sectionValue);
         for (const resultValue of array(section['results'])) {
-          const result = object(resultValue);
-          const code = string(result['code']);
+          const result = objectOrEmpty(resultValue);
+          const code = stringOrEmpty(result['code']);
           if (!code) continue;
           lines.push({
             path: {
-              tabType: string(tab['type']),
-              tabTitle: string(tab['title']),
-              subTab: string(subTab['title']),
-              source: string(subTab['source']),
-              section: string(section['name']) || string(section['title']),
-              sectionCode: string(section['code']),
+              tabType: stringOrEmpty(tab['type']),
+              tabTitle: stringOrEmpty(tab['title']),
+              subTab: stringOrEmpty(subTab['title']),
+              source: stringOrEmpty(subTab['source']),
+              section: stringOrEmpty(section['name']) || stringOrEmpty(section['title']),
+              sectionCode: stringOrEmpty(section['code']),
             },
             code,
             quantity: finiteNumber(result['quantity'], 1),
-            type: string(result['type']),
+            type: stringOrEmpty(result['type']),
             result: structuredClone(result),
           });
         }
@@ -607,18 +607,8 @@ function sortCanonical(values: unknown[]): unknown[] {
     stableStringify(left).localeCompare(stableStringify(right)));
 }
 
-function object(value: unknown): Obj {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Obj
-    : {};
-}
-
 function array(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-function string(value: unknown): string {
-  return typeof value === 'string' ? value : '';
 }
 
 function finiteNumber(value: unknown, fallback: number): number {

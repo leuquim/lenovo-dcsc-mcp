@@ -1,5 +1,5 @@
 import { redactUnknown } from './redact.js';
-import { SessionPersistenceError } from '../session/persistenceError.js';
+import { SessionPersistenceError } from './persistenceError.js';
 
 export type DcscErrorKind =
   | 'validation'

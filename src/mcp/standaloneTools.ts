@@ -40,10 +40,13 @@ import {
   type StandaloneHardwareState,
 } from '../domain/standaloneHardware.js';
 import { sanitiseFileName, writeExportBundle, type ExportBundle } from '../files/artifactStore.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
 import { guard, withToolSupport } from './toolSupport.js';
+import { isObject } from '../util/coerce.js';
+import { exportZipPath } from '../domain/endpoints.js';
+import { hardwareEndpointFamily } from '../domain/modeFamily.js';
 
 const SOFTWARE_STATE = 'standaloneSoftwareState';
 const SERVICE_STATE = 'standaloneServiceState';
@@ -416,7 +419,7 @@ function hardwareState(workspace: WorkspaceSession): StandaloneHardwareState;
 function hardwareState(workspace: WorkspaceSession, required: false): StandaloneHardwareState | undefined;
 function hardwareState(workspace: WorkspaceSession, required = true): StandaloneHardwareState | undefined {
   const value = workspace.serverState[HARDWARE_STATE];
-  if (isRecord(value) && value['kind'] === 'standalone-hardware') return value as unknown as StandaloneHardwareState;
+  if (isObject(value) && value['kind'] === 'standalone-hardware') return value as unknown as StandaloneHardwareState;
   if (required) throw new Error(`Workspace ${workspace.id} has no standalone hardware. Add a part with dcsc_standalone_hardware_add.`);
   return undefined;
 }
@@ -942,7 +945,7 @@ export async function exportStandaloneSoftwareArtifact(
   } = {},
 ): Promise<ExportBundle & { contentDisposition: string | undefined }> {
   service.assertTrustedWorkspace(workspace.id);
-  const modes = new Set([...workspace.configurations.values()].map((session) => session.mode === 'cto' ? 'ctos' : 'lfos'));
+  const modes = new Set([...workspace.configurations.values()].map((session) => hardwareEndpointFamily(session.mode)));
   if (modes.size > 1) throw new Error('Mixed CTO and LFO hardware requires separate workspaces.');
   if (workspace.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate service-only export.');
   const fileTypes = options.fileTypes ?? (workspace.configurations.size > 0 ? DEFAULT_EXPORT_TYPES : SOFTWARE_EXPORT_TYPES);
@@ -980,9 +983,9 @@ export async function exportStandaloneSoftwareArtifact(
   const response = await service.http.send({
     endpoint: 'standalone_software_export_zip',
     method: 'POST',
-    path: workspace.configurations.size > 0
-      ? `/${[...workspace.configurations.values()][0]!.mode === 'cto' ? 'ctos' : 'lfos'}/export_zip`
-      : '/lfos/export_zip',
+    path: exportZipPath(workspace.configurations.size > 0
+      ? hardwareEndpointFamily([...workspace.configurations.values()][0]!.mode)
+      : 'lfos'),
     query: { fileName },
     requiresSolution: false,
     body: { kind: 'form', fields: form },
@@ -1037,7 +1040,7 @@ function softwareState(
   required = true,
 ): StandaloneSoftwareState | undefined {
   const value = workspace.serverState[SOFTWARE_STATE];
-  if (isRecord(value) && value['kind'] === 'standalone-software') {
+  if (isObject(value) && value['kind'] === 'standalone-software') {
     return value as unknown as StandaloneSoftwareState;
   }
   if (required) throw new Error(`Workspace ${workspace.id} has no standalone software catalog.`);
@@ -1054,7 +1057,7 @@ function serviceState(
   required = true,
 ): ProductServiceState | undefined {
   const value = workspace.serverState[SERVICE_STATE];
-  if (isRecord(value) && value['kind'] === 'product-bound-services') {
+  if (isObject(value) && value['kind'] === 'product-bound-services') {
     return value as unknown as ProductServiceState;
   }
   if (required) throw new Error(`Workspace ${workspace.id} has no product-service graph.`);
@@ -1226,7 +1229,7 @@ function projectSummary(value: unknown): unknown {
   if (Buffer.byteLength(encoded) <= 3_000) return value;
   if (Array.isArray(value)) {
     const products = value.slice(0, 20).map((item) => {
-      const product = isRecord(item) ? item : {};
+      const product = isObject(item) ? item : {};
       const results = Array.isArray(product['results']) ? product['results'] : [];
       return {
         code: product['code'],
@@ -1237,7 +1240,7 @@ function projectSummary(value: unknown): unknown {
         priceNotCredible: product['priceNotCredible'],
         errors: product['errors'],
         services: results.slice(0, 50).map((item) => {
-          const selected = isRecord(item) ? item : {};
+          const selected = isObject(item) ? item : {};
           return {
             code: selected['code'], description: selected['description'],
             quantity: selected['quantity'], unitPrice: selected['unitPrice'],
@@ -1259,7 +1262,7 @@ function projectSummary(value: unknown): unknown {
       truncated: true,
     };
   }
-  const record = isRecord(value) ? value : {};
+  const record = isObject(value) ? value : {};
   return {
     available: true,
     responseBytes: Buffer.byteLength(encoded),
@@ -1280,7 +1283,7 @@ function softwareExportBase(
   delete retained[HARDWARE_STATE];
   // Rebuilt from the typed baskets so imported rows are never sent twice.
   delete retained['standaloneData'];
-  const launch = state && isRecord(state.launchRaw) ? structuredClone(state.launchRaw) : {};
+  const launch = state && isObject(state.launchRaw) ? structuredClone(state.launchRaw) : {};
   delete launch['standaloneData'];
   const canonical = buildExportData({
     workspace,
@@ -1304,7 +1307,7 @@ function mergeCanonical(
   for (const [key, canonicalValue] of Object.entries(canonical)) {
     const retainedValue = merged[key];
     merged[key] =
-      isRecord(retainedValue) && isRecord(canonicalValue)
+      isObject(retainedValue) && isObject(canonicalValue)
         ? mergeCanonical(retainedValue, canonicalValue)
         : structuredClone(canonicalValue);
   }
@@ -1333,6 +1336,3 @@ function pricingContext(country: string, currency: string) {
   return { country, currency, priceType: 'LIST', account: 'anonymous' };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}

@@ -1,5 +1,6 @@
 import type { RawConfiguration } from '../model/types.js';
 import { cloneConfigurationRaw } from './configurationIdentity.js';
+import { isObject } from '../util/coerce.js';
 
 export interface LinkedCloneGroup {
   /** The object key is the authoritative root; member order is server owned. */
@@ -111,10 +112,6 @@ function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean
 
 function assertIdentity(value: string, label: string): void {
   if (!value || value.trim() !== value) throw new Error(`${label} must be a non-empty, trimmed identity.`);
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Native HPC applies repeated shared-root records in response order. */

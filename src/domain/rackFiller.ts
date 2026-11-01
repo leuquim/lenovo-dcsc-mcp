@@ -1,7 +1,7 @@
 import type { RawConfiguration } from '../model/types.js';
 import { buildRackConfigurations, type RackObject } from './rack.js';
+import { type Obj, objectItems } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface RackFiller {
   /** SPA filler coordinate. This is zero-based even when rack-item positions are one-based. */
@@ -20,19 +20,13 @@ const FILLER_CODES = new Set(['4275', '4273', '4271', 'B34A', 'B349', 'B348']);
 const STANDARD_CODE: Record<RackFiller['size'], string> = { 5: '4275', 3: '4273', 1: '4271' };
 const EXTENSION_CODE: Record<RackFiller['size'], string> = { 5: 'B34A', 3: 'B349', 1: 'B348' };
 
-function objects(value: unknown): Obj[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is Obj => item !== null && typeof item === 'object' && !Array.isArray(item))
-    : [];
-}
-
 function finiteInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) ? value : undefined;
 }
 
 function rackItems(rack: RackObject): Obj[] {
-  const items = objects(rack['rackItems']);
-  return items.length > 0 ? items : objects(rack['servers']);
+  const items = objectItems(rack['rackItems']);
+  return items.length > 0 ? items : objectItems(rack['servers']);
 }
 
 function occupiedRange(item: Obj): number[] {
@@ -51,7 +45,7 @@ function occupiedRange(item: Obj): number[] {
  */
 export function buildRackFiller(rack: RackObject, force = false): RackFiller[] {
   const items = rackItems(rack);
-  const uSpaceItems = objects(rack['featureItems']).filter((item) => item['location'] === 'u_space');
+  const uSpaceItems = objectItems(rack['featureItems']).filter((item) => item['location'] === 'u_space');
   if (!force && items.length === 0 && uSpaceItems.length === 0) return [];
   const size = finiteInteger(rack['size']);
   if (size === undefined || size < 1) return [];
@@ -88,16 +82,16 @@ function applyFillerSelections(
   filler: RackFiller[],
 ): { configuration: RawConfiguration; selections: RackFillerProjection['selections'] } {
   const configuration = structuredClone(source);
-  const characters = objects(configuration.unSelectableCharacters);
+  const characters = objectItems(configuration.unSelectableCharacters);
   const mechanical = characters.find((section) => section['name'] === 'MECH_DERIVE_FCS');
   if (!mechanical) return { configuration, selections: [] };
-  const available = new Set(objects(mechanical['features']).map((feature) => String(feature['code'] ?? '')));
-  const existing = objects(mechanical['results']);
+  const available = new Set(objectItems(mechanical['features']).map((feature) => String(feature['code'] ?? '')));
+  const existing = objectItems(mechanical['results']);
   // The SPA passes an EXTENSION_KIT result separately and falls back to AUEE
   // in MECH_DERIVE_FCS. Both forms occur in server configurations.
   const extension = existing.some((result) => result['code'] === 'AUEE') ||
     characters.some((section) => section['name'] === 'EXTENSION_KIT' &&
-      objects(section['results']).some((result) => result['code'] === 'AUEE'));
+      objectItems(section['results']).some((result) => result['code'] === 'AUEE'));
   const mapping = extension ? EXTENSION_CODE : STANDARD_CODE;
   const retained = existing.filter((result) => !FILLER_CODES.has(String(result['code'] ?? '')));
   const existingFillerCodes = new Set(existing
@@ -120,15 +114,15 @@ function applyFillerSelections(
 function mergeForAutoConnect(previous: Obj[], sections: Obj[]): Obj[] {
   const flags = new Map<string, boolean>();
   for (const section of previous) {
-    for (const result of objects(section['results'])) {
+    for (const result of objectItems(section['results'])) {
       flags.set(`${String(section['name'])}\u0000${String(result['code'])}`, result['forAutoConnect'] === true);
     }
   }
   return sections.map((section) => {
     const { features: compactFeatures, ...metadata } = section;
-    const results = objects(section['results']).length > 0
-      ? objects(section['results'])
-      : objects(compactFeatures);
+    const results = objectItems(section['results']).length > 0
+      ? objectItems(section['results'])
+      : objectItems(compactFeatures);
     return {
       ...metadata,
       results: results.map((result) => ({
@@ -155,7 +149,7 @@ export function projectRackFiller(
   const rack: RackObject = {
     ...structuredClone(sourceRack),
     filler,
-    features: mergeForAutoConnect(objects(sourceRack['features']), compact.sections as unknown as Obj[]),
+    features: mergeForAutoConnect(objectItems(sourceRack['features']), compact.sections as unknown as Obj[]),
     ...(base ? { baseFeatureCode: base } : {}),
   };
   return { rack, configuration, filler, selections };
@@ -163,13 +157,13 @@ export function projectRackFiller(
 
 /** Native chassis cloning reprices changed filler selections locally. */
 export function repriceRackFillers(source: RawConfiguration, next: RawConfiguration): RawConfiguration {
-  const before = objects(source.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
-  const after = objects(next.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
+  const before = objectItems(source.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
+  const after = objectItems(next.unSelectableCharacters).find(s => s['name'] === 'MECH_DERIVE_FCS');
   if (!before || !after) return next;
-  const quantity = (section: Obj, code: string) => objects(section['results'])
+  const quantity = (section: Obj, code: string) => objectItems(section['results'])
     .filter(r => r['code'] === code).reduce((sum, r) => sum + Number(r['quantity'] ?? 0), 0);
   const changes = [...FILLER_CODES].map(code => ({ code, quantity: quantity(after, code) - quantity(before, code),
-    feature: objects(before['features']).find(f => f['code'] === code) })).filter(c => c.quantity !== 0);
+    feature: objectItems(before['features']).find(f => f['code'] === code) })).filter(c => c.quantity !== 0);
   if (changes.length === 0) return next;
   const result = structuredClone(next);
   const money = (value: number) => Math.round(value * 100) / 100;
@@ -180,10 +174,10 @@ export function repriceRackFillers(source: RawConfiguration, next: RawConfigurat
   } else { result.totalPrice = null; result.priceNotAvailable = true; }
   for (const key of ['totalPrices', 'nonSoftwareTotalPrices'] as const) {
     if (!Array.isArray(source[key])) continue;
-    result[key] = objects(source[key]).map(total => {
+    result[key] = objectItems(source[key]).map(total => {
       let delta = 0;
       for (const change of changes) {
-        const price = objects(change.feature?.['prices']).find(p => p['priceTypeId'] === total['priceTypeId']);
+        const price = objectItems(change.feature?.['prices']).find(p => p['priceTypeId'] === total['priceTypeId']);
         if (!Number.isFinite(change.quantity) || !price || price['priceNotAvailable'] === true ||
             typeof price['price'] !== 'number' || !Number.isFinite(price['price'])) {
           const unavailable: Obj = { ...total, priceNotAvailable: true }; delete unavailable['price']; return unavailable;

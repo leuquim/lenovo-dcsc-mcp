@@ -160,6 +160,26 @@ describe('standalone hardware tools', () => {
     expect(products.find((product) => product['type'] === 'standalone')).toMatchObject({ code: '4X97B05748', quantity: 7, price: 2656.5 });
   });
 
+  it('exports an lfo-as-cto configuration through the CTO route', async () => {
+    const { service, call, requests } = await setup();
+    const added = parse(await call('dcsc_standalone_hardware_add', { code: '4X97B05748', quantity: 1 }));
+    const workspace = String(added['workspace']);
+    const configurationId = 'lfo-as-cto-configuration';
+    const raw = { id: configurationId, sliceCtoCode: '7D5FCTOFWW', description: 'NVIDIA SN2201', type: 'switch',
+      quantity: 1, totalPrice: 6221.51, tabs: [] };
+    service.sessions.create({
+      locale: service.locale,
+      solution: service.sessions.getWorkspace(workspace)!.solution,
+      mode: 'lfo-as-cto', raw, configurationId,
+      reduced: reduceConfiguration(raw, configurationId),
+      primed: true,
+      workspaceId: workspace,
+    });
+    await call('dcsc_software_export', { workspace, fileName: 'lfo-as-cto' });
+    expect(requests.filter((request) => String(request['path']).endsWith('/export_zip')).map((request) => request['path']))
+      .toEqual(['/ctos/export_zip']);
+  });
+
   it('restores hardware rows from a CFXML import response separately from software', () => {
     const envelope = {
       configuration: [],

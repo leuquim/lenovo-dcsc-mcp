@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { hydrateImportedLayout, mergeImportedState } from '../src/domain/importLayout.js';
 import { buildFloorState } from '../src/domain/floorWire.js';
 import type { DcscHttpClient, RequestCtx, SendInput } from '../src/http/request.js';
-import type { WorkspaceSession } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 type Obj = Record<string, unknown>;
 const fixture = JSON.parse(readFileSync('test/fixtures/parity/import-layout.json', 'utf8')) as Obj;

@@ -18,6 +18,7 @@
 
 import type { ConfigIndex } from '../model/index.js';
 import type { RackObject } from './rack.js';
+import type { Obj } from '../util/coerce.js';
 
 export interface PduOption {
   code: string;
@@ -42,7 +43,6 @@ export interface PduCatalog {
   totalCombinedSlots?: number | undefined;
 }
 
-type Obj = Record<string, unknown>;
 
 /**
  * Lists orderable PDUs and related power options from the rack configuration

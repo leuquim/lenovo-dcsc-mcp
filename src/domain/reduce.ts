@@ -15,7 +15,7 @@ import {
   type WireResult,
   type WireSection,
 } from './dcscWire.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import { buildItemHierarchy, buildRackHierarchy, physicalRackData } from './workspaceWire.js';
 import { buildExportGroups } from './exportGroups.js';
 import { buildFloorState } from './floorWire.js';

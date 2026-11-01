@@ -1,7 +1,7 @@
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import { projectLockedSpaceToSpa } from './rackLocks.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 /** The website exports both grid cells and their flattened report representation. */
 export function buildFloorState(workspace: WorkspaceSession): { information: Obj; items: Obj[] } {

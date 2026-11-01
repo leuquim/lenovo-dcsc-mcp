@@ -18,6 +18,7 @@ import yauzl from 'yauzl';
 import { MAGIC_BYTES } from '../config/constants.js';
 import { parseCfxml } from '../domain/import.js';
 import type { Config } from '../config/schema.js';
+import { errorMessage } from '../util/coerce.js';
 
 const OWNED_ARTIFACT = 'lenovo-dcsc-export';
 const OWNED_ARTIFACT_VERSION = 1;
@@ -512,8 +513,4 @@ async function unzip(zipPath: string, dir: string, config: Config): Promise<Expo
 
 function isInside(root: string, candidate: string): boolean {
   return candidate.startsWith(root + sep);
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }

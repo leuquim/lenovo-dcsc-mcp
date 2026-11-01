@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ActionHistoryFactory } from '../src/domain/actionHistory.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { serializeWorkspaces } from '../src/session/persist.js';
-import { SessionStore, type CreateSessionInput, type WorkspaceSession } from '../src/session/SessionStore.js';
+import { SessionStore, type CreateSessionInput } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 function input(id = 'US__history'): CreateSessionInput {
   const raw = { id, sliceCtoCode: '7D73CTO1WW', description: 'Server', type: 'SERVER', quantity: 1, tabs: [] };

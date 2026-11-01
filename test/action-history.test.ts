@@ -6,7 +6,8 @@ import {
   buildNativeHistoryDescription,
 } from '../src/domain/actionHistory.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
-import { SessionStore, type WorkspaceSession } from '../src/session/SessionStore.js';
+import { SessionStore } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 const locale = { country: 'US', geo: 'NA', language: 'en', currency: 'USD' };
 

@@ -1,4 +1,4 @@
-type Obj = Record<string, unknown>;
+import { type Obj, stringOrEmpty } from '../util/coerce.js';
 
 export interface ConfigIdFeature {
   featureCode: string;
@@ -36,7 +36,7 @@ export function assignConfigIdFeatures(input: ConfigIdAssignmentInput): ConfigId
   const rackData = structuredClone(input.rackData) as Obj[];
   const nonRackData = structuredClone(input.nonRackData) as Obj[];
   const configurations = new Map(input.configurations.flatMap(configuration => {
-    const id = string(configuration['id']) || string(configuration['configurationId']);
+    const id = stringOrEmpty(configuration['id']) || stringOrEmpty(configuration['configurationId']);
     return id === '' ? [] : [[id, configuration] as const];
   }));
   const catalog = configIdCatalog(input.mipCatalog);
@@ -45,8 +45,8 @@ export function assignConfigIdFeatures(input: ConfigIdAssignmentInput): ConfigId
   let assignedPhysicalItems = 0;
 
   for (const item of physicalItems(rackData, nonRackData)) {
-    const itemId = string(item['id']);
-    const originalId = string(array(item['originalIds'])[0]);
+    const itemId = stringOrEmpty(item['id']);
+    const originalId = stringOrEmpty(array(item['originalIds'])[0]);
     const rootId = input.cloneRoots?.[itemId] ?? (originalId || itemId);
     const configuration = configurations.get(rootId) ?? configurations.get(itemId);
     const targetCodes = configIdTargetCodes(configuration);
@@ -89,9 +89,9 @@ export function configIdCatalog(value: unknown): ConfigIdFeature[] {
   const source = object(value)['5374'];
   return array(source).flatMap(entry => {
     const feature = object(entry);
-    const featureCode = string(feature['featureCode']);
+    const featureCode = stringOrEmpty(feature['featureCode']);
     if (featureCode === '') return [];
-    return [{ featureCode, quantity: 1 as const, description: string(feature['description']) }];
+    return [{ featureCode, quantity: 1 as const, description: stringOrEmpty(feature['description']) }];
   });
 }
 
@@ -113,7 +113,7 @@ export function configIdTargetCodes(configuration: Obj | undefined): string[] {
   const seen = new Set<string>();
   for (const raw of array(configuration['hipoDerivedItems'])) {
     const hipo = object(raw);
-    const targetCode = string(hipo['targetCtoCode']);
+    const targetCode = stringOrEmpty(hipo['targetCtoCode']);
     if (!targetCode.startsWith('5374') || !Array.isArray(hipo['features']) || seen.has(targetCode)) continue;
     seen.add(targetCode);
     result.push(targetCode);
@@ -134,6 +134,3 @@ function object(value: unknown): Obj {
   return typeof value === 'object' && value !== null ? value as Obj : {};
 }
 
-function string(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}

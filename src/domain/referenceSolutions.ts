@@ -1,6 +1,6 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 export type ReferenceView =
   | 'categories'
   | 'category'

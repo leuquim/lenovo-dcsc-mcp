@@ -1,9 +1,8 @@
 import type { RawConfiguration } from '../model/types.js';
 import type { WireSection } from './dcscWire.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj => value && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
-const rows = (value: unknown): Obj[] => Array.isArray(value) ? value.map(object) : [];
+const rows = (value: unknown): Obj[] => Array.isArray(value) ? value.map(objectOrEmpty) : [];
 
 export interface PciWizardChange {
   optionId: string;
@@ -14,7 +13,7 @@ export interface PciWizardChange {
 
 /** Native initPciWizardOptions: retain catalog metadata and initialize UI selections. */
 export function pciWizardOptions(raw: RawConfiguration): Obj[] {
-  const wizard = object(raw['pciWizard']);
+  const wizard = objectOrEmpty(raw['pciWizard']);
   if (wizard['pciWizardUI'] !== true) return [];
   return structuredClone(rows(wizard['pciWizardOptions'])).map(option => {
     const selected = rows(option['results']);
@@ -94,8 +93,8 @@ export function stagePciWizardChange(raw: RawConfiguration, change: PciWizardCha
 
 /** Validation reallocates adapters; native UI retains slot/pricing metadata by lineNumber. */
 export function acceptPciWizardValidation(option: Obj, response: unknown, operate: 'add' | 'cancel' = 'add'): Obj {
-  const payload = object(response);
-  const validated = object(payload['pciWizardOption']);
+  const payload = objectOrEmpty(response);
+  const validated = objectOrEmpty(payload['pciWizardOption']);
   const code = String(payload['code']);
   // Native add without adapter reassignment returns 2; spare removal returns 4.
   // Both have an empty massage and continue to derive in the SPA.
@@ -117,7 +116,7 @@ export function acceptPciWizardValidation(option: Obj, response: unknown, operat
 }
 
 export function withPciWizardOption(raw: RawConfiguration, options: Obj[], option: Obj): RawConfiguration {
-  return { ...structuredClone(raw), pciWizard: { ...structuredClone(object(raw['pciWizard'])),
+  return { ...structuredClone(raw), pciWizard: { ...structuredClone(objectOrEmpty(raw['pciWizard'])),
     pciWizardOptions: structuredClone(options.map(candidate => candidate['configId'] === option['configId']
       ? { ...option, activate: true } : { ...candidate, activate: false })) } };
 }
@@ -128,7 +127,7 @@ export function pciWizardWireFields(raw: RawConfiguration, purpose: 'derive' | '
   const active = options.filter(option => option['activate'] === true);
   if (active.length === 0) return {};
   if (active.length !== 1) throw new Error('Configuration has ambiguous active PCI wizard options.');
-  const wizard = object(raw['pciWizard']);
+  const wizard = objectOrEmpty(raw['pciWizard']);
   const fields: Obj = { pciWizardOptionConfigIds: options.map(option => option['configId']), pciWizardOption: active[0] };
   for (const key of ['lastPciWizardSelectCondition', 'lastPciWizardAutoFixAllDisabledSlotFcSet',
     ...(purpose === 'export' ? ['adapterCodeAndPhysicalSlotMap'] : [])]) {
@@ -139,7 +138,7 @@ export function pciWizardWireFields(raw: RawConfiguration, purpose: 'derive' | '
 }
 
 export function pciWizardSections(raw: RawConfiguration, sections: WireSection[]): WireSection[] {
-  const active = object(pciWizardWireFields(raw)['pciWizardOption']);
+  const active = objectOrEmpty(pciWizardWireFields(raw)['pciWizardOption']);
   if (Object.keys(active).length === 0) return sections;
   const names = new Set(rows(active['results']).map(slot => slot['characterName']));
   const result = structuredClone(sections.filter(section => section.subTabTitle !== 'Riser Card' && !names.has(section.name)));

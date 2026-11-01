@@ -6,8 +6,8 @@ import {
   detachedStorageTemplateIds,
   readDetachedStorageComponents,
 } from './storageComponentLifecycle.js';
+import { type Obj, objectOrUndefined, stringOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export const STORAGE_TYPES = ['Balance Warehouse', 'General Storage'] as const;
 export const STORAGE_LAYOUTS = ['Fully Redundant', 'Minimal Cabling'] as const;
@@ -65,8 +65,8 @@ export interface SelectedStorageNetworks {
 
 /** Raw inspection must remain possible even for an unsupported imported value. */
 export function storageConnectionNetworkSource(state: Obj): unknown {
-  const networking = object(state['networkingInformation']);
-  const previous = object(state['autoConnectState']);
+  const networking = objectOrUndefined(state['networkingInformation']);
+  const previous = objectOrUndefined(state['autoConnectState']);
   return state['storageConnectionNetworks'] ?? previous?.['storageConnectionNetworks'] ??
     networking?.['storageConnectionNetworks'] ?? networking?.['storageNetworks'] ?? [];
 }
@@ -74,7 +74,7 @@ export function storageConnectionNetworkSource(state: Obj): unknown {
 /** Resolve current and imported storage envelopes without discarding retained fields. */
 export function readStorageConnectionNetworks(state: Obj): StorageConnectionNetwork[] {
   const value = storageConnectionNetworkSource(state);
-  if (!Array.isArray(value) || value.some(item => !object(item) || typeof item.name !== 'string')) {
+  if (!Array.isArray(value) || value.some(item => !objectOrUndefined(item) || typeof item.name !== 'string')) {
     throw new Error('Saved storage definitions are malformed. Inspect the recovery snapshot before editing them.');
   }
   const networks = structuredClone(value) as StorageConnectionNetwork[];
@@ -83,7 +83,7 @@ export function readStorageConnectionNetworks(state: Obj): StorageConnectionNetw
   // verifies the returned product code and type before committing anything.
   for (const network of networks) {
     for (const [role, hardwareType] of [['controller', 'storage'], ['expansion', 'storage'], ['mainSwitch', 'switch']] as const) {
-      const component = object(network[role]);
+      const component = objectOrUndefined(network[role]);
       if (component && typeof component.option === 'string' && component.option.trim() &&
           component.hardwareType === undefined) component.hardwareType = hardwareType;
     }
@@ -99,7 +99,7 @@ export function managedStorageComponentIds(state: Obj): Set<string> {
   // definition is malformed. Mutators use the strict reader above.
   const active = !Array.isArray(source) ? [] : source.flatMap(value => {
     return ['controller', 'mainSwitch'].flatMap(key => {
-      const id = object(object(value)?.[key])?.id;
+      const id = objectOrUndefined(objectOrUndefined(value)?.[key])?.id;
       return typeof id === 'string' && id.trim() ? [id] : [];
     });
   });
@@ -144,7 +144,7 @@ export function configurationCloneDependency(workspace: {
 }): unknown {
   const dependency = workspace.serverState?.cloneDependency;
   const aliases = storagePhysicalTemplateIds(workspace);
-  if (aliases.size === 0 || !object(dependency)) return dependency;
+  if (aliases.size === 0 || !objectOrUndefined(dependency)) return dependency;
   return Object.fromEntries(Object.entries(dependency as Obj).map(([root, members]) => [root,
     Array.isArray(members) ? members.filter(member =>
       typeof member !== 'string' || !aliases.has(member) || aliases.get(member) === member) : members,
@@ -175,12 +175,12 @@ export function storageDependencyColors(workspace: {
   serverState?: Obj; rackArea?: Obj[]; nonRackArea?: Obj[];
 }): Obj {
   const state = workspace.serverState ?? {};
-  const result = structuredClone(object(state.cloneDependencyColor) ?? {});
+  const result = structuredClone(objectOrUndefined(state.cloneDependencyColor) ?? {});
   const aliases = storagePhysicalTemplateIds(workspace);
   for (const templateId of new Set(aliases.values())) {
     const members = [templateId, ...[...aliases].filter(([physicalId, root]) =>
       root === templateId && physicalId !== templateId).map(([physicalId]) => physicalId)];
-    const existing = object(result[templateId]);
+    const existing = objectOrUndefined(result[templateId]);
     if (existing) {
       result[templateId] = { ...existing, dependBy: members };
       continue;
@@ -192,19 +192,9 @@ export function storageDependencyColors(workspace: {
   return result;
 }
 
-function object(value: unknown): Obj | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Obj
-    : undefined;
-}
-
-function string(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
 function expansionId(controller: StorageController, expansion: Obj): string {
-  return ['storage-expansion', controller.option, string(expansion['option']),
-    string(expansion['featureCode']), string(expansion['description'])]
+  return ['storage-expansion', controller.option, stringOrEmpty(expansion['option']),
+    stringOrEmpty(expansion['featureCode']), stringOrEmpty(expansion['description'])]
     .map(encodeURIComponent).join(':');
 }
 
@@ -224,13 +214,13 @@ function uniqueById<T extends { id: string }>(
 /** Adds stable client keys to the expansion records nested under one controller. */
 export function listStorageExpansions(controller: StorageController): StorageExpansionChoice[] {
   return controller.expansions.flatMap((value) => {
-    const raw = object(value);
+    const raw = objectOrUndefined(value);
     if (!raw) return [];
     const maximum = Number(raw['maximum']);
     return [{
       id: expansionId(controller, raw), controllerId: controller.id,
-      option: string(raw['option']), featureCode: string(raw['featureCode']),
-      description: string(raw['description']),
+      option: stringOrEmpty(raw['option']), featureCode: stringOrEmpty(raw['featureCode']),
+      description: stringOrEmpty(raw['description']),
       maximum: Number.isFinite(maximum) && maximum >= 0 ? Math.trunc(maximum) : 0,
       raw: structuredClone(raw),
     }];
@@ -364,10 +354,10 @@ export function reconfigureStorageConnectionNetwork(
   const current = matches[0]!;
   const next = structuredClone(current);
   const matchesSelection = (selection: Obj, choice: { option: string; featureCode?: string | undefined }) =>
-    selection['option'] === choice.option && string(selection['featureCode']) === (choice.featureCode ?? '');
+    selection['option'] === choice.option && stringOrEmpty(selection['featureCode']) === (choice.featureCode ?? '');
   if (changes.type !== undefined) {
     assertChoice(changes.type, STORAGE_TYPES, 'type');
-    if (changes.type !== current.type && rackedTemplateIds.has(string(current.controller['id']))) {
+    if (changes.type !== current.type && rackedTemplateIds.has(stringOrEmpty(current.controller['id']))) {
       throw new Error('Move the storage controller instances out of their racks before changing the storage type, as required by the website.');
     }
     next.type = changes.type;
@@ -381,7 +371,7 @@ export function reconfigureStorageConnectionNetwork(
     const controller = uniqueById(fabric.storageControllers, changes.controllerId, 'controllerId');
     controllerChanged = !matchesSelection(current.controller, controller);
     if (controllerChanged) {
-      if (string(current.controller['id'])) throw new Error('The website locks the controller choice after Edit Item creates its configuration. Create a new storage definition to choose another controller.');
+      if (stringOrEmpty(current.controller['id'])) throw new Error('The website locks the controller choice after Edit Item creates its configuration. Create a new storage definition to choose another controller.');
       const expansion = resolveExpansion(controller, undefined);
       next.controller = { option: controller.option, featureCode: controller.featureCode ?? '' };
       next.expansion = expansion ? { option: expansion.option, featureCode: expansion.featureCode } : {};
@@ -397,7 +387,7 @@ export function reconfigureStorageConnectionNetwork(
       : choices.find(choice => matchesSelection(next.expansion, choice));
     const expansionChanged = expansion !== undefined && !matchesSelection(next.expansion, expansion);
     const quantityChanged = changes.expansionQuantity !== undefined && changes.expansionQuantity !== next.maximumExpansions;
-    if ((expansionChanged || quantityChanged) && rackedTemplateIds.has(string(current.expansion['id']))) {
+    if ((expansionChanged || quantityChanged) && rackedTemplateIds.has(stringOrEmpty(current.expansion['id']))) {
       throw new Error('Move the storage expansion instances out of their racks before changing expansion preferences.');
     }
     if (expansionChanged) next.expansion = { option: expansion.option, featureCode: expansion.featureCode };
@@ -412,7 +402,7 @@ export function reconfigureStorageConnectionNetwork(
   }
   if (changes.switchId !== undefined) {
     const selected = resolveSwitch(fabric, changes.switchId);
-    const changed = selected ? !matchesSelection(current.mainSwitch, selected) : Boolean(string(current.mainSwitch['option']));
+    const changed = selected ? !matchesSelection(current.mainSwitch, selected) : Boolean(stringOrEmpty(current.mainSwitch['option']));
     if (changed) next.mainSwitch = { ...compactSelection('switch', selected),
       ...(!selected ? { option: '', featureCode: '' } : {}) };
   }
@@ -420,7 +410,7 @@ export function reconfigureStorageConnectionNetwork(
 }
 
 function configurationId(configuration: Obj): string {
-  return string(configuration['id']) || string(configuration['configurationId']);
+  return stringOrEmpty(configuration['id']) || stringOrEmpty(configuration['configurationId']);
 }
 
 /**
@@ -452,7 +442,7 @@ export function applySelectedStorageNetworks(
   const selectedStorageNetwork: Record<string, string> = {};
   const updated = configurations.map((configuration) => {
     const id = configurationId(configuration);
-    const current = string(configuration['selectedStorageNetwork']);
+    const current = stringOrEmpty(configuration['selectedStorageNetwork']);
     const selected = requested.get(id) ?? current;
     if (selected && !networkNames.has(selected)) {
       throw new Error(`Configuration "${id}" selects stale storage network "${selected}". ` +

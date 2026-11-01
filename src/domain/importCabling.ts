@@ -1,8 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { unzipSync } from 'node:zlib';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
 const fields = ['network', 'topology', 'cablePart', 'sourceId', 'sourcePortName', 'sourcePortNumber',
   'destinationId', 'destinationPortName', 'destinationPortNumber', 'type', 'subType'];
 const identity = (row: Obj) => JSON.stringify(fields.map(key => String(row[key] ?? '')));
@@ -10,13 +9,13 @@ const identity = (row: Obj) => JSON.stringify(fields.map(key => String(row[key] 
 /** Lenovo's importer drops the saved breakout divider; retain its exact source identity. */
 export function readSavedBreakoutConnections(xml: string): Obj[] {
   const parser = new XMLParser({ parseTagValue: false });
-  const document = object(parser.parse(xml));
-  const encoded = object(object(document['CFXML'])['SectionData'])['NetworkingInformation'];
+  const document = objectOrEmpty(parser.parse(xml));
+  const encoded = objectOrEmpty(objectOrEmpty(document['CFXML'])['SectionData'])['NetworkingInformation'];
   if (typeof encoded !== 'string' || !encoded.trim()) return [];
   const decoded = unzipSync(Buffer.from(encoded, 'base64'), { maxOutputLength: 20 * 1024 * 1024 }).toString('utf8');
-  const network = object(object(parser.parse(decoded))['NetworkingInformation']);
-  const items = object(network['AutoConnectResults'])['AutoConnectItem'];
-  const rows = (Array.isArray(items) ? items : items === undefined ? [] : [items]).map(object);
+  const network = objectOrEmpty(objectOrEmpty(parser.parse(decoded))['NetworkingInformation']);
+  const items = objectOrEmpty(network['AutoConnectResults'])['AutoConnectItem'];
+  const rows = (Array.isArray(items) ? items : items === undefined ? [] : [items]).map(objectOrEmpty);
   return rows.filter(row => row['Divider'] === '4').map(row => {
     if (row['Topology'] !== '100GbE_Copper' || row['SourcePortName'] !== 'SFP28' || row['DestinationPortName'] !== 'QSFP28' ||
         !/100G QSFP28 to 4x25G SFP28/i.test(String(row['CableType']))) {
@@ -36,8 +35,8 @@ export function readSavedBreakoutConnections(xml: string): Obj[] {
 /** Restore shape only on a unique, otherwise unchanged backend-imported row. */
 export function restoreSavedBreakoutConnections(payload: Obj, saved: readonly Obj[]): number {
   if (!saved.length) return 0;
-  const networking = object(payload['networkingInformation']);
-  const rows = Array.isArray(networking['autoConnectResults']) ? networking['autoConnectResults'].map(object) : [];
+  const networking = objectOrEmpty(payload['networkingInformation']);
+  const rows = Array.isArray(networking['autoConnectResults']) ? networking['autoConnectResults'].map(objectOrEmpty) : [];
   const replacements = new Map<Obj, Obj>();
   for (const source of saved) {
     const matches = rows.filter(row => identity(row) === identity(source));

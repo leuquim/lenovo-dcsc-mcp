@@ -1,8 +1,8 @@
 import type { RawConfiguration, RawSection } from '../model/types.js';
 import type { ReducedConfiguration } from './reduce.js';
 import { serializeSoftwareGroupSelection, type WireSection } from './dcscWire.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 const objects = (value: unknown): Obj[] => Array.isArray(value)
   ? value.filter((item): item is Obj => typeof item === 'object' && item !== null) : [];
 

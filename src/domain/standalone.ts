@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import { finiteNumber, nonBlankString, type Obj, objectOrUndefined, requirePositiveSafeInteger } from '../util/coerce.js';
+import { exportZipPath, type ExportZipPath } from './endpoints.js';
 
-type Obj = Record<string, unknown>;
 
 export type PartLookupType = 'SOFTWARE' | 'SERVICE' | 'HARDWARE';
 export type PartLookupMode = 'CTO' | 'LFO';
@@ -101,7 +102,7 @@ export interface SelectSoftwareInput {
 }
 
 export interface StandaloneSoftwareExportEnvelope {
-  endpoint: '/lfos/export_zip';
+  endpoint: ExportZipPath;
   data: Obj & { standaloneData: Obj[] };
   groups: Array<{
     name: string;
@@ -244,14 +245,14 @@ export async function findParts(
 
   const items = Array.isArray(response.raw)
     ? response.raw.flatMap((value) => {
-        const raw = object(value);
-        const code = string(raw?.['code']);
+        const raw = objectOrUndefined(value);
+        const code = nonBlankString(raw?.['code']);
         if (!raw || !code) return [];
         const type = String(raw['type'] ?? 'UNKNOWN').toUpperCase();
         return [
           {
             code,
-            description: string(raw['description']) ?? '',
+            description: nonBlankString(raw['description']) ?? '',
             type,
             nextAction: nextAction(type),
             raw,
@@ -304,7 +305,7 @@ export function browseStandaloneSoftware(
   input: BrowseSoftwareInput = {},
 ): BrowseSoftwareResult {
   const offset = nonNegativeInteger(input.offset ?? 0, 'offset');
-  const limit = positiveInteger(input.limit ?? 50, 'limit');
+  const limit = requirePositiveSafeInteger(input.limit ?? 50, 'limit');
   const query = input.query?.trim().toLowerCase() ?? '';
   const path = input.path ?? {};
   const matches = state.features.filter((feature) => {
@@ -330,7 +331,7 @@ export function selectStandaloneSoftware(
   state: StandaloneSoftwareState,
   input: SelectSoftwareInput,
 ): StandaloneSoftwareState {
-  const quantity = positiveInteger(input.quantity, 'quantity');
+  const quantity = requirePositiveSafeInteger(input.quantity, 'quantity');
   const feature = uniqueByCode(state.features, input.code, 'software feature');
   const existing = state.selections.find((selection) => selection.code === input.code);
   const selection = softwareSelection(feature, quantity, existing?.id ?? input.id ?? randomUUID());
@@ -376,7 +377,7 @@ export function buildStandaloneSoftwareExportEnvelope(
     groupId: groupName,
   }));
   return {
-    endpoint: '/lfos/export_zip',
+    endpoint: exportZipPath('lfos'),
     data: { ...baseData, standaloneData },
     groups: [{ name: groupName, parent: null, index: -1, products }],
   };
@@ -390,7 +391,7 @@ export async function launchProductServices(
 ): Promise<ProductServiceState> {
   const code = required(input.productCode, 'productCode');
   const subCategory = required(input.subCategory, 'subCategory');
-  const quantity = positiveInteger(input.productQuantity ?? 1, 'productQuantity');
+  const quantity = requirePositiveSafeInteger(input.productQuantity ?? 1, 'productQuantity');
   const [derive, catalog] = await Promise.all([
     http.send({
       endpoint: 'standalone_services_launch',
@@ -454,7 +455,7 @@ export async function selectProductService(
   state: ProductServiceState,
   input: SelectProductServiceInput,
 ): Promise<ProductServiceState> {
-  const quantity = positiveInteger(input.quantity, 'quantity');
+  const quantity = requirePositiveSafeInteger(input.quantity, 'quantity');
   const matches = state.options.filter((option) => option.code === input.serviceCode);
   if (matches.length === 0) {
     throw new Error(`Service ${input.serviceCode} is not in the current option graph.`);
@@ -614,7 +615,7 @@ export function buildProductServiceExportEnvelope(
 }
 
 function indexSoftwareFeatures(raw: unknown): StandaloneSoftwareFeature[] {
-  const root = object(raw);
+  const root = objectOrUndefined(raw);
   const out: StandaloneSoftwareFeature[] = [];
   for (const tab of objectArray(root?.['tabs'])) {
     for (const subTab of objectArray(tab['subTabs'])) {
@@ -642,19 +643,19 @@ function appendSoftwareFeatures(
   subCategory?: Obj,
 ): void {
   for (const feature of features) {
-    const code = string(feature['code']);
+    const code = nonBlankString(feature['code']);
     if (!code) continue;
-    const unitPrice = number(feature['unitPrice']);
+    const unitPrice = finiteNumber(feature['unitPrice']);
     const showPrice = boolean(feature['showPrice']);
     out.push({
       code,
-      ...(string(feature['softwareCode']) ? { softwareCode: string(feature['softwareCode']) } : {}),
-      description: string(feature['description']) ?? '',
+      ...(nonBlankString(feature['softwareCode']) ? { softwareCode: nonBlankString(feature['softwareCode']) } : {}),
+      description: nonBlankString(feature['description']) ?? '',
       ...(unitPrice !== undefined ? { unitPrice } : {}),
       priceNotAvailable: boolean(feature['priceNotAvailable']) ?? false,
       ...(showPrice !== undefined ? { showPrice } : {}),
       prices: Array.isArray(feature['prices']) ? feature['prices'] : [],
-      attributes: object(feature['optionAttributes']) ?? {},
+      attributes: objectOrUndefined(feature['optionAttributes']) ?? {},
       path: {
         tab: label(tab),
         subTab: label(subTab),
@@ -704,31 +705,31 @@ function softwareExportItem(selection: StandaloneSoftwareSelection): Obj {
 }
 
 function indexServiceOptions(raw: unknown): ProductServiceOption[] {
-  const root = object(raw);
+  const root = objectOrUndefined(raw);
   const out: ProductServiceOption[] = [];
   for (const tab of objectArray(root?.['tabs'])) {
     for (const subTab of objectArray(tab['subTabs'])) {
       const subTabName = label(subTab);
       for (const section of objectArray(subTab['sections'])) {
-        const name = string(section['name']) ?? label(section);
-        const description = subTabName || string(section['description']) || name;
+        const name = nonBlankString(section['name']) ?? label(section);
+        const description = subTabName || nonBlankString(section['description']) || name;
         const source = description.split('|')[0]?.trim() || description;
         const seen = new Set<string>();
         for (const feature of [
           ...objectArray(section['features']),
           ...objectArray(section['results']),
         ]) {
-          const code = string(feature['code']);
+          const code = nonBlankString(feature['code']);
           if (!code || seen.has(code)) continue;
           seen.add(code);
-          const unitPrice = number(feature['unitPrice']);
-          const preSelectedQuantity = number(feature['preSelectedQuantity']);
-          const type = string(feature['type']) ?? '';
+          const unitPrice = finiteNumber(feature['unitPrice']);
+          const preSelectedQuantity = finiteNumber(feature['preSelectedQuantity']);
+          const type = nonBlankString(feature['type']) ?? '';
           out.push({
             code,
-            description: string(feature['description']) ?? '',
+            description: nonBlankString(feature['description']) ?? '',
             type,
-            characterName: string(feature['characterName']) ?? type,
+            characterName: nonBlankString(feature['characterName']) ?? type,
             ...(unitPrice !== undefined ? { unitPrice } : {}),
             ...(preSelectedQuantity !== undefined ? { preSelectedQuantity } : {}),
             section: source,
@@ -745,27 +746,27 @@ function indexServiceOptions(raw: unknown): ProductServiceOption[] {
 
 /** Rebuilds selected service state from DCSC's authoritative derived section results. */
 function indexServiceSelections(raw: unknown): ProductServiceSelection[] {
-  const root = object(raw);
+  const root = objectOrUndefined(raw);
   const out: ProductServiceSelection[] = [];
   for (const tab of objectArray(root?.['tabs'])) {
     for (const subTab of objectArray(tab['subTabs'])) {
       const subTabName = label(subTab);
       for (const section of objectArray(subTab['sections'])) {
-        const sectionName = string(section['name']) ?? label(section);
-        const sectionDescription = subTabName || string(section['description']) || sectionName;
+        const sectionName = nonBlankString(section['name']) ?? label(section);
+        const sectionDescription = subTabName || nonBlankString(section['description']) || sectionName;
         const source = sectionDescription.split('|')[0]?.trim() || sectionDescription;
         for (const result of objectArray(section['results'])) {
-          const code = string(result['code']);
-          const quantity = number(result['quantity']);
+          const code = nonBlankString(result['code']);
+          const quantity = finiteNumber(result['quantity']);
           if (!code || quantity === undefined || quantity <= 0) continue;
-          const type = string(result['type']) ?? '';
-          const ctoCode = string(result['ctoCode']);
+          const type = nonBlankString(result['type']) ?? '';
+          const ctoCode = nonBlankString(result['ctoCode']);
           out.push({
             code,
             quantity,
-            description: string(result['description']) ?? '',
+            description: nonBlankString(result['description']) ?? '',
             type,
-            characterName: string(result['characterName']) ?? type,
+            characterName: nonBlankString(result['characterName']) ?? type,
             section: source,
             sectionName,
             sectionDescription,
@@ -858,24 +859,10 @@ function uniqueByCode<T extends { code: string }>(items: T[], code: string, kind
   return matches[0] as T;
 }
 
-function object(value: unknown): Obj | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Obj)
-    : undefined;
-}
-
 function objectArray(value: unknown): Obj[] {
   return Array.isArray(value)
-    ? value.map((item) => object(item)).filter((item): item is Obj => item !== undefined)
+    ? value.map((item) => objectOrUndefined(item)).filter((item): item is Obj => item !== undefined)
     : [];
-}
-
-function string(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
-function number(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function boolean(value: unknown): boolean | undefined {
@@ -883,18 +870,13 @@ function boolean(value: unknown): boolean | undefined {
 }
 
 function label(value: Obj): string {
-  return string(value['title']) ?? string(value['description']) ?? string(value['name']) ?? '';
+  return nonBlankString(value['title']) ?? nonBlankString(value['description']) ?? nonBlankString(value['name']) ?? '';
 }
 
 function required(value: string, name: string): string {
   const trimmed = value.trim();
   if (trimmed === '') throw new Error(`${name} must not be empty.`);
   return trimmed;
-}
-
-function positiveInteger(value: number, name: string): number {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer.`);
-  return value;
 }
 
 function nonNegativeInteger(value: number, name: string): number {

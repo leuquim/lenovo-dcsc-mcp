@@ -1,6 +1,6 @@
 import type { RawConfiguration } from '../model/types.js';
+import { isObject, type Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 /**
  * Clones one canonical DCSC configuration under a fresh configuration id.
@@ -52,6 +52,3 @@ function assertIdentity(value: string, name: string): void {
   }
 }
 
-function isObject(value: unknown): value is Obj {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}

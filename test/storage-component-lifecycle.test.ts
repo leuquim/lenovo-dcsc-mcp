@@ -13,7 +13,7 @@ import {
   type StorageConnectionNetwork,
 } from '../src/domain/storagePreferences.js';
 import { removeWorkspaceReferences } from '../src/domain/workspaceReferences.js';
-import type { WorkspaceSession } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 const fixture = JSON.parse(readFileSync(
   new URL('./fixtures/parity/storage-san-replacement.json', import.meta.url), 'utf8',

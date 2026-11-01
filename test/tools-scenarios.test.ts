@@ -7,7 +7,7 @@ import { projectWorkspaceSummary, workspaceDetailSource } from '../src/model/wor
 import type { RawConfiguration } from '../src/model/types.js';
 import { registerTools } from '../src/mcp/tools.js';
 import type { DcscService } from '../src/mcp/service.js';
-import type { ConfigSession, WorkspaceSession } from '../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 
 type ToolReply = {
   content: Array<{ type: 'text'; text: string }>;

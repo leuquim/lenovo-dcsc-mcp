@@ -5,8 +5,8 @@ import {
   type StoragePlacementRole,
 } from './storagePlacement.js';
 import type { StorageConnectionNetwork } from './storagePreferences.js';
+import { type Obj, objectOrUndefined } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export const NATIVE_DETACHED_STORAGE_COMMERCIAL_DIFFERENCE =
   'website-counts-detached-template' as const;
@@ -28,12 +28,6 @@ interface StorageWorkspaceShape {
   serverState?: Obj | undefined;
   rackArea?: RackObject[] | undefined;
   nonRackArea?: RackObject[] | undefined;
-}
-
-function object(value: unknown): Obj | undefined {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Obj
-    : undefined;
 }
 
 function requiredString(value: unknown, label: string): string {
@@ -60,7 +54,7 @@ export function readDetachedStorageComponents(state: Obj): DetachedStorageCompon
   }
   const seen = new Set<string>();
   return source.map((raw, index) => {
-    const value = object(raw);
+    const value = objectOrUndefined(raw);
     if (!value) throw new Error(`Detached storage component ${index} must be an object.`);
     const templateId = requiredString(value['templateId'], `Detached storage component ${index} templateId`);
     if (seen.has(templateId)) throw new Error(`Detached storage template ${templateId} occurs more than once.`);
@@ -105,13 +99,13 @@ export function detachedStorageTemplateIds(state: Obj): Set<string> {
   const source = detachedStorageComponentSource(state);
   if (!Array.isArray(source)) return new Set();
   return new Set(source.flatMap((raw) => {
-    const id = object(raw)?.['templateId'];
+    const id = objectOrUndefined(raw)?.['templateId'];
     return typeof id === 'string' && id.trim() ? [id] : [];
   }));
 }
 
 function selectedId(network: StorageConnectionNetwork, role: StoragePlacementRole): string {
-  const id = object(network[role])?.['id'];
+  const id = objectOrUndefined(network[role])?.['id'];
   return typeof id === 'string' ? id.trim() : '';
 }
 
@@ -150,7 +144,7 @@ export function retainReplacedStorageComponents(options: {
   });
   const retained: DetachedStorageComponent[] = [];
   for (const role of ['controller', 'mainSwitch'] as const) {
-    const before = object(previousMatches[0]![role]);
+    const before = objectOrUndefined(previousMatches[0]![role]);
     const oldId = selectedId(previousMatches[0]!, role);
     const newId = selectedId(nextMatches[0]!, role);
     if (!oldId || oldId === newId || activeAfter.has(oldId)) continue;

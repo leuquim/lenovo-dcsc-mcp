@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import type { FabricOptions } from '../src/domain/fabric.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
 import type { RawConfiguration } from '../src/model/types.js';

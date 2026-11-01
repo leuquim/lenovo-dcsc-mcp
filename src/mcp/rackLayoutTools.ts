@@ -9,7 +9,7 @@ import {
   projectWorkspaceLayout,
   projectWorkspacePage,
 } from '../model/workspaceProjection.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import type { RackPositionRuleInput } from '../domain/rackPositionRule.js';
 import { requireSession } from './sessionTools.js';

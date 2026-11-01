@@ -1,18 +1,12 @@
 import type { RawConfiguration } from '../model/types.js';
+import { type Obj, objectItems } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface AutoDerivedSelectionProjection {
   configuration: RawConfiguration;
   /** Full server records are retained for the next derive/export. */
   autoDerivedResults: unknown[];
   applied: Array<{ recordId?: string | undefined; section: string; code: string; quantity: number }>;
-}
-
-function objects(value: unknown): Obj[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is Obj => item !== null && typeof item === 'object' && !Array.isArray(item))
-    : [];
 }
 
 function configurationId(configuration: RawConfiguration): string {
@@ -22,8 +16,8 @@ function configurationId(configuration: RawConfiguration): string {
 function sections(configuration: RawConfiguration): Obj[] {
   return [
     ...objects(configuration.unSelectableCharacters),
-    ...objects(configuration.tabs).flatMap((tab) => objects(tab['subTabs']))
-      .flatMap((subTab) => objects(subTab['sections'])),
+    ...objects(configuration.tabs).flatMap((tab) => objectItems(tab['subTabs']))
+      .flatMap((subTab) => objectItems(subTab['sections'])),
   ];
 }
 
@@ -46,7 +40,7 @@ export function projectAutoDerivedSelections(
   const availableSections = sections(configuration);
   const applied: AutoDerivedSelectionProjection['applied'] = [];
 
-  for (const record of objects(records)) {
+  for (const record of objectItems(records)) {
     const derivePart = record['derivePart'];
     const feature = record['feature'];
     if (record['derivePartType'] !== 'FC' || record['invalid'] === true || record['override'] === true ||
@@ -64,7 +58,7 @@ export function projectAutoDerivedSelections(
         typeof quantity !== 'number' || !Number.isSafeInteger(quantity) || quantity <= 0) continue;
 
     const section = availableSections.find((candidate) => candidate['name'] === sectionName);
-    const result = objects(section?.['results']).find((candidate) => candidate['code'] === code);
+    const result = objectItems(section?.['results']).find((candidate) => candidate['code'] === code);
     if (!result) continue;
     result['derived'] = true;
     result['quantity'] = quantity;

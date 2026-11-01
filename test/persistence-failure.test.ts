@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 
 describe('durable transaction failures', () => {

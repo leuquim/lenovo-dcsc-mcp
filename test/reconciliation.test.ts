@@ -12,8 +12,9 @@ import {
 } from '../src/domain/reconciliation.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import { SessionStore, type WorkspaceSession } from '../src/session/SessionStore.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionStore } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 
 const complete = JSON.parse(
   readFileSync(new URL('./fixtures/parity/sr630-launch.json', import.meta.url), 'utf8'),

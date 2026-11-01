@@ -10,7 +10,7 @@ import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerStorageTools } from '../src/mcp/storageTools.js';
 import { loadSessions, saveSessions } from '../src/session/persist.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 
 type Reply = { isError?: boolean; content: Array<{ text: string }> };

@@ -15,7 +15,7 @@ import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js
 import { workspaceNetworkTypes } from '../domain/workspaceNetworkPreferences.js';
 import { physicalIds } from '../domain/workspaceReferences.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { positiveQuantity, requireSession } from './sessionTools.js';
 import { guard, withToolSupport } from './toolSupport.js';

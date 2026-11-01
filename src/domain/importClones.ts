@@ -1,8 +1,7 @@
 import type { RawConfiguration } from '../model/types.js';
 import { cloneConfigurationRaw } from './configurationIdentity.js';
+import { type Obj, objectOrUndefined } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj | undefined => value && typeof value === 'object' && !Array.isArray(value) ? value as Obj : undefined;
 
 type CloneDependency = Record<string, string[]>;
 
@@ -22,7 +21,7 @@ function cloneMembers(root: string, value: unknown, label: string): string[] {
 
 function cloneGroups(value: unknown, label: string): CloneDependency | undefined {
   if (value === undefined) return undefined;
-  const source = object(value);
+  const source = objectOrUndefined(value);
   if (!source) throw new Error(`${label} must be an object of identity arrays.`);
   const result: CloneDependency = {};
   const owners = new Map<string, string>();
@@ -48,21 +47,21 @@ function importedStorageOwnership(payload: Obj): {
   aliases: Map<string, string>;
   templates: Set<string>;
 } {
-  const networking = object(payload.networkingInformation);
+  const networking = objectOrUndefined(payload.networkingInformation);
   const networkSource = payload.storageConnectionNetworks ?? networking?.storageConnectionNetworks ??
     networking?.storageNetworks;
   const storageCodes = new Set<string>();
   const switchCodes = new Set<string>();
   const templates = new Set<string>();
   if (Array.isArray(networkSource)) for (const value of networkSource) {
-    const network = object(value);
+    const network = objectOrUndefined(value);
     if (!network) continue;
-    const controller = object(network.controller);
+    const controller = objectOrUndefined(network.controller);
     const controllerCode = nonemptyString(controller?.option)?.toUpperCase();
     if (controllerCode) storageCodes.add(controllerCode);
     const controllerId = nonemptyString(controller?.id);
     if (controllerId) templates.add(controllerId);
-    const mainSwitch = object(network.mainSwitch);
+    const mainSwitch = objectOrUndefined(network.mainSwitch);
     const switchCode = nonemptyString(mainSwitch?.option)?.toUpperCase();
     if (switchCode) switchCodes.add(switchCode);
     const switchId = nonemptyString(mainSwitch?.id);
@@ -71,13 +70,13 @@ function importedStorageOwnership(payload: Obj): {
 
   const physicalIds = new Set<string>();
   const visit = (value: unknown): void => {
-    const item = object(value);
+    const item = objectOrUndefined(value);
     if (!item) throw new Error('Imported physical storage hierarchy contains a non-object item.');
     const id = nonemptyString(item.configurationId ?? item.id);
     if (id) physicalIds.add(id);
     for (const child of Array.isArray(item.children) ? item.children : []) visit(child);
   };
-  const workspace = object(payload.workspace);
+  const workspace = objectOrUndefined(payload.workspace);
   for (const item of [
     ...(Array.isArray(workspace?.rackArea) ? workspace.rackArea : []),
     ...(Array.isArray(workspace?.nonRackArea) ? workspace.nonRackArea : []),
@@ -86,7 +85,7 @@ function importedStorageOwnership(payload: Obj): {
   const result = new Map<string, string>();
   if (!Array.isArray(payload.configuration)) return { aliases: result, templates };
   for (const value of payload.configuration) {
-    const raw = object(value);
+    const raw = objectOrUndefined(value);
     const id = nonemptyString(raw?.id ?? raw?.configurationId);
     const code = nonemptyString(raw?.sliceCtoCode ?? raw?.code)?.toUpperCase();
     const type = nonemptyString(raw?.type)?.toLowerCase();
@@ -106,12 +105,12 @@ function colorGroups(
   storageTemplateIds: ReadonlySet<string>,
 ): CloneDependency | undefined {
   if (value === undefined) return undefined;
-  const source = object(value);
+  const source = objectOrUndefined(value);
   if (!source) throw new Error('Imported cloneDependencyColor must be an object.');
   const memberships: Record<string, unknown> = {};
   const storageOwners = new Map<string, string>();
   for (const [root, rawColor] of Object.entries(source)) {
-    const color = object(rawColor);
+    const color = objectOrUndefined(rawColor);
     if (!color) throw new Error(`Imported cloneDependencyColor ${root} must be an object.`);
     if (color.dependBy === undefined) continue;
     if (!root.trim() || !Array.isArray(color.dependBy) ||
@@ -242,7 +241,7 @@ function assertMatchingColors(dependency: CloneDependency, colors: CloneDependen
  */
 export function expandImportedClones<T extends Obj>(source: T): T {
   const payload = structuredClone(source);
-  const workspace = object(payload.workspace);
+  const workspace = objectOrUndefined(payload.workspace);
   if (!workspace || !Array.isArray(payload.configuration) || !Array.isArray(workspace.nonRackArea)) return payload;
   const configurations = payload.configuration as RawConfiguration[];
   const dependency = cloneGroups(payload.cloneDependency, 'Imported clone dependency') ?? {};
@@ -273,7 +272,7 @@ export function expandImportedClones<T extends Obj>(source: T): T {
     }
     const childrenByParent: Obj[][] = memberIds.map(() => []);
     for (const value of children) {
-      const child = object(value);
+      const child = objectOrUndefined(value);
       if (!child || child.type !== 'node' || (Array.isArray(child.children) && child.children.length > 0)) {
         throw new Error('Nested chassis expansion requires direct node children.');
       }
@@ -301,7 +300,7 @@ export function expandImportedClones<T extends Obj>(source: T): T {
       const member: Obj = { ...structuredClone(item), id, configurationId: id, quantity: 1, originalIds: [id] };
       if (children.length > 0) member.children = childrenByParent[index];
       if (positions) member.derivedResults = [
-        ...(Array.isArray(item.derivedResults) ? item.derivedResults.filter(result => !/^32\d{2}$/.test(String(object(result)?.featureCode))) : []),
+        ...(Array.isArray(item.derivedResults) ? item.derivedResults.filter(result => !/^32\d{2}$/.test(String(objectOrUndefined(result)?.featureCode))) : []),
         { featureCode: `32${String(positions[index]).padStart(2, '0')}`, name: 'MI_P', quantity: 1 },
       ];
       return member;
@@ -311,13 +310,13 @@ export function expandImportedClones<T extends Obj>(source: T): T {
     return members;
   };
   const expandItems = (items: unknown[], inRack: boolean): Obj[] => items.flatMap(value => {
-    const item = object(value);
+    const item = objectOrUndefined(value);
     if (!item) throw new Error('Imported physical item is not an object.');
     return expandItem(item, inRack);
   });
   workspace.nonRackArea = expandItems(workspace.nonRackArea, false);
   if (Array.isArray(workspace.rackArea)) for (const value of workspace.rackArea) {
-    const rack = object(value);
+    const rack = objectOrUndefined(value);
     if (rack && Array.isArray(rack.children)) rack.children = expandItems(rack.children, true);
   }
   if (expansions.length > 0) {
@@ -357,7 +356,7 @@ function groupedRackPositions(item: Obj, count: number): number[] {
   const size = Number(item.size);
   const positions: number[] = [];
   for (const value of Array.isArray(item.derivedResults) ? item.derivedResults : []) {
-    const result = object(value);
+    const result = objectOrUndefined(value);
     if (!/^32\d{2}$/.test(String(result?.featureCode))) continue;
     const start = Number(String(result!.featureCode).slice(2));
     const quantity = Number(result!.quantity);

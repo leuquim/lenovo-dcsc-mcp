@@ -1,5 +1,6 @@
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import type { RackObject } from './rack.js';
+import { objectOrUndefined } from '../util/coerce.js';
 
 /** Removes an existing physical instance without cloning it or changing its metadata. */
 export function detachPhysicalItem(workspace: WorkspaceSession, id: string): RackObject | undefined {
@@ -56,19 +57,13 @@ interface RebasedCloneReferences {
   affectedRoots: Set<string>;
 }
 
-function object(value: unknown): Record<string, unknown> | undefined {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : undefined;
-}
-
 /**
  * The DCSC SPA promotes the first surviving member when a Clone Multiple root is
  * removed. Compute that promotion before mutating the workspace so an identity
  * collision cannot leave a partially detached layout.
  */
 function rebaseCloneReferences(serverState: Record<string, unknown>, removed: ReadonlySet<string>): RebasedCloneReferences {
-  const source = object(serverState.cloneDependency);
+  const source = objectOrUndefined(serverState.cloneDependency);
   if (!source) return { dependency: undefined, colors: undefined, affectedRoots: new Set() };
 
   const dependency: Record<string, unknown> = {};
@@ -92,7 +87,7 @@ function rebaseCloneReferences(serverState: Record<string, unknown>, removed: Re
     promotions.set(root, { root: promotedRoot, members });
   }
 
-  const sourceColors = object(serverState.cloneDependencyColor);
+  const sourceColors = objectOrUndefined(serverState.cloneDependencyColor);
   if (!sourceColors) return { dependency, colors: undefined, affectedRoots };
   const colors = prune(sourceColors, removed) as Record<string, unknown>;
   for (const root of affectedRoots) {
@@ -102,7 +97,7 @@ function rebaseCloneReferences(serverState: Record<string, unknown>, removed: Re
     if (Object.hasOwn(colors, promotion.root)) {
       throw new Error(`Cannot remove configuration ${root}; promoted clone color ${promotion.root} conflicts with an existing clone group.`);
     }
-    const sourceColor = object(sourceColors[root]);
+    const sourceColor = objectOrUndefined(sourceColors[root]);
     if (sourceColor) colors[promotion.root] = { ...structuredClone(sourceColor), dependBy: [...promotion.members] };
   }
   return { dependency, colors, affectedRoots };
@@ -113,7 +108,7 @@ export function removeWorkspaceReferences(workspace: WorkspaceSession, removed: 
   const detached = workspace.serverState.detachedStorageComponents;
   if (Array.isArray(detached)) {
     for (const raw of detached) {
-      const value = object(raw);
+      const value = objectOrUndefined(raw);
       if (typeof value?.templateId !== 'string' || !removedIds.has(value.templateId) ||
           !Array.isArray(value.physicalIds)) continue;
       for (const id of value.physicalIds) if (typeof id === 'string') removedIds.add(id);
@@ -140,7 +135,7 @@ export function removeWorkspaceReferences(workspace: WorkspaceSession, removed: 
   if (importCloneExpansion !== undefined) workspace.serverState.importCloneExpansion = importCloneExpansion;
   if (cloneReferences.dependency !== undefined) workspace.serverState.cloneDependency = cloneReferences.dependency;
   if (cloneReferences.colors !== undefined) workspace.serverState.cloneDependencyColor = cloneReferences.colors;
-  const linkedEdits = object(workspace.serverState.linkedConfigurationEdits);
+  const linkedEdits = objectOrUndefined(workspace.serverState.linkedConfigurationEdits);
   if (linkedEdits && cloneReferences.affectedRoots.size > 0) {
     for (const root of cloneReferences.affectedRoots) delete linkedEdits[root];
   }

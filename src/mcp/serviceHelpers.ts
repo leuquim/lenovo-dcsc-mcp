@@ -19,7 +19,7 @@ import {
 } from '../domain/storageWizard.js';
 import { buildIndex, resolveSection, suggestSections } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
-import type { ConfigSession, WorkspaceSession } from '../session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 
 const CATALOG_CODE_INDEX = new WeakMap<Catalog, ReadonlySet<string>>();
 

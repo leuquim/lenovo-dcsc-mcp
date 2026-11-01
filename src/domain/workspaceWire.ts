@@ -1,8 +1,8 @@
 import type { ConfigMode } from '../config/constants.js';
 import { hardwareModeFamily } from './modeFamily.js';
 import { projectLockedSpaceToSpa } from './rackLocks.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 function rows(value: unknown): Obj[] {
   return Array.isArray(value) ? value.filter((item): item is Obj => typeof item === 'object' && item !== null) : [];

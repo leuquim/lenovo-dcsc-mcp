@@ -1,6 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import { exportXlsPath } from './endpoints.js';
+import { hardwareEndpointFamily } from './modeFamily.js';
 
 export interface ExportPowerOrGroupXlsInput {
   mode: 'cto' | 'lfo';
@@ -43,9 +45,8 @@ export async function exportPowerOrGroupXls(
   ctx: RequestCtx,
   input: ExportPowerOrGroupXlsInput,
 ): Promise<ExportDeliverableResult> {
-  const prefix = input.mode === 'lfo' ? '/lfos' : '/ctos';
   const subpath = input.reportType === 'power' ? 'power' : 'group';
-  const endpointPath = `${prefix}/${subpath}/export_xls`;
+  const endpointPath = exportXlsPath(hardwareEndpointFamily(input.mode), subpath);
   const endpointId = `${input.mode}_${subpath}_export_xls`;
 
   const res = await http.send({

@@ -1,9 +1,8 @@
 import type { RawConfiguration } from '../model/types.js';
 import { serializeSections, type WireSection } from './dcscWire.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj => value && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
-const rows = (value: unknown): Obj[] => Array.isArray(value) ? value.map(object) : [];
+const rows = (value: unknown): Obj[] => Array.isArray(value) ? value.map(objectOrEmpty) : [];
 
 export interface StorageWizardChange {
   optionId: string | null;
@@ -11,7 +10,7 @@ export interface StorageWizardChange {
 }
 
 export function storageWizardOptions(raw: RawConfiguration): Obj[] {
-  const wizard = object(raw['storageWizard']);
+  const wizard = objectOrEmpty(raw['storageWizard']);
   if (wizard['storageWizardUI'] !== true) return [];
   return structuredClone(rows(wizard['storageWizardOptions'])).map(option => {
     if (option['solutionPrice'] === undefined) {
@@ -45,7 +44,7 @@ export function stageStorageWizardChange(raw: RawConfiguration, change: StorageW
       throw new Error('Remove configured storage drives before clearing the controller/backplane option.');
     }
     for (const option of options) { option['activate'] = false; option['userSelected'] = false; delete option['delta']; }
-    return { ...structuredClone(raw), storageWizard: { ...structuredClone(object(raw['storageWizard'])), storageWizardOptions: options } };
+    return { ...structuredClone(raw), storageWizard: { ...structuredClone(objectOrEmpty(raw['storageWizard'])), storageWizardOptions: options } };
   }
   const matching = options.filter(o => o['configId'] === change.optionId);
   if (matching.length !== 1) throw new Error('Choose an exact storage wizard option from the current configuration.');
@@ -66,7 +65,7 @@ export function stageStorageWizardChange(raw: RawConfiguration, change: StorageW
   } else selected['delta'] = null;
   for (const option of options) option['activate'] = option === selected;
   selected['userSelected'] = true;
-  return { ...structuredClone(raw), storageWizard: { ...structuredClone(object(raw['storageWizard'])), storageWizardOptions: options } };
+  return { ...structuredClone(raw), storageWizard: { ...structuredClone(objectOrEmpty(raw['storageWizard'])), storageWizardOptions: options } };
 }
 
 /** Native query builder emits selected wizard features outside Controller and Backplane. */
@@ -111,7 +110,7 @@ export function storageWizardDriveSelections(sections: WireSection[]): Array<{ c
 
 /** Native RAID Type radio groups: 2212 and 5977 have the same clearing behavior. */
 export function isStorageRaidModeChange(raw: RawConfiguration, code: string): boolean {
-  if (object(raw['storageWizard'])['storageWizardUI'] !== true) return false;
+  if (objectOrEmpty(raw['storageWizard'])['storageWizardUI'] !== true) return false;
   const section = raw.tabs?.find(t => t.title === 'Storage')?.subTabs
     ?.find(t => t.title === 'RAID Type')?.sections?.find(s => s.name === 'RAID_CONFIG');
   if (!section) return false;

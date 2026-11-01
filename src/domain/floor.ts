@@ -12,7 +12,7 @@
  * confuse a local tile with a server-accepted layout.
  */
 
-import type { FloorItem } from '../session/SessionStore.js';
+import type { FloorItem } from '../model/session.js';
 import type { RackObject } from './rack.js';
 
 export interface FloorPlacementResult {

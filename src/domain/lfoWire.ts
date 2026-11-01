@@ -1,5 +1,5 @@
 import { buildAutoDeriveRequest, type ReducedConfiguration } from './reduce.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 
 /** Captured LFO hardware DTO: the CTO-only configuration fields are rejected. */
 export function buildLfoHardwareDeriveRequest(

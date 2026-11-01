@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import type { RawConfiguration } from '../model/types.js';
 import type { RackObject } from './rack.js';
 import { reduceConfiguration, type ReducedConfiguration } from './reduce.js';
+import { finiteNumber, type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface ManualPortChoice {
   configurationId: string;
@@ -128,21 +128,15 @@ export interface ManualCablingInput {
   solutionMode?: string | undefined;
 }
 
-function object(value: unknown): Obj {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
-}
 function string(value: unknown): string {
   return typeof value === 'string' ? value : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
-}
-function number(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(string).filter(Boolean) : [];
 }
 
 export function manualConnectionId(value: unknown): string {
-  const row = object(value);
+  const row = objectOrEmpty(value);
   const identity = [row['network'], row['topology'], row['sourceId'], row['sourcePortName'],
     row['sourcePortNumber'], row['destinationId'], row['destinationPortName'], row['destinationPortNumber']]
     .map(string);
@@ -151,16 +145,16 @@ export function manualConnectionId(value: unknown): string {
 }
 
 function cableChoices(row: Obj): ManualCableChoice[] {
-  const distance = object(row['cableDistance']);
+  const distance = objectOrEmpty(row['cableDistance']);
   const choices = Array.isArray(distance['compatibleCables']) ? distance['compatibleCables'] : [];
   const mapped = choices.map(value => {
-    const raw = object(value);
+    const raw = objectOrEmpty(value);
     return {
       part: string(raw['featureCode'] ?? raw['code']),
       ...(string(raw['optionCode']) ? { option: string(raw['optionCode']) } : {}),
       ...(string(raw['description']) ? { description: string(raw['description']) } : {}),
-      ...(number(raw['price']) !== undefined ? { price: number(raw['price']) } : {}),
-      ...(number(raw['length']) !== undefined ? { length: number(raw['length']) } : {}),
+      ...(finiteNumber(raw['price']) !== undefined ? { price: finiteNumber(raw['price']) } : {}),
+      ...(finiteNumber(raw['length']) !== undefined ? { length: finiteNumber(raw['length']) } : {}),
       raw: structuredClone(raw),
     };
   }).filter(choice => choice.part !== '');
@@ -169,8 +163,8 @@ function cableChoices(row: Obj): ManualCableChoice[] {
     mapped.push({ part: current,
       ...(string(row['cableOption']) ? { option: string(row['cableOption']) } : {}),
       ...(string(row['cableType']) ? { description: string(row['cableType']) } : {}),
-      ...(number(row['cablePrice']) !== undefined ? { price: number(row['cablePrice']) } : {}),
-      raw: object(row['cableFeature']),
+      ...(finiteNumber(row['cablePrice']) !== undefined ? { price: finiteNumber(row['cablePrice']) } : {}),
+      raw: objectOrEmpty(row['cableFeature']),
     });
   }
   return mapped;
@@ -183,19 +177,19 @@ function physicalItems(input: ManualCablingInput): Map<string, {
   const coordinates = new Map<string, string>();
   const floorPhysical = new Map<string, Placement>();
   for (const value of input.floorItems ?? []) {
-    const item = object(value);
-    const rackItem = object(item['rackItem']);
+    const item = objectOrEmpty(value);
+    const rackItem = objectOrEmpty(item['rackItem']);
     const rackId = string(rackItem['id'] ?? item['sourceId'] ?? item['id']);
-    const row = number(item['row']); const col = number(item['col']);
+    const row = finiteNumber(item['row']); const col = finiteNumber(item['col']);
     const coordinate = string(item['coordinate'] ?? item['rackPosition']) ||
       (row !== undefined && col !== undefined ? `${String.fromCharCode(65 + row)}${col + 1}` : '');
     if (rackId && coordinate) coordinates.set(rackId, coordinate);
     const items = Array.isArray(rackItem['items']) ? rackItem['items'] :
       Array.isArray(item['items']) ? item['items'] : [];
     for (const physicalValue of items) {
-      const physical = object(physicalValue); const id = string(physical['id']);
+      const physical = objectOrEmpty(physicalValue); const id = string(physical['id']);
       if (!id) continue;
-      const position = number(physical['position']);
+      const position = finiteNumber(physical['position']);
       const code = string(physical['code'] ?? physical['sliceCtoCode']);
       const description = string(physical['description']);
       floorPhysical.set(id, {
@@ -209,10 +203,10 @@ function physicalItems(input: ManualCablingInput): Map<string, {
   for (const rack of input.rackArea) {
     const rackId = string(rack['id']);
     for (const value of Array.isArray(rack['rackItems']) ? rack['rackItems'] : []) {
-      const item = object(value); const id = string(item['id']);
+      const item = objectOrEmpty(value); const id = string(item['id']);
       if (!id) continue;
       const floor = floorPhysical.get(id);
-      const position = number(item['position']) ?? floor?.position;
+      const position = finiteNumber(item['position']) ?? floor?.position;
       const code = string(item['code'] ?? item['sliceCtoCode']) || floor?.code;
       const description = string(item['description']) || floor?.description;
       const coordinate = coordinates.get(rackId) ?? floor?.coordinate;
@@ -225,7 +219,7 @@ function physicalItems(input: ManualCablingInput): Map<string, {
   }
   for (const [id, placement] of floorPhysical) if (!result.has(id)) result.set(id, placement);
   for (const value of input.nonRackArea ?? []) {
-    const item = object(value); const id = string(item['id']);
+    const item = objectOrEmpty(value); const id = string(item['id']);
     if (id && !result.has(id)) result.set(id, {
       ...(string(item['code'] ?? item['sliceCtoCode']) ? { code: string(item['code'] ?? item['sliceCtoCode']) } : {}),
       ...(string(item['description']) ? { description: string(item['description']) } : {}),
@@ -249,7 +243,7 @@ export function discoverManualPorts(input: ManualCablingInput): ManualPortChoice
     if (!configuration) continue;
     const connectors = Array.isArray(configuration['connectors']) ? configuration['connectors'] : [];
     for (const value of connectors) {
-      const connector = object(value);
+      const connector = objectOrEmpty(value);
       const name = string(connector['port'] ?? connector['portDescription'] ?? connector['name']);
       const portNumber = string(connector['portNumber'] ?? connector['number']);
       if (!name || !portNumber) continue;
@@ -273,7 +267,7 @@ export function discoverManualPorts(input: ManualCablingInput): ManualPortChoice
 }
 
 export function projectManualConnection(value: unknown): ManualConnectionView {
-  const row = object(value);
+  const row = objectOrEmpty(value);
   const choices = cableChoices(row);
   return {
     id: manualConnectionId(row),
@@ -281,7 +275,7 @@ export function projectManualConnection(value: unknown): ManualConnectionView {
     ...(string(row['topology']) ? { topology: string(row['topology']) } : {}),
     ...(string(row['type']) ? { type: string(row['type']) } : {}),
     ...(string(row['category']) ? { category: string(row['category']) } : {}),
-    ...(number(row['divider']) !== undefined ? { divider: number(row['divider']) } : {}),
+    ...(finiteNumber(row['divider']) !== undefined ? { divider: finiteNumber(row['divider']) } : {}),
     source: { configurationId: string(row['sourceId']), portName: string(row['sourcePortName']),
       portNumber: string(row['sourcePortNumber']),
       ...(string(row['sourceLocation']) ? { location: string(row['sourceLocation']) } : {}) },
@@ -291,8 +285,8 @@ export function projectManualConnection(value: unknown): ManualConnectionView {
     cable: { ...(string(row['cablePart']) ? { part: string(row['cablePart']) } : {}),
       ...(string(row['cableOption']) ? { option: string(row['cableOption']) } : {}),
       ...(string(row['cableType']) ? { description: string(row['cableType']) } : {}) },
-    ...(number(row['totalDistance'] ?? object(row['cableDistance'])['totalDistance']) !== undefined
-      ? { totalDistance: number(row['totalDistance'] ?? object(row['cableDistance'])['totalDistance']) } : {}),
+    ...(finiteNumber(row['totalDistance'] ?? objectOrEmpty(row['cableDistance'])['totalDistance']) !== undefined
+      ? { totalDistance: finiteNumber(row['totalDistance'] ?? objectOrEmpty(row['cableDistance'])['totalDistance']) } : {}),
     compatibleCables: choices.map(({ raw: _raw, ...choice }) => choice),
   };
 }
@@ -334,7 +328,7 @@ function replaceRackCableFeature(
   const nonRackArea = structuredClone([...(input.nonRackArea ?? [])]);
   const matches: Obj[] = [];
   const visit = (value: unknown): void => {
-    const item = object(value);
+    const item = objectOrEmpty(value);
     if (string(item['id']) === physicalId) matches.push(item);
     for (const key of ['rackItems', 'servers', 'items', 'nodes', 'children']) {
       if (Array.isArray(item[key])) for (const child of item[key]) visit(child);
@@ -345,22 +339,22 @@ function replaceRackCableFeature(
     throw new Error(`Physical cable destination ${physicalId} is missing or ambiguous in the current layout.`);
   }
   const features = Array.isArray(matches[0]!['features']) ? matches[0]!['features'] as unknown[] : [];
-  const sections = features.map(object).filter(feature => string(feature['name']) === sectionName);
+  const sections = features.map(objectOrEmpty).filter(feature => string(feature['name']) === sectionName);
   // updateRackDataResults is a no-op when the physical item has no matching
   // section/result. The accepted targeted derive is applied separately after
   // the response arrives. Multiple matching sections are ambiguous and unsafe.
   if (sections.length === 0) return { rackArea, nonRackArea };
   if (sections.length > 1) throw new Error(`Cable section ${sectionName} is ambiguous on physical destination ${physicalId}.`);
   const results = Array.isArray(sections[0]!['results']) ? sections[0]!['results'] as unknown[] : [];
-  const old = results.map(object).filter(result => string(result['code']) === oldCode);
+  const old = results.map(objectOrEmpty).filter(result => string(result['code']) === oldCode);
   if (old.length === 0) return { rackArea, nonRackArea };
-  if (old.length !== 1 || (number(old[0]!['quantity']) ?? 0) <= 0) {
+  if (old.length !== 1 || (finiteNumber(old[0]!['quantity']) ?? 0) <= 0) {
     throw new Error(`Cable ${oldCode} has an unsafe physical feature quantity for replacement.`);
   }
   // Native one-row behavior removes the old result. For a shared cable, keep
   // the residual graph-backed quantity so the derive sees a consistent rack.
   sections[0]!['results'] = results.flatMap(result => {
-    const value = object(result);
+    const value = objectOrEmpty(result);
     if (string(value['code']) !== oldCode) return [result];
     return oldTargetQuantity > 0 ? [{ ...structuredClone(value), quantity: oldTargetQuantity }] : [];
   });
@@ -384,7 +378,7 @@ function stageManualCableReplacement(
     throw new Error(`Cable part ${newCode} is not one compatible choice for this connection. Inspect it again.`);
   }
   const oldChoice = cableChoices(before).filter(choice => choice.part === oldCode);
-  const oldFeature = object(before['cableFeature']);
+  const oldFeature = objectOrEmpty(before['cableFeature']);
   let selectionGroups = strings(oldFeature['selectionGroups']).length > 0
     ? strings(oldFeature['selectionGroups'])
     : oldChoice.length === 1 ? strings(oldChoice[0]!.raw['selectionGroups']) : [];
@@ -419,11 +413,11 @@ function stageManualCableReplacement(
   }
   const usageCount = (rows: unknown[]) => breakout ? countNativePhysicalCables(rows) : rows.length;
   const oldUsage = usageCount(input.connections.filter(value => {
-    const row = object(value);
+    const row = objectOrEmpty(value);
     return string(row['destinationId']) === physicalDestinationId && string(row['cablePart']) === oldCode;
   }));
   const newUsage = usageCount(input.connections.filter(value => {
-    const row = object(value);
+    const row = objectOrEmpty(value);
     return string(row['destinationId']) === physicalDestinationId && string(row['cablePart']) === newCode;
   }));
   const group = resolveLinkedCloneGroup(input.cloneDependency, input.configurations.map(c => String(c.id)), configurationId);
@@ -437,7 +431,7 @@ function stageManualCableReplacement(
     ? { configurationIds: group.memberIds, physicalDestinationIds } : undefined;
   const remainingUsage = (code: string, changed: boolean) => Math.max(...physicalDestinationIds.map(id => {
     const rows = input.connections.filter(value => {
-      const row = object(value);
+      const row = objectOrEmpty(value);
       return string(row['destinationId']) === id && string(row['cablePart']) === code;
     });
     return usageCount(rows) + (id === physicalDestinationId ? (changed ? 1 : -1) : 0);
@@ -541,32 +535,32 @@ export function applyAcceptedManualCablePhysicalState(
   }
   const rawSections: Obj[] = [];
   for (const tabValue of acceptedConfiguration.tabs ?? []) {
-    const tab = object(tabValue);
+    const tab = objectOrEmpty(tabValue);
     for (const subTabValue of Array.isArray(tab['subTabs']) ? tab['subTabs'] : []) {
-      const subTab = object(subTabValue);
+      const subTab = objectOrEmpty(subTabValue);
       for (const sectionValue of Array.isArray(subTab['sections']) ? subTab['sections'] : []) {
-        const section = object(sectionValue);
+        const section = objectOrEmpty(sectionValue);
         if (string(section['name']) === replacement.sectionName) rawSections.push(section);
       }
     }
   }
   for (const sectionValue of Array.isArray(acceptedConfiguration['unSelectableCharacters'])
     ? acceptedConfiguration['unSelectableCharacters'] : []) {
-    const section = object(sectionValue);
+    const section = objectOrEmpty(sectionValue);
     if (string(section['name']) === replacement.sectionName) rawSections.push(section);
   }
   if (rawSections.length !== 1) {
     throw new Error(`Accepted cable section ${replacement.sectionName} is missing or ambiguous.`);
   }
   const acceptedResults = Array.isArray(rawSections[0]!['results'])
-    ? rawSections[0]!['results'].map(object) : [];
+    ? rawSections[0]!['results'].map(objectOrEmpty) : [];
   const selected = acceptedResults.filter(result => string(result['code']) === replacement.newCode);
   const retainedOld = acceptedResults.filter(result => string(result['code']) === replacement.oldCode);
   const oldAccepted = replacement.targetQuantities.oldCode === 0
     ? retainedOld.length === 0
-    : retainedOld.length === 1 && number(retainedOld[0]!['quantity']) === replacement.targetQuantities.oldCode;
-  if (selected.length !== 1 || number(selected[0]!['quantity']) !== replacement.targetQuantities.newCode || !oldAccepted ||
-      acceptedResults.some(result => !string(result['code']) || (number(result['quantity']) ?? 0) <= 0) ||
+    : retainedOld.length === 1 && finiteNumber(retainedOld[0]!['quantity']) === replacement.targetQuantities.oldCode;
+  if (selected.length !== 1 || finiteNumber(selected[0]!['quantity']) !== replacement.targetQuantities.newCode || !oldAccepted ||
+      acceptedResults.some(result => !string(result['code']) || (finiteNumber(result['quantity']) ?? 0) <= 0) ||
       new Set(acceptedResults.map(result => string(result['code']))).size !== acceptedResults.length) {
     throw new Error(
       `Accepted cable configuration does not contain target quantities ${replacement.oldCode}=` +
@@ -574,21 +568,21 @@ export function applyAcceptedManualCablePhysicalState(
     );
   }
 
-  const wrapper = object(response);
-  const placements = Array.isArray(wrapper['placementResults']) ? wrapper['placementResults'].map(object) : [];
+  const wrapper = objectOrEmpty(response);
+  const placements = Array.isArray(wrapper['placementResults']) ? wrapper['placementResults'].map(objectOrEmpty) : [];
   const configurationPlacements = placements.filter(placement =>
     string(placement['workspaceId'] ?? placement['configurationId'] ?? placement['id']) === replacement.configurationId);
   if (configurationPlacements.length !== 1) {
     throw new Error(`Accepted cable placement for ${replacement.configurationId} is missing or ambiguous.`);
   }
   const sectionPlacements = (Array.isArray(configurationPlacements[0]!['sectionPlacement'])
-    ? configurationPlacements[0]!['sectionPlacement'].map(object) : [])
+    ? configurationPlacements[0]!['sectionPlacement'].map(objectOrEmpty) : [])
     .filter(section => string(section['sectionName']) === replacement.sectionName);
   if (sectionPlacements.length !== 1) {
     throw new Error(`Accepted cable placement section ${replacement.sectionName} is missing or ambiguous.`);
   }
   const featurePlacements = Array.isArray(sectionPlacements[0]!['featurePlacement'])
-    ? sectionPlacements[0]!['featurePlacement'].map(object) : [];
+    ? sectionPlacements[0]!['featurePlacement'].map(objectOrEmpty) : [];
   const placementsByCode = new Map<string, Obj>();
   for (const result of acceptedResults) {
     const code = string(result['code']);
@@ -604,7 +598,7 @@ export function applyAcceptedManualCablePhysicalState(
   const nonRackArea = structuredClone(replacement.nonRackArea);
   const physicalMatches: Obj[] = [];
   const visit = (value: unknown): void => {
-    const item = object(value);
+    const item = objectOrEmpty(value);
     if (string(item['id']) === replacement.physicalDestinationId) physicalMatches.push(item);
     for (const key of ['rackItems', 'servers', 'items', 'nodes', 'children']) {
       if (Array.isArray(item[key])) for (const child of item[key]) visit(child);
@@ -615,7 +609,7 @@ export function applyAcceptedManualCablePhysicalState(
     throw new Error(`Physical cable destination ${replacement.physicalDestinationId} is missing or ambiguous after derive.`);
   }
   const features = Array.isArray(physicalMatches[0]!['features'])
-    ? physicalMatches[0]!['features'].map(object) : [];
+    ? physicalMatches[0]!['features'].map(objectOrEmpty) : [];
   let physicalSections = features.filter(section => string(section['name']) === replacement.sectionName);
   if (physicalSections.length > 1) {
     throw new Error(`Physical cable section ${replacement.sectionName} is ambiguous after derive.`);
@@ -627,10 +621,10 @@ export function applyAcceptedManualCablePhysicalState(
     physicalSections = [created];
   }
   const physicalResults = Array.isArray(physicalSections[0]!['results'])
-    ? physicalSections[0]!['results'].map(object) : [];
+    ? physicalSections[0]!['results'].map(objectOrEmpty) : [];
   const physicalOld = physicalResults.filter(result => string(result['code']) === replacement.oldCode);
   if (replacement.targetQuantities.oldCode === 0 ? physicalOld.length > 0 :
-      physicalOld.length !== 1 || number(physicalOld[0]!['quantity']) !== replacement.targetQuantities.oldCode) {
+      physicalOld.length !== 1 || finiteNumber(physicalOld[0]!['quantity']) !== replacement.targetQuantities.oldCode) {
     throw new Error(`Physical cable ${replacement.oldCode} does not match the target quantity after derive.`);
   }
   const existingByCode = new Map<string, Obj>();
@@ -651,7 +645,7 @@ export function applyAcceptedManualCablePhysicalState(
       ...(existing ? structuredClone(existing) : {}),
       code,
       ...(string(accepted['description']) ? { description: string(accepted['description']) } : {}),
-      quantity: number(accepted['quantity'])!,
+      quantity: finiteNumber(accepted['quantity'])!,
       forAutoConnect: typeof existing?.['forAutoConnect'] === 'boolean'
         ? existing['forAutoConnect'] : code === replacement.newCode,
       installations: Array.isArray(placement['installations']) ? structuredClone(placement['installations']) : [],
@@ -673,7 +667,7 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
   const matches = input.connections.map((value, index) => ({ value, index }))
     .filter(candidate => manualConnectionId(candidate.value) === edit.connectionId);
   if (matches.length !== 1) throw new Error(`Connection ${edit.connectionId} is missing or ambiguous. Inspect the current graph again.`);
-  const before = structuredClone(object(matches[0]!.value));
+  const before = structuredClone(objectOrEmpty(matches[0]!.value));
   const staged = structuredClone(before);
   const collisionSwaps: NonNullable<ManualConnectionEditPlan['collisionSwaps']> = [];
   const topology = string(before['topology']);
@@ -684,7 +678,7 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
     if (before['category'] === 'BREAKOUT') {
       for (const [index, value] of input.connections.entries()) {
         if (index === matches[0]!.index) continue;
-        const branch = object(value);
+        const branch = objectOrEmpty(value);
         if (!['destinationId', 'destinationPortName', 'destinationPortNumber'].every(key => branch[key] === before[key])) continue;
         if (!['network', 'topology', 'cablePart', 'category', 'divider'].every(key => branch[key] === before[key])) {
           throw new Error('Shared breakout destination has inconsistent branch metadata.');
@@ -707,7 +701,7 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
       throw new Error(`Destination ${choice.configurationId} is not the current ${string(before['destinationPart'])} component type.`);
     }
     const choiceKey = endpointKey(choice.configurationId, choice.name, choice.number);
-    const occupiedBy = input.connections.map((value, index) => ({ row: object(value), index }))
+    const occupiedBy = input.connections.map((value, index) => ({ row: objectOrEmpty(value), index }))
       .filter(candidate => candidate.index !== matches[0]!.index)
       .flatMap(candidate => (['source', 'destination'] as const).flatMap(occupiedSide =>
         endpointKey(candidate.row[`${occupiedSide}Id`], candidate.row[`${occupiedSide}PortName`],
@@ -735,7 +729,7 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
         portNumber: string(before[`${side}PortNumber`]),
       }, collisionTopology);
       const oldKey = endpointKey(before[`${side}Id`], before[`${side}PortName`], before[`${side}PortNumber`]);
-      const oldOccupied = input.connections.map((value, index) => ({ row: object(value), index }))
+      const oldOccupied = input.connections.map((value, index) => ({ row: objectOrEmpty(value), index }))
         .filter(candidate => candidate.index !== matches[0]!.index && candidate.index !== collision.index)
         .some(candidate => [
           endpointKey(candidate.row['sourceId'], candidate.row['sourcePortName'], candidate.row['sourcePortNumber']),
@@ -781,8 +775,8 @@ export function stageManualConnectionEdit(input: ManualCablingInput, edit: Manua
 }
 
 export function applyManualConnectionDistance(plan: ManualConnectionEditPlan, value: unknown): ManualConnectionEditPlan {
-  const distance = structuredClone(object(value));
-  const totalDistance = number(distance['totalDistance']);
+  const distance = structuredClone(objectOrEmpty(value));
+  const totalDistance = finiteNumber(distance['totalDistance']);
   if (Object.keys(distance).length === 0 || totalDistance === undefined || totalDistance < 0) {
     throw new Error('DCSC returned no non-negative numeric cable distance for the edited endpoints.');
   }
@@ -790,7 +784,7 @@ export function applyManualConnectionDistance(plan: ManualConnectionEditPlan, va
   if (requested) {
     const responseEndpoint = (side: 'from' | 'to'): string => {
       const endpoint = distance[side];
-      return typeof endpoint === 'string' ? endpoint : string(object(endpoint)['itemId'] ?? object(endpoint)['id']);
+      return typeof endpoint === 'string' ? endpoint : string(objectOrEmpty(endpoint)['itemId'] ?? objectOrEmpty(endpoint)['id']);
     };
     const from = responseEndpoint('from'); const to = responseEndpoint('to');
     if (from && from !== requested.from) throw new Error(`DCSC calculated distance from unexpected endpoint ${from}.`);

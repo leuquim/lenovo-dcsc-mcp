@@ -9,7 +9,7 @@ import { manualConnectionId } from '../src/domain/manualCabling.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { DcscService } from '../src/mcp/service.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 
 type Obj = Record<string, unknown>;
 const fixture = JSON.parse(await readFile(

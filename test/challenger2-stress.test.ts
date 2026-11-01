@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { fetchSpecialtyCatalog, fetchConvergedCategoryDetail } from '../src/domain/specialtyCatalog.js';
 import { flatten } from '../src/domain/catalog.js';
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
-import { SessionStore, type WorkspaceSession } from '../src/session/SessionStore.js';
+import { SessionStore } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 import { fetchVlhAttributes } from '../src/domain/vlh.js';
 import {
   fetchVirtualBlackList,

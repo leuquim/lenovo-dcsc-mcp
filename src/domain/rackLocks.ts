@@ -1,22 +1,12 @@
 import type { RackObject } from './rack.js';
+import { type Obj, objectItems } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface RackLockChange {
   rackArea: RackObject[];
   rackId: string;
   position: number;
   locked: boolean;
-}
-
-function object(value: unknown): Obj | undefined {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Obj
-    : undefined;
-}
-
-function objects(value: unknown): Obj[] {
-  return Array.isArray(value) ? value.filter((entry): entry is Obj => object(entry) !== undefined) : [];
 }
 
 function identity(value: Obj, label: string): string {
@@ -75,7 +65,7 @@ export function stageRackItemLock(
   const next = structuredClone(rackArea);
   const matches: Array<{ rack: RackObject; item: Obj }> = [];
   for (const rack of next) {
-    for (const item of objects(rack['rackItems'])) {
+    for (const item of objectItems(rack['rackItems'])) {
       if (identity(item, 'Rack item') === itemId) matches.push({ rack, item });
     }
   }
@@ -95,7 +85,7 @@ export function stageRackSpaceLock(
   const rack = findRack(next, rackId);
   const size = rackSize(rack);
   const canonical = canonicalPosition(position, size, 'Rack lock position');
-  const occupied = objects(rack['rackItems']).some(item => {
+  const occupied = objectItems(rack['rackItems']).some(item => {
     const start = canonicalPosition(item['position'], size, `Rack item ${identity(item, 'Rack item')} position`);
     const itemSize = item['size'];
     if (typeof itemSize !== 'number' || !Number.isSafeInteger(itemSize) || itemSize < 1 || start + itemSize - 1 > size) {

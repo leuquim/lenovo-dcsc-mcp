@@ -1,12 +1,11 @@
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
 /** A breakout's branch rows share one physical destination port and one cable. */
 export function countNativePhysicalCables(connections: readonly unknown[]): number {
   const groups = new Map<string, Obj[]>();
   const sources = new Set<string>();
   for (const value of connections) {
-    const row = object(value);
+    const row = objectOrEmpty(value);
     const source = JSON.stringify([row['sourceId'], row['sourcePortName'], row['sourcePortNumber']]);
     if (sources.has(source)) throw new Error('Cable graph repeats a source port.');
     sources.add(source);

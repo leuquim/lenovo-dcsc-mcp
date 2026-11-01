@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import type { ProductServiceState, StandaloneSoftwareState } from '../src/domain/standalone.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 
 const services: DcscService[] = [];
 afterEach(async () => { await Promise.all(services.splice(0).map((service) => service.close())); });
