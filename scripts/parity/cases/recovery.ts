@@ -74,7 +74,7 @@ async function drainPages(h: Harness, initial: Json) {
 
 async function validationJob(h: Harness, session: string, jobId: string): Promise<Json> {
   const fields: Json = {};
-  let args: Json = { session, view: 'validation', jobId, path: [], offset: 0, limit: 50 };
+  let args: Json = { session, view: { kind: 'validation', jobId, path: [], offset: 0, limit: 50 } };
   for (;;) {
     const page = await h.mcp.call('dcsc_workspace_get', args);
     for (const entry of rows(page['items'])) if (typeof entry['key'] === 'string' && Object.hasOwn(entry, 'value')) fields[entry['key']] = entry['value'];

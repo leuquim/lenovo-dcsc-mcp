@@ -71,7 +71,7 @@ export default {
       const accepted = mcp.persistedWorkspaces();
       await mcp.killAndRestart();
       compare('restart-retains-leaf-state', accepted, mcp.persistedWorkspaces());
-      const layout = await mcp.call('dcsc_workspace_get', { view: 'layout', session: workspace });
+      const layout = await mcp.call('dcsc_workspace_get', { session: workspace, view: { kind: 'layout' } });
       assert.equal(object(layout['totals'])['rawConnections'], expectedConnections.length);
       assert.notEqual(layout['connectionGraphStale'], true, 'Restarted workspace marked the accepted graph stale.');
       const inspect = object(object(object(layout['pages'])['rawConnections'])['inspect']);

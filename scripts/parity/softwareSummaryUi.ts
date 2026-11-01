@@ -30,11 +30,11 @@ export async function importInBrowser(page: Page, xmlPath: string, summaryRoute:
   const file = page.locator('input[type=file]').first();
   await file.waitFor({ state: 'attached', timeout: 60_000 });
   const pending = page.waitForResponse(response =>
-    response.request().method() === 'POST' && response.url().includes('/multiple/cfxml_import'), { timeout: 120_000 });
+    response.request().method() === 'POST' && response.url().includes('/multiple/cfxml_import'), { timeout: 120_000 })
+    .then(async response => ({ status: response.status(), imported: await response.json() as unknown }));
   await file.setInputFiles(xmlPath);
-  const response = await pending;
-  assert.equal(response.status(), 200, `Browser import returned HTTP ${response.status()}.`);
-  const imported = await response.json() as unknown;
+  const { status, imported } = await pending;
+  assert.equal(status, 200, `Browser import returned HTTP ${status}.`);
   await page.waitForURL(summaryRoute, { timeout: 90_000 });
   await settle(page);
   const cookie = page.locator('.dcsc-cookie-close').first();

@@ -9,6 +9,18 @@ export { openBrowserImportHome, selectBrowserSolutionMode } from './browser.js';
 export const DCSC_HOME = 'https://dcsc.lenovo.com/';
 const CFXML_IMPORT_PATH = '/multiple/cfxml_import';
 
+/** Reads the body inside the response event: the SPA navigates away right after the import, which discards the body. */
+function readImportResponse(page: Page): Promise<{ status: number; raw: unknown }> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Browser import response timed out.')), 180_000);
+    page.on('response', response => {
+      if (!response.url().includes(CFXML_IMPORT_PATH) || response.request().method() !== 'POST') return;
+      const status = response.status();
+      (status === 200 ? response.json() : Promise.resolve(undefined)).then(raw => resolve({ status, raw }), reject).finally(() => clearTimeout(timer));
+    });
+  });
+}
+
 export function createWeb(outDir: string) {
   let browser: Browser | undefined;
   const contexts: BrowserContext[] = [];
@@ -30,12 +42,10 @@ export function createWeb(outDir: string) {
       await page.goto(DCSC_HOME, { waitUntil: 'domcontentloaded', timeout: 60_000 });
       const input = page.locator('input[type="file"]').first();
       await input.waitFor({ state: 'attached', timeout: 60_000 });
-      const pending = page.waitForResponse(response =>
-        response.url().includes(CFXML_IMPORT_PATH) && response.request().method() === 'POST', { timeout: 180_000 });
+      const pending = readImportResponse(page);
       await input.setInputFiles(file);
-      const response = await pending;
-      if (response.status() !== 200) throw new Error(`Browser import returned HTTP ${response.status()}.`);
-      const raw = await response.json() as unknown;
+      const { status, raw } = await pending;
+      if (status !== 200) throw new Error(`Browser import returned HTTP ${status}.`);
       await writeFile(path.join(outDir, `${label}-browser-import.json`), JSON.stringify(raw, null, 2));
       await page.context().close();
       const body = Array.isArray(raw) ? raw[0] : raw;

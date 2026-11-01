@@ -48,11 +48,11 @@ async function nativeImport(h: Harness, file: string, label: string) {
     captures.push((async () => { layouts.push(object(await response.json())); })());
   });
   await openBrowserImportHome(page, NATIVE_MODE, { diagnosticsDir: h.out });
-  const pending = page.waitForResponse(response => response.url().includes('/multiple/cfxml_import') && response.request().method() === 'POST', { timeout: 120_000 });
+  const pending = page.waitForResponse(response => response.url().includes('/multiple/cfxml_import') && response.request().method() === 'POST', { timeout: 120_000 })
+    .then(async response => ({ status: response.status(), raw: await response.json() as unknown }));
   await page.locator('input[type=file]').first().setInputFiles(file);
-  const response = await pending;
-  assert.equal(response.status(), 200, `${label}: native import status`);
-  const raw: unknown = await response.json();
+  const { status, raw } = await pending;
+  assert.equal(status, 200, `${label}: native import status`);
   await page.waitForURL(/rack-summary/, { timeout: 120_000 });
   await page.waitForTimeout(5_000);
   await page.waitForLoadState('networkidle', { timeout: 60_000 });

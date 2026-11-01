@@ -700,7 +700,7 @@ async function main(): Promise<void> {
     inspectedValidation.bytes <= MAX_TOOL_BYTES,
     `${inspectedValidation.bytes}B`,
   );
-  const validationJobs = await track('dcsc_workspace_get', { session, view: 'validation' });
+  const validationJobs = await track('dcsc_workspace_get', { session, view: { kind: 'validation' } });
   check(
     'dcsc_workspace_get validation lists the just-completed job',
     !validationJobs.isError && JSON.stringify(validationJobs.json).includes(validation.jobId ?? '__missing__'),
@@ -998,14 +998,14 @@ async function main(): Promise<void> {
         refresh: true,
       });
       const afterSoftwareRefresh = await track('dcsc_workspace_get', {
-        session: softwareWorkspace, view: 'baskets', basket: 'software' });
+        session: softwareWorkspace, view: { kind: 'baskets', basket: 'software' } });
       check(
         'dcsc_launch software refresh keeps the catalog without clearing the basket',
         !refreshedSoftware.isError && !afterSoftwareRefresh.isError &&
           (afterSoftwareRefresh.json as { selections?: unknown[] }).selections?.length === 1,
         JSON.stringify(afterSoftwareRefresh.json).slice(0, 180),
       );
-      const softwareInspect = await track('dcsc_workspace_get', { session: softwareWorkspace, view: 'baskets' });
+      const softwareInspect = await track('dcsc_workspace_get', { session: softwareWorkspace, view: { kind: 'baskets' } });
       check('dcsc_workspace_get baskets reads the basket', !softwareInspect.isError, JSON.stringify(softwareInspect.json).slice(0, 160));
       const softwareExport = await track('dcsc_export', {
         kind: 'reports',
@@ -1592,7 +1592,7 @@ async function main(): Promise<void> {
   check('dcsc_basket_set hardware select creates standalone workspace', !hwAdd.isError, JSON.stringify(hwAdd.json).slice(0, 160));
   const hwWs = (hwAdd.json as { session?: string }).session;
   if (hwWs) {
-    const hwInspect = await track('dcsc_workspace_get', { session: hwWs, view: 'baskets', basket: 'hardware' });
+    const hwInspect = await track('dcsc_workspace_get', { session: hwWs, view: { kind: 'baskets', basket: 'hardware' } });
     check('dcsc_workspace_get baskets reports hardware selections', !hwInspect.isError, JSON.stringify(hwInspect.json).slice(0, 160));
     const hwQty = await track('dcsc_basket_set', { session: hwWs, basket: 'hardware', action: 'setQuantity', code: '4X77A08621', quantity: 3 });
     check('dcsc_basket_set hardware setQuantity updates total', !hwQty.isError, JSON.stringify(hwQty.json).slice(0, 160));

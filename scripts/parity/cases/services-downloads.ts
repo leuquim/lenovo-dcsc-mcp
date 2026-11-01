@@ -27,7 +27,7 @@ export default {
       await openHome(catalogPage, `${DCSC_HOME}#/services`);
       await settle(catalogPage);
       const catalogPath = path.join(out, 'browser-service-catalog.zip');
-      await downloadByClick(catalogPage, () => catalogPage.getByText('Download Catalog', { exact: true }).first().click(), catalogPath);
+      await downloadByClick(catalogPage, () => catalogPage.getByRole('button', { name: 'Download Catalog' }).click(), catalogPath);
       return { productSearch: [...new Set(productSearch)].sort(), exportPath, catalogPath };
     });
 

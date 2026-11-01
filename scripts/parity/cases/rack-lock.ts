@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import type { Page, Request } from 'playwright';
 
-import type { ParityCase } from '../harness.js';
+import type { Json, ParityCase } from '../harness.js';
 import { exportFromWorkspace, ONE_RACK_XML, rows, SERVER_CODE, SUMMARY_ROUTE } from '../rackUi.js';
 import { importInBrowser, object } from '../softwareSummaryUi.js';
 

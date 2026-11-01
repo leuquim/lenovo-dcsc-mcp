@@ -107,7 +107,7 @@ export default {
       const info = await mcp.call('dcsc_workspace_get', { session: workspace });
       const detail = (detailPath: string[], type: 'object' | 'array') => readJsonProjection(
         (tool, args) => mcp.call(tool, args), { tool: 'dcsc_workspace_get',
-          arguments: { session: workspace, view: 'layout', expectedRevision: Number(info['revision']), path: detailPath, offset: 0, limit: 50 } }, type);
+          arguments: { session: workspace, expectedRevision: Number(info['revision']), view: { kind: 'layout', path: detailPath, offset: 0, limit: 50 } } }, type);
       return {
         configurations: rows(info['configurations']).map(item => ({ id: item['id'], productCode: item['productCode'], quantity: item['quantity'] })),
         rackArea: await detail(['rawRackArea'], 'array'), nonRackArea: await detail(['rawNonRackArea'], 'array'),

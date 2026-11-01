@@ -13,11 +13,9 @@ const PRODUCT = '7D73CTO1WW';
 const COMPANION = 'SDH2';
 const COMPANION_QUANTITY = 3;
 const object = (value: unknown): Json => value && typeof value === 'object' && !Array.isArray(value) ? value as Json : {};
-const CHANGES = [
-  { section: 'T1K2', code: 'T1K3', quantity: 1 },
-  { section: 'T1K2/T1K3/CAL_50_2025', code: 'SDDZ', quantity: 1 },
-  { section: 'T1K2', code: 'SDDZ', quantity: 3 },
-];
+const PARENT_SECTION = 'T1K2';
+const CAL_SECTION = 'T1K2/T1K3/CAL_50_2025';
+const rowsOf = (value: unknown): Json[] => Array.isArray(value) ? value.map(object) : [];
 const quantitiesForCode = (value: unknown, code: string): number[] => {
   if (Array.isArray(value)) return value.flatMap(item => quantitiesForCode(item, code));
   if (!value || typeof value !== 'object') return [];
@@ -61,7 +59,17 @@ export default {
     await step('mcp-configure-and-export', async () => {
       const launched = await mcp.call('dcsc_launch', { productCode: PRODUCT, mode: 'cto', solutionMode: 'General Purpose' });
       const session = String(launched['session']);
-      await mcp.call('dcsc_configure', { session, changes: CHANGES });
+      const sectionId = async (sectionName: string, code: string) => {
+        const options = await mcp.call('dcsc_configuration_get', { session, view: 'options', query: code, limit: 100 });
+        const option = rowsOf(options['options']).find(row => row['code'] === code && row['sectionName'] === sectionName);
+        assert(option, `Section ${sectionName} offers no ${code}.`);
+        return String(option['sectionId']);
+      };
+      // The CAL filter section exists only after its T1K3 group is selected, so each edit resolves its section after the previous one.
+      await mcp.call('dcsc_configure', { session, changes: [{ section: await sectionId(PARENT_SECTION, 'T1K3'), code: 'T1K3', quantity: 1 }] });
+      const calSection = await sectionId(CAL_SECTION, 'SDDZ');
+      await mcp.call('dcsc_configure', { session, changes: [{ section: calSection, code: 'SDDZ', quantity: 1 }] });
+      await mcp.call('dcsc_configure', { session, changes: [{ section: calSection, code: 'SDDZ', quantity: 3 }] });
       const workspace = mcp.persistedWorkspaces().find(entry => entry['id'] === launched['workspace']);
       assert(workspace, 'MCP workspace was not persisted.');
       const raw = object(object((workspace['configurations'] as unknown[])[0])['raw']);

@@ -31,7 +31,7 @@ const exportShape = (fields: unknown) => {
   };
 };
 const processorResults = (configuration: Json) => rows(array(configuration['tabs']).flatMap(tab => array(object(tab)['subTabs'])).flatMap(tab => array(object(tab)['sections']))
-  .find(section => object(section)['name'] === LINKED_FEATURE.section)?.['results']).map(result => ({ code: result['code'], quantity: result['quantity'] }));
+  .map(object).find(section => section['name'] === LINKED_FEATURE.section)?.['results']).map(result => ({ code: result['code'], quantity: result['quantity'] }));
 
 async function websiteRun(h: Harness, variant: Variant, page: Page) {
   const customizes: Request[] = [];
@@ -162,10 +162,10 @@ function variantCase(variant: Variant): ParityCase {
   };
 }
 
-export default [
+export default ([
   { id: 'rack-copy', action: 'copy', clones: 1 },
   { id: 'rack-clone', action: 'clone', clones: 1 },
   { id: 'rack-clone-edit-source', action: 'clone', clones: 1, edit: 'source' },
   { id: 'rack-clone-edit-member', action: 'clone', clones: 1, edit: 'member' },
   { id: 'rack-clone-delete-root', action: 'clone', clones: 2, deleteRoot: true },
-].map(variantCase) satisfies ParityCase[];
+] satisfies Variant[]).map(variantCase) satisfies ParityCase[];

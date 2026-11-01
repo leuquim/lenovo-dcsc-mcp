@@ -44,14 +44,14 @@ export default {
         cloneDependencyColor: server['cloneDependencyColor'] ?? {} };
     };
     const projectedThroughTools = async (workspace: string): Promise<Obj> => {
-      const layout = await call('dcsc_workspace_get', { view: 'layout', session: workspace });
+      const layout = await call('dcsc_workspace_get', { session: workspace, view: { kind: 'layout' } });
       const args = object(object(object(layout['pages'])['rawRackArea'])['inspect'])['arguments'] as Obj;
       assert.equal(typeof args['expectedRevision'], 'number', 'Layout omitted its revision-bound continuation.');
       const result: Obj = {};
       for (const field of ['rawRackArea', 'rawNonRackArea', 'floorItems', 'powerSelections', 'storageNetworks',
         'detachedStorageComponents', 'cloneDependency', 'cloneDependencyColor']) {
         result[field] = await readJsonProjection((tool, toolArgs) => mcp.call(tool, toolArgs),
-          { tool: 'dcsc_workspace_get', arguments: { ...args, path: [field], offset: 0, limit: 50 } }, field.startsWith('cloneDependency') ? 'object' : 'array');
+          { tool: 'dcsc_workspace_get', arguments: { ...args, view: { ...object(args['view']), path: [field], offset: 0, limit: 50 } } }, field.startsWith('cloneDependency') ? 'object' : 'array');
       }
       return result;
     };
@@ -59,7 +59,7 @@ export default {
     const { workspace, rackId, first, second, cleared } = await step('placement-and-assignment', async () => {
       const imported = await call('dcsc_import', { filePath: SEED, solutionMode: HPC_MODE });
       const workspace = String(imported['session']);
-      const layout = await call('dcsc_workspace_get', { view: 'layout', session: workspace, offset: 0, limit: 20 });
+      const layout = await call('dcsc_workspace_get', { session: workspace, view: { kind: 'layout', offset: 0, limit: 20 } });
       const rack = rows(layout['racks'])[0];
       const rackId = text(rack?.['rackId'] ?? rack?.['id']);
       assert(rackId, 'Seed import returned no rack identity.');
@@ -179,7 +179,7 @@ export default {
 
     await step('restart-and-unracked-projection', async () => {
       await restart('restart-after-edits');
-      const layout = await call('dcsc_workspace_get', { view: 'layout', session: workspace, offset: 0, limit: 20 });
+      const layout = await call('dcsc_workspace_get', { session: workspace, view: { kind: 'layout', offset: 0, limit: 20 } });
       const unracked = object(object(object(layout['pages'])['unracked'])['inspect']);
       assert.equal(unracked['tool'], 'dcsc_workspace_get');
       const page = await call(String(unracked['tool']), object(unracked['arguments']));

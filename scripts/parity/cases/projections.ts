@@ -1,11 +1,9 @@
 /** Offline gate: bounded workspace inspection over stdio, lossless continuations and stale-revision rejection. */
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-
+import { ConfigSchema } from '../../../src/config/schema.js';
 import { reduceConfiguration } from '../../../src/domain/reduce.js';
 import type { RawConfiguration } from '../../../src/model/types.js';
-import { serializeWorkspaces } from '../../../src/session/persist.js';
+import { saveSessions } from '../../../src/session/persist.js';
 import { SessionStore } from '../../../src/session/SessionStore.js';
 import { array, continuation, object, pages, readText, type Continuation } from '../continuations.js';
 import type { ParityCase } from '../harness.js';
@@ -54,8 +52,7 @@ function seed(sessionFile: string) {
     destination: { configurationId: 'switch-0', port: 'B1' }, cable: { code: 'DAC' }, transceiverDetails: LONG_CONNECTION,
   }];
   workspace.integrityWarnings = [LONG_WARNING, ...Array.from({ length: 99 }, (_, index) => `warning-${index}`)];
-  mkdirSync(path.dirname(sessionFile), { recursive: true });
-  writeFileSync(sessionFile, serializeWorkspaces(store.listWorkspaces()));
+  saveSessions(store, ConfigSchema.parse({ logLevel: 'error', files: { persistSessions: true, sessionFile } }));
   return { workspace: workspaceId, firstSession };
 }
 
@@ -113,7 +110,7 @@ export default {
     });
 
     await step('layout', async () => {
-      const layout = await mcp.call('dcsc_workspace_get', { session: seeded.workspace, view: 'layout' });
+      const layout = await mcp.call('dcsc_workspace_get', { session: seeded.workspace, view: { kind: 'layout' } });
       const rack = object(array(layout['racks'])[0]);
       compare('layout-rack', { items: 1, errors: 1 }, { items: array(rack['items']).length, errors: array(rack['errors']).length });
     });

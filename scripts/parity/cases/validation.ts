@@ -41,19 +41,20 @@ function continuation(value: unknown, session: string, jobId: string, expectedPa
   const link = object(value);
   assert.equal(link['tool'], 'dcsc_workspace_get');
   const args = object(link['arguments']);
-  assert.equal(args['view'], 'validation');
+  const view = object(args['view']);
+  assert.equal(view['kind'], 'validation');
   assert.equal(args['session'], session);
-  assert.equal(args['jobId'], jobId);
-  assert.deepEqual(args['path'], expectedPath);
-  assert.equal(args['offset'], 0);
-  assert(number(args['limit']) > 0);
+  assert.equal(view['jobId'], jobId);
+  assert.deepEqual(view['path'], expectedPath);
+  assert.equal(view['offset'], 0);
+  assert(number(view['limit']) > 0);
   return { tool: string(link['tool']), arguments: args };
 }
 
 async function inspectJob(h: Harness, session: string, jobId: string, directReport?: Json): Promise<Json> {
   const initial = directReport?.['compacted'] === true
     ? continuation(object(object(directReport['pages'])['savedJob'])['inspect'], session, jobId, [])
-    : { tool: 'dcsc_workspace_get', arguments: { session, view: 'validation', jobId, path: [], offset: 0, limit: 50 } };
+    : { tool: 'dcsc_workspace_get', arguments: { session, view: { kind: 'validation', jobId, path: [], offset: 0, limit: 50 } } };
   return object(await readJsonProjection((name, args) => h.mcp.call(name, args), initial, 'object'));
 }
 

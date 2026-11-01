@@ -16,6 +16,9 @@ function errorText(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
 
+/** The picker lists UI labels; the API solution mode names differ for HPC. */
+const PICKER_LABELS: Record<string, string> = { 'HPC and AI - Systems': 'AI & HPC – ThinkSystem Hardware' };
+
 function normalizeModeLabel(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -104,9 +107,10 @@ async function writeReadinessDiagnostics(
 /** Selects the SPA header solution mode and proves the import control is ready. */
 export async function selectBrowserSolutionMode(
   page: Page,
-  requestedMode: string,
+  solutionMode: string,
   options: SolutionModeReadinessOptions,
 ): Promise<void> {
+  const requestedMode = PICKER_LABELS[solutionMode] ?? solutionMode;
   const timeout = options.timeout ?? 30_000;
   try {
     const modeTrigger = page.locator('.mode_picker_glow').first();
