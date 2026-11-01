@@ -55,7 +55,7 @@ export function stagePowerControls(raw: RawConfiguration, changes: PowerControlC
   const loadFactor = changes.loadFactor ?? powerLoadFactor(raw);
   draft.loadFactor = loadFactor;
   const container = objectOrEmpty(draft.powerReportResponse);
-  container['powerReport'] = { ...object(container['powerReport']), loadFactor };
+  container['powerReport'] = { ...objectOrEmpty(container['powerReport']), loadFactor };
   draft.powerReportResponse = container;
   return draft;
 }

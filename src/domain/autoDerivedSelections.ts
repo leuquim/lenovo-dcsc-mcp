@@ -15,8 +15,8 @@ function configurationId(configuration: RawConfiguration): string {
 
 function sections(configuration: RawConfiguration): Obj[] {
   return [
-    ...objects(configuration.unSelectableCharacters),
-    ...objects(configuration.tabs).flatMap((tab) => objectItems(tab['subTabs']))
+    ...objectItems(configuration.unSelectableCharacters),
+    ...objectItems(configuration.tabs).flatMap((tab) => objectItems(tab['subTabs']))
       .flatMap((subTab) => objectItems(subTab['sections'])),
   ];
 }

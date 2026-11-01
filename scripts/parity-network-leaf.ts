@@ -11,7 +11,7 @@ import { buildAutoConnectRequest, readAutoConnectSettings, readConnectionGraph,
   readSwitchMap } from '../src/domain/cabling.js';
 import { buildFloorState } from '../src/domain/floorWire.js';
 import { buildRackCustomizePayload } from '../src/domain/rack.js';
-import type { ConfigSession, WorkspaceSession } from '../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 import { readJsonProjection } from './lib/read-json-projection.js';
 
 type Obj = Record<string, unknown>;

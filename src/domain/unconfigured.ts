@@ -1,5 +1,5 @@
 import type { RawConfiguration, RawPrice } from '../model/types.js';
-import { type Obj, objectOrEmpty } from '../util/coerce.js';
+import { objectOrEmpty } from '../util/coerce.js';
 
 const money = (v: number) => Math.round(v * 100) / 100;
 

@@ -100,6 +100,17 @@ describe('persisted validation jobs', () => {
     });
   });
 
+  it('requires a fresh validation when the start request fails', async () => {
+    const job = await runValidationJob(
+      http(async () => { throw new Error('upstream 500'); }),
+      ctx, {}, 'cto', { validatedRevision: 1 },
+    );
+    expect(job).toMatchObject({
+      status: 'unavailable', terminal: false, freshValidationRequired: true,
+      error: { phase: 'start' },
+    });
+  });
+
   it('enforces its deadline even when the HTTP adapter ignores abort', async () => {
     let call = 0;
     const job = await runValidationJob(

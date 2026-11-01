@@ -28,9 +28,9 @@ export function readAutoConnectSettings(state: Obj): AutoConnectSettings {
   const imported = Object.fromEntries(['autoAddPDU', 'autoAddSwitch', 'p2pCabling']
     .filter(key => typeof flags[key] === 'boolean').map(key => [key, flags[key]]));
   return structuredClone({ ...imported,
-    ...object(objectOrEmpty(state['networkingInformation'])['autoConnectSettings']),
-    ...object(objectOrEmpty(state['autoConnectState'])['autoConnectSettings']),
-    ...object(state['autoConnectSettings']),
+    ...objectOrEmpty(objectOrEmpty(state['networkingInformation'])['autoConnectSettings']),
+    ...objectOrEmpty(objectOrEmpty(state['autoConnectState'])['autoConnectSettings']),
+    ...objectOrEmpty(state['autoConnectSettings']),
   });
 }
 

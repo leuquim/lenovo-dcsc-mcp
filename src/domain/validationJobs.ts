@@ -110,7 +110,7 @@ export async function runValidationJob(
     try {
       start = await bounded.race(startLmcValidation(http, bounded.ctx, exportPayload, mode));
     } catch (error) {
-      job = unavailable(job, 'start', error, now(), false);
+      job = unavailable(job, 'start', error, now(), true);
       await publish();
       return job;
     }
