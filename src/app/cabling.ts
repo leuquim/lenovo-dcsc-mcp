@@ -102,7 +102,7 @@ async function refreshManualCableChoices(rt: Runtime, input: ManualCablingInput,
 }
 
 export async function inspectManualCableChoices(rt: Runtime, handle: string, connectionId: string, expectedWorkspaceRevision: number | undefined, ctx: RequestCtx) {
-  if (expectedWorkspaceRevision === undefined) throw new Error('expectedWorkspaceRevision is required to refresh cable choices.');
+  if (expectedWorkspaceRevision === undefined) throw new Error('expectedRevision is required to refresh cable choices.');
   const workspace = rt.sessions.getWorkspace(handle);
   if (!workspace) throw new Error('Workspace not found.');
   if (workspace.revision !== expectedWorkspaceRevision) throw new SessionConflictError(expectedWorkspaceRevision, workspace.revision, 'workspace');

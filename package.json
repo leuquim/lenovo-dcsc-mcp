@@ -86,7 +86,6 @@
     "parity:nested-remove-chassis": "tsx scripts/parity-nested-removal.ts --action=remove-chassis",
     "parity:nested-detach": "tsx scripts/parity-nested-removal.ts --action=remove-node",
     "parity:nested-unplace": "tsx scripts/parity-nested-removal.ts --action=unplace-node",
-    "parity:blueprints": "npm run build && tsx scripts/conformance.ts --blueprints-only",
     "release:checkpoint": "tsx scripts/release-checkpoint.ts",
     "prepack": "npm run build",
     "smoke:stdio": "tsx scripts/smoke-stdio.ts",

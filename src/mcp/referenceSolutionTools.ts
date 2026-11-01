@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { referenceRows } from '../domain/referenceSolutions.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerReferenceSolutionTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerReferenceSolutionTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_download_reference_solution', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Download the original Lenovo reference-template XML',
     description: 'Checks native download eligibility and saves Lenovo’s original template bytes as a local XML artifact without customizing or re-exporting. Returns file path, byte count and SHA-256; use dcsc_import to open it.',
     inputSchema: { crnId: z.string().max(160), solutionMode: z.string().optional() },
@@ -18,6 +18,7 @@ export function registerReferenceSolutionTools(rawServer: McpServer, service: Dc
   }, 'dcsc_download_reference_solution failed'));
 
   server.registerTool('dcsc_reference_solutions', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Browse Lenovo native reference solutions',
     description: 'Discovers the Deployment-Ready or TruScale reference catalog (categories, category, solutions, popular, validation). Follow fingerprint-bound continuations unchanged. Use dcsc_launch_reference_solution to customize a CRN.',
     inputSchema: {
@@ -47,6 +48,7 @@ export function registerReferenceSolutionTools(rawServer: McpServer, service: Dc
   }, 'dcsc_reference_solutions failed'));
 
   server.registerTool('dcsc_launch_reference_solution', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Customize a native Lenovo reference solution',
     description: 'Loads a catalog CRN/SID through the website Customize endpoint into a new editable workspace, preserving configuration, clone, physical layout and commercial state. Reports missing/removed/replaced parts; run dcsc_validate before handoff.',
     inputSchema: { crnId: z.string().max(160).describe('Exact crnId or sidNumber from dcsc_reference_solutions.'),
@@ -60,7 +62,7 @@ export function registerReferenceSolutionTools(rawServer: McpServer, service: Dc
         removedParts: result.diagnostics.removedParts.length, replacedParts: result.diagnostics.replacedParts.length,
         eccnRestricted: result.diagnostics.eccnRestricted, warningCount: result.diagnostics.warnings?.length ?? 0,
         inspect: { tool: 'dcsc_workspace_layout', arguments: { session: result.workspaceId,
-          expectedWorkspaceRevision: workspace.revision, path: ['importDiagnostics'] } } },
+          expectedRevision: workspace.revision, path: ['importDiagnostics'] } } },
       inspect: { tool: 'dcsc_session_info', arguments: { session: result.workspaceId } },
       layout: { tool: 'dcsc_workspace_layout', arguments: { session: result.workspaceId } },
       next: 'Inspect the workspace and import diagnostics, then configure or export it. Run dcsc_validate before manufacturing handoff.' };

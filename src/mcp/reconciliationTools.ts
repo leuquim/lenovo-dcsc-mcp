@@ -2,11 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ReconciliationProposal } from '../domain/reconciliation.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
-export function registerReconciliationTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerReconciliationTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_reconcile_workspace', {
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     title: 'Review and accept a saved design reconciliation',
     description: 'propose derives current configurations and stores a reviewable comparison without changing selections or revision. inspect pages through differences and warnings. apply accepts the identified proposal while its original revision and content still match.',
     inputSchema: {
@@ -61,7 +63,7 @@ export function projectProposal(proposal: ReconciliationProposal, path: string[]
     offset, returned: page.length, items: page,
     ...(offset + page.length < entries.length ? { next: { tool: 'dcsc_reconcile_workspace', arguments: { ...args, offset: offset + page.length } } } : {}) });
   let result = build();
-  while (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500 && page.length > 1) { page.pop(); result = build(); }
-  if (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500) throw new Error('Review path exceeds the response budget. Use a shorter path or inspect the parent field.');
+  while (jsonBytes(result) > PAGE_BYTE_BUDGET && page.length > 1) { page.pop(); result = build(); }
+  if (jsonBytes(result) > PAGE_BYTE_BUDGET) throw new Error('Review path exceeds the response budget. Use a shorter path or inspect the parent field.');
   return result;
 }

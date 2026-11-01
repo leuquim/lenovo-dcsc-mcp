@@ -83,7 +83,7 @@ async function main(): Promise<void> {
 
   const swLaunch = await call<Summary>('dcsc_launch', {
     productCode: swProduct.code,
-    workspace: s.session,
+    session: s.session,
     label: 'top-of-rack-switch',
   });
   console.log(`   launched  : ${swLaunch.session} in workspace ${swLaunch.workspace}`);

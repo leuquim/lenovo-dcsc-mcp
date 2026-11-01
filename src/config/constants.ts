@@ -32,9 +32,6 @@ export const DEFAULT_HOST: KnownHost = 'dcsc.lenovo.com';
  */
 export const API_PREFIX = '/api';
 
-/** The AI configurator ("nightingale") lives under a different prefix. */
-export const AI_PREFIX = '/ai-acceler';
-
 /**
  * Pinned browser User-Agent.
  *
@@ -124,3 +121,12 @@ export const MAGIC_BYTES = {
   ole2: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]), // legacy .xls
   xml: Buffer.from('<?xml', 'utf8'),
 } as const;
+
+/** Largest tool response, in bytes of compact JSON. */
+export const RESPONSE_BYTE_BUDGET = 8000;
+
+/** Room kept for the fields a handler adds around a paged or trimmed payload. */
+export const RESPONSE_ENVELOPE_RESERVE_BYTES = 1000;
+
+/** Budget for the payload that pagers and projections trim to fit. */
+export const PAGE_BYTE_BUDGET = RESPONSE_BYTE_BUDGET - RESPONSE_ENVELOPE_RESERVE_BYTES;

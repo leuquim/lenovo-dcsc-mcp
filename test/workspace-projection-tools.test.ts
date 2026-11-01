@@ -70,7 +70,7 @@ describe('registered bounded workspace readers', () => {
     const rawLink = ((summary['pages'] as Record<string, { inspect: Continuation }>)['rawConnections']!).inspect;
     expect(rawLink).toMatchObject({
       tool: 'dcsc_workspace_layout',
-      arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision, path: ['rawConnections'] },
+      arguments: { session: workspace.id, expectedRevision: workspace.revision, path: ['rawConnections'] },
     });
     const rawPage = json(await handler(rawLink.arguments));
     expect(rawPage).toMatchObject({ path: ['rawConnections'], total: 1, returned: 1 });
@@ -83,7 +83,7 @@ describe('registered bounded workspace readers', () => {
 
     const unbound = await handler({ session: workspace.id, path: ['cables'], offset: 0, limit: 20 });
     expect(unbound.isError).toBe(true);
-    expect(unbound.content[0]!.text).toContain('expectedWorkspaceRevision is required');
+    expect(unbound.content[0]!.text).toContain('expectedRevision is required');
   });
 
   it('includes independent software in a mixed workspace total and pages every cable', async () => {
@@ -143,7 +143,7 @@ describe('registered bounded workspace readers', () => {
     const page = result['integrityWarningsPage'] as { inspect: Continuation };
     expect(page.inspect.arguments).toMatchObject({
       session: workspace.id,
-      expectedWorkspaceRevision: workspace.revision,
+      expectedRevision: workspace.revision,
       path: ['integrityWarnings'],
     });
     expect(json(await handler(page.inspect.arguments))).toMatchObject({

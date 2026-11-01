@@ -51,7 +51,7 @@ describe('bounded layout mutation results', () => {
     const nestedPlacement = { rackId: 'rack-1', chassisId: 'chassis-1', nodeId: 'copy-1', occupiedBay: 1, session: 'copy-session' };
     const place = vi.spyOn(service, 'placeInRack').mockResolvedValue({ ...smallLayout(), nestedPlacement });
     const response = resultJson(await handlers.get('dcsc_place_in_rack')!({
-      session: workspace.id, rackId: 'rack-1', chassisId: 'chassis-1', sessionId: session.id,
+      session: workspace.id, rackId: 'rack-1', chassisId: 'chassis-1', configuration: session.id,
     }));
     expect(place).toHaveBeenCalledWith(workspace.id, expect.objectContaining({ chassisId: 'chassis-1', sessionId: session.id }));
     expect(response.nestedPlacement).toEqual(nestedPlacement);
@@ -64,7 +64,7 @@ describe('bounded layout mutation results', () => {
     vi.spyOn(service, 'editLayout').mockResolvedValue(layout);
 
     const placed = resultJson(await handlers.get('dcsc_place_in_rack')!({
-      session: workspace.id, rackId: 'rack-1', sessionId: session.id,
+      session: workspace.id, rackId: 'rack-1', configuration: session.id,
     }));
     expect(placed['compacted']).toBeUndefined();
     expect(placed).toMatchObject({
@@ -105,7 +105,7 @@ describe('bounded layout mutation results', () => {
 
     const reply = await handlers.get('dcsc_add_rack')!({ session: workspace.id, rackCode: 'RACK' });
     const projected = resultJson(reply);
-    expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(7_500);
+    expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8_000);
     expect(projected).toMatchObject({
       compacted: true, rackCount: 60, unplacedCount: 30, errorCount: 40,
     });

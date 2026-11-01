@@ -47,7 +47,7 @@ describe('mutating tool revision contracts', () => {
     });
     const write = vi.fn();
     service.sessions.setPersistenceWriter(write);
-    const list = json(await handlers.get('dcsc_session_list')!({ workspace: 'standalone', limit: 15, offset: 0 }));
+    const list = json(await handlers.get('dcsc_session_list')!({ session: 'standalone', limit: 15, offset: 0 }));
     expect(list.total).toBe(1);
     const info = json(await handlers.get('dcsc_session_info')!({ session: 'standalone' }));
     expect(info.revision).toBe(created.workspace.revision);
@@ -105,7 +105,7 @@ describe('mutating tool revision contracts', () => {
     ['dcsc_undo', {}],
     ['dcsc_session_close', {}],
     ['dcsc_add_rack', { rackCode: 'NODE' }],
-    ['dcsc_place_in_rack', { rackId: 'US__node', sessionId: 'missing' }],
+    ['dcsc_place_in_rack', { rackId: 'US__node', configuration: 'missing' }],
     ['dcsc_add_cabling', { mode: 'auto' }],
     ['dcsc_add_cabling', { mode: 'manual', fromConfigId: 'US__node', toConfigId: 'US__node', fromPort: '1', toPort: '2' }],
     ['dcsc_place_on_floor', { rackId: 'US__node', x: 0, y: 0 }],
@@ -144,7 +144,7 @@ describe('mutating tool revision contracts', () => {
     expect(session.revision).toBe(1);
     expect(workspace.revision).toBe(2);
     const result = await handlers.get('dcsc_place_in_rack')!({ session: session.id,
-      rackId: 'US__node', sessionId: session.id, expectedRevision: 1 });
+      rackId: 'US__node', configuration: session.id, expectedRevision: 1 });
     expect(result.isError).toBe(true);
     expect(JSON.stringify(json(result))).toMatch(/workspace/);
     expect(send).not.toHaveBeenCalled();

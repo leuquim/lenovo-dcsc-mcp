@@ -155,9 +155,9 @@ async function main() {
     };
     const before = await call('dcsc_storage_wizard', { session });
     assert.equal(values(before)['available'], true);
-    await call('dcsc_storage_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'], path: ['options'] });
+    await call('dcsc_storage_wizard', { session, expectedRevision: before['workspaceRevision'], path: ['options'] });
     stage = 'select-option';
-    const option = await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'], optionId: targetOption });
+    const option = await call('dcsc_set_storage_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: targetOption });
     assert.equal(option['affectedConfigurationCount'], 4);
     const optionSelection = { optionId: targetOption, userSelected: true,
       features: [{ code: 'BM50', quantity: 1 }, { code: 'C3RT', quantity: 2 },
@@ -171,16 +171,16 @@ async function main() {
     assert.deepEqual(JSON.parse(await readFile(sessionFile, 'utf8')), snapshot);
     await checkMembers(optionSelection);
     stage = 'stale-and-history';
-    await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'], optionId: targetOption }, true);
+    await call('dcsc_set_storage_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: targetOption }, true);
     await call('dcsc_workspace_history', { session: workspace, action: 'undo', expectedRevision: restarted['workspaceRevision'] });
     assert.deepEqual(selection(await current()), selection(object(configuration['raw'])));
     await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
     await checkMembers(optionSelection);
     stage = 'controller-edit';
-    const added = await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: (await saved())['revision'],
+    const added = await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'],
       optionId: targetOption, feature: { groupIndex: 1, code: 'B8NZ', quantity: 1 } });
     assert(Number(added['storageWizardErrorCount']) > 0, 'Adding a second controller must retain native combination diagnostics');
-    const removed = await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: added['workspaceRevision'],
+    const removed = await call('dcsc_set_storage_wizard', { session, expectedRevision: added['workspaceRevision'],
       optionId: targetOption, feature: { groupIndex: 1, code: 'BM50', quantity: 0 } });
     assert.equal(removed['storageWizardErrorCount'], 0);
     await checkMembers(configured);
@@ -200,11 +200,11 @@ async function main() {
     if (clear) {
       stage = 'clear-drive-guard';
       const beforeRejectedClear = await readFile(sessionFile, 'utf8');
-      await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: (await saved())['revision'], optionId: null }, true);
+      await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'], optionId: null }, true);
       assert.equal(await readFile(sessionFile, 'utf8'), beforeRejectedClear);
       stage = 'clear-option';
       await call('dcsc_configure', { session, changes: [{ section: 'NONRAID_HDD', code: 'BYLR', quantity: 0 }] });
-      await call('dcsc_set_storage_wizard', { session, expectedWorkspaceRevision: (await saved())['revision'], optionId: null });
+      await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'], optionId: null });
       await checkMembers(expected);
       await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
       await checkMembers(configured);

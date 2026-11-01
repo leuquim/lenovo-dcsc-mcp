@@ -2,8 +2,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { linkedGroup } from '../app/serviceHelpers.js';
 import { mandatoryVerifyConfig } from '../domain/mandatorySoftware.js';
 import { errorCustomizeWithAutoDerive } from '../domain/autoFix.js';
-import { validateCfxml } from '../domain/cfxmlValidation.js';
-import { queryMemoryWizard } from '../domain/memoryWizard.js';
 import { z } from 'zod';
 
 import { configurationListPrice } from '../domain/pricing.js';
@@ -18,15 +16,17 @@ import {
 import type { DcscService } from './service.js';
 import type { VerifyMandatorySoftwareInput } from '../domain/mandatorySoftware.js';
 import { requireSession } from './sessionTools.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 import { projectValidationToolResult } from './validationTools.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
-export function registerConfigurationTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerConfigurationTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_list_options',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'List or search configurable options',
       description:
         'Explores the option tree of a configuration:\n' +
@@ -41,36 +41,11 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
         filter: z.enum(['all', 'selected', 'selectable']).optional().default('all'),
         limit: z.number().int().min(1).max(100).optional().default(25),
         offset: z.number().int().min(0).optional().default(0),
-        memoryWizardAction: z
-          .enum([
-            'launch',
-            'options',
-            'capacityList',
-            'memoryList',
-            'loadmap',
-            'slotNumber',
-            'exportZip',
-            'validExportZip',
-          ])
-          .optional()
-          .describe('Optional Memory Wizard action to execute on this configuration.'),
-        memoryWizardPayload: z
-          .record(z.string(), z.unknown())
-          .optional()
-          .describe('Optional payload for Memory Wizard action.'),
       },
     },
     async (args) =>
       guard(async () => {
         const session = requireSession(service, args.session);
-
-        if (args.memoryWizardAction) {
-          return queryMemoryWizard(service.http, service.newCtx(), {
-            action: args.memoryWizardAction,
-            ctoCode: session.product.code,
-            payload: args.memoryWizardPayload,
-          });
-        }
 
         if (args.tab && !args.query && !args.section && args.offset === 0 && args.filter === 'all') {
           return projectTab({
@@ -111,6 +86,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_get_feature',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Get full detail for option codes',
       description:
         'Returns complete detail for up to 10 feature codes, including the attribute map and untruncated description (socket limits, thermal requirements, form factor).',
@@ -138,6 +114,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_get_configuration',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Get the selected parts of a configuration',
       description:
         'Returns the bill of materials (currently selected parts grouped by tab) or summary for a configuration.',
@@ -180,10 +157,10 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
               arguments: { session: session.id, format: 'selections', offset: offset + page.length, limit } } } : {}) };
         };
         let result = project();
-        while (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500 && page.length > 1) {
+        while (jsonBytes(result) > PAGE_BYTE_BUDGET && page.length > 1) {
           page.pop(); result = project();
         }
-        if (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500) {
+        if (jsonBytes(result) > PAGE_BYTE_BUDGET) {
           throw new Error('Configuration summary exceeds the response budget. Use dcsc_list_options with selectedOnly=true to inspect selected parts.');
         }
         return result;
@@ -193,44 +170,17 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_validate',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Validate a configuration with DCSC (LMC)',
       description:
-        'Runs DCSC manufacturing validation (/lmc_validation) or external CFXML validation (/ecomm/cfxml_validation).',
+        'Runs DCSC manufacturing validation (/lmc_validation).',
       inputSchema: {
-        session: z.string().optional().describe('Session or workspace ID. Optional if validating external cfxmlContent.'),
+        session: z.string(),
         deadlineMs: z.number().int().min(1000).max(300000).optional().describe('Total validation deadline, at most five minutes.'),
-        cfxmlContent: z.string().optional().describe('External CFXML string content to validate via /ecomm/cfxml_validation.'),
-        cfxmlFilename: z.string().optional().describe('Optional filename for CFXML validation (defaults to config.xml).'),
       },
     },
     async (args) =>
       guard(async () => {
-        if (args.cfxmlContent) {
-          const session = args.session ? service.sessions.get(args.session) : undefined;
-          const ws = args.session ? service.sessions.getWorkspace(args.session) : undefined;
-          const ctx = service.newCtx(
-            session || ws
-              ? {
-                  locale: session?.locale ?? ws!.locale,
-                  solution: session?.solution ?? ws!.solution,
-                }
-              : undefined,
-          );
-          const cfxml = await validateCfxml(
-            service.http,
-            ctx,
-            { cfxmlContent: args.cfxmlContent, filename: args.cfxmlFilename },
-          );
-          return {
-            cfxml,
-            valid: cfxml.success ?? false,
-            message: cfxml.message ?? null,
-            url: cfxml.url ?? null,
-          };
-        }
-        if (!args.session) {
-          throw new Error('A session ID or cfxmlContent is required for dcsc_validate.');
-        }
         const session = service.sessions.get(args.session);
         const ws = service.sessions.getWorkspace(args.session);
         if (!session && !ws) throw new Error(`No such session/workspace: ${args.session}`);
@@ -286,6 +236,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_set_configuration_controls',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Set Guided or Expert mode and Auto-Correct',
       description: 'Updates validationMode (guided/expert) and autoCorrect for every configuration in the workspace and derives selections atomically. Expert mode forces autoCorrect off.',
       inputSchema: {
@@ -304,6 +255,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_configure',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Change selections in a configuration',
       description:
         'Applies one or more option changes in a single round trip and returns the diff (added, removed, replaced, price delta, constraints, and auto-derived changes). Linked Clone Multiple edits update all members atomically. On storage-wizard CTOs, submit RAID_CONFIG mode switches alone before selecting new storage parts. Edit software sections separately from hardware/services.',
@@ -416,6 +368,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_set_quantity',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Set how many units of this configuration',
       description:
         'Sets the sales quantity (1–99) of this configuration locally and updates extended price and exported line quantity (quantity > 1 must be placed in a rack to export).',
@@ -454,6 +407,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_undo',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       title: 'Undo the last configuration change',
       description:
         'Reverts the most recent dcsc_configure call locally (up to 10 steps). Linked edits undo all members atomically; if histories diverged or an HPC edit changed its parent chassis, use dcsc_workspace_history.',
@@ -496,6 +450,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_explain',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Explain why the configuration looks the way it does',
       description:
         'Explains what DCSC\'s rules engine added, removed or substituted on its own and surfaces its rule messages verbatim.',
@@ -573,6 +528,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_auto_fix',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Hardware auto-fix for CTO rule errors',
       description: 'Automatically resolves rule validation errors for eligible hardware CTO sections or executes batch error customize.',
       inputSchema: {
@@ -630,6 +586,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_verify_mandatory_software',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Verify mandatory software selections',
       description: 'Validates mandatory OS/hypervisor or software selections for a configuration or LFO.',
       inputSchema: {
@@ -651,6 +608,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
   server.registerTool(
     'dcsc_summary_insights',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Fetch service savings and flag summary insights',
       description: 'Fetches service pricing savings or selectable special feature flag summary from the workspace snapshot.',
       inputSchema: {

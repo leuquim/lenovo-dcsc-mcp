@@ -244,7 +244,7 @@ describe('storage definition creation', () => {
     const { service, workspace, handlers } = setup();
     workspace.serverState.storageConnectionNetworks = { unknownEnvelope: 'retained' };
     const detail = await handlers.get('dcsc_workspace_layout')!({ session: workspace.id,
-      path: ['storageNetworks'], expectedWorkspaceRevision: workspace.revision, offset: 0, limit: 20 });
+      path: ['storageNetworks'], expectedRevision: workspace.revision, offset: 0, limit: 20 });
     expect(detail.isError).not.toBe(true);
     expect(detail.content[0]!.text).toContain('retained');
     const before = structuredClone(workspace.serverState);

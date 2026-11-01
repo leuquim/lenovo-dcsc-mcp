@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { ManualCablingCatalog, ManualConnectionEdit, ManualConnectionView } from '../domain/manualCabling.js';
 import type { RequestCtx } from '../http/request.js';
 import { projectJsonPage } from '../model/pagedJson.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
 export interface ManualCablingInspection {
   workspace: string;
@@ -43,9 +43,9 @@ export interface ManualCablingService {
   createNativeManualCabling(session: string, input: NativeManualConnectionRequest & {
     expectedRevision: number; ctx: RequestCtx;
   }): Promise<ManualCablingEditResult>;
-  inspectManualCabling(session: string, expectedWorkspaceRevision?: number):
+  inspectManualCabling(session: string, expectedRevision?: number):
     ManualCablingInspection | Promise<ManualCablingInspection>;
-  inspectManualCableChoices(session: string, connectionId: string, expectedWorkspaceRevision: number | undefined, ctx: RequestCtx): Promise<ManualCablingInspection>;
+  inspectManualCableChoices(session: string, connectionId: string, expectedRevision: number | undefined, ctx: RequestCtx): Promise<ManualCablingInspection>;
   editManualCabling(session: string, input: ManualConnectionEdit & {
     expectedRevision: number;
     ctx: RequestCtx;
@@ -58,8 +58,7 @@ const endpointSchema = z.object({
   portNumber: z.string().min(1),
 }).strict();
 
-export function registerManualCablingTools(rawServer: McpServer, service: ManualCablingService): void {
-  const server = withToolSupport(rawServer);
+export function registerManualCablingTools(server: McpServer, service: ManualCablingService): void {
   const createFields = {
     session: z.string(), network: z.string().min(1), topology: z.string().min(1),
     source: endpointSchema, destination: endpointSchema,
@@ -67,6 +66,7 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
     expectedRevision: z.number().int().min(1).describe('Workspace revision from dcsc_cabling_connections.'),
   };
   server.registerTool('dcsc_manual_cabling_options', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Find cables for a new native connection',
     description: 'Discovers compatible cable parts and BOM quantities for a new connection between physical ports from dcsc_cabling_connections. Requires an assigned source network/topology (for storage, assign with dcsc_assign_storage_network and select ports with dcsc_set_topology first). Read-only; pass the returned revision to dcsc_create_cabling_connection.',
     inputSchema: { ...createFields, path: z.array(z.string()).optional().default([]),
@@ -81,6 +81,7 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
   }, 'dcsc_manual_cabling_options failed'));
 
   server.registerTool('dcsc_create_cabling_connection', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Create a native manual cable connection',
     description: 'Creates a native MANUAL cable connection between placed ports and adds its cable to the BOM atomically. Inspect dcsc_manual_cabling_options first. Set pinExistingRoutes=true to convert existing AUTO network rows to MANUAL before adding. Source port selections propagate across linked configurations; linked destinations must all be placed. See dcsc://docs/capabilities for protocol and breakout-4 reimport notes.',
     inputSchema: { ...createFields, pinExistingRoutes: z.boolean().optional().default(false).describe('Convert existing AUTO network rows to MANUAL to preserve their exact routes.'), cablePart: z.string().min(1).describe('Exact part returned by dcsc_manual_cabling_options.') },
@@ -92,16 +93,17 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
       workspaceRevision: result.revision, revisionScope: 'workspace', connection, pinnedConnectionCount: result.pinnedConnectionCount ?? 0,
       sourceConfigurationIds: result.sourceConfigurationIds, destinationConfigurationIds: result.destinationConfigurationIds, additionalConnectionCount: result.additionalConnectionCount ?? 0,
       inspect: { tool: 'dcsc_cabling_connections', arguments: { session: result.workspace,
-        expectedWorkspaceRevision: result.revision, path: ['connections'], offset: 0, limit: 20 } } };
+        expectedRevision: result.revision, path: ['connections'], offset: 0, limit: 20 } } };
   }, 'dcsc_create_cabling_connection failed'));
 
   server.registerTool('dcsc_cabling_connections', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Inspect editable DCSC cable connections',
-    description: 'Lists the current connection graph, stable row IDs, physical endpoint/port choices and compatible cable parts. Pass refreshConnectionId with expectedWorkspaceRevision to fetch missing imported cable choices without mutating the design.',
+    description: 'Lists the current connection graph, stable row IDs, physical endpoint/port choices and compatible cable parts. Pass refreshConnectionId with expectedRevision to fetch missing imported cable choices without mutating the design.',
     inputSchema: {
       session: z.string().describe('Workspace or configuration handle.'),
       refreshConnectionId: z.string().min(1).optional().describe('Fetch current compatible cables for this existing connection without changing the design.'),
-      expectedWorkspaceRevision: z.number().int().min(1).optional()
+      expectedRevision: z.number().int().min(1).optional()
         .describe('Optional read guard. A mismatch rejects stale navigation.'),
       path: z.array(z.string()).optional().default([]),
       offset: z.number().int().min(0).optional().default(0),
@@ -109,11 +111,11 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
     },
   }, async args => guard(async () => {
     const snapshot = args.refreshConnectionId
-      ? await service.inspectManualCableChoices(args.session, args.refreshConnectionId, args.expectedWorkspaceRevision, service.newCtx())
-      : await service.inspectManualCabling(args.session, args.expectedWorkspaceRevision);
+      ? await service.inspectManualCableChoices(args.session, args.refreshConnectionId, args.expectedRevision, service.newCtx())
+      : await service.inspectManualCabling(args.session, args.expectedRevision);
     const page = projectJsonPage(snapshot.report, {
       tool: 'dcsc_cabling_connections',
-      arguments: { session: args.session, expectedWorkspaceRevision: snapshot.revision,
+      arguments: { session: args.session, expectedRevision: snapshot.revision,
         ...(args.refreshConnectionId ? { refreshConnectionId: args.refreshConnectionId } : {}) },
       path: args.path, offset: args.offset, limit: args.limit,
     });
@@ -124,6 +126,7 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
   }, 'dcsc_cabling_connections failed'));
 
   server.registerTool('dcsc_edit_cabling_connection', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Edit one existing DCSC cable connection',
     description: 'Edits the source, destination or compatible cablePart of an existing connection row from dcsc_cabling_connections. Selecting an occupied port on the same component swaps the two connections. Edit endpoints and cablePart in separate revision-bound calls.',
     inputSchema: {
@@ -164,7 +167,7 @@ export function registerManualCablingTools(rawServer: McpServer, service: Manual
       ...(result.configurationChange ? { configurationChange: result.configurationChange } : {}),
       inspect: { tool: 'dcsc_cabling_connections', arguments: {
         session: result.workspace,
-        expectedWorkspaceRevision: result.revision,
+        expectedRevision: result.revision,
         path: ['connections'], offset: 0, limit: 20,
       } },
     };

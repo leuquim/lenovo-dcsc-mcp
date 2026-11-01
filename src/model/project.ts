@@ -1,6 +1,8 @@
 import type { ConfigIndex, SectionRef } from './index.js';
 import type { IndexedFeature, RawConfiguration, RawResourceTracker } from './types.js';
 import { availablePrice, configurationListPrice } from '../domain/pricing.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 /**
  * Progressive disclosure.
@@ -17,7 +19,6 @@ import { availablePrice, configurationListPrice } from '../domain/pricing.js';
  * the context window the whole design exists to protect.
  */
 
-export const DEFAULT_MAX_BYTES = 6_000;
 
 /** Descriptions carry markup and boilerplate; list views get a short form. */
 function shortDesc(text: string, max = 90): string {
@@ -341,7 +342,7 @@ export function projectOptions(opts: {
   // Reserve continuation text before trimming so it participates in the byte
   // budget. enforceBudget recalculates its offset from the options retained.
   if (opts.offset < opts.total && items.length > 0) view.next = continuation(view);
-  return enforceBudget(view, opts.maxBytes ?? DEFAULT_MAX_BYTES);
+  return enforceBudget(view, opts.maxBytes ?? PAGE_BYTE_BUDGET);
 }
 
 /**
@@ -351,7 +352,7 @@ export function projectOptions(opts: {
 export function enforceBudget(view: OptionsView, maxBytes: number): OptionsView {
   let current = withContinuation(view);
   while (
-    Buffer.byteLength(JSON.stringify(current, null, 2), 'utf8') > maxBytes &&
+    jsonBytes(current) > maxBytes &&
     current.options.length > 1
   ) {
     const keep = Math.max(1, Math.floor(current.options.length * 0.75));

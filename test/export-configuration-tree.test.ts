@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
@@ -12,7 +15,10 @@ afterEach(async () => {
 
 function setupService() {
   const service = new DcscService(
-    ConfigSchema.parse({ logLevel: 'silent', files: { persistSessions: false } }),
+    ConfigSchema.parse({
+      logLevel: 'silent',
+      files: { persistSessions: false, artifactDir: mkdtempSync(join(tmpdir(), 'dcsc-tree-')) },
+    }),
   );
   services.push(service);
   vi.spyOn(service, 'resolveSolution').mockResolvedValue({
@@ -23,7 +29,7 @@ function setupService() {
 }
 
 describe('R5: Configuration Tree Spreadsheet Export', () => {
-  it('streams and encodes configuration tree Excel export successfully', async () => {
+  it('streams the configuration tree workbook into the artifact store', async () => {
     const service = setupService();
     const fakeBuffer = Buffer.from('PK\x03\x04fake-xlsx-content');
     const mockStream = new Readable({
@@ -39,7 +45,7 @@ describe('R5: Configuration Tree Spreadsheet Export', () => {
       requestId: 'req-export-1',
     } as never);
 
-    const result = await exportConfigurationTree(service.http, service.newCtx(), {
+    const result = await exportConfigurationTree(service.http, service.newCtx(), service.config, {
       name: 'SR650V3',
       dataList: [
         {
@@ -49,9 +55,8 @@ describe('R5: Configuration Tree Spreadsheet Export', () => {
       ],
     });
 
-    expect(result.filename).toBe('SR650V3.xlsx');
-    expect(result.mimeType).toContain('spreadsheetml.sheet');
+    expect(result.path.endsWith('.xlsx')).toBe(true);
     expect(result.bytes).toBe(fakeBuffer.length);
-    expect(result.base64).toBe(fakeBuffer.toString('base64'));
+    expect(readFileSync(result.path)).toEqual(fakeBuffer);
   });
 });

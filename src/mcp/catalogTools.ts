@@ -1,12 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { fetchAiRecommendation } from '../domain/aiConfigurator.js';
 import { fetchCategoryDetail, fetchLfoCodes } from '../domain/specialtyCatalog.js';
 import { queryDiscoveryHelper } from '../domain/discoveryHelpers.js';
 import { fetchServicePortalCategories } from '../domain/services-catalog.js';
 import { fetchLocales } from '../domain/locale.js';
 import { z } from 'zod';
 
-import { BLUEPRINTS, findBlueprint } from '../domain/blueprints.js';
 import { browseCatalog, searchCatalogPage } from '../domain/catalog.js';
 import {
   fetchConvergedCategoryDetail,
@@ -26,16 +24,15 @@ import {
 } from '../domain/recommendations.js';
 import { projectCatalogBrowsePage } from '../model/catalogBrowsePage.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
-import { projectSummary } from '../model/project.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerCatalogTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerCatalogTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_solution_modes',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'List DCSC solution modes',
       description:
         'Lists available DCSC solution modes, their website labels, master slices and mode-specific website functions. Pass the exact mode into catalog and launch tools.',
@@ -52,6 +49,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_find_products',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Search the DCSC product catalog',
       description:
         'Searches the Lenovo DCSC catalog for configurable products by name, model or product code (e.g. "SR630 V3" -> "7D73CTO1WW") for dcsc_launch. Prefer this over dcsc_browse_catalog.',
@@ -115,6 +113,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_browse_catalog',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Browse the DCSC catalog tree',
       description:
         'Walks one level of the DCSC category tree. Use dcsc_find_products when searching for a specific product. Follow returned continuations unchanged.',
@@ -160,6 +159,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_list_locales',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'List DCSC countries, languages and currencies',
       description:
         'Returns the country/region catalogue from DCSC /locales. Pass a country code into dcsc_set_locale.',
@@ -205,6 +205,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_set_locale',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Set country / language / currency for subsequent DCSC calls',
       description:
         'Resolves a country against DCSC /locales and sets the process default locale for subsequent launches and searches. Existing workspaces retain their own locales.',
@@ -234,6 +235,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_service_categories',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'List Services portal categories (anonymous)',
       description:
         'Lists the top of the Lenovo Services portal category tree. Use dcsc_list_options(session, tab: "Services") for attached warranty packages, or dcsc_services_launch for independent product-bound services.',
@@ -271,82 +273,6 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
           next: 'dcsc_launch then dcsc_list_options(session, tab: "Services") or query: "warranty".',
         };
       }, 'dcsc_service_categories failed'),
-  );
-
-  server.registerTool(
-    'dcsc_blueprints',
-    {
-      title: 'List AI factory starting points and current availability',
-      description: 'Lists curated AI factory starting points with current catalog availability by solution mode.',
-      inputSchema: {},
-    },
-    async () =>
-      guard(async () => ({
-        blueprints: await service.blueprintAvailability(service.newCtx()),
-        priceType: 'LIST',
-        note:
-          'Prices were verified on the stated date for US/USD and will drift. ' +
-          'dcsc_start_from_blueprint(id) launches one and returns live pricing.',
-        readBeforeQuoting:
-          'Every blueprint launches as a partial node — check shipsWithout. The launch price ' +
-          'covers the GPU baseboard, CPUs and memory, but none of these models include a boot ' +
-          'device, local storage or fabric adapters, so a launched node is not yet a usable one.',
-      }), 'dcsc_blueprints failed'),
-  );
-
-  server.registerTool(
-    'dcsc_start_from_blueprint',
-    {
-      title: 'Start a currently available blueprint',
-      description:
-        'Launches one of the reference AI factory configurations in the appropriate solution mode.',
-      inputSchema: {
-        blueprint: z.string().describe('Blueprint id or product code from dcsc_blueprints.'),
-        label: z.string().optional(),
-        solutionMode: z.string().optional(),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        const blueprint = findBlueprint(args.blueprint);
-        if (!blueprint) {
-          throw new Error(
-            `Unknown blueprint "${args.blueprint}". Valid ids: ${BLUEPRINTS.map((b) => b.id).join(', ')}.`,
-          );
-        }
-        const ctx = service.newCtx();
-        const availability = (await service.blueprintAvailability(ctx)).find(item => item.id === blueprint.id)!;
-        if (!availability.available) throw new Error(`Blueprint ${blueprint.id} (${blueprint.productCode}) is absent from the current catalogs for this locale. Use dcsc_blueprints for available alternatives.`);
-        const requestedMode = args.solutionMode ?? (availability.availableModes.includes(blueprint.solutionMode) ? blueprint.solutionMode : availability.availableModes[0]);
-        const solution = await service.resolveSolution(ctx, requestedMode);
-        if (!availability.availableModes.includes(solution.solutionMode)) throw new Error(`Blueprint ${blueprint.id} is not available in ${solution.solutionMode}. Available modes: ${availability.availableModes.join(', ')}.`);
-        const session = await service.launch({
-          productCode: blueprint.productCode,
-          mode: 'cto',
-          solution,
-          ctx,
-          ...(args.label !== undefined ? { label: args.label } : {}),
-        });
-        return {
-          blueprint: blueprint.id,
-          workspace: session.workspaceId,
-          solutionMode: solution.solutionMode,
-          ...projectSummary({
-            sessionId: session.id,
-            revision: session.revision,
-            raw: session.raw,
-            index: session.index,
-            currency: session.locale.currency,
-            country: session.locale.country,
-            pricedAt: session.pricedAt,
-          }),
-          shipsWithout: blueprint.shipsWithout,
-          incompleteWarning:
-            `This node is NOT yet usable as launched. It ships without: ${blueprint.shipsWithout.join('; ')}. ` +
-            'Add them with dcsc_configure before pricing or quoting it.',
-          next: 'dcsc_list_options(session, tab: "Storage" | "PCI") to fill the gaps above, then dcsc_scale_out to size a cluster.',
-        };
-      }, 'dcsc_start_from_blueprint failed'),
   );
 
   server.registerTool(
@@ -711,6 +637,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_category_detail',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Fetch sub-category detail & configurable products',
       description: 'Fetches sub-category detail, products, paths, or queries anonymous discovery helpers.',
       inputSchema: {
@@ -756,6 +683,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_cto_lfo_codes',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'List filtered CTO and LFO codes',
       description: 'Fetches filtered list of CTO and LFO product codes from upstream catalog filter endpoint.',
       inputSchema: {
@@ -774,36 +702,5 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
         }
         return result;
       }, 'dcsc_cto_lfo_codes failed'),
-  );
-
-  server.registerTool(
-    'dcsc_ai_recommend',
-    {
-      title: 'Nightingale AI configurator recommendations & feature validation',
-      description: 'Executes Nightingale AI recommendation or feature compatibility validation via /ai-acceler endpoints.',
-      inputSchema: {
-        action: z
-          .enum([
-            'ctoCandidates',
-            'featureCompat',
-            'bladeRecommendation',
-            'defaultPrompt',
-            'promptTemplate',
-            'candidateAttributes',
-            'candidateFeatures',
-            'candidateFeaturesDesc',
-            'configReplenishment',
-            'replaceFeatures',
-            'recommendConfigs',
-            'recommendServices',
-          ])
-          .describe('AI action type.'),
-        payload: z.record(z.string(), z.unknown()).describe('Payload object required by the specific AI endpoint.'),
-      },
-    },
-    async (args) =>
-      guard(async () => {
-        return fetchAiRecommendation(service.http, await service.ctxWithSolution(), { action: args.action, payload: args.payload });
-      }, 'dcsc_ai_recommend failed'),
   );
 }

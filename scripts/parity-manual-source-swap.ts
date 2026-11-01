@@ -28,7 +28,7 @@ try{
  const graph=async()=>rows(object((await saved())['serverState'])['connections']);
  const before=await graph();const editedIndex=before.findIndex(r=>r['topology']==='100GbE_Copper'&&r['sourcePortNumber']==='1');assert(editedIndex>=0);
  const edited=before[editedIndex]!;const other=before.find(r=>r['sourceId']===edited['sourceId']&&r['sourcePortName']===edited['sourcePortName']&&r['sourcePortNumber']==='2');assert(other);
- const details=await call('dcsc_cabling_connections',{session:workspace,expectedWorkspaceRevision:(await saved())['revision'],path:['connections',String(editedIndex)],limit:50});
+ const details=await call('dcsc_cabling_connections',{session:workspace,expectedRevision:(await saved())['revision'],path:['connections',String(editedIndex)],limit:50});
  const detail=Object.fromEntries(rows(details['items']).map(r=>[String(r['key']),r['value']]));assert(detail['id']);
  const revision=(await saved())['revision'];
  const args={session:workspace,expectedRevision:revision,connectionId:detail['id'],source:{configurationId:other['sourceId'],portName:other['sourcePortName'],portNumber:other['sourcePortNumber']}};

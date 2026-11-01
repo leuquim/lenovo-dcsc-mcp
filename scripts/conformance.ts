@@ -52,40 +52,6 @@ function check(name: string, condition: boolean, detail: string): void {
   console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${condition ? '' : ` — ${detail}`}`);
 }
 
-/** Exercise every advertised launch, including explicit retired-entry rejection. */
-async function checkBlueprints(track: typeof call): Promise<string | undefined> {
-  const prints = await track('dcsc_blueprints', {});
-  const rows = (prints.json as { blueprints?: Array<{
-    id: string; available: boolean; availableModes: string[]; catalogCheckedAt: string;
-    historicalVerification?: { date: string }; shipsWithout?: string[];
-  }> }).blueprints ?? [];
-  check('dcsc_blueprints discloses current availability and historical scope', !prints.isError && rows.length > 0 &&
-    rows.every(row => typeof row.available === 'boolean' && Array.isArray(row.availableModes) &&
-      row.available === (row.availableModes.length > 0) && Number.isFinite(Date.parse(row.catalogCheckedAt)) &&
-      typeof row.historicalVerification?.date === 'string' && (row.shipsWithout?.length ?? 0) > 0),
-    JSON.stringify(prints.json).slice(0, 200));
-  let firstSession: string | undefined;
-  for (const row of rows) {
-    const result = await track('dcsc_start_from_blueprint', { blueprint: row.id });
-    const launched = result.json as { session?: string; solutionMode?: string; shipsWithout?: string[] };
-    if (!row.available) {
-      check(`unavailable blueprint ${row.id} rejects launch`, result.isError &&
-        /absent from the current catalogs/.test(JSON.stringify(result.json)), JSON.stringify(result.json).slice(0, 250));
-      continue;
-    }
-    check(`available blueprint ${row.id} launches in a current mode`, !result.isError &&
-      typeof launched.session === 'string' && row.availableModes.includes(launched.solutionMode ?? '') &&
-      (launched.shipsWithout?.length ?? 0) > 0, JSON.stringify(result.json).slice(0, 250));
-    if (launched.session) {
-      if (!firstSession) firstSession = launched.session;
-      else await track('dcsc_session_close', { session: launched.session });
-    }
-  }
-  check('current blueprint catalog has a launchable starting point', firstSession !== undefined,
-    `Available: ${rows.filter(row => row.available).map(row => row.id).join(', ')}`);
-  return firstSession;
-}
-
 const MAX_TOOL_BYTES = 8_000;
 
 async function main(): Promise<void> {
@@ -119,15 +85,6 @@ async function main(): Promise<void> {
     }
     return out;
   };
-  if (process.argv.includes('--blueprints-only')) {
-    const session = await checkBlueprints(track);
-    if (session) await track('dcsc_session_close', { session });
-    await client.close();
-    const failed = results.filter(result => !result.ok);
-    console.log(`${results.length - failed.length}/${results.length} blueprint checks passed`);
-    process.exitCode = failed.length > 0 ? 1 : 0;
-    return;
-  }
   const followContinuation = async (
     sourceTool: string,
     outcome: Outcome,
@@ -607,7 +564,7 @@ async function main(): Promise<void> {
     const placed = await track('dcsc_place_in_rack', {
       session,
       rackId,
-      sessionId: session,
+      configuration: session,
     });
     check('dcsc_place_in_rack places config in rack', !placed.isError, JSON.stringify(placed.json).slice(0, 120));
 
@@ -686,7 +643,7 @@ async function main(): Promise<void> {
     check('dcsc_pci_wizard reports native availability', !pciChoices.isError &&
       typeof pciPage.items?.find(item => item.key === 'available')?.value === 'boolean', JSON.stringify(pciChoices.json).slice(0, 180));
     const invalidPci = await track('dcsc_set_pci_wizard', { session,
-      expectedWorkspaceRevision: pciPage.workspaceRevision, optionId: '__invalid_pci_option__' });
+      expectedRevision: pciPage.workspaceRevision, optionId: '__invalid_pci_option__' });
     check('dcsc_set_pci_wizard rejects unavailable option IDs', invalidPci.isError === true, JSON.stringify(invalidPci.json).slice(0, 180));
 
     const power = await track('dcsc_power', { session });
@@ -697,13 +654,13 @@ async function main(): Promise<void> {
       powerChoiceValues['available'] === true, JSON.stringify(powerChoices.json).slice(0, 180));
     const previousPower = powerChoiceValues['current'] as { loadFactor?: number } | undefined;
     const savedPower = await track('dcsc_set_power_controls', { session,
-      expectedWorkspaceRevision: powerChoicePage.workspaceRevision, loadFactor: 30 });
+      expectedRevision: powerChoicePage.workspaceRevision, loadFactor: 30 });
     check('dcsc_set_power_controls retains the accepted load factor', !savedPower.isError &&
       (savedPower.json as { current?: { loadFactor?: number } }).current?.loadFactor === 30,
     JSON.stringify(savedPower.json).slice(0, 180));
     if (!savedPower.isError && previousPower?.loadFactor !== undefined) {
       await track('dcsc_set_power_controls', { session,
-        expectedWorkspaceRevision: (savedPower.json as { workspaceRevision: number }).workspaceRevision,
+        expectedRevision: (savedPower.json as { workspaceRevision: number }).workspaceRevision,
         loadFactor: previousPower.loadFactor });
     }
     check(
@@ -809,7 +766,7 @@ async function main(): Promise<void> {
     JSON.stringify(manualRoot.json).slice(0, 220));
     if (manualRevision !== undefined) {
       const rowPage = await track('dcsc_cabling_connections', {
-        session: manualWorkspace, expectedWorkspaceRevision: manualRevision,
+        session: manualWorkspace, expectedRevision: manualRevision,
         path: ['connections', '0'], offset: 0, limit: 50,
       });
       const rowValues = Object.fromEntries(((rowPage.json as {
@@ -821,7 +778,7 @@ async function main(): Promise<void> {
       JSON.stringify(rowPage.json).slice(0, 220));
 
       const cablePage = await track('dcsc_cabling_connections', {
-        session: manualWorkspace, expectedWorkspaceRevision: manualRevision,
+        session: manualWorkspace, expectedRevision: manualRevision,
         path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50,
       });
       const cableChoices = ((cablePage.json as {
@@ -1005,7 +962,7 @@ async function main(): Promise<void> {
       `workspace=${softwareWorkspace}`,
     );
     const softwarePage = await track('dcsc_software_browse', {
-      workspace: softwareWorkspace,
+      session: softwareWorkspace,
       limit: 50,
     });
     const softwareRows = (softwarePage.json as { software?: Array<{ code: string }> }).software ?? [];
@@ -1023,13 +980,13 @@ async function main(): Promise<void> {
     const softwareCode = softwareRows[0]?.code;
     if (softwareCode) {
       const selectedSoftware = await track('dcsc_software_select', {
-        workspace: softwareWorkspace,
+        session: softwareWorkspace,
         code: softwareCode,
         quantity: 2,
       });
       check('dcsc_software_select adds a priced basket line', !selectedSoftware.isError, JSON.stringify(selectedSoftware.json).slice(0, 160));
       const softwareQuantity = await track('dcsc_software_set_quantity', {
-        workspace: softwareWorkspace,
+        session: softwareWorkspace,
         code: softwareCode,
         quantity: 3,
       });
@@ -1040,7 +997,7 @@ async function main(): Promise<void> {
         JSON.stringify(softwareQuantity.json).slice(0, 160),
       );
       const refreshedSoftware = await track('dcsc_software_launch', {
-        workspace: softwareWorkspace,
+        session: softwareWorkspace,
         refresh: true,
       });
       check(
@@ -1049,16 +1006,16 @@ async function main(): Promise<void> {
           (refreshedSoftware.json as { selections?: number }).selections === 1,
         JSON.stringify(refreshedSoftware.json).slice(0, 180),
       );
-      const softwareInspect = await track('dcsc_software_inspect', { workspace: softwareWorkspace });
+      const softwareInspect = await track('dcsc_software_inspect', { session: softwareWorkspace });
       check('dcsc_software_inspect reads the basket', !softwareInspect.isError, JSON.stringify(softwareInspect.json).slice(0, 160));
       const softwareExport = await track('dcsc_software_export', {
-        workspace: softwareWorkspace,
+        session: softwareWorkspace,
         fileName: 'conformance-software',
         fileTypes: ['XML'],
       });
       check('dcsc_software_export writes a non-empty artifact', !softwareExport.isError, JSON.stringify(softwareExport.json).slice(0, 180));
       const removedSoftware = await track('dcsc_software_remove', {
-        workspace: softwareWorkspace,
+        session: softwareWorkspace,
         code: softwareCode,
       });
       check(
@@ -1080,7 +1037,7 @@ async function main(): Promise<void> {
   check('dcsc_services_launch creates a workspace', typeof serviceWorkspace === 'string', JSON.stringify(serviceLaunch.json).slice(0, 180));
   if (serviceWorkspace) {
     const servicePage = await track('dcsc_services_inspect', {
-      workspace: serviceWorkspace,
+      session: serviceWorkspace,
       limit: 1,
     });
     const serviceRows = (servicePage.json as { options?: Array<{ code: string }> }).options ?? [];
@@ -1097,7 +1054,7 @@ async function main(): Promise<void> {
     const serviceCode = serviceRows[0]?.code;
     if (serviceCode) {
       const selectedService = await track('dcsc_services_select', {
-        workspace: serviceWorkspace,
+        session: serviceWorkspace,
         serviceCode,
         quantity: 1,
       });
@@ -1109,7 +1066,7 @@ async function main(): Promise<void> {
         summary?: unknown;
       };
       const retainedQuantity = await track('dcsc_services_set_quantity', {
-        workspace: serviceWorkspace,
+        session: serviceWorkspace,
         serviceCode,
         quantity: 1,
       });
@@ -1120,12 +1077,12 @@ async function main(): Promise<void> {
           retained.summary !== undefined,
         JSON.stringify(retainedQuantity.json).slice(0, 180));
       const serviceQuantity = await track('dcsc_services_set_quantity', {
-        workspace: serviceWorkspace,
+        session: serviceWorkspace,
         serviceCode,
         quantity: 2,
         expectedRevision: retained.revision,
       });
-      const afterQuantity = await track('dcsc_services_inspect', { workspace: serviceWorkspace });
+      const afterQuantity = await track('dcsc_services_inspect', { session: serviceWorkspace });
       const savedQuantity = afterQuantity.json as ServiceProjection;
       if (serviceQuantity.isError) {
         const rejected = serviceQuantity.json as { kind?: string; error?: string };
@@ -1145,7 +1102,7 @@ async function main(): Promise<void> {
           JSON.stringify(afterQuantity.json).slice(0, 180));
       }
       const productQuantity = await track('dcsc_services_set_product_quantity', {
-        workspace: serviceWorkspace,
+        session: serviceWorkspace,
         quantity: 3,
       });
       check(
@@ -1155,7 +1112,7 @@ async function main(): Promise<void> {
           isDeepStrictEqual((productQuantity.json as ServiceProjection).selections, savedQuantity.selections),
         JSON.stringify(productQuantity.json).slice(0, 180),
       );
-      const refreshedServices = await track('dcsc_services_launch', { workspace: serviceWorkspace, refresh: true });
+      const refreshedServices = await track('dcsc_services_launch', { session: serviceWorkspace, refresh: true });
       const beforeRefresh = productQuantity.json as { selections?: unknown; summary?: unknown; product?: unknown };
       const afterRefresh = refreshedServices.json as typeof beforeRefresh;
       check('dcsc_services_launch refresh preserves saved selections and pricing',
@@ -1164,11 +1121,11 @@ async function main(): Promise<void> {
         JSON.stringify(beforeRefresh.product) === JSON.stringify(afterRefresh.product),
         JSON.stringify(refreshedServices.json).slice(0, 180));
       const serviceExport = await track('dcsc_services_export', {
-        workspace: serviceWorkspace,
+        session: serviceWorkspace,
         fileName: 'conformance-services',
       });
       check('dcsc_services_export writes a non-empty artifact', !serviceExport.isError, JSON.stringify(serviceExport.json).slice(0, 180));
-      const removedService = await track('dcsc_services_remove', { workspace: serviceWorkspace });
+      const removedService = await track('dcsc_services_remove', { session: serviceWorkspace });
       check(
         'dcsc_services_remove clears the selection',
         !removedService.isError &&
@@ -1251,7 +1208,6 @@ async function main(): Promise<void> {
   const svcCats = await track('dcsc_service_categories', {});
   check('dcsc_service_categories responds', !svcCats.isError, JSON.stringify(svcCats.json).slice(0, 120));
 
-  const blueprintSession = await checkBlueprints(track);
   const referenceCatalog = await track('dcsc_reference_solutions', { view: 'categories', limit: 5 });
   check('native reference categories are discoverable', !referenceCatalog.isError &&
     Number((referenceCatalog.json as { total?: number }).total) > 0, JSON.stringify(referenceCatalog.json).slice(0, 200));
@@ -1263,18 +1219,18 @@ async function main(): Promise<void> {
     typeof (reference.json as { workspace?: string }).workspace === 'string', JSON.stringify(reference.json).slice(0, 200));
   const referenceWorkspace = (reference.json as { workspace?: string; workspaceRevision?: number });
   if (referenceWorkspace.workspace) {
-    const members = await track('dcsc_session_list', { workspace: referenceWorkspace.workspace });
+    const members = await track('dcsc_session_list', { session: referenceWorkspace.workspace });
     const member = (members.json as { sessions?: Array<{ session: string; kind: string }> }).sessions?.find(s => s.kind === 'configuration');
     if (member) {
-      const loaded = await track('dcsc_load_unconfigured', { session: member.session, expectedWorkspaceRevision: referenceWorkspace.workspaceRevision });
+      const loaded = await track('dcsc_load_unconfigured', { session: member.session, expectedRevision: referenceWorkspace.workspaceRevision });
       check('Unconfigured catalog loads', !loaded.isError, JSON.stringify(loaded.json).slice(0, 160));
       const edited = await track('dcsc_set_unconfigured', { session: member.session,
-        expectedWorkspaceRevision: (loaded.json as { workspaceRevision?: number }).workspaceRevision,
+        expectedRevision: (loaded.json as { workspaceRevision?: number }).workspaceRevision,
         changes: [{ section: 'UNCONFIGURED_COMMVAULT_SOFTWARE', code: '7S1M004HWW', quantity: 4 }] });
       check('Unconfigured selection edit commits', !edited.isError, JSON.stringify(edited.json).slice(0, 160));
       const pci = await track('dcsc_pci_wizard', { session: member.session });
       const savedPci = await track('dcsc_set_pci_wizard', { session: member.session,
-        expectedWorkspaceRevision: (pci.json as { workspaceRevision?: number }).workspaceRevision,
+        expectedRevision: (pci.json as { workspaceRevision?: number }).workspaceRevision,
         optionId: '1P Rear5-a', rowId: '2', enabled: true });
       check('PCI wizard commits a native validated slot change', !savedPci.isError &&
         (savedPci.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 1,
@@ -1285,7 +1241,7 @@ async function main(): Promise<void> {
   const storageReference = await track('dcsc_launch_reference_solution', { crnId: 'SID0001064', solutionMode: 'General Purpose' });
   const storageReferenceWorkspace = (storageReference.json as { workspace?: string }).workspace;
   if (storageReferenceWorkspace) {
-    const listed = await track('dcsc_session_list', { workspace: storageReferenceWorkspace });
+    const listed = await track('dcsc_session_list', { session: storageReferenceWorkspace });
     const member = (listed.json as { sessions?: Array<{ session: string; product?: string }> }).sessions?.find(s => s.product === '7DJRCTO1WW');
     check('storage wizard reference exposes its server handle', !!member, JSON.stringify(listed.json).slice(0, 160));
     if (member) {
@@ -1294,15 +1250,13 @@ async function main(): Promise<void> {
       check('storage wizard discovers native choices', !choices.isError && page.items?.find(i => i.key === 'available')?.value === true,
         JSON.stringify(choices.json).slice(0, 160));
       const selected = await track('dcsc_set_storage_wizard', { session: member.session,
-        expectedWorkspaceRevision: page.workspaceRevision, optionId: '4-2' });
+        expectedRevision: page.workspaceRevision, optionId: '4-2' });
       check('storage wizard commits an explicit linked option', !selected.isError &&
         (selected.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 4,
         JSON.stringify(selected.json).slice(0, 160));
     }
   }
 
-  // Solution tools use ordinary catalog-backed sessions so a stale optional
-  // blueprint cannot prevent their contracts from being exercised.
   const design = await track('dcsc_launch', { productCode: ctoCode, mode: 'cto', label: 'conformance-design' });
   const designSession = (design.json as { session?: string }).session;
   const rival = await track('dcsc_launch', { productCode: ctoCode, mode: 'cto', label: 'conformance-rival' });
@@ -1551,7 +1505,7 @@ async function main(): Promise<void> {
     }
 
     const scale = await track('dcsc_scale_out', {
-      session: blueprintSession ?? designSession,
+      session: designSession,
       nodes: 4,
       rackCode: '7D6DCTO1WW',
     });
@@ -1575,7 +1529,6 @@ async function main(): Promise<void> {
     );
     await track('dcsc_session_close', { session: designSession });
     await track('dcsc_session_close', { session: rivalSession });
-    if (blueprintSession) await track('dcsc_session_close', { session: blueprintSession });
   } else {
     check('solution design fixture setup', false, 'could not launch two catalog-backed sessions');
   }
@@ -1619,11 +1572,11 @@ async function main(): Promise<void> {
   check('dcsc_standalone_hardware_add creates standalone workspace', !hwAdd.isError, JSON.stringify(hwAdd.json).slice(0, 160));
   const hwWs = (hwAdd.json as { workspace?: string }).workspace;
   if (hwWs) {
-    const hwInspect = await track('dcsc_standalone_hardware_inspect', { workspace: hwWs });
+    const hwInspect = await track('dcsc_standalone_hardware_inspect', { session: hwWs });
     check('dcsc_standalone_hardware_inspect reports selections', !hwInspect.isError, JSON.stringify(hwInspect.json).slice(0, 160));
-    const hwQty = await track('dcsc_standalone_hardware_set_quantity', { workspace: hwWs, code: '4X77A08621', quantity: 3 });
+    const hwQty = await track('dcsc_standalone_hardware_set_quantity', { session: hwWs, code: '4X77A08621', quantity: 3 });
     check('dcsc_standalone_hardware_set_quantity updates total', !hwQty.isError, JSON.stringify(hwQty.json).slice(0, 160));
-    const hwRem = await track('dcsc_standalone_hardware_remove', { workspace: hwWs, code: '4X77A08621' });
+    const hwRem = await track('dcsc_standalone_hardware_remove', { session: hwWs, code: '4X77A08621' });
     check('dcsc_standalone_hardware_remove clears selections', !hwRem.isError, JSON.stringify(hwRem.json).slice(0, 160));
     await track('dcsc_session_close', { session: hwWs });
   }
@@ -1714,13 +1667,7 @@ async function main(): Promise<void> {
       name: 'SR630V3_Tree',
       dataList: [{ typeName: 'Processors', contents: ['Intel Xeon Gold 6430'] }],
     });
-    check('dcsc_export_configuration_tree generates spreadsheet bytes', !treeExp.isError, JSON.stringify(treeExp.json).slice(0, 160));
-
-    const aiRec = await track('dcsc_ai_recommend', {
-      action: 'ctoCandidates',
-      payload: { solutionMode: 'General Purpose' },
-    });
-    check('dcsc_ai_recommend returns AI recommendations', !aiRec.isError, JSON.stringify(aiRec.json).slice(0, 160));
+    check('dcsc_export_configuration_tree writes a spreadsheet artifact', !treeExp.isError, JSON.stringify(treeExp.json).slice(0, 160));
 
     await track('dcsc_session_close', { session: paritySession });
   }

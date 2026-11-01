@@ -53,7 +53,7 @@ async function main(): Promise<void> {
     const layout = await call('dcsc_workspace_layout', { session: workspace });
     const inspection = object(object(object(layout.pages).rawRackArea).inspect);
     const args = object(inspection.arguments);
-    assert.equal(typeof args.expectedWorkspaceRevision, 'number', 'Layout omitted its revision-bound continuation.');
+    assert.equal(typeof args.expectedRevision, 'number', 'Layout omitted its revision-bound continuation.');
     const result: Obj = {};
     for (const field of ['rawRackArea', 'rawNonRackArea', 'floorItems', 'powerSelections',
       'storageNetworks', 'detachedStorageComponents', 'cloneDependency', 'cloneDependencyColor']) {
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
       .find(item => item.role === 'controller')?.physicalId ?? '');
     assert(firstControllerAlias, 'First placement returned no controller physical identity.');
     const moved = await call('dcsc_place_in_rack', { session: workspace, rackId,
-      sessionId: firstControllerAlias, uPosition: 10, expectedRevision: cleared.revision });
+      configuration: firstControllerAlias, uPosition: 10, expectedRevision: cleared.revision });
     const movedItem = rows(moved.racks).flatMap(rack => rows(rack.items))
       .find(item => item.id === firstControllerAlias);
     assert.equal(movedItem?.position, 10, 'DCSC did not retain the requested managed-storage move.');

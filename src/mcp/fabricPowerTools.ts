@@ -18,7 +18,9 @@ import { projectCatalogPage } from '../model/catalogPage.js';
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { positiveQuantity, requireSession } from './sessionTools.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 export function projectAutoConnectToolResult(
   workspace: WorkspaceSession,
@@ -35,7 +37,7 @@ export function projectAutoConnectToolResult(
     tool: 'dcsc_workspace_layout',
     arguments: {
       session: workspace.id,
-      expectedWorkspaceRevision: workspace.revision,
+      expectedRevision: workspace.revision,
       path,
       offset: 0,
       limit: 20,
@@ -73,7 +75,7 @@ export function projectAutoConnectToolResult(
     ...(note ? { note } : {}),
     next: 'Inspect pages.diagnostics for missing networks. Use dcsc_cabling_connections to discover editable rows, then dcsc_edit_cabling_connection to change an existing connection.',
   };
-  if (Buffer.byteLength(JSON.stringify(full, null, 2)) <= 7_000) return full;
+  if (jsonBytes(full) <= PAGE_BYTE_BUDGET) return full;
 
   const clip = (value: string | undefined): { value?: string; truncated?: true } =>
     value === undefined ? {} : value.length <= 160 ? { value } : { value: value.slice(0, 160), truncated: true };
@@ -110,26 +112,26 @@ export function projectAutoConnectToolResult(
     messageGroupsReturned: compactMessages.length,
     compacted: true,
   };
-  while (Buffer.byteLength(JSON.stringify(compact, null, 2)) > 7_000 && compactConnections.length > 0) {
+  while (jsonBytes(compact) > PAGE_BYTE_BUDGET && compactConnections.length > 0) {
     compactConnections.pop();
     compact['connectionsReturned'] = compactConnections.length;
   }
-  while (Buffer.byteLength(JSON.stringify(compact, null, 2)) > 7_000 && compactMessages.length > 0) {
+  while (jsonBytes(compact) > PAGE_BYTE_BUDGET && compactMessages.length > 0) {
     compactMessages.pop();
     compact['messageGroupsReturned'] = compactMessages.length;
   }
-  if (Buffer.byteLength(JSON.stringify(compact, null, 2)) > 7_500) {
+  if (jsonBytes(compact) > PAGE_BYTE_BUDGET) {
     throw new Error('Auto-connect result context exceeds the response budget. Inspect the workspace recovery snapshot.');
   }
   return compact;
 }
 
-export function registerFabricPowerTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerFabricPowerTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_add_cabling',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Generate native cabling or record a local planning link',
       description:
         'Runs native DCSC /auto_connect (mode="auto", default) to generate workspace cabling and update Automated Rack PDU / Switch / P2P settings. Mode "manual" records a local-only planning link excluded from Lenovo exports; for native exportable manual connections use dcsc_manual_cabling_options -> dcsc_create_cabling_connection, or dcsc_cabling_connections -> dcsc_edit_cabling_connection.',
@@ -206,6 +208,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   server.registerTool(
     'dcsc_power',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Power and thermal budget for a configuration or solution',
       description:
         'Reports DCSC power and heat figures (idle / expected / max / worst-case input power, current, apparent power and heat output) per configuration, per rack (physical placements), and in total. Use dcsc_power_controls / dcsc_set_power_controls to inspect or change voltage, load factor and power policy.',
@@ -361,6 +364,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   server.registerTool(
     'dcsc_fabric_options',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Browse fabric devices, topologies, cables and storage preferences',
       description: 'Browses the fetched fabric catalog with stable option IDs and true totals across collections (topologies, networkDevices, networkTypes, cables, selectedServices, nodeRoles, storageSwitches, storageControllers, leafNodeCabling).',
       inputSchema: {
@@ -409,6 +413,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   server.registerTool(
     'dcsc_set_node_role',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Set a configuration\'s role in the cluster',
       description:
         'Tags a configuration as Compute, Storage or Management (from dcsc_fabric_options).',
@@ -452,6 +457,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   server.registerTool(
     'dcsc_set_topology',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Apply a network topology to a configuration',
       description:
         'Selects a fabric topology shortName (from dcsc_fabric_options, e.g. IB_XDR, 400GbE_Fiber) and connectors/ports on a configuration, running auto-connect when racks are present and autoConnect=true.',
@@ -506,6 +512,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   );
 
   server.registerTool('dcsc_network_connectors', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'List compatible network connector IDs',
     description: 'Finds actual configuration connectors for a topology. Use the returned IDs with dcsc_set_topology.',
     inputSchema: { session: z.string(), topology: z.string(), offset: z.number().int().min(0).default(0), limit: z.number().int().min(1).max(50).default(10) },
@@ -520,6 +527,7 @@ export function registerFabricPowerTools(rawServer: McpServer, service: DcscServ
   }, 'dcsc_network_connectors failed'));
 
   server.registerTool('dcsc_set_network_preferences', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Select workspace network devices and cables',
     description: 'Updates workspace network preferences (topology, layout, main/leaf switches, trunks, VLAN joins, cable categories/colors) atomically, provisioning switches when automatic switch creation is enabled.',
     inputSchema: {

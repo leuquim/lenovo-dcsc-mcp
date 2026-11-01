@@ -54,7 +54,7 @@ export async function generateConfigId(
       controlExpressModal: 'false',
     },
     requiresSolution: false,
-    responseKind: 'json',
+    responseKind: 'text',
     timeoutClass: 'interactive',
     ctx,
   });
@@ -114,7 +114,7 @@ export async function retrieveConfigId(
     ctx,
   });
 
-  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw = response.raw;
 
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     const obj = raw as Record<string, unknown>;
@@ -165,9 +165,7 @@ export async function querySids(
     ctx,
   });
 
-  const raw = (typeof response.raw === 'string'
-    ? JSON.parse(response.raw)
-    : response.raw) as Record<string, unknown> | null;
+  const raw = response.raw as Record<string, unknown> | null;
 
   if (!raw || typeof raw !== 'object') {
     return { content: [], totalElements: 0, number: pageIndex };
@@ -226,7 +224,7 @@ export async function customizeSid(
     ctx,
   });
 
-  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw = response.raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`DCSC returned no customizable reference solution for SID ${trimmed}.`);
   }

@@ -68,7 +68,7 @@ export async function inspectAutoFixCandidates(
     ctx,
   });
 
-  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw = response.raw;
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -186,9 +186,7 @@ export async function executeAutoFix(
     ctx,
   });
 
-  const raw = (typeof response.raw === 'string'
-    ? JSON.parse(response.raw)
-    : response.raw) as Record<string, unknown> | null;
+  const raw = response.raw as Record<string, unknown> | null;
 
   if (!raw || typeof raw !== 'object') {
     throw new Error('DCSC returned an unrecognised response to hardware auto-fix.');
@@ -364,7 +362,7 @@ export async function errorCustomizeWithAutoDerive(
     ctx,
   });
 
-  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw = response.raw;
   return Array.isArray(raw) ? (raw as unknown[]) : [];
 }
 

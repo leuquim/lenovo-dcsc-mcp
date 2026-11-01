@@ -107,10 +107,10 @@ try {
   if (process.argv.includes('--edit-unconfigured')) {
     stage = 'unconfigured-edit';
     const session = String(rows(before['configurations'])[0]!['id']);
-    const loaded = await call('dcsc_load_unconfigured', { session, expectedWorkspaceRevision: before['revision'] });
+    const loaded = await call('dcsc_load_unconfigured', { session, expectedRevision: before['revision'] });
     const changes = [{ section: 'UNCONFIGURED_COMMVAULT_SOFTWARE', code: '7S1M004HWW', quantity: 4 }];
-    await call('dcsc_set_unconfigured', { session, changes, expectedWorkspaceRevision: loaded['workspaceRevision'] });
-    await call('dcsc_set_unconfigured', { session, changes, expectedWorkspaceRevision: loaded['workspaceRevision'] }, true);
+    await call('dcsc_set_unconfigured', { session, changes, expectedRevision: loaded['workspaceRevision'] });
+    await call('dcsc_set_unconfigured', { session, changes, expectedRevision: loaded['workspaceRevision'] }, true);
     before = await saved(id);
     const changed = expected[0]!.selections.find(s => s.section === changes[0]!.section && s.code === changes[0]!.code);
     assert(changed); assert.equal(changed.quantity, 8);
@@ -133,7 +133,7 @@ try {
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined); await start();
   const diagnostics = object(object(launched['diagnostics'])['inspect']);
-  await call(String(diagnostics['tool']), { ...object(diagnostics['arguments']), expectedWorkspaceRevision: before['revision'] });
+  await call(String(diagnostics['tool']), { ...object(diagnostics['arguments']), expectedRevision: before['revision'] });
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) assert.deepEqual(after[key], before[key]);
   stage = 'export';

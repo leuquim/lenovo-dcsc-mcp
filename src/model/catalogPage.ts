@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { projectJsonPage } from './pagedJson.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 /** Preserve complete catalog rows behind byte-bounded, query-bound continuations. */
 export function projectCatalogPage(options: {
@@ -37,9 +39,9 @@ export function projectCatalogPage(options: {
       next: { tool: options.tool, arguments: { ...args, offset: options.offset + items.length, limit: options.limit } },
     } : {}),
   });
-  const size = () => Buffer.byteLength(JSON.stringify(result(), null, 2));
-  while (items.length > 1 && size() > 7_500) items.pop();
-  if (items.length === 1 && size() > 7_500) {
+  const size = () => jsonBytes(result());
+  while (items.length > 1 && size() > PAGE_BYTE_BUDGET) items.pop();
+  if (items.length === 1 && size() > PAGE_BYTE_BUDGET) {
     const item = items[0]!;
     items[0] = {
       ...(typeof item.code === 'string' && item.code.length < 160 ? { code: item.code } : {}),
@@ -49,6 +51,6 @@ export function projectCatalogPage(options: {
       } },
     };
   }
-  if (size() > 7_500) throw new Error('Catalog query context exceeds the response budget; shorten the query or filters.');
+  if (size() > PAGE_BYTE_BUDGET) throw new Error('Catalog query context exceeds the response budget; shorten the query or filters.');
   return result();
 }

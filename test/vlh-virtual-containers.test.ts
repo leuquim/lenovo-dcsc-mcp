@@ -298,25 +298,16 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       const parsedSession = JSON.parse(textContent(resSession));
       expect(parsedSession.workspace).toBe(workspace.id);
       expect(parsedSession.categories).toEqual(mockCategories);
-
-      // Call using 'workspace' alias parameter
-      const resWorkspace = await client.callTool({
-        name: 'dcsc_virtual_container_compatible_products',
-        arguments: { workspace: workspace.id },
-      });
-      expect(resWorkspace.isError).toBeFalsy();
-      const parsedWorkspace = JSON.parse(textContent(resWorkspace));
-      expect(parsedWorkspace.workspace).toBe(workspace.id);
     });
 
-    it('dcsc_virtual_container_compatible_products enforces expectedWorkspaceRevision CAS check', async () => {
+    it('dcsc_virtual_container_compatible_products enforces expectedRevision CAS check', async () => {
       const service = createTestService();
       const { workspace } = setupWorkspace(service);
       const { client } = await createConnectedVlhHarness(service);
 
       const res = await client.callTool({
         name: 'dcsc_virtual_container_compatible_products',
-        arguments: { session: workspace.id, expectedWorkspaceRevision: 9999 },
+        arguments: { session: workspace.id, expectedRevision: 9999 },
       });
 
       expect(res.isError).toBe(true);

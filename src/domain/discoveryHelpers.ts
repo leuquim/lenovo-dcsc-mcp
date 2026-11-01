@@ -27,6 +27,14 @@ export interface DiscoveryHelperInput {
  *   - 'displayOrders': Feature and group display ordering (/ctos/{code}/display_orders/features_and_groups)
  *   - 'staticFeatures': Static feature sections for a tab (/ctos/{code}/{tab}/staticFeatures)
  */
+function requireText(params: Record<string, unknown>, action: string, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = params[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  throw new Error(`${keys[0]} is required for discoveryAction ${action}.`);
+}
+
 export async function queryDiscoveryHelper(
   http: DcscHttpClient,
   ctx: RequestCtx,
@@ -46,7 +54,7 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'subCategoryConditions': {
@@ -66,7 +74,7 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'productListBySubCategory': {
@@ -98,7 +106,7 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'topChoiceCountry': {
@@ -111,15 +119,11 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'productFunctions': {
-      const code = typeof params['code'] === 'string' && params['code'].trim()
-        ? params['code'].trim()
-        : typeof params['ctoCode'] === 'string' && params['ctoCode'].trim()
-          ? params['ctoCode'].trim()
-          : '7D73CTO1WW';
+      const code = requireText(params, 'productFunctions', 'ctoCode', 'code');
       const response = await http.send({
         endpoint: 'function_definition.product_functions',
         method: 'POST',
@@ -131,15 +135,11 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'displayOrders': {
-      const code = typeof params['ctoCode'] === 'string' && params['ctoCode'].trim()
-        ? params['ctoCode'].trim()
-        : typeof params['code'] === 'string' && params['code'].trim()
-          ? params['code'].trim()
-          : '7D73CTO1WW';
+      const code = requireText(params, 'displayOrders', 'ctoCode', 'code');
       const response = await http.send({
         endpoint: 'ctos.display_orders',
         method: 'GET',
@@ -149,18 +149,12 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
 
     case 'staticFeatures': {
-      const code = typeof params['ctoCode'] === 'string' && params['ctoCode'].trim()
-        ? params['ctoCode'].trim()
-        : typeof params['code'] === 'string' && params['code'].trim()
-          ? params['code'].trim()
-          : '7D73CTO1WW';
-      const tab = typeof params['tab'] === 'string' && params['tab'].trim()
-        ? params['tab'].trim()
-        : 'Memory';
+      const code = requireText(params, 'staticFeatures', 'ctoCode', 'code');
+      const tab = requireText(params, 'staticFeatures', 'tab');
       const response = await http.send({
         endpoint: 'ctos.staticFeatures',
         method: 'POST',
@@ -171,7 +165,7 @@ export async function queryDiscoveryHelper(
         requiresSolution: true,
         ctx,
       });
-      return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+      return response.raw;
     }
   }
 }

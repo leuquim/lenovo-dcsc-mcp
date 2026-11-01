@@ -150,10 +150,10 @@ it('discovers bounded choices through the tool and invalidates navigation after 
   expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(7_500);
   const page = JSON.parse(reply.content[0]!.text) as { items: Array<{ key: string; next?: { arguments: Obj } }> };
   const continuation = page.items.find(item => item.key === 'policies')!.next!;
-  expect(continuation.arguments['expectedWorkspaceRevision']).toBe(workspace.revision);
+  expect(continuation.arguments['expectedRevision']).toBe(workspace.revision);
   vi.spyOn(service.http, 'send').mockResolvedValue({ raw: fixture.response } as never);
   const saved = await handlers.get('dcsc_set_power_controls')!({ session: first.id,
-    expectedWorkspaceRevision: workspace.revision, voltage: '230V@AC', loadFactor: 100 });
+    expectedRevision: workspace.revision, voltage: '230V@AC', loadFactor: 100 });
   expect(saved.isError).not.toBe(true);
   expect((await handlers.get('dcsc_power_controls')!(continuation.arguments)).isError).toBe(true);
 });

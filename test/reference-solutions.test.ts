@@ -73,7 +73,7 @@ it('customizes into an atomic new workspace, preserving native state and pageabl
 
 it('rolls back a failed durable reference import and rejects invalid identifiers before any HTTP', async () => {
   const service = setup();
-  const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: JSON.stringify(payload()) } as never);
+  const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: payload() } as never);
   service.sessions.setPersistenceWriter(() => { throw new Error('disk full'); });
   await expect(service.launchReferenceSolution('SID1', service.newCtx())).rejects.toThrow('Durable session commit failed');
   expect(service.sessions.listWorkspaces()).toHaveLength(0);

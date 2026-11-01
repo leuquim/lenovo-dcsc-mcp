@@ -171,7 +171,7 @@ describe('standalone MCP tools', () => {
     while (args) {
       const reply = await lookup(args);
       expect(reply.isError).not.toBe(true);
-      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(7_500);
+      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(8_000);
       const result = parse(reply);
       const rows = result.parts as Array<{ code: string }>;
       codes.push(...rows.map(row => row.code));
@@ -215,7 +215,7 @@ describe('standalone MCP tools', () => {
     });
     const launched = parse(await handler(handlers, 'dcsc_software_launch')({ replace: false }));
     const browse = handler(handlers, 'dcsc_software_browse');
-    const first = parse(await browse({ workspace: launched.workspace, query: 'License', subTab: 'Microsoft', offset: 0, limit: 50 }));
+    const first = parse(await browse({ session: launched.workspace, query: 'License', subTab: 'Microsoft', offset: 0, limit: 50 }));
     const compact = (first.software as Array<Record<string, unknown>>)[0]!;
     expect(compact).toMatchObject({ code: 'SOFTWARE-0', compacted: true });
     const detailArgs = (compact.detail as { arguments: Record<string, unknown> }).arguments;
@@ -227,7 +227,7 @@ describe('standalone MCP tools', () => {
     while (args) {
       const reply = await browse(args);
       expect(reply.isError).not.toBe(true);
-      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(7_500);
+      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(8_000);
       const page = parse(reply);
       reconstructed += String(page.text);
       args = (page.next as { arguments: Record<string, unknown> } | undefined)?.arguments;
@@ -239,7 +239,7 @@ describe('standalone MCP tools', () => {
       expect(args).toMatchObject({ query: 'License', subTab: 'Microsoft', offset: codes.length });
       const reply = await browse(args);
       expect(reply.isError).not.toBe(true);
-      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(7_500);
+      expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThanOrEqual(8_000);
       const page = parse(reply);
       codes.push(...(page.software as Array<{ code: string }>).map(item => item.code));
       args = (page.next as { arguments: Record<string, unknown> } | undefined)?.arguments;
@@ -333,7 +333,7 @@ describe('standalone MCP tools', () => {
 
     const page = parse(
       await handler(handlers, 'dcsc_software_browse')({
-        workspace,
+        session: workspace,
         offset: 0,
         limit: 1,
       }),
@@ -346,7 +346,7 @@ describe('standalone MCP tools', () => {
           unitPrice: 234.5,
           next: {
             tool: 'dcsc_software_select',
-            arguments: { workspace, code: '7S1S002WWW', quantity: 1 },
+            arguments: { session: workspace, code: '7S1S002WWW', quantity: 1 },
           },
         },
       ],
@@ -354,25 +354,25 @@ describe('standalone MCP tools', () => {
 
     const selected = parse(
       await handler(handlers, 'dcsc_software_select')({
-        workspace,
+        session: workspace,
         code: '7S1S002WWW',
         quantity: 2,
       }),
     );
     expect(selected).toMatchObject({ totalListPrice: 469, priceIncomplete: false });
     const stale = await handler(handlers, 'dcsc_software_set_quantity')({
-      workspace,
+      session: workspace,
       code: '7S1S002WWW',
       quantity: 9,
       expectedRevision: launched['revision'],
     });
     expect(stale.isError).toBe(true);
-    expect(parse(await handler(handlers, 'dcsc_software_inspect')({ workspace }))).toMatchObject({
+    expect(parse(await handler(handlers, 'dcsc_software_inspect')({ session: workspace }))).toMatchObject({
       selections: [{ code: '7S1S002WWW', quantity: 2 }],
     });
 
     const exported = parse(
-      await handler(handlers, 'dcsc_software_export')({ workspace, fileName: 'software' }),
+      await handler(handlers, 'dcsc_software_export')({ session: workspace, fileName: 'software' }),
     );
     expect(exported).toMatchObject({
       workspace,
@@ -440,7 +440,7 @@ describe('standalone MCP tools', () => {
       },
     ];
     await handler(handlers, 'dcsc_software_export')({
-      workspace,
+      session: workspace,
       fileName: 'mixed',
       fileTypes: ['XML', 'RACK_REPORT'],
     });
@@ -484,12 +484,12 @@ describe('standalone MCP tools', () => {
       throw new Error('simulated durable write failure');
     });
     const failed = await handler(handlers, 'dcsc_software_set_quantity')({
-      workspace,
+      session: workspace,
       code: '7S1S002WWW',
       quantity: 3,
     });
     expect(failed.isError).toBe(true);
-    const after = parse(await handler(handlers, 'dcsc_software_inspect')({ workspace }));
+    const after = parse(await handler(handlers, 'dcsc_software_inspect')({ session: workspace }));
     expect(after).toMatchObject({
       totalListPrice: 469,
       selections: [{ code: '7S1S002WWW', quantity: 2 }],
@@ -522,7 +522,7 @@ describe('standalone MCP tools', () => {
     });
     const beforeExport = buildProductServiceExportEnvelope(imported.state);
     const before = structuredClone(imported.state);
-    const refreshed = await handler(handlers,'dcsc_services_launch')({workspace:workspace.id,refresh:true,expectedRevision:workspace.revision});
+    const refreshed = await handler(handlers,'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision});
     expect(refreshed.isError).not.toBe(true);
     expect(workspace.integrityWarnings).toEqual(['Retained unrelated import diagnostic']);
     const state = workspace.serverState.standaloneServiceState as typeof imported.state;
@@ -532,7 +532,7 @@ describe('standalone MCP tools', () => {
     expect(buildProductServiceExportEnvelope(state)).toEqual(beforeExport);
     expect(state.options.some(option=>option.code==='NEW-SERVICE')).toBe(true);
     const resized = parse(await handler(handlers, 'dcsc_services_set_product_quantity')({
-      workspace: workspace.id,
+      session: workspace.id,
       quantity: 4,
       expectedRevision: workspace.revision,
     }));
@@ -552,17 +552,17 @@ describe('standalone MCP tools', () => {
       },
     });
     const exported = parse(await handler(handlers, 'dcsc_services_export')({
-      workspace: workspace.id,
+      session: workspace.id,
       fileName: 'imported-non-unit-service',
     }));
     expect(exported['warnings']).toEqual(expect.arrayContaining([
       expect.stringContaining('native Save after import and a product-quantity change'),
     ]));
     const requestCount = send.mock.calls.length;
-    const stale = await handler(handlers,'dcsc_services_launch')({workspace:workspace.id,refresh:true,expectedRevision:workspace.revision-1});
+    const stale = await handler(handlers,'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision-1});
     expect(stale.isError).toBe(true);
     expect(send).toHaveBeenCalledTimes(requestCount);
-    const selected = await handler(handlers,'dcsc_services_select')({workspace:workspace.id,serviceCode:'NEW-SERVICE',quantity:1,expectedRevision:workspace.revision});
+    const selected = await handler(handlers,'dcsc_services_select')({session:workspace.id,serviceCode:'NEW-SERVICE',quantity:1,expectedRevision:workspace.revision});
     expect(selected.isError).not.toBe(true);
     expect(parse(selected)).toMatchObject({selections:[{code:'NEW-SERVICE',quantity:1}],summary:{totalPrice:2400}});
   });
@@ -605,7 +605,7 @@ describe('standalone MCP tools', () => {
     const initialServerState = structuredClone(initialWorkspace.serverState);
     const initialHistory = structuredClone(initialWorkspace.history);
     const rejectedSelection = await handler(handlers, 'dcsc_services_select')({
-      workspace,
+      session: workspace,
       serviceCode: '5WS7B99623',
       quantity: 2,
     });
@@ -624,7 +624,7 @@ describe('standalone MCP tools', () => {
     }).selections).toEqual([]);
 
     const selected = await handler(handlers, 'dcsc_services_select')({
-      workspace,
+      session: workspace,
       serviceCode: '5WS7B99623',
       quantity: 1,
       expectedRevision: initialRevision,
@@ -641,7 +641,7 @@ describe('standalone MCP tools', () => {
     );
 
     const rejectedChange = await handler(handlers, 'dcsc_services_set_quantity')({
-      workspace,
+      session: workspace,
       serviceCode: '5WS7B99623',
       quantity: 4,
     });
@@ -704,7 +704,7 @@ describe('standalone MCP tools', () => {
 
     const selected = parse(
       await handler(handlers, 'dcsc_services_select')({
-        workspace,
+        session: workspace,
         serviceCode: '5WS7B99623',
         quantity: 1,
       }),
@@ -715,7 +715,7 @@ describe('standalone MCP tools', () => {
     });
 
     const changedService = parse(
-      await handler(handlers, 'dcsc_services_set_quantity')({ workspace, quantity: 2 }),
+      await handler(handlers, 'dcsc_services_set_quantity')({ session: workspace, quantity: 2 }),
     );
     expect(changedService).toMatchObject({
       product: { code: '7D73CTO1WW', quantity: 1 },
@@ -723,7 +723,7 @@ describe('standalone MCP tools', () => {
     });
     const changedProduct = parse(
       await handler(handlers, 'dcsc_services_set_product_quantity')({
-        workspace,
+        session: workspace,
         quantity: 3,
       }),
     );
@@ -734,7 +734,7 @@ describe('standalone MCP tools', () => {
     });
 
     const exported = parse(
-      await handler(handlers, 'dcsc_services_export')({ workspace, fileName: 'services' }),
+      await handler(handlers, 'dcsc_services_export')({ session: workspace, fileName: 'services' }),
     );
     expect(exported).toMatchObject({
       kind: 'product-bound-services',
@@ -769,7 +769,7 @@ describe('standalone MCP tools', () => {
       'dcsc-isFromIntegration': 'false',
     });
 
-    const removed = parse(await handler(handlers, 'dcsc_services_remove')({ workspace }));
+    const removed = parse(await handler(handlers, 'dcsc_services_remove')({ session: workspace }));
     expect(removed).toMatchObject({
       product: { code: '7D73CTO1WW', quantity: 3 },
       selections: [],
@@ -845,10 +845,10 @@ describe('standalone MCP tools', () => {
     }));
     const workspace = String(launched['workspace']);
     await handler(handlers, 'dcsc_services_select')({
-      workspace, serviceCode: serviceFeature.code, quantity: 1,
+      session: workspace, serviceCode: serviceFeature.code, quantity: 1,
     });
     const withAddOn = parse(await handler(handlers, 'dcsc_services_select')({
-      workspace, serviceCode: addOn.code, quantity: 1,
+      session: workspace, serviceCode: addOn.code, quantity: 1,
     }));
     expect(withAddOn).toMatchObject({
       selectionSemantics: 'base-plus-add-ons-verified',
@@ -856,17 +856,17 @@ describe('standalone MCP tools', () => {
       summary: { totalPrice: 1810 },
     });
 
-    const ambiguous = await handler(handlers, 'dcsc_services_set_quantity')({ workspace, quantity: 2 });
+    const ambiguous = await handler(handlers, 'dcsc_services_set_quantity')({ session: workspace, quantity: 2 });
     expect(ambiguous.isError).toBe(true);
     const changed = parse(await handler(handlers, 'dcsc_services_set_quantity')({
-      workspace, serviceCode: addOn.code, quantity: 2,
+      session: workspace, serviceCode: addOn.code, quantity: 2,
     }));
     expect(changed).toMatchObject({
       selections: [{ code: serviceFeature.code, quantity: 1 }, { code: addOn.code, quantity: 2 }],
     });
 
     const removed = parse(await handler(handlers, 'dcsc_services_remove')({
-      workspace, serviceCode: addOn.code,
+      session: workspace, serviceCode: addOn.code,
     }));
     expect(removed).toMatchObject({
       selections: [{ code: serviceFeature.code, quantity: 1 }],

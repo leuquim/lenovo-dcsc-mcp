@@ -4,7 +4,6 @@ import { z } from 'zod';
 
 import { CONFIG_MODES } from '../config/constants.js';
 import { redactConfig } from '../config/schema.js';
-import { findBlueprint } from '../domain/blueprints.js';
 import { aggregatePower, assessRackDensity, extractPowerReport } from '../domain/power.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import { storageComponentQuantities, unplacedManagedStorageComponentIds } from '../domain/storagePreferences.js';
@@ -16,7 +15,9 @@ import {
   projectWorkspaceSummary,
 } from '../model/workspaceProjection.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 export function requireSession(service: DcscService, id: string) {
   const resolved = service.sessions.resolveHandle(id);
@@ -38,15 +39,15 @@ export function positiveQuantity(quantity: number | null | undefined): number {
   return typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
-export function registerSessionTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerSessionTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_launch',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Start configuring a DCSC product',
       description:
-        'Launches a configuration session for a product code and returns a compact summary (tabs, price, constraints) and session handle. Pass workspace to add a product to an existing multi-product solution.',
+        'Launches a configuration session for a product code and returns a compact summary (tabs, price, constraints) and session handle. Pass session to add a product to an existing multi-product solution.',
       inputSchema: {
         expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision when adding a product to an existing workspace.'),
         productCode: z.string().describe('Product code from dcsc_find_products, e.g. "7D73CTO1WW".'),
@@ -56,7 +57,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           .default('cto')
           .describe('cto for configure-to-order, lfo for a preconfigured model.'),
         label: z.string().optional().describe('Optional friendly name for this session.'),
-        workspace: z
+        session: z
           .string()
           .optional()
           .describe('Optional existing workspace or session ID to add a product to a multi-product solution.'),
@@ -65,8 +66,8 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
     },
     async (args) =>
       guard(async () => {
-        const workspace = args.workspace ? service.sessions.getWorkspace(args.workspace) : undefined;
-        if (args.workspace && !workspace) throw new Error(`Workspace ${args.workspace} not found.`);
+        const workspace = args.session ? service.sessions.getWorkspace(args.session) : undefined;
+        if (args.session && !workspace) throw new Error(`Workspace ${args.session} not found.`);
         const ctx = service.newCtx(workspace ? { locale: workspace.locale, solution: workspace.solution } : {});
         const solution = await service.resolveSolution(ctx, args.solutionMode ?? workspace?.solution.solutionMode);
 
@@ -79,7 +80,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           mode: args.mode,
           solution,
           ctx,
-          workspaceId: args.workspace,
+          workspaceId: args.session,
           expectedRevision: args.expectedRevision,
           ...(args.label !== undefined ? { label: args.label } : {}),
         });
@@ -114,11 +115,12 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_session_list',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'List open DCSC configuration sessions',
       description:
         'Lists open configuration sessions and multi-product workspaces, most recently used first (paginated).',
       inputSchema: {
-        workspace: z.string().optional().describe('Only list configurations in this workspace.'),
+        session: z.string().optional().describe('Only list configurations in this workspace.'),
         limit: z.number().int().min(1).max(100).optional().default(15),
         offset: z.number().int().min(0).optional().default(0),
       },
@@ -127,18 +129,18 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
       guard(async () => {
         const limit = args.limit ?? 15;
         const offset = args.offset ?? 0;
-        if (args.workspace && !service.sessions.getWorkspace(args.workspace)) {
-          throw new Error(`Workspace ${args.workspace} not found.`);
+        if (args.session && !service.sessions.getWorkspace(args.session)) {
+          throw new Error(`Workspace ${args.session} not found.`);
         }
         const configurations = service.sessions.list()
-          .filter(s => !args.workspace || s.workspaceId === args.workspace)
+          .filter(s => !args.session || s.workspaceId === args.session)
           .map(s => ({ session: s.id, configurationId: s.configurationId, workspace: s.workspaceId, kind: 'configuration',
             label: s.label?.slice(0, 128), product: s.product.code,
             description: s.product.description.slice(0, 60), revision: s.revision,
             totalPrice: s.raw.totalPrice ?? null, currency: s.locale.currency,
             updatedAt: new Date(s.lastAccessAt).toISOString() }));
         const standalone = service.sessions.listWorkspaces()
-          .filter(ws => ws.configurations.size === 0 && (!args.workspace || ws.id === args.workspace))
+          .filter(ws => ws.configurations.size === 0 && (!args.session || ws.id === args.session))
           .map(ws => ({ session: ws.id, workspace: ws.id, kind: 'workspace',
             label: ws.label?.slice(0, 128), revision: ws.revision, currency: ws.locale.currency,
             updatedAt: new Date(ws.lastAccessAt).toISOString(),
@@ -150,7 +152,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           ...(offset + page.length < all.length ? { next: { tool: 'dcsc_session_list',
             arguments: { ...args, offset: offset + page.length, limit } } } : {}),
         });
-        while (Buffer.byteLength(JSON.stringify(result(), null, 2)) > 7500 && page.length > 1) page.pop();
+        while (jsonBytes(result()) > PAGE_BYTE_BUDGET && page.length > 1) page.pop();
         return result();
       }, 'dcsc_session_list failed'),
   );
@@ -158,6 +160,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_session_close',
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       title: 'Close a DCSC configuration session',
       description: 'Discards a configuration session or workspace and frees its memory.',
       inputSchema: { session: z.string(), expectedRevision: z.number().int().min(1).optional().describe('Expected configuration for a configuration handle, or workspace for a workspace handle revision.') },
@@ -168,6 +171,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_workspace_history',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       title: 'Undo or redo a workspace edit',
       description: 'Restores the previous or next committed workspace state (configurations, floor placement, cabling and preferences) atomically. Bounded to 10 edits.',
       inputSchema: { session: z.string(), action: z.enum(['undo', 'redo']),
@@ -188,6 +192,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_session_info',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Summarise a DCSC configuration or workspace',
       description:
         'Returns the compact summary of a configuration or workspace: products, quantities, prices, tabs, constraints, and revisions. Optionally inspects CTO and rule versions.',
@@ -196,7 +201,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
         path: z.array(z.string()).optional().describe('Detail path from a returned inspect/detail continuation.'),
         offset: z.number().int().min(0).optional().default(0),
         limit: z.number().int().min(1).max(1000).optional().default(20),
-        expectedWorkspaceRevision: z.number().int().min(1).optional()
+        expectedRevision: z.number().int().min(1).optional()
           .describe('Revision supplied by a continuation; rejects pages from a workspace that changed.'),
         includeRuleVersions: z.boolean().optional().describe('When true, fetches and includes CTO versions and rule versions.'),
         ruleTableCode: z.string().optional().describe('Rule table code for rule versions lookup (defaults to 203).'),
@@ -230,22 +235,22 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
         if (!workspace) {
           throw new Error(`Configuration ${args.session} is not attached to an open workspace.`);
         }
-        if (args.expectedWorkspaceRevision !== undefined && args.expectedWorkspaceRevision !== workspace.revision) {
+        if (args.expectedRevision !== undefined && args.expectedRevision !== workspace.revision) {
           throw new Error(
-            `Workspace ${workspace.id} changed from revision ${args.expectedWorkspaceRevision} to ${workspace.revision}. ` +
+            `Workspace ${workspace.id} changed from revision ${args.expectedRevision} to ${workspace.revision}. ` +
             'Restart dcsc_session_info without path before following new continuations.',
           );
         }
         if (args.path !== undefined) {
-          if (args.expectedWorkspaceRevision === undefined) {
+          if (args.expectedRevision === undefined) {
             throw new Error(
-              'expectedWorkspaceRevision is required for detail pages. ' +
+              'expectedRevision is required for detail pages. ' +
               'Call dcsc_session_info without path and follow its continuation.',
             );
           }
           return projectWorkspacePage(workspace, {
             tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision },
+            arguments: { session: workspace.id, expectedRevision: workspace.revision },
             path: args.path,
             offset: args.offset,
             limit: args.limit,
@@ -258,11 +263,11 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           return { workspace: workspace.id, revision: workspace.revision, workspaceRevision: workspace.revision, revisionScope: 'workspace', kind,
             configurations: [],
             ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
-              arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision } }),
+              arguments: { session: workspace.id, expectedRevision: workspace.revision } }),
             currency: workspace.locale.currency, country: workspace.locale.country,
             ...(kind !== 'empty' ? { next: { tool: kind === 'service' ? 'dcsc_services_inspect'
               : kind === 'hardware' ? 'dcsc_standalone_hardware_inspect' : 'dcsc_software_inspect',
-              arguments: { workspace: workspace.id } } } : {}),
+              arguments: { session: workspace.id } } } : {}),
           };
         }
         if (
@@ -273,7 +278,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
         ) {
           const summary = projectWorkspaceSummary(workspace, {
             tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision },
+            arguments: { session: workspace.id, expectedRevision: workspace.revision },
           });
           if (args.includeRuleVersions) {
             const firstCto = args.ctoCode ?? [...workspace.configurations.values()][0]?.product.code;
@@ -313,7 +318,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
             pricedAt: session.pricedAt,
           }),
           ...projectWorkspaceIntegrity(workspace, { tool: 'dcsc_session_info',
-            arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision } }),
+            arguments: { session: workspace.id, expectedRevision: workspace.revision } }),
           validationMode: session.validationMode,
           autoCorrect: session.autoCorrect,
           mode: session.mode,
@@ -349,6 +354,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_diff_sessions',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Compare two DCSC configurations side-by-side',
       description:
         'Compares two configuration sessions side-by-side and returns added, removed and replaced parts, quantity changes, price delta and resource headroom.',
@@ -363,6 +369,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_compare_scenarios',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Compare design scenarios side by side',
       description:
         'Compares 2–6 configurations or workspaces by list price, power and heat. Pass nodes with configuration session IDs to scale a repeated node while keeping other workspace products fixed.',
@@ -555,6 +562,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_scale_out',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Size a cluster from one designed node',
       description:
         'Measures how many units of a configured node fit per rack against DCSC placement rules, how many racks N nodes require, and the resulting list price, weight, power and cooling advisory. Does not create N separate configurations (use dcsc_clone_configuration for that).',
@@ -573,11 +581,9 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           ctx: service.newCtx(),
         });
 
-        const session = service.sessions.get(args.session);
-        const blueprint = session ? findBlueprint(session.product.code) : undefined;
         const advisory = assessRackDensity(
           plan.powerPerRack?.maxKW ?? 0,
-          blueprint?.cooling ?? 'unknown',
+          'unknown',
         );
 
         return {
@@ -602,6 +608,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
   server.registerTool(
     'dcsc_health',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'DCSC client health',
       description:
         'Reports circuit breaker state, WAF cooldown, open session count, recovery archive diagnostics and redacted configuration.',

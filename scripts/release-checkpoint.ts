@@ -148,7 +148,6 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:recovery', class: 'live', blockedExit: 2 },
   { command: 'npm run parity:projections', class: 'live' },
   { command: 'npm run parity:catalogs', class: 'live' },
-  { command: 'npm run parity:blueprints', class: 'live' },
   { command: 'npm run parity -- validation', class: 'live', blockedExit: 2 },
   { command: 'npm run parity:headless', class: 'headless', blockedExit: 2 },
 ];
