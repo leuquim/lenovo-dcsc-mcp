@@ -172,6 +172,9 @@ describe('option projections', () => {
       title: 'Storage & Drives',
     });
     expect(tab.tabId).toBe('Storage & Drives');
+    const unpriced = buildIndex({ ...raw, tabs: raw.tabs!.map(candidate => ({ ...candidate, subTabs: candidate.subTabs!.map(subTab => ({
+      ...subTab, sections: subTab.sections!.map(section => ({ ...section, priceNotAvailable: true })) })) })) });
+    expect(projectTab({ sessionId: 'sess-1', revision: 1, index: unpriced, tab: 'Storage & Drives', currency: 'USD' }).tabSubtotal).toBeNull();
     expect(tab.sections[0]).toMatchObject({
       id: 'storage-drives.front-drive',
       sectionName: 'FRONT_DRIVE',

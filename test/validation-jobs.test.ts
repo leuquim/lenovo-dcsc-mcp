@@ -9,6 +9,7 @@ import {
   validationResultFromJob,
   type ValidationJob,
 } from '../src/domain/validationJobs.js';
+import { lmcValidationBody } from '../src/domain/validate.js';
 import type { DcscHttpClient, RequestCtx, SendInput } from '../src/http/request.js';
 
 const descriptors = [{
@@ -33,6 +34,19 @@ describe('persisted validation jobs', () => {
     expect(left).toBe(right);
     expect(validationPayloadSha256({ z: 1, nested: { a: 1, b: 2 } }, 'lfo')).not.toBe(left);
     expect(validationPayloadSha256({ z: 2, nested: { a: 1, b: 2 } }, 'cto')).not.toBe(left);
+  });
+
+  it('posts exactly the website lmc_validation body keys (p2-lmc-validation capture)', () => {
+    const websiteKeys = ['toggle7116On', 'workspace', 'configurations', 'crnId', 'cloneDependencyColor', 'virtualContainerIdMapping',
+      'virtualContainerRule2ConfigMapping', 'virtualContainerInvalidRuleIdMapping', 'statusRelatedResult', 'workspaceInformation',
+      'autoDerivedResults', 'crossSystemConfigs', 'standaloneData', 'standaloneSwSubcategorySelections', 'ruleConditionIdMapping',
+      'instanceIdMapping', 'controllerExpansionMap', 'controllerIndexMap', 'autoConnectResults', 'floorInformation',
+      'networkingInformation', 'customizingFlags', 'operationMode', 'messageHistory', 'solutionMode', 'mode'];
+    const exportPayload = Object.fromEntries([...websiteKeys.filter(key => key !== 'mode' && key !== 'standaloneSwSubcategorySelections')
+      .map(key => [key, {}]), ['exportFileTypes', ['XML']], ['lbpExportShowPrice', [1]], ['configId2RecommendedDatasMap', {}],
+      ['crossVariantDeriveResults', []]]);
+    expect(Object.keys(lmcValidationBody(exportPayload, 'guide')).sort()).toEqual([...websiteKeys].sort());
+    expect(lmcValidationBody(exportPayload, 'guide')['standaloneSwSubcategorySelections']).toEqual([]);
   });
 
   it('persists descriptors before making exactly one result request and records terminal success', async () => {

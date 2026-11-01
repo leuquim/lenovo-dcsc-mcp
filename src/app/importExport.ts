@@ -546,22 +546,21 @@ export async function summaryInsights(rt: Runtime, input: {
     workspaceSnapshot?: Record<string, unknown> | undefined;
   },
   ctx?: RequestCtx,): Promise<ServiceSavingsResult | FlagSummaryResult> {
-  const effectiveCtx = ctx ?? rt.newCtx({ solution: await rt.resolveSolution(rt.newCtx()) });
+  if (input.session) assertTrustedWorkspace(rt, input.session);
+  const ws = input.session && !input.workspaceSnapshot ? rt.sessions.resolveHandle(input.session)?.workspace : undefined;
+  const effectiveCtx = ctx ?? (ws ? rt.newCtx({ locale: ws.locale, solution: ws.solution })
+    : rt.newCtx({ solution: await rt.resolveSolution(rt.newCtx()) }));
   let snapshot = input.workspaceSnapshot;
-  if (!snapshot && input.session) {
-    const resolved = rt.sessions.resolveHandle(input.session);
-    const ws = resolved?.workspace;
-    if (ws) {
-      snapshot = {
-        ...buildExportData({
-          workspace: ws,
-          solution: ws.solution,
-          fileTypes: ['SUMMARY'],
-          validationMode: 'guided',
-        }),
-        groups: buildGroups(ws),
-      };
-    }
+  if (ws) {
+    snapshot = {
+      ...buildExportData({
+        workspace: ws,
+        solution: ws.solution,
+        fileTypes: ['SUMMARY'],
+        validationMode: ws.validationMode,
+      }),
+      groups: buildGroups(ws),
+    };
   }
   if (!snapshot) {
     throw new Error('Either session handle or workspaceSnapshot must be provided for summary insights.');
