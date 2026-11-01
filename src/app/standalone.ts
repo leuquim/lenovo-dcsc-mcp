@@ -8,7 +8,12 @@ import {
   DEFAULT_EXPORT_TYPES,
   type ExportFileType,
 } from '../domain/reduce.js';
+import { projectCatalogPage } from '../model/catalogPage.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 import {
+  browseStandaloneSoftware,
+  type SoftwareCatalogPath,
   buildProductServiceExportEnvelope,
   buildStandaloneSoftwareExportEnvelope,
   findParts,
@@ -33,6 +38,7 @@ import {
   setStandaloneHardwareQuantity,
   standaloneHardwareExportItem,
   standaloneHardwareGroupProduct,
+  standaloneHardwareTotal,
   type StandaloneHardwareState,
 } from '../domain/standaloneHardware.js';
 import { exportZipPath } from '../domain/endpoints.js';
@@ -92,7 +98,7 @@ export function hardwareState(workspace: WorkspaceSession, required: false): Sta
 export function hardwareState(workspace: WorkspaceSession, required = true): StandaloneHardwareState | undefined {
   const value = workspace.serverState[HARDWARE_STATE];
   if (isObject(value) && value['kind'] === 'standalone-hardware') return value as unknown as StandaloneHardwareState;
-  if (required) throw new Error(`Workspace ${workspace.id} has no standalone hardware. Add a part with dcsc_standalone_hardware_add.`);
+  if (required) throw new Error(`Workspace ${workspace.id} has no standalone hardware. Add a part with dcsc_basket_set.`);
   return undefined;
 }
 
@@ -466,7 +472,7 @@ async function selectAndSummarise(
         throw new Error(
           `DCSC rejected the requested per-product service quantity for ${serviceCode}: ` +
           `requestedQuantity=${quantity}, acceptedQuantity=${acceptedQuantity}. ` +
-          'No workspace change was saved. Use dcsc_services_set_product_quantity to change the covered-product count, or dcsc_services_remove to remove this service.',
+          'No workspace change was saved. Use dcsc_basket_set (setProductQuantity) to change the covered-product count, or dcsc_basket_set (remove) to remove this service.',
         );
       }
       draft.serverState[SERVICE_STATE] = await summariseProductServices(
@@ -704,4 +710,347 @@ function mergeExportGroups(
     existing['products'] = [...canonicalProducts, ...structuredClone(standaloneProducts)];
   }
   return merged;
+}
+
+export function pricingContext(country: string, currency: string) {
+  return { country, currency, priceType: 'LIST', account: 'anonymous' };
+}
+
+export const BASKETS = ['software', 'hardware', 'services'] as const;
+export type Basket = (typeof BASKETS)[number];
+export const BASKET_ACTIONS = ['select', 'setQuantity', 'remove', 'setProductQuantity'] as const;
+export type BasketAction = (typeof BASKET_ACTIONS)[number];
+
+const MAX_PAGE = 50;
+const BASKET_MAX_QUANTITY: Record<Basket, number> = { software: 9999, hardware: 99999, services: 9999 };
+
+/** Baskets that hold content in the workspace. */
+export function presentBaskets(workspace: WorkspaceSession): Basket[] {
+  return [
+    ...(softwareState(workspace, false) ? ['software' as const] : []),
+    ...(hardwareState(workspace, false) ? ['hardware' as const] : []),
+    ...(serviceState(workspace, false) ? ['services' as const] : []),
+  ];
+}
+
+/** Compact inspection of one basket: selections, list prices and totals. */
+export function basketView(
+  workspace: WorkspaceSession,
+  basket: Basket,
+  page: { offset?: number; limit?: number; query?: string } = {},
+) {
+  switch (basket) {
+    case 'software': return projectSoftwareWorkspace(workspace);
+    case 'hardware': return projectHardwareWorkspace(workspace);
+    case 'services': return projectServiceWorkspace(workspace, page.offset ?? 0, Math.min(page.limit ?? 20, MAX_PAGE), page.query);
+  }
+}
+
+export async function basketBrowse(rt: Runtime, args: {
+  session: string;
+  basket: 'software' | 'services';
+  query?: string | undefined;
+  tab?: string | undefined;
+  subTab?: string | undefined;
+  section?: string | undefined;
+  subCategory?: string | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
+  path?: string[] | undefined;
+  expectedCatalogFingerprint?: string | undefined;
+}) {
+  const workspace = requireWorkspace(rt, args.session);
+  const offset = args.offset ?? 0;
+  const limit = args.limit ?? 20;
+  if (args.basket === 'services') {
+    return basketView(workspace, 'services', { offset, limit, ...(args.query !== undefined ? { query: args.query } : {}) });
+  }
+  const path: Partial<SoftwareCatalogPath> = {
+    ...(args.tab !== undefined ? { tab: args.tab } : {}),
+    ...(args.subTab !== undefined ? { subTab: args.subTab } : {}),
+    ...(args.section !== undefined ? { section: args.section } : {}),
+    ...(args.subCategory !== undefined ? { subCategory: args.subCategory } : {}),
+  };
+  const state = softwareState(workspace);
+  const page = browseStandaloneSoftware(state, {
+    ...(args.query !== undefined ? { query: args.query } : {}),
+    ...(Object.keys(path).length > 0 ? { path } : {}),
+    offset: 0,
+    limit: Math.max(state.features.length, 1),
+  });
+  return projectCatalogPage({
+    tool: 'dcsc_basket_browse', collection: 'software',
+    context: workspace.locale,
+    arguments: { session: workspace.id, basket: 'software', query: args.query, ...path },
+    offset, limit, path: args.path,
+    expectedCatalogFingerprint: args.expectedCatalogFingerprint,
+    items: page.items.map(feature => projectSoftwareFeature(feature, workspace.id, workspace.revision)),
+    base: {
+      session: workspace.id,
+      revision: workspace.revision,
+      ...pricingContext(workspace.locale.country, workspace.locale.currency),
+      page: {
+        offset: page.offset,
+        limit: page.limit,
+        totalInFetchedCatalog: page.totalInFetchedCatalog,
+        upstreamCompleteness: page.upstreamCompleteness,
+      },
+    },
+  });
+}
+
+export async function basketSet(rt: Runtime, args: {
+  session?: string | undefined;
+  basket: Basket;
+  action: BasketAction;
+  code?: string | undefined;
+  quantity?: number | undefined;
+  solutionMode?: string | undefined;
+  label?: string | undefined;
+  expectedRevision?: number | undefined;
+}) {
+  const { basket, action } = args;
+  const max = BASKET_MAX_QUANTITY[basket];
+  const quantity = args.quantity ?? (action === 'select' ? 1 : undefined);
+  if (action !== 'remove' && (quantity === undefined || quantity < 1 || quantity > max)) {
+    throw new Error(`quantity must be an integer from 1 to ${max} for ${basket}.`);
+  }
+  if (action === 'setProductQuantity' && basket !== 'services') {
+    throw new Error('setProductQuantity applies to the services basket only.');
+  }
+  if (basket !== 'services' && action !== 'setProductQuantity' && !args.code) {
+    throw new Error(`code is required to ${action} a ${basket} item.`);
+  }
+  if (basket === 'services' && action === 'select' && !args.code) throw new Error('code is required to select a service.');
+  if (!args.session && !(basket === 'hardware' && action === 'select')) {
+    throw new Error('session is required; only hardware select can create a new workspace.');
+  }
+  const handle = args.session as string;
+  const code = args.code as string;
+  const revision = revisionOption(args.expectedRevision);
+  const workspace = await (async () => {
+    if (basket === 'software') {
+      if (action === 'select') return selectSoftware(rt, { session: handle, code, quantity: quantity!, ...revision });
+      if (action === 'setQuantity') return setSoftwareQuantity(rt, { session: handle, code, quantity: quantity!, ...revision });
+      return removeSoftware(rt, { session: handle, code, ...revision });
+    }
+    if (basket === 'hardware') {
+      if (action === 'select') {
+        return addHardware(rt, { session: args.session, code, quantity: quantity!, solutionMode: args.solutionMode, label: args.label, ...revision });
+      }
+      if (action === 'setQuantity') return setHardwareQuantity(rt, { session: handle, code, quantity: quantity!, ...revision });
+      return removeHardware(rt, { session: handle, code, ...revision });
+    }
+    if (action === 'select') return selectService(rt, { session: handle, serviceCode: code, quantity: quantity!, ...revision });
+    if (action === 'setQuantity') return setServiceQuantity(rt, { session: handle, serviceCode: args.code, quantity: quantity!, ...revision });
+    if (action === 'setProductQuantity') return setServiceProductQuantity(rt, { session: handle, quantity: quantity!, ...revision });
+    return removeService(rt, { session: handle, serviceCode: args.code, ...revision });
+  })();
+  return { basket, ...basketView(workspace, basket) };
+}
+
+function projectSoftwareFeature(
+  feature: StandaloneSoftwareState['features'][number],
+  workspace: string,
+  expectedRevision: number,
+) {
+  return {
+    code: feature.code,
+    softwareCode: feature.softwareCode,
+    description: feature.description,
+    path: feature.path,
+    unitPrice: feature.unitPrice,
+    priceNotAvailable: feature.priceNotAvailable,
+    showPrice: feature.showPrice,
+    attributes: feature.attributes,
+    next: {
+      tool: 'dcsc_basket_set',
+      arguments: { session: workspace, basket: 'software', action: 'select', code: feature.code, quantity: 1, expectedRevision },
+    },
+  };
+}
+
+function projectHardwareWorkspace(workspace: WorkspaceSession) {
+  const state = hardwareState(workspace, false) ?? emptyStandaloneHardware();
+  const total = standaloneHardwareTotal(state);
+  return {
+    session: workspace.id,
+    revision: workspace.revision,
+    ...pricingContext(workspace.locale.country, workspace.locale.currency),
+    selections: state.selections.map((selection) => ({
+      code: selection.code,
+      featureCode: selection.featureCode,
+      description: selection.description,
+      quantity: selection.quantity,
+      unitPrice: selection.unitPrice,
+      totalPrice: selection.unitPrice !== undefined ? Math.round(selection.unitPrice * selection.quantity * 100) / 100 : undefined,
+    })),
+    totalListPrice: total,
+    priceIncomplete: total === undefined,
+    hardwareConfigurations: workspace.configurations.size,
+    note: 'Standalone option prices are list prices for the part on its own and can differ from the same feature selected inside a system.',
+  };
+}
+
+function projectSoftwareWorkspace(workspace: WorkspaceSession) {
+  const state = softwareState(workspace);
+  const selections = state.selections.map((selection) => ({
+    id: selection.id,
+    code: selection.code,
+    description: selection.feature.description,
+    quantity: selection.quantity,
+    unitPrice: selection.unitPrice,
+    totalPrice: selection.totalPrice,
+    path: selection.feature.path,
+  }));
+  const result = {
+    session: workspace.id,
+    revision: workspace.revision,
+    catalogItems: state.features.length,
+    ...pricingContext(workspace.locale.country, workspace.locale.currency),
+    selections,
+    totalListPrice: state.selections.reduce(
+      (total, selection) => total + (selection.totalPrice ?? 0),
+      0,
+    ),
+    priceIncomplete: state.selections.some((selection) => selection.totalPrice === undefined),
+  };
+  if (jsonBytes(result) <= PAGE_BYTE_BUDGET) return result;
+  const compactSelections = selections.map(({ id, code, quantity, unitPrice, totalPrice }) => ({
+    id, code, quantity, unitPrice, totalPrice,
+  }));
+  const compact = {
+    ...result,
+    selections: compactSelections,
+    selectedTotal: selections.length,
+    omittedSelections: 0,
+    compacted: true,
+    note: 'Descriptions and catalog paths were omitted to keep this response within the tool budget.',
+  };
+  while (jsonBytes(compact) > PAGE_BYTE_BUDGET && compactSelections.length > 1) {
+    compactSelections.pop();
+    compact.omittedSelections = selections.length - compactSelections.length;
+  }
+  return compact;
+}
+
+function projectServiceWorkspace(
+  workspace: WorkspaceSession,
+  offset: number,
+  limit: number,
+  query?: string,
+) {
+  const state = serviceState(workspace);
+  const needle = query?.trim().toLowerCase() ?? '';
+  const matches = state.options.filter(
+    (option) =>
+      !needle || `${option.code} ${option.description}`.toLowerCase().includes(needle),
+  );
+  const options = matches.slice(offset, offset + limit).map((option) => ({
+    code: option.code,
+    description: option.description,
+    type: option.type,
+    characterName: option.characterName,
+    unitPrice: option.unitPrice,
+    preSelectedQuantity: option.preSelectedQuantity,
+    section: option.section,
+    sectionName: option.sectionName,
+    sectionDescription: option.sectionDescription,
+    next: {
+      tool: 'dcsc_basket_set',
+      arguments: {
+        session: workspace.id,
+        basket: 'services',
+        action: 'select',
+        code: option.code,
+        quantity: 1,
+        expectedRevision: workspace.revision,
+      },
+    },
+  }));
+  const result = {
+    session: workspace.id,
+    revision: workspace.revision,
+    product: state.product,
+    subCategory: state.subCategory,
+    selectionSemantics: 'base-plus-add-ons-verified',
+    ...pricingContext(workspace.locale.country, workspace.locale.currency),
+    selections: state.selections.map((selection) => ({
+      code: selection.code,
+      quantity: selection.quantity,
+      description: selection.description,
+      type: selection.type,
+      characterName: selection.characterName,
+      section: selection.section,
+      sectionName: selection.sectionName,
+    })),
+    summary: projectSummary(state.summaryRaw),
+    page: { offset, limit, totalInCurrentGraph: matches.length, returned: options.length },
+    options,
+    next: undefined as { tool: string; arguments: Record<string, unknown> } | undefined,
+  };
+  const continuation = () => {
+    result.page = { ...result.page, returned: options.length };
+    result.next = offset + options.length < matches.length
+      ? {
+          tool: 'dcsc_basket_browse',
+          arguments: { session: workspace.id, basket: 'services', query, offset: offset + options.length, limit },
+        }
+      : undefined;
+  };
+  continuation();
+  while (jsonBytes(result) > PAGE_BYTE_BUDGET && options.length > 1) {
+    options.pop();
+    continuation();
+  }
+  return result;
+}
+
+function projectSummary(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  const encoded = JSON.stringify(value);
+  if (Buffer.byteLength(encoded) <= 3_000) return value;
+  if (Array.isArray(value)) {
+    const products = value.slice(0, 20).map((item) => {
+      const product = isObject(item) ? item : {};
+      const results = Array.isArray(product['results']) ? product['results'] : [];
+      return {
+        code: product['code'],
+        description: product['description'],
+        quantity: product['quantity'],
+        unitPrice: product['unitPrice'],
+        totalPrice: product['totalPrice'],
+        priceNotCredible: product['priceNotCredible'],
+        errors: product['errors'],
+        services: results.slice(0, 50).map((item) => {
+          const selected = isObject(item) ? item : {};
+          return {
+            code: selected['code'], description: selected['description'],
+            quantity: selected['quantity'], unitPrice: selected['unitPrice'],
+            totalPrice: selected['totalPrice'], priceNotAvailable: selected['priceNotAvailable'],
+            priceNotCredible: selected['priceNotCredible'], errors: selected['errors'],
+          };
+        }),
+      };
+    });
+    return {
+      available: true,
+      responseBytes: Buffer.byteLength(encoded),
+      products,
+      omittedProducts: Math.max(0, value.length - products.length),
+      totalPrice: products.reduce(
+        (total, product) => total + (typeof product.totalPrice === 'number' ? product.totalPrice : 0),
+        0,
+      ),
+      truncated: true,
+    };
+  }
+  const record = isObject(value) ? value : {};
+  return {
+    available: true,
+    responseBytes: Buffer.byteLength(encoded),
+    ...(record['totalPrice'] !== undefined ? { totalPrice: record['totalPrice'] } : {}),
+    ...(record['currency'] !== undefined ? { currency: record['currency'] } : {}),
+    truncated: true,
+  };
 }

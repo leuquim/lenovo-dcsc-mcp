@@ -243,12 +243,12 @@ describe('Phase 2 Part A: Tool Surface Extensions', () => {
 
     const reply = await exportHandler!({
       session: session.id,
-      directReport: 'POWER_XLS',
+      kind: 'power',
       includeShareUrl: true,
     });
 
     const parsed = parse(reply);
-    expect(parsed.directReport).toBe('POWER_XLS');
+    expect(parsed.session).toBe(session.id);
     expect(parsed.shareUrl).toBe('https://us-dcsc.lenovo.com/share/test1234');
     expect(String(parsed.path).startsWith(artifacts)).toBe(true);
     expect(parsed.base64).toBeUndefined();
@@ -257,7 +257,7 @@ describe('Phase 2 Part A: Tool Surface Extensions', () => {
     expect(writtenBytes).toEqual(fakePowerXls);
   });
 
-  it('dcsc_find_parts supports includeSupplyStatus enrichment', async () => {
+  it('dcsc_search parts supports includeSupplyStatus enrichment', async () => {
     const { service, handlers } = await setupTestEnvironment();
     vi.spyOn(service.http, 'send').mockImplementation(async (opts) => {
       if (opts.path === '/supply/status') {
@@ -272,11 +272,12 @@ describe('Phase 2 Part A: Tool Surface Extensions', () => {
       } as never;
     });
 
-    const findPartsHandler = handlers.get('dcsc_find_parts');
+    const findPartsHandler = handlers.get('dcsc_search');
     expect(findPartsHandler).toBeDefined();
 
     const reply = await findPartsHandler!({
-      keyword: '4X77A08621',
+      kind: 'parts',
+      query: '4X77A08621',
       includeSupplyStatus: true,
     });
 

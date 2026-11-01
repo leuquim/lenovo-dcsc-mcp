@@ -324,7 +324,7 @@ describe('Specialty Catalogs (R3: LVR Refurbished, Converged Systems, Promotions
     expect(promoRows[0]?.breadcrumb).toEqual(['Lenovo Q4 Promotion Catalog']);
   });
 
-  it('exposes dcsc_specialty_catalog tool for querying LVR, Converged, and Promotion catalogs', async () => {
+  it('exposes dcsc_search specialty kind for querying LVR, Converged, and Promotion catalogs', async () => {
     const service = setupService();
     vi.spyOn(service.http, 'send').mockImplementation(async (req) => {
       if (req.path === '/lvr/category_hierarchies') return { raw: mockLvrTree } as never;
@@ -334,11 +334,12 @@ describe('Specialty Catalogs (R3: LVR Refurbished, Converged Systems, Promotions
     });
 
     const handlers = getToolHandlers(service);
-    const specialtyTool = handlers.get('dcsc_specialty_catalog')!;
+    const specialtyTool = handlers.get('dcsc_search')!;
     expect(specialtyTool).toBeDefined();
 
     // 1. Browse LVR catalog with pagination and query
     const lvrRes = await specialtyTool({
+      kind: 'specialty',
       catalog: 'lvr',
       query: 'SR650',
     });
@@ -354,6 +355,7 @@ describe('Specialty Catalogs (R3: LVR Refurbished, Converged Systems, Promotions
 
     // 2. Browse Converged catalog
     const convRes = await specialtyTool({
+      kind: 'specialty',
       catalog: 'converged',
       limit: 10,
     });
@@ -368,6 +370,7 @@ describe('Specialty Catalogs (R3: LVR Refurbished, Converged Systems, Promotions
 
     // 3. Browse Promotion catalog
     const promoRes = await specialtyTool({
+      kind: 'specialty',
       catalog: 'promotion',
       subType: 'hierarchies',
     });

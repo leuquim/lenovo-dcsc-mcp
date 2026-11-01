@@ -172,11 +172,11 @@ describe('bounded discovery tool projections', () => {
     const { service, handlers } = setup();
     let current = browseFixture();
     vi.spyOn(service, 'catalog').mockImplementation(async () => current);
-    const browse = handler(handlers, 'dcsc_browse_catalog');
-    const defaults = { categoryOffset: 0, offset: 0, limit: 50,
+    const browse = handler(handlers, 'dcsc_search');
+    const defaults = { kind: 'tree', categoryOffset: 0, offset: 0, limit: 50,
       includeWithdrawn: false, solutionMode: 'General Purpose' };
 
-    const root = await enumerateBrowse(browse, { ...defaults, path: [] });
+    const root = await enumerateBrowse(browse, { ...defaults, categoryPath: [] });
     expect(root.categories.map(item => item['id'])).toEqual(current.tree.map(node => node.id));
     expect(root.products).toEqual([]);
     expect(new Set(root.categories.map(item => item['id'])).size).toBe(current.tree.length);
@@ -188,13 +188,13 @@ describe('bounded discovery tool projections', () => {
       compactCategory['detail'] as { arguments: Record<string, unknown> }, 'name');
     expect(longName).toBe(current.tree[0]!.name);
 
-    const nested = await enumerateBrowse(browse, { ...defaults, path: ['Servers'] });
+    const nested = await enumerateBrowse(browse, { ...defaults, categoryPath: ['Servers'] });
     const serverChildren = current.tree[1]!.children!;
     expect(nested.first['path']).toEqual(['Servers']);
     expect(nested.categories.map(item => item['id'])).toEqual(serverChildren.map(node => node.id));
     expect(nested.products).toEqual([]);
 
-    const leaf = await enumerateBrowse(browse, { ...defaults, path: ['Servers', 'Rack Servers'] });
+    const leaf = await enumerateBrowse(browse, { ...defaults, categoryPath: ['Servers', 'Rack Servers'] });
     expect(leaf.first['path']).toEqual(['Servers', 'Rack Servers']);
     expect(leaf.categories).toEqual([]);
     expect(leaf.products.map(item => item['code'])).toEqual(current.entries.map(entry => entry.code));
@@ -206,7 +206,7 @@ describe('bounded discovery tool projections', () => {
     expect(description).toBe(current.entries[0]!.description);
 
     const continuation = nested.first['next'] as { arguments: Record<string, unknown> };
-    expect(continuation.arguments).toMatchObject({ path: ['Servers'],
+    expect(continuation.arguments).toMatchObject({ categoryPath: ['Servers'],
       categoryOffset: (nested.first['categoryPage'] as { returned: number }).returned,
       offset: 0, limit: 50, expectedCatalogFingerprint: expect.any(String) });
     current = { ...current, tree: current.tree.map(node => node.id === 'servers'
@@ -216,7 +216,7 @@ describe('bounded discovery tool projections', () => {
     expect(stale.content[0]!.text).toContain('catalog or query context changed');
 
     current = browseFixture();
-    const live = parse(await browse({ ...defaults, path: ['Servers'] }));
+    const live = parse(await browse({ ...defaults, categoryPath: ['Servers'] }));
     service.setLocale({ country: 'DE', geo: 'EMEA', language: 'en', currency: 'EUR' });
     const staleContext = await browse((live['next'] as { arguments: Record<string, unknown> }).arguments);
     expect(staleContext.isError).toBe(true);
@@ -227,10 +227,9 @@ describe('bounded discovery tool projections', () => {
     const { service, handlers } = setup();
     let entries = catalogEntries();
     vi.spyOn(service, 'catalog').mockImplementation(async () => catalog(entries));
-    vi.spyOn(service, 'modesContaining').mockImplementation(async (_ctx, codes) =>
-      new Map(codes.map(code => [code.toUpperCase(), ['General Purpose']])));
-    const find = handler(handlers, 'dcsc_find_products');
-    const initial = { query: 'catalog', type: 'CTO', includeWithdrawn: false,
+    vi.spyOn(service, 'solutionModes').mockResolvedValue([{ mode: 'General Purpose' }] as never);
+    const find = handler(handlers, 'dcsc_search');
+    const initial = { kind: 'products', query: 'catalog', type: 'CTO', includeWithdrawn: false,
       solutionMode: 'General Purpose', offset: 0, limit: 50 };
     const result = await enumerate(find, initial, 'products');
     expect(result.values.map(item => item['code'])).toEqual(entries.map(entry => entry.code));

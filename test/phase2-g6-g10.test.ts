@@ -415,25 +415,25 @@ describe('Phase 2 Part B: G10 — Discovery Helpers', () => {
     expect(res).toEqual({ title: 'Memory', subTabs: [] });
   });
 
-  it('dcsc_category_detail dispatches discoveryAction', async () => {
+  it('dcsc_category dispatches discovery kinds', async () => {
     const { service, handlers } = await setupTestEnvironment();
     vi.spyOn(service.http, 'send').mockResolvedValue({
       raw: true,
       status: 200,
     } as never);
 
-    const handler = handlers.get('dcsc_category_detail')!;
+    const handler = handlers.get('dcsc_category')!;
     const reply = await handler({
-      discoveryAction: 'topChoiceCountry',
+      kind: 'topChoiceCountry',
     });
     expect(parse(reply)).toBe(true);
   });
 
-  it('dcsc_category_detail rejects when neither categoryId nor discoveryAction is provided', async () => {
+  it('dcsc_category detail rejects a missing categoryId', async () => {
     const { handlers } = await setupTestEnvironment();
-    const handler = handlers.get('dcsc_category_detail')!;
-    const reply = await handler({});
+    const handler = handlers.get('dcsc_category')!;
+    const reply = await handler({ kind: 'detail' });
     expect(reply.isError).toBe(true);
-    expect(reply.content[0]?.text).toContain('Either categoryId or discoveryAction must be provided');
+    expect(reply.content[0]?.text).toContain('categoryId is required');
   });
 });

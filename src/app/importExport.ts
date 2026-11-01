@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   fetchServiceSavings,
   fetchFlagSummary,
@@ -50,7 +51,18 @@ import {
 import { exportZipPath } from '../domain/endpoints.js';
 import { CATALOG_TTL_MS, type Runtime } from './runtime.js';
 import { manualCablingInput, prepareConfigIdsDraft, syncLayout } from './workspaceRefresh.js';
-import { configureDraft } from './launch.js';
+import { configureDraft, generateConfigId } from './launch.js';
+import { exportConfigurationTree } from '../domain/exportConfigurationTree.js';
+import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
+import { powerLoadFactor } from '../domain/power.js';
+import { configurationListPrice } from '../domain/pricing.js';
+import {
+  exportProductServiceArtifact,
+  exportStandaloneSoftwareArtifact,
+  hardwareState,
+  serviceState,
+  softwareState,
+} from './standalone.js';
 import { assertTrustedWorkspace } from './reconciliation.js';
 
 export async function downloadReferenceSolutionArtifact(rt: Runtime, crnId: string, ctx: RequestCtx, solutionMode?: string) {
@@ -618,12 +630,13 @@ function buildConfigurationReportForm(
   });
 }
 
+const DEFAULT_LOAD_FACTOR_PERCENT = 70;
+
 export async function exportWorkspace(rt: Runtime, sessionHandle: string,
   opts: {
     fileTypes?: ExportFileType[] | undefined;
     fileName?: string | undefined;
     scope?: 'auto' | 'configuration' | 'workspace' | undefined;
-    directReport?: 'POWER_XLS' | undefined;
     includeShareUrl?: boolean | undefined;
     ctx?: RequestCtx | undefined;
   } = {},): Promise<Record<string, unknown>> {
@@ -649,50 +662,231 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
     ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
     ?? sessionHandle;
 
-  if (opts.directReport === 'POWER_XLS') {
-    const isLfo = scope === 'workspace' && workspace
-      ? workspaceHardwareMode(workspace.configurations.values()) === 'lfo'
-      : session ? !usesCtoWire(session.mode) : false;
+  const isLfo = scope === 'workspace' && workspace
+    ? workspaceHardwareMode(workspace.configurations.values()) === 'lfo'
+    : session ? !usesCtoWire(session.mode) : false;
 
-    const stripped = workspace;
-    if (stripped) await prepareConfigIdsDraft(rt, stripped, effectiveCtx);
-    const placement = session && stripped?.nonRackArea.find((item) => item.id === session.configurationId);
-    const validationMode = workspace?.validationMode ?? session?.validationMode ?? 'expert';
+  if (workspace) await prepareConfigIdsDraft(rt, workspace, effectiveCtx);
+  const placement = session && workspace?.nonRackArea.find((item) => item.id === session.configurationId);
+  const validationMode = workspace?.validationMode ?? session?.validationMode ?? 'expert';
 
-    const fileTypes = opts.fileTypes ?? DEFAULT_EXPORT_TYPES;
-    const form = scope === 'workspace' && workspace
-      ? buildWorkspaceReportForm(workspace, effectiveSolution, fileTypes, validationMode)
-      : buildConfigurationReportForm(session!, stripped, placement, effectiveSolution, fileTypes, validationMode);
+  const fileTypes = opts.fileTypes ?? DEFAULT_EXPORT_TYPES;
+  const form = scope === 'workspace' && workspace
+    ? buildWorkspaceReportForm(workspace, effectiveSolution, fileTypes, validationMode)
+    : buildConfigurationReportForm(session!, workspace, placement, effectiveSolution, fileTypes, validationMode);
 
-    const report = await exportPowerXls(rt.http, effectiveCtx, rt.config, {
-      mode: isLfo ? 'lfo' : 'cto',
-      fileName: `${baseFileName}.xlsx`,
-      exportFormPayload: form,
-    });
-
-    return {
-      session: sessionHandle,
-      scope,
-      directReport: opts.directReport,
-      ...report,
-      ...await shareUrlFields(rt, effectiveCtx, opts.includeShareUrl, configId),
-    };
-  }
-
-  // Default ZIP export
-  const zipResult = await exportZip(rt, sessionHandle, {
-    fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
-    fileName: baseFileName,
-    ctx: effectiveCtx,
-    scope: opts.scope,
+  const report = await exportPowerXls(rt.http, effectiveCtx, rt.config, {
+    mode: isLfo ? 'lfo' : 'cto',
+    fileName: `${baseFileName}.xlsx`,
+    exportFormPayload: form,
   });
-
-  const bundle = await writeExportBundle(zipResult.stream, baseFileName, rt.config);
 
   return {
     session: sessionHandle,
-    ...zipResult,
-    ...bundle,
+    scope,
+    ...report,
     ...await shareUrlFields(rt, effectiveCtx, opts.includeShareUrl, configId),
+  };
+}
+
+export const EXPORT_KINDS = ['reports', 'power', 'configurationTree', 'reference', 'configId'] as const;
+export type ExportKind = (typeof EXPORT_KINDS)[number];
+
+export interface ExportArgs {
+  kind: ExportKind;
+  session?: string | undefined;
+  scope?: 'auto' | 'configuration' | 'workspace' | undefined;
+  fileName?: string | undefined;
+  fileTypes?: ExportFileType[] | undefined;
+  includeShareUrl?: boolean | undefined;
+  name?: string | undefined;
+  dataList?: Array<{ typeName: string; contents: string[] }> | undefined;
+  crnId?: string | undefined;
+  solutionMode?: string | undefined;
+}
+
+function requireSession(args: ExportArgs): string {
+  if (!args.session) throw new Error(`session is required for kind "${args.kind}".`);
+  return args.session;
+}
+
+function workspaceRevision(rt: Runtime, handle: string | undefined): { revision?: number } {
+  const workspace = handle ? rt.sessions.getWorkspace(handle) : undefined;
+  return workspace ? { revision: workspace.revision } : {};
+}
+
+export async function exportArtifact(rt: Runtime, args: ExportArgs): Promise<Record<string, unknown>> {
+  switch (args.kind) {
+    case 'reports': return { ...await exportReports(rt, args), ...workspaceRevision(rt, args.session) };
+    case 'power': {
+      const session = requireSession(args);
+      return { ...await exportWorkspace(rt, session, {
+        ...(args.fileTypes ? { fileTypes: args.fileTypes } : {}),
+        ...(args.fileName !== undefined ? { fileName: args.fileName } : {}),
+        ...(args.scope !== undefined ? { scope: args.scope } : {}),
+        ...(args.includeShareUrl !== undefined ? { includeShareUrl: args.includeShareUrl } : {}),
+      }), ...workspaceRevision(rt, session) };
+    }
+    case 'configurationTree': {
+      if (!args.name || !args.dataList) throw new Error('name and dataList are required for kind "configurationTree".');
+      return { ...await exportConfigurationTree(rt.http, await rt.ctxWithSolution(), rt.config, { name: args.name, dataList: args.dataList }) };
+    }
+    case 'reference': {
+      if (!args.crnId) throw new Error('crnId is required for kind "reference".');
+      const artifact = await downloadReferenceSolutionArtifact(rt, args.crnId, rt.newCtx(), args.solutionMode);
+      return { crnId: args.crnId, ...artifact };
+    }
+    case 'configId': {
+      const result = await generateConfigId(rt, args.session, rt.newCtx());
+      return { ...(args.session !== undefined ? { session: args.session } : {}), ...workspaceRevision(rt, args.session), configId: result.configId };
+    }
+  }
+}
+
+async function exportReports(rt: Runtime, args: ExportArgs): Promise<Record<string, unknown>> {
+  const handle = requireSession(args);
+  const session = rt.sessions.get(handle);
+  const workspace = rt.sessions.getWorkspace(handle);
+  if (!session && !workspace) throw new Error(`Session / Workspace ${handle} not found`);
+
+  const pCode = session?.product.code ?? [...workspace!.configurations.values()][0]?.product.code ?? 'solution';
+  const fileName = sanitiseFileName(args.fileName ?? `${pCode}-${Date.now()}`);
+  const solution = workspace?.solution ?? session!.solution;
+  const ctx = rt.newCtx({ locale: workspace?.locale ?? session!.locale, solution });
+  const fileTypes = args.fileTypes ?? DEFAULT_EXPORT_TYPES;
+  const configId = session?.configurationId
+    ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
+    ?? handle;
+  const shareFields = await shareUrlFields(rt, ctx, args.includeShareUrl, configId);
+
+  const workspaceScope = args.scope === 'workspace' || (args.scope !== 'configuration' && handle === workspace?.id);
+  if (workspaceScope && workspace) {
+    const servicesSelected = (serviceState(workspace, false)?.selections.length ?? 0) > 0;
+    const softwareSelected = (softwareState(workspace, false)?.selections.length ?? 0) > 0
+      || (hardwareState(workspace, false)?.selections.length ?? 0) > 0;
+    if (servicesSelected && (softwareSelected || workspace.configurations.size > 0)) {
+      throw new Error('Combined independent service and hardware/software export is not yet verified. Export independent services from a service-only workspace; no products have been silently omitted.');
+    }
+    if (servicesSelected) {
+      const bundle = await exportProductServiceArtifact(rt, workspace, fileName);
+      const hasNonUnitServiceQuantity = serviceState(workspace).selections.some((selection) => selection.quantity !== 1);
+      return { session: handle, scope: 'workspace', configurationsExported: workspace.configurations.size,
+        ...bundle, currency: workspace.locale.currency, priceType: 'LIST', ...shareFields,
+        ...(hasNonUnitServiceQuantity ? { warning: 'Lenovo website import preserves non-unit service quantities, but its native Save after import and a product-quantity change was observed to omit the services and return HTTP 500. Keep editing and exporting this workspace through MCP to preserve those quantities.' } : {}) };
+    }
+    if (softwareSelected) {
+      const bundle = await exportStandaloneSoftwareArtifact(rt, workspace, fileName, args.fileTypes ? { fileTypes: args.fileTypes } : {});
+      return { session: handle, scope: 'workspace', configurationsExported: workspace.configurations.size,
+        ...bundle, currency: workspace.locale.currency, priceType: 'LIST', ...shareFields };
+    }
+  }
+
+  const { stream, contentDisposition, rackDataOmitted, scope, configurationsExported, manualPlanningLinksOmitted, breakoutBranchesAtRisk } =
+    await exportZip(rt, handle, {
+      fileTypes, fileName, ctx,
+      ...(args.scope !== undefined ? { scope: args.scope } : {}),
+    });
+
+  const bundle = await writeExportBundle(stream, fileName, rt.config);
+  const powerSettings = (workspaceScope && workspace ? [...workspace.configurations.values()] : session ? [session] : [])
+    .map(configuration => powerLoadFactor(configuration.raw));
+  const detachedNodes = scope === 'workspace' && workspace ? detachedNestedNodeIds(workspace).size : 0;
+
+  return {
+    session: handle,
+    scope,
+    configurationsExported,
+    contentDisposition,
+    ...bundle,
+    priceType: 'LIST',
+    rackDataOmitted,
+    ...shareFields,
+    ...(powerSettings.some(value => value !== undefined && value !== DEFAULT_LOAD_FACTOR_PERCENT) ? { powerSettingsWarning:
+      'Lenovo CFXML reimport can reset custom load factors (verified SR630 V3: 100% to 70%). Saved MCP sessions retain them; reapply the desired load factor after XML import.' } : {}),
+    ...(detachedNodes > 0 ? {
+      detachedNodesDroppedOnReimport: detachedNodes,
+      reimportWarning: 'Lenovo reimport drops physically detached nodes even though their commercial lines are exported. Undo detach and use unplace before exporting to retain them through reimport.',
+    } : {}),
+    ...(breakoutBranchesAtRisk > 0 ? { breakoutBranchesAtRisk,
+      breakoutReimportWarning: 'DCSC website reimport has been observed to reset saved four-way breakout branches to point-to-point and change cable quantities. MCP import restores supported shapes and physical cable quantities from this XML; direct website handoff remains unverified.' } : {}),
+    ...(manualPlanningLinksOmitted > 0 ? { manualPlanningLinksOmitted,
+      warning: `${manualPlanningLinksOmitted} local planning link(s) are excluded from this Lenovo export. They remain inspectable in the workspace. Use auto-connect for server-authored exportable connections.` } : {}),
+    disclaimer:
+      'List prices for the configured country and currency. Not a quote. ' +
+      'A configuration containing errors cannot be imported into Lenovo quoting tools.',
+  };
+}
+
+export interface ImportArgs {
+  content?: string | undefined;
+  filePath?: string | undefined;
+  configId?: string | undefined;
+  mode?: ConfigMode | undefined;
+  session?: string | undefined;
+  expectedRevision?: number | undefined;
+  solutionMode?: string | undefined;
+}
+
+const PATH_LIKE_CONTENT = /\.(xml|xlsx|xls)$/i;
+
+export async function importArtifact(rt: Runtime, args: ImportArgs): Promise<Record<string, unknown>> {
+  const ctx = rt.newCtx();
+  let res: ImportResult;
+  if (args.configId) {
+    res = await retrieveConfigId(rt, args.configId, {
+      workspaceId: args.session,
+      expectedRevision: args.expectedRevision,
+      solutionMode: args.solutionMode,
+      mode: args.mode,
+      ctx,
+    });
+  } else {
+    const inputPath = args.filePath ?? (args.content &&
+      (PATH_LIKE_CONTENT.test(args.content) || args.content.startsWith('/') || args.content.startsWith('./'))
+      ? args.content : undefined);
+    const content: string | Uint8Array | undefined = inputPath ? readFileSync(inputPath) : args.content;
+    if (!content) throw new Error('Provide filePath, content or configId.');
+    res = await importConfig(rt, {
+      content,
+      ctx,
+      ...(args.mode !== undefined ? { mode: args.mode } : {}),
+      expectedRevision: args.expectedRevision,
+      ...(args.session !== undefined ? { workspaceId: args.session } : {}),
+      ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
+      ...(inputPath !== undefined ? { fileName: inputPath.split(/[\\/]/).pop() ?? 'configuration.xml' } : {}),
+    });
+  }
+  return projectImport(rt, res);
+}
+
+function projectImport(rt: Runtime, res: ImportResult): Record<string, unknown> {
+  const { missingParts, removedParts, replacedParts, eccnRestricted } = res.diagnostics;
+  const lostParts = missingParts.length + removedParts.length;
+  return {
+    session: res.workspaceId,
+    revision: rt.sessions.getWorkspace(res.workspaceId)?.revision,
+    importedConfigurations: res.sessions.length,
+    ...(res.standaloneKind ? { standaloneKind: res.standaloneKind } : {}),
+    warnings: res.diagnostics.warnings ?? [],
+    configurations: res.sessions.map((s) => ({
+      id: s.id,
+      productCode: s.product.code,
+      description: s.product.description,
+      quantity: s.raw.quantity ?? 1,
+      totalPrice: configurationListPrice(s.raw),
+      priceAvailable: configurationListPrice(s.raw) !== null,
+    })),
+    missingParts,
+    removedParts,
+    replacedParts,
+    eccnRestricted,
+    ...(lostParts > 0
+      ? {
+          warning:
+            `DCSC could not carry ${lostParts} part(s) across the import. ` +
+            'The imported configuration is incomplete and its price is not comparable ' +
+            'to the original.',
+        }
+      : {}),
   };
 }

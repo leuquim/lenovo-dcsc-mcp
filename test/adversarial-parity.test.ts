@@ -862,26 +862,26 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
     it('ensures tools return isError: true on domain failures without terminating server', async () => {
       const { client } = await createHarness();
 
-      // 1. Invalid import_config_id call
+      // 1. Invalid Config ID import
       const resImport = await client.callTool({
-        name: 'dcsc_import_config_id',
+        name: 'dcsc_import',
         arguments: { configId: 'NOT_FOUND_ID' },
       });
       expect(resImport.isError).toBe(true);
 
-      // 2. Invalid specialty catalog call
+      // 2. Invalid category call
       const resCat = await client.callTool({
-        name: 'dcsc_specialty_catalog_detail',
-        arguments: { categoryId: '   ' },
+        name: 'dcsc_category',
+        arguments: { kind: 'detail' },
       });
       expect(resCat.isError).toBe(true);
 
-      // 3. Invalid subtab recommendations call
-      const resSubTab = await client.callTool({
-        name: 'dcsc_subtab_recommendations',
-        arguments: { productCode: '' },
+      // 3. Invalid search call
+      const resSearch = await client.callTool({
+        name: 'dcsc_search',
+        arguments: { kind: 'products' },
       });
-      expect(resSubTab.isError).toBe(true);
+      expect(resSearch.isError).toBe(true);
 
       // Verify client connection is still alive and responsive after multiple failed calls
       const listRes = await client.listTools();

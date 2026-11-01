@@ -10,6 +10,7 @@ import { ConfigSchema } from '../src/config/schema.js';
 import { parseStandaloneImportResponse } from '../src/domain/importStandalone.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { registerStandaloneTools } from '../src/mcp/standaloneTools.js';
+import { registerImportExportTools } from '../src/mcp/importExportTools.js';
 import { DcscService } from '../src/mcp/service.js';
 
 type ToolReply = { content: Array<{ type: 'text'; text: string }>; isError?: boolean | undefined };
@@ -61,6 +62,7 @@ async function setup() {
     },
   };
   registerStandaloneTools(server as unknown as McpServer, service);
+  registerImportExportTools(server as unknown as McpServer, service);
   const requests: Array<Record<string, unknown>> = [];
   vi.spyOn(service.http, 'send').mockImplementation(async (request) => {
     requests.push(request as unknown as Record<string, unknown>);
@@ -96,8 +98,8 @@ function exportFields(requests: Array<Record<string, unknown>>, path: string) {
 describe('standalone hardware tools', () => {
   it('adds Part Search hardware, edits quantities and exports the captured website form', async () => {
     const { call, requests } = await setup();
-    const added = parse(await call('dcsc_standalone_hardware_add', { code: '4tc7b10008', quantity: 3 }));
-    const workspace = String(added['workspace']);
+    const added = parse(await call('dcsc_basket_set', { basket: 'hardware', action: 'select', code: '4tc7b10008', quantity: 3 }));
+    const workspace = String(added['session']);
     expect(added).toMatchObject({
       selections: [{ code: '4TC7B10008', featureCode: 'CCVE', quantity: 3, unitPrice: 3569.5, totalPrice: 10708.5 }],
       totalListPrice: 10708.5,
@@ -107,19 +109,19 @@ describe('standalone hardware tools', () => {
       query: { keyword: '4TC7B10008', type: 'HARDWARE' },
     });
 
-    await call('dcsc_standalone_hardware_add', { session: workspace, code: '4X97B05748', quantity: 1 });
+    await call('dcsc_basket_set', { basket: 'hardware', action: 'select', session: workspace, code: '4X97B05748', quantity: 1 });
     // Re-adding a selected part replaces its quantity; the website keeps one line per part.
-    await call('dcsc_standalone_hardware_add', { session: workspace, code: '4X97B05748', quantity: 2 });
-    const edited = parse(await call('dcsc_standalone_hardware_set_quantity', { session: workspace, code: '4X97B05748', quantity: 5 }));
+    await call('dcsc_basket_set', { basket: 'hardware', action: 'select', session: workspace, code: '4X97B05748', quantity: 2 });
+    const edited = parse(await call('dcsc_basket_set', { basket: 'hardware', action: 'setQuantity', session: workspace, code: '4X97B05748', quantity: 5 }));
     expect(edited).toMatchObject({
       selections: [{ code: '4TC7B10008', quantity: 3 }, { code: '4X97B05748', quantity: 5, totalPrice: 1897.5 }],
       totalListPrice: 12606,
     });
 
-    const missing = await call('dcsc_standalone_hardware_add', { session: workspace, code: 'NOPE123' });
+    const missing = await call('dcsc_basket_set', { basket: 'hardware', action: 'select', session: workspace, code: 'NOPE123' });
     expect(missing.isError).toBe(true);
 
-    const exported = parse(await call('dcsc_software_export', { session: workspace, fileName: 'parts' }));
+    const exported = parse(await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'parts' }));
     expect(exported).toMatchObject({ bytes: zip.length });
     const { data, groups } = exportFields(requests, '/lfos/export_zip');
     const rows = data['standaloneData'] as Array<Record<string, unknown>>;
@@ -133,14 +135,14 @@ describe('standalone hardware tools', () => {
         type: 'standalone', price: 1897.5, unitPrice: 379.5, groupId: 'Config 1' },
     ]);
 
-    const removed = parse(await call('dcsc_standalone_hardware_remove', { session: workspace, code: '4TC7B10008' }));
+    const removed = parse(await call('dcsc_basket_set', { basket: 'hardware', action: 'remove', session: workspace, code: '4TC7B10008' }));
     expect(removed).toMatchObject({ selections: [{ code: '4X97B05748' }], totalListPrice: 1897.5 });
   });
 
   it('exports standalone hardware alongside configured systems through the hardware route', async () => {
     const { service, call, requests } = await setup();
-    const added = parse(await call('dcsc_standalone_hardware_add', { code: '4X97B05748', quantity: 7 }));
-    const workspace = String(added['workspace']);
+    const added = parse(await call('dcsc_basket_set', { basket: 'hardware', action: 'select', code: '4X97B05748', quantity: 7 }));
+    const workspace = String(added['session']);
     const configurationId = 'switch-configuration';
     const raw = { id: configurationId, sliceCtoCode: '7D5FCTOFWW', description: 'NVIDIA SN2201', type: 'switch',
       quantity: 1, totalPrice: 6221.51, tabs: [] };
@@ -152,7 +154,7 @@ describe('standalone hardware tools', () => {
       primed: true,
       workspaceId: workspace,
     });
-    await call('dcsc_software_export', { session: workspace, fileName: 'mixed' });
+    await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'mixed' });
     const { data, groups } = exportFields(requests, '/ctos/export_zip');
     expect((data['standaloneData'] as unknown[])).toHaveLength(1);
     const products = groups[0]?.products ?? [];
@@ -162,8 +164,8 @@ describe('standalone hardware tools', () => {
 
   it('exports an lfo-as-cto configuration through the CTO route', async () => {
     const { service, call, requests } = await setup();
-    const added = parse(await call('dcsc_standalone_hardware_add', { code: '4X97B05748', quantity: 1 }));
-    const workspace = String(added['workspace']);
+    const added = parse(await call('dcsc_basket_set', { basket: 'hardware', action: 'select', code: '4X97B05748', quantity: 1 }));
+    const workspace = String(added['session']);
     const configurationId = 'lfo-as-cto-configuration';
     const raw = { id: configurationId, sliceCtoCode: '7D5FCTOFWW', description: 'NVIDIA SN2201', type: 'switch',
       quantity: 1, totalPrice: 6221.51, tabs: [] };
@@ -175,7 +177,7 @@ describe('standalone hardware tools', () => {
       primed: true,
       workspaceId: workspace,
     });
-    await call('dcsc_software_export', { session: workspace, fileName: 'lfo-as-cto' });
+    await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'lfo-as-cto' });
     expect(requests.filter((request) => String(request['path']).endsWith('/export_zip')).map((request) => request['path']))
       .toEqual(['/ctos/export_zip']);
   });
