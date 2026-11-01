@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -12,7 +12,6 @@ import {
   listSessionRecoveryArchives,
   saveSessions,
   workspaceFile,
-  workspacesDirectory,
 } from '../src/session/persist.js';
 
 type Reply = { isError?: boolean; content: Array<{ text: string }> };
@@ -31,7 +30,7 @@ function setup(bytes: Buffer, maxDownloadBytes = 1024 * 1024) {
   const config = ConfigSchema.parse({ logLevel: 'error', files: {
     persistSessions: true, sessionFile, artifactDir: join(root, 'artifacts'), maxDownloadBytes,
   } });
-  mkdirSync(workspacesDirectory(config), { recursive: true });
+  mkdirSync(dirname(workspaceFile(config, 'ws_corrupt')), { recursive: true });
   writeFileSync(workspaceFile(config, 'ws_corrupt'), bytes);
   const service = new DcscService(config);
   services.push(service);

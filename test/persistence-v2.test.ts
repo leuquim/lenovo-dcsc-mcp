@@ -13,6 +13,7 @@ import {
   loadSessions,
   saveSessions,
   serializeWorkspaces,
+  WORKSPACE_DOC_VERSION,
   workspaceFile,
 } from '../src/session/persist.js';
 import { SessionStore } from '../src/session/SessionStore.js';
@@ -164,7 +165,7 @@ describe('session persistence v2', () => {
       workspaces: Array<{ configurations: unknown[] }>;
     };
     current.workspaces[0]?.configurations.push({ id: '', raw: null });
-    writeFileSync(file, JSON.stringify(current));
+    writeFileSync(file, JSON.stringify({ version: WORKSPACE_DOC_VERSION, workspace: current.workspaces[0] }));
 
     const target = new SessionStore();
     expect(loadSessions(target, config)).toBe(1);
@@ -194,9 +195,9 @@ describe('session persistence v2', () => {
     });
 
     const envelope = JSON.parse(readFileSync(path, 'utf8')) as {
-      workspaces: Array<{ history?: { undo?: unknown; redo?: unknown } }>;
+      workspace: { history?: { undo?: unknown; redo?: unknown } };
     };
-    const persisted = envelope.workspaces[0];
+    const persisted = envelope.workspace;
     if (!persisted?.history || !Array.isArray(persisted.history.undo)) {
       throw new Error('missing persisted history fixture');
     }

@@ -61,6 +61,7 @@ import {
   sameConfigCanonicalState,
   sameWorkspaceCanonicalState,
   saveReconciliationProposal,
+  shareUnchangedValues,
   stageConfiguration,
   trimHistoryToBudget,
   validateKnownReferences,
@@ -68,6 +69,7 @@ import {
 } from './sessionSnapshots.js';
 import { errorMessage } from '../util/coerce.js';
 import { newId } from './ids.js';
+import { forgetDigest, sameValue } from './valueDigest.js';
 
 export { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET };
 
@@ -739,6 +741,7 @@ export class SessionStore {
       if (sameWorkspaceCanonicalState(liveWorkspace, draft)) return result;
       if (options.actionHistory) {
         appendActionHistory(liveWorkspace, draft, options.actionHistory(liveWorkspace, draft));
+        forgetDigest(draft.serverState);
       }
       this.#finalizeDraft(liveWorkspace, draft, options.history ?? 'record');
 
@@ -782,7 +785,7 @@ export class SessionStore {
       }
       const liveWorkspace = current.workspace;
       const nextServerState = saveValidationJob(liveWorkspace.serverState, job);
-      if (isDeepStrictEqual(nextServerState, liveWorkspace.serverState)) return;
+      if (sameValue(nextServerState, liveWorkspace.serverState)) return;
       const candidate = { ...liveWorkspace, serverState: nextServerState };
 
       await this.#persistenceMutex.run(async () => {
@@ -837,7 +840,7 @@ export class SessionStore {
       }
 
       const nextServerState = saveReconciliationProposal(liveWorkspace.serverState, proposal);
-      if (isDeepStrictEqual(nextServerState, liveWorkspace.serverState)) return;
+      if (sameValue(nextServerState, liveWorkspace.serverState)) return;
       const candidate = { ...liveWorkspace, serverState: nextServerState };
 
       await this.#persistenceMutex.run(async () => {
@@ -967,7 +970,6 @@ export class SessionStore {
         throw new Error(`Configuration ${id} solution does not match workspace ${draft.id}`);
       }
       const old = originalSessions.get(id);
-      const canonicalRaw = structuredClone(session.raw);
       const configurationId = firstNonempty(session.configurationId);
       if (!configurationId) throw new Error(`Configuration ${id} has no canonical id`);
       if (canonicalIds.has(configurationId)) {
@@ -975,10 +977,9 @@ export class SessionStore {
       }
       canonicalIds.add(configurationId);
       session.configurationId = configurationId;
-      canonicalRaw.id = configurationId;
       const code = firstNonempty(
         session.product?.code,
-        canonicalRaw.sliceCtoCode,
+        session.raw.sliceCtoCode,
         session.reduced?.lfoCode,
         session.reduced?.sliceCtoCode,
       );
@@ -986,15 +987,15 @@ export class SessionStore {
       session.product = { ...session.product, code };
 
       const canonicalChanged = old ? !sameConfigCanonicalState(old, session) : true;
-      const rawChanged = old ? !isDeepStrictEqual(old.raw, canonicalRaw) : false;
+      if (session.raw.id !== configurationId) {
+        session.raw.id = configurationId;
+        forgetDigest(session.raw);
+      }
+      const rawChanged = old ? !sameValue(old.raw, session.raw) : false;
       if (old && rawChanged && history === 'record') {
         session.snapshots = [
           ...old.snapshots,
-          {
-            revision: old.revision,
-            raw: structuredClone(old.raw),
-            reduced: structuredClone(old.reduced),
-          },
+          { revision: old.revision, raw: old.raw, reduced: old.reduced },
         ].slice(-10);
       } else if (old && history === 'record') {
         session.snapshots = [...old.snapshots];
@@ -1002,19 +1003,20 @@ export class SessionStore {
         session.snapshots = session.snapshots.slice(-10);
       }
 
-      session.raw = canonicalRaw;
+      if (old && !rawChanged) session.raw = old.raw;
       session.reduced = reduceConfiguration(
-        canonicalRaw,
+        session.raw,
         session.configurationId,
         reducedMode(session.mode),
         draft.solution.solutionMode,
       );
-      session.index = buildIndex(canonicalRaw);
+      session.index = buildIndex(session.raw);
       session.revision = old ? old.revision + (canonicalChanged ? 1 : 0) : Math.max(1, session.revision);
       session.lastAccessAt = canonicalChanged ? now : (old?.lastAccessAt ?? session.lastAccessAt);
       session.pricedAt = rawChanged ? now : (old?.pricedAt ?? session.pricedAt);
     }
 
+    shareUnchangedValues(original, draft);
     draft.revision = original.revision + 1;
     draft.createdAt = original.createdAt;
     draft.lastAccessAt = now;
@@ -1053,20 +1055,20 @@ export class SessionStore {
     }
 
     original.label = draft.label;
-    original.locale = structuredClone(draft.locale);
-    original.solution = structuredClone(draft.solution);
+    original.locale = draft.locale;
+    original.solution = draft.solution;
     original.validationMode = draft.validationMode;
     original.configurations = publishedConfigs;
-    original.rackArea = structuredClone(draft.rackArea);
-    original.nonRackArea = structuredClone(draft.nonRackArea);
-    original.serverState = structuredClone(draft.serverState);
-    original.rackSummaries = structuredClone(draft.rackSummaries);
-    original.cables = structuredClone(draft.cables);
-    original.floorItems = structuredClone(draft.floorItems);
-    original.powerSelections = structuredClone(draft.powerSelections);
+    original.rackArea = draft.rackArea;
+    original.nonRackArea = draft.nonRackArea;
+    original.serverState = draft.serverState;
+    original.rackSummaries = draft.rackSummaries;
+    original.cables = draft.cables;
+    original.floorItems = draft.floorItems;
+    original.powerSelections = draft.powerSelections;
     original.integrity = draft.integrity;
     original.integrityWarnings = [...draft.integrityWarnings];
-    original.recoveryData = structuredClone(draft.recoveryData);
+    original.recoveryData = draft.recoveryData;
     original.history = copyHistory(draft.history);
     original.revision = draft.revision;
     original.createdAt = draft.createdAt;

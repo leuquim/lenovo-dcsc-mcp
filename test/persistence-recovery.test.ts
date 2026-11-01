@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigSchema, type Config } from '../src/config/schema.js';
@@ -9,8 +9,8 @@ import {
   listSessionRecoveryArchives,
   loadSessions,
   readSessionRecoveryArchive,
+  WORKSPACE_DOC_VERSION,
   workspaceFile,
-  workspacesDirectory,
 } from '../src/session/persist.js';
 import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { SessionStore } from '../src/session/SessionStore.js';
@@ -33,19 +33,22 @@ function setup(): { root: string; path: string; config: Config } {
 }
 
 function putWorkspaceFile(config: Config, id: string, bytes: Buffer): string {
-  mkdirSync(workspacesDirectory(config), { recursive: true });
   const file = workspaceFile(config, id);
+  mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, bytes);
   return file;
 }
 
-function historicalWorkspaceEnvelope(): { version: number; workspaces: Array<Record<string, unknown>> } {
+function historicalWorkspace(): Record<string, unknown> {
   const envelope = JSON.parse(readFileSync(
     new URL('./fixtures/persistence/v1-historical.json', import.meta.url),
     'utf8',
-  )) as { version: number; workspaces: Array<Record<string, unknown>> };
-  envelope.version = 2;
-  return envelope;
+  )) as { workspaces: Array<Record<string, unknown>> };
+  return envelope.workspaces[0]!;
+}
+
+function docBytes(workspace: unknown): Buffer {
+  return Buffer.from(JSON.stringify({ version: WORKSPACE_DOC_VERSION, workspace }), 'utf8');
 }
 
 function recoveryId(bytes: Buffer): string {
@@ -55,7 +58,7 @@ function recoveryId(bytes: Buffer): string {
 describe('session persistence recovery archives', () => {
   it.each([
     ['non-object root', null, /root is not an object/i],
-    ['missing workspace array', { version: 2, sessions: [] }, /does not hold exactly that workspace/i],
+    ['missing workspace', { version: WORKSPACE_DOC_VERSION, sessions: [] }, /does not hold exactly that workspace/i],
     ['unsupported version', { version: 999, workspaces: [] }, /unsupported.*999/i],
   ])('preserves and reports a %s envelope on first access', (_name, value, warning) => {
     const { config } = setup();
@@ -100,7 +103,7 @@ describe('session persistence recovery archives', () => {
     const { config } = setup();
     const broken = { id: 'broken-top-level-record', configurations: 'invalid' };
     const original = Buffer.from(
-      `${JSON.stringify({ version: 2, savedAt: 1, workspaces: [broken] }, null, 2)}\n`,
+      `${JSON.stringify({ version: WORKSPACE_DOC_VERSION, workspace: broken }, null, 2)}\n`,
       'utf8',
     );
     const file = putWorkspaceFile(config, 'broken-top-level-record', original);
@@ -124,24 +127,24 @@ describe('session persistence recovery archives', () => {
 
   it('quarantines malformed nested physical records without aborting valid workspace recovery', () => {
     const { config } = setup();
-    const envelope = historicalWorkspaceEnvelope();
-    Object.assign(envelope.workspaces[0]!, {
+    const workspace = historicalWorkspace();
+    Object.assign(workspace, {
       rackArea: [null],
       floorItems: [null, { id: 'floor-broken', rackId: 'missing-rack', x: 1, y: 2 }],
       cables: [null],
     });
-    const original = Buffer.from(JSON.stringify(envelope), 'utf8');
+    const original = docBytes(workspace);
     putWorkspaceFile(config, 'ws_historical_v1', original);
 
     const store = new SessionStore();
     expect(loadSessions(store, config)).toBe(1);
-    const workspace = store.listWorkspaces()[0]!;
-    expect(workspace.id).toBe('ws_historical_v1');
-    expect(workspace.integrity).toBe('damaged');
-    expect(workspace.rackArea).toEqual([]);
-    expect(workspace.floorItems).toEqual([]);
-    expect(workspace.cables).toEqual([]);
-    expect(workspace.integrityWarnings.join('\n')).toMatch(/rack placement|rackArea|floorItems|cables|missing rack/i);
+    const restored = store.listWorkspaces()[0]!;
+    expect(restored.id).toBe('ws_historical_v1');
+    expect(restored.integrity).toBe('damaged');
+    expect(restored.rackArea).toEqual([]);
+    expect(restored.floorItems).toEqual([]);
+    expect(restored.cables).toEqual([]);
+    expect(restored.integrityWarnings.join('\n')).toMatch(/rack placement|rackArea|floorItems|cables|missing rack/i);
     expect(store.lastRestoreReport.normalizationRequired).toBe(true);
     const archive = store.lastRestoreReport.recoveryArchives.find(
       (candidate) => candidate.id === recoveryId(original),
@@ -152,8 +155,7 @@ describe('session persistence recovery archives', () => {
 
   it('archives the evicted workspace file when startup enforces session capacity', () => {
     const { config } = setup();
-    const envelope = historicalWorkspaceEnvelope();
-    const first = envelope.workspaces[0]!;
+    const first = historicalWorkspace();
     first.lastAccessAt = 1;
     const second = structuredClone(first);
     second.id = 'ws_historical_v1_second';
@@ -162,12 +164,12 @@ describe('session persistence recovery archives', () => {
     secondConfigurations[0]!.id = 'sess_historical_v1_second';
     secondConfigurations[0]!.configurationId = 'US__historical_v1_second';
     (secondConfigurations[0]!.raw as Record<string, unknown>).id = 'US__historical_v1_second';
-    const evictedBytes = Buffer.from(JSON.stringify({ version: 2, savedAt: 1, workspaces: [first] }), 'utf8');
+    const evictedBytes = docBytes(first);
     const evictedFile = putWorkspaceFile(config, 'ws_historical_v1', evictedBytes);
     const keptFile = putWorkspaceFile(
       config,
       'ws_historical_v1_second',
-      Buffer.from(JSON.stringify({ version: 2, savedAt: 1, workspaces: [second] }), 'utf8'),
+      docBytes(second),
     );
 
     const bounded = new SessionStore(1);
