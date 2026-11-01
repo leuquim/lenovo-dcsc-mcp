@@ -1,9 +1,7 @@
 /** Rack summary page flows for hardware plus standalone software workspaces (CTO and LFO). */
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { XMLParser } from 'fast-xml-parser';
 import type { Locator, Page } from 'playwright';
 
 import { captureBrowserExport as exportThroughDialog, CAPTURE_EXPORT_FORMS, readGrandTotal } from './exportUi.js';
@@ -11,13 +9,6 @@ import { settle, visible } from './settingsUi.js';
 import { DCSC_HOME } from './web.js';
 
 export type Json = Record<string, unknown>;
-export type ExportCapture = { path: string; fields: Record<string, string> };
-type CommercialProduct = { code: string; type: string; quantity: number; price: number | null; unitPrice: number | null };
-type XmlProduct = {
-  code: string; type: string; quantity: number; unitPrice: number;
-  children: Array<{ code: string; type: string; quantity: number; unitPrice: number }>;
-};
-
 export const SOFTWARE_CODE = '7S1S002WWW';
 const HARDWARE_CODE = 'BFYB';
 const HARDWARE_DESCRIPTION = 'Operating mode selection for: "Maximum Performance Mode"';
@@ -30,7 +21,6 @@ export function money(value: unknown): number {
   assert(Number.isFinite(amount), `Expected a finite monetary value, received ${String(value)}.`);
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
-export const sha256 = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
 
 /** Imports an XML file in the given page (which must carry the export-form capture script) and waits for the summary. */
 export async function importInBrowser(page: Page, xmlPath: string, summaryRoute: RegExp): Promise<{ response: unknown; total: number }> {
@@ -162,44 +152,4 @@ export async function captureBrowserExport(page: Page, outDir: string, name: str
     groups: JSON.parse(exported.form.fields['groups'] ?? '[]') as unknown,
     data: object(JSON.parse(exported.form.fields['data'] ?? '{}')),
   };
-}
-
-const compareProduct = (left: CommercialProduct, right: CommercialProduct) =>
-  left.type.localeCompare(right.type) || left.code.localeCompare(right.code) ||
-  left.quantity - right.quantity || Number(left.unitPrice ?? -1) - Number(right.unitPrice ?? -1);
-
-export function normalizedGroups(value: unknown): CommercialProduct[] {
-  return array(value).flatMap(group => array(object(group)['products'])).map(raw => {
-    const product = object(raw);
-    return {
-      code: text(product['code']).replaceAll('-', ''),
-      type: text(product['type']).toLowerCase(),
-      quantity: Number(product['quantity'] ?? 0),
-      price: product['price'] === null || product['price'] === undefined ? null : money(product['price']),
-      unitPrice: product['unitPrice'] === null || product['unitPrice'] === undefined ? null : money(product['unitPrice']),
-    };
-  }).sort(compareProduct);
-}
-
-const compareXml = (left: { type: string; code: string; quantity: number; unitPrice: number },
-  right: { type: string; code: string; quantity: number; unitPrice: number }) =>
-  left.type.localeCompare(right.type) || left.code.localeCompare(right.code) ||
-  left.quantity - right.quantity || left.unitPrice - right.unitPrice;
-
-export function normalizedXml(xml: string): XmlProduct[] {
-  const parsed = object(new XMLParser({ ignoreAttributes: false, parseTagValue: true }).parse(xml));
-  const line = (raw: unknown) => {
-    const item = object(raw);
-    const identity = object(object(item['ProductIdentification'])['PartnerProductIdentification']);
-    return {
-      code: text(identity['ProprietaryProductIdentifier']).replaceAll('-', ''),
-      type: text(identity['ProductTypeCode']),
-      quantity: Number(item['Quantity'] ?? 0),
-      unitPrice: money(object(object(item['UnitListPrice'])['FinancialAmount'])['MonetaryAmount'] ?? 0),
-    };
-  };
-  return array(object(object(parsed['CFXML'])['CFData'])['ProductLineItem']).map(raw => ({
-    ...line(raw),
-    children: array(object(raw)['ProductSubLineItem']).map(line).sort(compareXml),
-  })).sort(compareXml);
 }

@@ -28,7 +28,7 @@ if (selected.length === 0) {
 
 const reports: Report[] = [];
 for (const entry of selected) {
-  const { harness, finish } = await createHarness(entry.id);
+  const { harness, finish } = await createHarness(entry.id, entry.mode);
   let thrown: unknown;
   try { await entry.run(harness); } catch (error) { thrown = error; }
   const report = await finish(thrown);

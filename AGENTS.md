@@ -15,7 +15,7 @@ Read before changing behaviour: [CONTRIBUTING.md](CONTRIBUTING.md), [.docs/conte
 - `src/session` - in-memory sessions and workspaces, persistence, recovery.
 - `src/mcp` - tool registration (`*Tools.ts`, wired in `tools.ts`) and `service.ts`. Handlers wrap work in `guard()` from `toolSupport.ts`.
 - `src/files` - the artifact store. All files the MCP writes go through it.
-- `test` - vitest, offline, committed fixtures. `scripts/parity-*` - live gates.
+- `test` - vitest, offline, committed fixtures. `scripts/parity` - live gates (`npm run parity -- <case>`).
 
 ## Commands
 
