@@ -41,7 +41,7 @@ import type { ActionHistoryFactory } from '../domain/actionHistory.js';
 import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { stageConfiguration } from '../session/SessionStore.js';
-import type { ConfigSession, PduSelection } from '../model/session.js';
+import type { ConfigSession, PduSelection, WorkspaceSession } from '../model/session.js';
 import {
   addHistoryFactory,
   floorMoveHistoryFactory,
@@ -417,14 +417,125 @@ async function copyNodeIntoChassis(rt: Runtime, handle: string, opts: {
   });
 }
 
-/** Reconcile physical edits using the sequence captured for the affected shape. */
-export async function editLayout(rt: Runtime, handle: string, opts: {
+type LayoutEditOptions = {
   action: 'unplace' | 'remove' | 'detach' | 'arrange';
   configurationId?: string | undefined;
   contents?: 'unplace' | 'delete' | undefined;
   expectedRevision?: number | undefined;
   ctx: RequestCtx;
-}): Promise<LayoutResult> {
+};
+
+type NestedPhysicalEdit = { configurations: RawConfiguration[]; cloneDependency: unknown };
+
+interface StagedLayoutEdit {
+  deletedLinkedRootConfigurations?: RawConfiguration[] | undefined;
+  nestedPhysicalEdit?: NestedPhysicalEdit | undefined;
+  /** Set when staging already reconciled the layout with DCSC. */
+  result?: LayoutResult | undefined;
+}
+
+function captureNestedPhysicalEdit(draft: WorkspaceSession): NestedPhysicalEdit {
+  return { configurations: [...draft.configurations.values()].map(session => structuredClone(session.raw)),
+    cloneDependency: structuredClone(workspaceNetworkState(draft).cloneDependency) };
+}
+
+function isNestedNode(items: RackObject[], id: string): boolean {
+  return items.some(item =>
+    item.type === 'chassis' && Array.isArray(item.nodes) &&
+      (item.nodes as RackObject[]).some(node => node.id === id) ||
+    Array.isArray(item.rackItems) && isNestedNode(item.rackItems as RackObject[], id));
+}
+
+function markNestedNodeDetached(draft: WorkspaceSession, id: string): void {
+  const marked = draft.serverState.detachedNestedNodeIds;
+  draft.serverState.detachedNestedNodeIds = [...new Set([
+    ...(Array.isArray(marked) ? marked.filter(id => typeof id === 'string') : []), id,
+  ])];
+  const dependency = structuredClone(workspaceNetworkState(draft).cloneDependency) as Record<string, unknown>;
+  delete dependency[id];
+  draft.serverState.cloneDependency = dependency;
+  const colors = draft.serverState.cloneDependencyColor as Record<string, unknown> | undefined;
+  if (colors) delete colors[id];
+}
+
+function deleteRackOrChassisContents(
+  draft: WorkspaceSession,
+  id: string,
+  physical: RackObject | undefined,
+  contents: LayoutEditOptions['contents'],
+): void {
+  const removed = new Set([id]);
+  if (physical?.type === 'rack' || physical?.type === 'chassis') {
+    const childrenField = physical.type === 'rack' ? physical.rackItems : physical.nodes;
+    const children = Array.isArray(childrenField) ? childrenField as RackObject[] : [];
+    if (contents === 'delete') {
+      for (const childId of physicalIds(physical)) removed.add(childId);
+    } else draft.nonRackArea.push(...children);
+  }
+  for (const [sessionId, session] of draft.configurations) {
+    if (removed.has(session.configurationId)) draft.configurations.delete(sessionId);
+  }
+  removeWorkspaceReferences(draft, removed);
+}
+
+async function stageLayoutEdit(rt: Runtime, draft: WorkspaceSession, opts: LayoutEditOptions): Promise<StagedLayoutEdit> {
+  let deletedLinkedRootConfigurations: RawConfiguration[] | undefined;
+  let nestedPhysicalEdit: NestedPhysicalEdit | undefined;
+  const storageAliases = storagePhysicalTemplateIds(draft);
+  const mappedTemplate = opts.configurationId ? storageAliases.get(opts.configurationId) : undefined;
+  const aliasTemplate = mappedTemplate !== opts.configurationId ? mappedTemplate : undefined;
+  const target = [...draft.configurations.values()].find((session) =>
+    session.id === opts.configurationId || session.configurationId === (aliasTemplate ?? opts.configurationId));
+  if (!target) throw new Error('Choose a configuration belonging to this workspace.');
+  if (opts.action === 'remove' && !aliasTemplate) {
+    const group = linkedGroup(draft, target.configurationId);
+    if (group.linked && group.rootId === target.configurationId) {
+      deletedLinkedRootConfigurations = [...draft.configurations.values()].map(session => structuredClone(session.raw));
+    }
+  }
+  const managed = managedStorageComponentIds(draft.serverState).has(target.configurationId);
+  if (managed && !aliasTemplate && opts.action === 'remove') {
+    throw new Error('Remove a storage definition with dcsc_edit_storage_network, or pass a physical instance ID to remove only that placement.');
+  }
+  if (managed && !aliasTemplate && opts.action === 'unplace') {
+    const instances = [...storageAliases].filter(([, template]) => template === target.configurationId);
+    if (instances.length === 0) throw new Error('This storage template has no physical placements to move.');
+    for (const [physicalId] of instances) {
+      const physical = detachPhysicalItem(draft, physicalId);
+      if (!physical) throw new Error(`Storage placement ${physicalId} is missing.`);
+      if (physical.lock === true) throw new Error('A storage instance is locked. Unlock it before moving the group.');
+      draft.nonRackArea.push(physical);
+    }
+    return { result: await syncLayout(rt, draft, draft.rackArea, opts.ctx, { autoArrange: true }) };
+  }
+  const id = aliasTemplate ? opts.configurationId! : target.configurationId;
+  const nestedNode = isNestedNode([...draft.rackArea, ...draft.nonRackArea], id);
+  if (opts.action === 'detach' && !nestedNode) {
+    throw new Error('Detach matches DCSC Delete Node and requires a node inside a chassis. Use unplace to retain a loose physical item, or remove to delete its configuration.');
+  }
+  if (opts.action === 'detach') {
+    const group = linkedGroup(draft, id);
+    if (group.linked) throw new Error('Detach of a linked nested node is not yet verified. Use unplace to preserve its physical and clone identities.');
+  }
+  if (nestedNode && (opts.action === 'detach' || opts.action === 'unplace')) {
+    nestedPhysicalEdit = captureNestedPhysicalEdit(draft);
+  }
+  const physical = detachPhysicalItem(draft, id);
+  if (physical?.lock === true) throw new Error('The item is locked. Unlock it before editing its placement.');
+  if (opts.action === 'detach') markNestedNodeDetached(draft, id);
+  if (opts.action === 'unplace') {
+    if (!physical) throw new Error('This configuration has no physical placement to move.');
+    if (physical.type === 'rack') throw new Error('Use remove with contents="unplace" to remove a rack and retain its products.');
+    draft.nonRackArea.push(physical);
+  } else if (opts.action !== 'detach') {
+    if (physical?.type === 'chassis') nestedPhysicalEdit = captureNestedPhysicalEdit(draft);
+    deleteRackOrChassisContents(draft, id, physical, opts.contents);
+  }
+  return { deletedLinkedRootConfigurations, nestedPhysicalEdit };
+}
+
+/** Reconcile physical edits using the sequence captured for the affected shape. */
+export async function editLayout(rt: Runtime, handle: string, opts: LayoutEditOptions): Promise<LayoutResult> {
   const workspace = rt.sessions.getWorkspace(handle);
   if (!workspace) throw new Error(`Workspace ${handle} not found.`);
   return rt.sessions.transact(workspace.id, {
@@ -437,89 +548,9 @@ export async function editLayout(rt: Runtime, handle: string, opts: {
           : removeHistoryFactory(opts.configurationId) }
       : {}),
   }, async (draft) => {
-    let deletedLinkedRootConfigurations: RawConfiguration[] | undefined;
-    let nestedPhysicalEdit: { configurations: RawConfiguration[]; cloneDependency: unknown } | undefined;
-    if (opts.action !== 'arrange') {
-      const storageAliases = storagePhysicalTemplateIds(draft);
-      const mappedTemplate = opts.configurationId ? storageAliases.get(opts.configurationId) : undefined;
-      const aliasTemplate = mappedTemplate !== opts.configurationId ? mappedTemplate : undefined;
-      const target = [...draft.configurations.values()].find((session) =>
-        session.id === opts.configurationId || session.configurationId === (aliasTemplate ?? opts.configurationId));
-      if (!target) throw new Error('Choose a configuration belonging to this workspace.');
-      if (opts.action === 'remove' && !aliasTemplate) {
-        const group = linkedGroup(draft, target.configurationId);
-        if (group.linked && group.rootId === target.configurationId) {
-          deletedLinkedRootConfigurations = [...draft.configurations.values()].map(session => structuredClone(session.raw));
-        }
-      }
-      const managed = managedStorageComponentIds(draft.serverState).has(target.configurationId);
-      if (managed && !aliasTemplate && opts.action === 'remove') {
-        throw new Error('Remove a storage definition with dcsc_edit_storage_network, or pass a physical instance ID to remove only that placement.');
-      }
-      if (managed && !aliasTemplate && opts.action === 'unplace') {
-        const instances = [...storageAliases].filter(([, template]) => template === target.configurationId);
-        if (instances.length === 0) throw new Error('This storage template has no physical placements to move.');
-        for (const [physicalId] of instances) {
-          const physical = detachPhysicalItem(draft, physicalId);
-          if (!physical) throw new Error(`Storage placement ${physicalId} is missing.`);
-          if (physical.lock === true) throw new Error('A storage instance is locked. Unlock it before moving the group.');
-          draft.nonRackArea.push(physical);
-        }
-        return syncLayout(rt, draft, draft.rackArea, opts.ctx, { autoArrange: true });
-      }
-      const id = aliasTemplate ? opts.configurationId! : target.configurationId;
-      const isNestedNode = (items: RackObject[]): boolean => items.some(item =>
-        item.type === 'chassis' && Array.isArray(item.nodes) &&
-          (item.nodes as RackObject[]).some(node => node.id === id) ||
-        Array.isArray(item.rackItems) && isNestedNode(item.rackItems as RackObject[]));
-      const nestedNode = isNestedNode([...draft.rackArea, ...draft.nonRackArea]);
-      if (opts.action === 'detach' && !nestedNode) {
-        throw new Error('Detach matches DCSC Delete Node and requires a node inside a chassis. Use unplace to retain a loose physical item, or remove to delete its configuration.');
-      }
-      if (opts.action === 'detach') {
-        const group = linkedGroup(draft, id);
-        if (group.linked) throw new Error('Detach of a linked nested node is not yet verified. Use unplace to preserve its physical and clone identities.');
-      }
-      if (nestedNode && (opts.action === 'detach' || opts.action === 'unplace')) {
-        nestedPhysicalEdit = { configurations: [...draft.configurations.values()].map(session => structuredClone(session.raw)),
-          cloneDependency: structuredClone(workspaceNetworkState(draft).cloneDependency) };
-      }
-      const physical = detachPhysicalItem(draft, id);
-      if (physical?.lock === true) throw new Error('The item is locked. Unlock it before editing its placement.');
-      if (opts.action === 'detach') {
-        const marked = draft.serverState.detachedNestedNodeIds;
-        draft.serverState.detachedNestedNodeIds = [...new Set([
-          ...(Array.isArray(marked) ? marked.filter(id => typeof id === 'string') : []), id,
-        ])];
-        const dependency = structuredClone(workspaceNetworkState(draft).cloneDependency) as Record<string, unknown>;
-        delete dependency[id];
-        draft.serverState.cloneDependency = dependency;
-        const colors = draft.serverState.cloneDependencyColor as Record<string, unknown> | undefined;
-        if (colors) delete colors[id];
-      }
-      if (opts.action === 'unplace') {
-        if (!physical) throw new Error('This configuration has no physical placement to move.');
-        if (physical.type === 'rack') throw new Error('Use remove with contents="unplace" to remove a rack and retain its products.');
-        draft.nonRackArea.push(physical);
-      } else if (opts.action !== 'detach') {
-        const removed = new Set([id]);
-        if (physical?.type === 'chassis') {
-          nestedPhysicalEdit = { configurations: [...draft.configurations.values()].map(session => structuredClone(session.raw)),
-            cloneDependency: structuredClone(workspaceNetworkState(draft).cloneDependency) };
-        }
-        if (physical?.type === 'rack' || physical?.type === 'chassis') {
-          const childrenField = physical.type === 'rack' ? physical.rackItems : physical.nodes;
-          const children = Array.isArray(childrenField) ? childrenField as RackObject[] : [];
-          if (opts.contents === 'delete') {
-            for (const childId of physicalIds(physical)) removed.add(childId);
-          } else draft.nonRackArea.push(...children);
-        }
-        for (const [sessionId, session] of draft.configurations) {
-          if (removed.has(session.configurationId)) draft.configurations.delete(sessionId);
-        }
-        removeWorkspaceReferences(draft, removed);
-      }
-    }
+    const staged: StagedLayoutEdit = opts.action === 'arrange' ? {} : await stageLayoutEdit(rt, draft, opts);
+    if (staged.result) return staged.result;
+    const { deletedLinkedRootConfigurations, nestedPhysicalEdit } = staged;
     const expectedNestedLayout = nestedPhysicalEdit
       ? structuredClone({ rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }) : undefined;
     const result = await syncLayout(rt, draft, draft.rackArea, opts.ctx, { autoArrange: opts.action === 'arrange' || nestedPhysicalEdit !== undefined,

@@ -41,7 +41,7 @@ import { workspaceHardwareMode } from '../domain/workspaceWire.js';
 import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { SessionConflictError } from '../session/SessionStore.js';
-import type { CableLink } from '../model/session.js';
+import type { CableLink, ConfigSession, WorkspaceSession } from '../model/session.js';
 import {
   updateHistoryFactory,
   assertWorkspaceRevision,
@@ -216,6 +216,97 @@ export async function inspectNativeManualCabling(rt: Runtime, handle: string, re
     routePreservation: 'Set pinExistingRoutes=true to convert existing AUTO network rows to MANUAL and preserve their routes. Without pinning, native rerouting causes rollback.' } };
 }
 
+type ManualConnectionPlan = ReturnType<typeof stageManualConnectionEdit>;
+type CableReplacement = NonNullable<ManualConnectionPlan['cableReplacement']>;
+type CableTransaction = { expectedRevision: number; remoteApplied: boolean };
+
+async function replaceSharedCableSelection(
+  rt: Runtime,
+  draft: WorkspaceSession,
+  ctx: RequestCtx,
+  transaction: CableTransaction,
+  { input, plan, replacement, shared, previous }: {
+    input: ManualCablingInput;
+    plan: ManualConnectionPlan;
+    replacement: CableReplacement;
+    shared: NonNullable<CableReplacement['sharedSelection']>;
+    previous: ConfigSession;
+  },
+): Promise<void> {
+  const seeds = commitManualConnectionEdit(input.connections, plan);
+  const selections = [
+    { code: replacement.oldCode, quantity: replacement.targetQuantities.oldCode },
+    { code: replacement.newCode, quantity: replacement.targetQuantities.newCode },
+  ].map(selection => ({ ...selection, configurationId: replacement.configurationId,
+    configurationIds: shared.configurationIds, physicalDestinationIds: shared.physicalDestinationIds,
+    section: replacement.sectionName, previousQuantity: previous.index.selected.get(selection.code) ?? 0,
+    retainAsSpare: !seeds.some(value => {
+      const row = value as Record<string, unknown>;
+      return row.cablePart === selection.code && shared.physicalDestinationIds.includes(String(row.destinationId));
+    }), requiredQuantity: 0 }));
+  for (const selection of selections) {
+    if (selection.retainAsSpare) {
+      // Explicitly retained spares must stop being native auto-connect selections.
+      // Otherwise targeted derive drops them when their last route is replaced.
+      for (const id of shared.configurationIds) {
+        const member = [...draft.configurations.values()].find(c => c.configurationId === id)!;
+        for (const section of (member.raw.tabs ?? []).flatMap(t => t.subTabs ?? []).flatMap(t => t.sections ?? [])) {
+          if (section.name !== selection.section) continue;
+          for (const result of section.results ?? []) if (result.code === selection.code) result.forAutoConnect = false;
+        }
+      }
+    }
+    const layout = stageNativeManualCableQuantity(manualCablingInput(draft), selection);
+    draft.rackArea = layout.rackArea;
+    draft.nonRackArea = layout.nonRackArea;
+  }
+  transaction.remoteApplied = true;
+  await configureDraft(rt, previous, selections.map(({ section, code, quantity }) => ({ section, code, quantity })), ctx, draft);
+  await autoConnectDraft(rt, draft, ctx, seeds, selections);
+  const acceptedGraph = readConnectionGraph(draft.serverState);
+  assertNativeConnectionsRetained(seeds, acceptedGraph);
+  if (acceptedGraph.length !== seeds.length) throw new Error('Cable replacement added unexpected routes. Workspace was not committed.');
+  for (const id of shared.configurationIds) {
+    const member = [...draft.configurations.values()].find(session => session.configurationId === id);
+    if (!member || selections.some(selection => (member.index.selected.get(selection.code) ?? 0) !== selection.quantity)) {
+      throw new Error('DCSC did not retain shared cable quantities. Workspace was not committed.');
+    }
+  }
+}
+
+async function replaceCablePartOnce(
+  rt: Runtime,
+  draft: WorkspaceSession,
+  ctx: RequestCtx,
+  transaction: CableTransaction,
+  replacement: CableReplacement,
+): Promise<void> {
+  draft.rackArea = replacement.rackArea;
+  draft.nonRackArea = replacement.nonRackArea;
+  const body = buildAutoDeriveRequest(draft, { validationMode: draft.validationMode,
+    autoCorrect: [...draft.configurations.values()].every(session => session.autoCorrect) });
+  body.configurations = (body.configurations as ReducedConfiguration[]).map(configuration =>
+    configuration.id === replacement.configurationId ? replacement.reducedConfiguration : configuration);
+  body.customizingIds = replacement.customizingIds;
+  transaction.remoteApplied = true;
+  const response = await rt.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: autoDerivePath('ctos'),
+    query: { ...replacement.query, guideMode: draft.validationMode === 'guided' },
+    body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
+    ctx: { ...ctx, locale: draft.locale, solution: draft.solution } });
+  const metadata = response.raw as Record<string, unknown>;
+  if (Array.isArray(metadata.autoDerivedResults)) draft.serverState.autoDerivedResults = structuredClone(metadata.autoDerivedResults);
+  acceptDerivedWorkspaceConfigurations(draft, response.raw);
+  const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId);
+  if (!target || (target.index.selected.get(replacement.newCode) ?? 0) !== replacement.targetQuantities.newCode ||
+      (target.index.selected.get(replacement.oldCode) ?? 0) !== replacement.targetQuantities.oldCode) {
+    throw new Error('DCSC did not accept the cable-part replacement. Workspace was not committed.');
+  }
+  const physical = applyAcceptedManualCablePhysicalState({ ...replacement,
+    rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }, target.raw, response.raw);
+  draft.rackArea = physical.rackArea;
+  draft.nonRackArea = physical.nonRackArea;
+}
+
 export async function editManualCabling(rt: Runtime, handle: string, edit: ManualConnectionEdit & { expectedRevision: number; ctx: RequestCtx }) {
   const workspace = rt.sessions.getWorkspace(handle);
   if (!workspace) throw new Error('Workspace not found.');
@@ -249,71 +340,9 @@ export async function editManualCabling(rt: Runtime, handle: string, edit: Manua
       const previous = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId)!;
       const previousTotalPrice = configurationListPrice(previous.raw);
       if (replacement.sharedSelection) {
-        const shared = replacement.sharedSelection;
-        const seeds = commitManualConnectionEdit(input.connections, plan);
-        const selections = [
-          { code: replacement.oldCode, quantity: replacement.targetQuantities.oldCode },
-          { code: replacement.newCode, quantity: replacement.targetQuantities.newCode },
-        ].map(selection => ({ ...selection, configurationId: replacement.configurationId,
-          configurationIds: shared.configurationIds, physicalDestinationIds: shared.physicalDestinationIds,
-          section: replacement.sectionName, previousQuantity: previous.index.selected.get(selection.code) ?? 0,
-          retainAsSpare: !seeds.some(value => {
-            const row = value as Record<string, unknown>;
-            return row.cablePart === selection.code && shared.physicalDestinationIds.includes(String(row.destinationId));
-          }), requiredQuantity: 0 }));
-        for (const selection of selections) {
-          if (selection.retainAsSpare) {
-            // Explicitly retained spares must stop being native auto-connect selections.
-            // Otherwise targeted derive drops them when their last route is replaced.
-            for (const id of shared.configurationIds) {
-              const member = [...draft.configurations.values()].find(c => c.configurationId === id)!;
-              for (const section of (member.raw.tabs ?? []).flatMap(t => t.subTabs ?? []).flatMap(t => t.sections ?? [])) {
-                if (section.name !== selection.section) continue;
-                for (const result of section.results ?? []) if (result.code === selection.code) result.forAutoConnect = false;
-              }
-            }
-          }
-          const layout = stageNativeManualCableQuantity(manualCablingInput(draft), selection);
-          draft.rackArea = layout.rackArea;
-          draft.nonRackArea = layout.nonRackArea;
-        }
-        transaction.remoteApplied = true;
-        await configureDraft(rt, previous, selections.map(({ section, code, quantity }) => ({ section, code, quantity })), edit.ctx, draft);
-        await autoConnectDraft(rt, draft, edit.ctx, seeds, selections);
-        const acceptedGraph = readConnectionGraph(draft.serverState);
-        assertNativeConnectionsRetained(seeds, acceptedGraph);
-        if (acceptedGraph.length !== seeds.length) throw new Error('Cable replacement added unexpected routes. Workspace was not committed.');
-        for (const id of shared.configurationIds) {
-          const member = [...draft.configurations.values()].find(session => session.configurationId === id);
-          if (!member || selections.some(selection => (member.index.selected.get(selection.code) ?? 0) !== selection.quantity)) {
-            throw new Error('DCSC did not retain shared cable quantities. Workspace was not committed.');
-          }
-        }
+        await replaceSharedCableSelection(rt, draft, edit.ctx, transaction, { input, plan, replacement, shared: replacement.sharedSelection, previous });
       } else {
-        draft.rackArea = replacement.rackArea;
-        draft.nonRackArea = replacement.nonRackArea;
-        const body = buildAutoDeriveRequest(draft, { validationMode: draft.validationMode,
-          autoCorrect: [...draft.configurations.values()].every(session => session.autoCorrect) });
-        body.configurations = (body.configurations as ReducedConfiguration[]).map(configuration =>
-          configuration.id === replacement.configurationId ? replacement.reducedConfiguration : configuration);
-        body.customizingIds = replacement.customizingIds;
-        transaction.remoteApplied = true;
-        const response = await rt.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: autoDerivePath('ctos'),
-          query: { ...replacement.query, guideMode: draft.validationMode === 'guided' },
-          body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
-          ctx: { ...edit.ctx, locale: draft.locale, solution: draft.solution } });
-        const metadata = response.raw as Record<string, unknown>;
-        if (Array.isArray(metadata.autoDerivedResults)) draft.serverState.autoDerivedResults = structuredClone(metadata.autoDerivedResults);
-        acceptDerivedWorkspaceConfigurations(draft, response.raw);
-        const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId);
-        if (!target || (target.index.selected.get(replacement.newCode) ?? 0) !== replacement.targetQuantities.newCode ||
-            (target.index.selected.get(replacement.oldCode) ?? 0) !== replacement.targetQuantities.oldCode) {
-          throw new Error('DCSC did not accept the cable-part replacement. Workspace was not committed.');
-        }
-        const physical = applyAcceptedManualCablePhysicalState({ ...replacement,
-          rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }, target.raw, response.raw);
-        draft.rackArea = physical.rackArea;
-        draft.nonRackArea = physical.nonRackArea;
+        await replaceCablePartOnce(rt, draft, edit.ctx, transaction, replacement);
       }
       const target = [...draft.configurations.values()].find(session => session.configurationId === replacement.configurationId)!;
       const physicalConfigurations = draft.serverState.storagePhysicalConfigurations as Record<string, RawConfiguration> | undefined;
