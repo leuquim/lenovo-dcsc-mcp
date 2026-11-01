@@ -148,7 +148,7 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Search the DCSC catalog',
       description:
-        'Finds products, parts, preconfigured codes, SIDs and specialty catalog entries. Pick the kind: products (configurable systems), tree (category browsing), parts, preconfigured (CTO/LFO codes), sids (preconfigured solutions in a category), specialty (LVR, converged, promotion), serviceProducts (products that take service packs), software (software offered for a product ID). Follow returned continuations unchanged.',
+        'Searches the catalog. kind: products, tree (category browsing), parts, preconfigured (CTO/LFO codes), sids, specialty (LVR, converged, promotion), serviceProducts (products that take service packs), software (software offered for a product ID). Follow continuations unchanged.',
       inputSchema: { search: searchSchema },
     },
     async (args) => guard(async () => nestContinuations(await searchCatalog(service, args.search), 'dcsc_search', 'search'), 'dcsc_search failed'),
@@ -160,7 +160,7 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Open a DCSC category page',
       description:
-        'Reads a category page. Pick the kind: detail (sub-categories and products of a category), services (Services portal categories), conditions (sub-category filters), products (filtered product list), caseStudies, topChoiceCountry, productFunctions, displayOrders, staticFeatures. Follow returned continuations unchanged.',
+        'Reads a category page. kind: detail, services, conditions, products, caseStudies, topChoiceCountry, productFunctions, displayOrders, staticFeatures. Follow continuations unchanged.',
       inputSchema: { category: categorySchema },
     },
     async (args) => guard(async () => nestContinuations(await categoryInfo(service, args.category), 'dcsc_category', 'category'), 'dcsc_category failed'),

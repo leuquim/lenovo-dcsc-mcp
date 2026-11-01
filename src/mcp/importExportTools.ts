@@ -36,7 +36,7 @@ export function registerImportExportTools(server: McpServer, service: DcscServic
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Export to a file',
       description:
-        'Exports to local files and returns their paths. kind: reports (ZIP of CFXML and Excel reports for a configuration or workspace, including standalone software and services), power (power report spreadsheet), configurationTree (tree spreadsheet), reference (original Lenovo reference-solution XML), servicesCatalog (Services page zip: one product's service catalog, or the whole country catalog without productCode).',
+        'Exports to local files and returns their paths. kind: reports (CFXML and Excel report ZIP for a configuration or workspace), power, configurationTree, reference (original reference-solution XML), servicesCatalog (Services page ZIP: the service catalog of productCode, or the country catalog without it).',
       inputSchema: {
         kind: z.enum(EXPORT_KINDS),
         session: z.string().optional().describe('Configuration or workspace handle. Required for reports and power.'),
