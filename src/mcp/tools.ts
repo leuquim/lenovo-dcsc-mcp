@@ -5,7 +5,6 @@ import { registerConfigurationTools } from './configurationTools.js';
 import { registerFabricPowerTools } from './fabricPowerTools.js';
 import { registerImportExportTools } from './importExportTools.js';
 import { registerManualCablingTools } from './manualCablingTools.js';
-import { registerPciWizardTools } from './pciWizardTools.js';
 import { registerPowerControlTools } from './powerControlTools.js';
 import { registerRackLayoutTools } from './rackLayoutTools.js';
 import { registerReconciliationTools } from './reconciliationTools.js';
@@ -15,9 +14,8 @@ import type { DcscService } from './service.js';
 import { registerSessionTools } from './sessionTools.js';
 import { registerStandaloneTools } from './standaloneTools.js';
 import { registerStorageTools } from './storageTools.js';
-import { registerStorageWizardTools } from './storageWizardTools.js';
 import { registerCapabilitiesResource } from './toolSupport.js';
-import { registerUnconfiguredTools } from './unconfiguredTools.js';
+import { registerWizardTools } from './wizardTools.js';
 import { registerValidationTools } from './validationTools.js';
 import { registerVlhTools } from './vlhTools.js';
 
@@ -25,12 +23,9 @@ export function registerTools(server: McpServer, service: DcscService): void {
   registerCapabilitiesResource(server);
 
   registerReferenceSolutionTools(server, service);
-  registerUnconfiguredTools(server, service);
   registerStorageTools(server, service);
   registerManualCablingTools(server, service);
   registerPowerControlTools(server, service);
-  registerPciWizardTools(server, service);
-  registerStorageWizardTools(server, service);
   registerStandaloneTools(server, service);
   registerReconciliationTools(server, service);
   registerValidationTools(server, service);
@@ -42,4 +37,5 @@ export function registerTools(server: McpServer, service: DcscService): void {
   registerConfigurationTools(server, service);
   registerImportExportTools(server, service);
   registerVlhTools(server, service);
+  registerWizardTools(server, service);
 }

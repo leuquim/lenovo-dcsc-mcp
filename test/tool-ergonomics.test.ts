@@ -29,6 +29,24 @@ const pciFixture = JSON.parse(
   validationResponse: Obj;
 };
 
+const EXPECTED_TOOLS = [
+  'dcsc_auto_connect', 'dcsc_auto_fix', 'dcsc_basket_browse', 'dcsc_basket_set', 'dcsc_cabling_get', 'dcsc_cabling_set',
+  'dcsc_category', 'dcsc_compare', 'dcsc_configuration_get', 'dcsc_configure', 'dcsc_export', 'dcsc_floor_set',
+  'dcsc_import', 'dcsc_launch', 'dcsc_network_get', 'dcsc_network_set', 'dcsc_pdu_set', 'dcsc_power_get', 'dcsc_power_set',
+  'dcsc_rack_add', 'dcsc_rack_edit', 'dcsc_rack_get', 'dcsc_rack_position_rule', 'dcsc_reconcile_workspace',
+  'dcsc_recovery_export', 'dcsc_reference_solutions', 'dcsc_search', 'dcsc_session_close', 'dcsc_session_list',
+  'dcsc_settings_get', 'dcsc_settings_set', 'dcsc_storage_get', 'dcsc_storage_set', 'dcsc_undo', 'dcsc_validate',
+  'dcsc_virtual_container_get', 'dcsc_vlh_get', 'dcsc_wizard_get', 'dcsc_wizard_set', 'dcsc_workspace_get',
+];
+const MUTATING_TOOLS = [
+  'dcsc_auto_connect', 'dcsc_auto_fix', 'dcsc_basket_set', 'dcsc_cabling_set', 'dcsc_configure', 'dcsc_export', 'dcsc_floor_set',
+  'dcsc_import', 'dcsc_launch', 'dcsc_network_set', 'dcsc_pdu_set', 'dcsc_power_set', 'dcsc_rack_add', 'dcsc_rack_edit',
+  'dcsc_reconcile_workspace', 'dcsc_recovery_export', 'dcsc_session_close', 'dcsc_settings_set', 'dcsc_storage_set', 'dcsc_undo',
+  'dcsc_validate', 'dcsc_wizard_set',
+];
+const TOOL_DEFINITION_BYTE_BUDGET = 5_000;
+const TOTAL_DEFINITION_BYTE_BUDGET = 64_000;
+
 const services: DcscService[] = [];
 const clients: Client[] = [];
 
@@ -51,98 +69,58 @@ async function createConnectedHarness() {
   return { service, server, client };
 }
 
-describe('MCP tool annotations, context diet, resource, parameter aliasing, and inline dispatch', () => {
-  it('registers all 105 tools with complete MCP annotations and a tightened description footprint', async () => {
+describe('MCP tool annotations, definition budget, workflow resource, handles and inline dispatch', () => {
+  it('registers the panel tool set with complete annotations within the definition budget', async () => {
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(105);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
+    expect(tools).toHaveLength(40);
 
-    let totalDescChars = 0;
+    let totalBytes = 0;
     for (const tool of tools) {
       expect(tool.annotations, `${tool.name} should have annotations`).toBeDefined();
       expect(typeof tool.annotations?.readOnlyHint).toBe('boolean');
       expect(typeof tool.annotations?.destructiveHint).toBe('boolean');
       expect(typeof tool.annotations?.idempotentHint).toBe('boolean');
       expect(typeof tool.annotations?.openWorldHint).toBe('boolean');
-      totalDescChars += (tool.description ?? '').length;
+      const bytes = Buffer.byteLength(JSON.stringify(tool));
+      expect(bytes, `${tool.name} definition bytes`).toBeLessThan(TOOL_DEFINITION_BYTE_BUDGET);
+      totalBytes += bytes;
+      if (tool.name.endsWith('_get')) expect(tool.annotations?.readOnlyHint, tool.name).toBe(true);
+      if (tool.name.endsWith('_set')) expect(tool.annotations?.readOnlyHint, tool.name).toBe(false);
     }
+    expect(totalBytes).toBeLessThan(TOTAL_DEFINITION_BYTE_BUDGET);
 
-    // Read-only tools vs destructive tools spot checks
     const byName = new Map(tools.map((t) => [t.name, t]));
     expect(byName.get('dcsc_session_list')?.annotations).toMatchObject({
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
+      readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
     });
-    expect(byName.get('dcsc_standalone_hardware_inspect')?.annotations).toMatchObject({
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
-    });
-    expect(byName.get('dcsc_find_products')?.annotations).toMatchObject({
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+    expect(byName.get('dcsc_search')?.annotations).toMatchObject({
+      readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
     });
     expect(byName.get('dcsc_session_close')?.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
-    });
-    expect(byName.get('dcsc_standalone_hardware_remove')?.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
-    });
-    expect(byName.get('dcsc_specialty_catalog')?.annotations).toMatchObject({
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
-    });
-    expect(byName.get('dcsc_vlh_wizard_info')?.annotations).toMatchObject({
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false,
     });
     expect(byName.get('dcsc_auto_fix')?.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true,
     });
-    expect(byName.get('dcsc_generate_config_id')?.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
-    });
-
-    for (const name of ['dcsc_power_controls', 'dcsc_pci_wizard', 'dcsc_storage_wizard', 'dcsc_export_configuration_tree']) {
+    for (const name of MUTATING_TOOLS) {
       expect(byName.get(name)?.annotations?.readOnlyHint, name).toBe(false);
     }
-
-    // Context diet: previously 36,352 description chars; verify substantial reduction
-    expect(totalDescChars).toBeLessThan(28_000);
   });
 
-  it('exposes the dcsc://docs/capabilities MCP resource with detailed verification matrix notes', async () => {
+  it('exposes the dcsc://docs/capabilities workflow guide naming only registered tools', async () => {
     const { client } = await createConnectedHarness();
     const { resources } = await client.listResources();
-    const capResource = resources.find((r) => r.uri === 'dcsc://docs/capabilities');
-    expect(capResource).toBeDefined();
+    expect(resources.find((r) => r.uri === 'dcsc://docs/capabilities')).toBeDefined();
 
     const readResult = await client.readResource({ uri: 'dcsc://docs/capabilities' });
     expect(readResult.contents).toHaveLength(1);
     const text = (readResult.contents[0] as { text?: string }).text ?? '';
-    expect(text).toContain('Lenovo DCSC MCP — Verified Capabilities & Upstream Constraints');
-    expect(text).toContain('Parameter Conventions');
+    expect(text).toContain('workflow guide');
+    const named = new Set(text.match(/dcsc_[a-z_]+/g) ?? []);
+    expect([...named].filter((name) => !EXPECTED_TOOLS.includes(name))).toEqual([]);
+    for (const name of ['dcsc_launch', 'dcsc_configure', 'dcsc_validate', 'dcsc_export']) expect(named.has(name)).toBe(true);
   });
 
   it('takes one handle (session) and one revision (expectedRevision) on every tool', async () => {
@@ -182,11 +160,12 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     });
     const workspace = service.sessions.getWorkspace(session.id)!;
 
-    // 1. dcsc_power_controls takes session and expectedRevision
+    // 1. dcsc_power_get takes session and expectedRevision
     const inspectRes = await client.callTool({
-      name: 'dcsc_power_controls',
+      name: 'dcsc_power_get',
       arguments: {
         session: session.id,
+        section: 'controls',
         expectedRevision: workspace.revision,
       },
     });
@@ -196,15 +175,16 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     ) as Obj;
     expect(inspectBody['session']).toBe(session.id);
 
-    // 2. dcsc_software_inspect takes the workspace id as session
+    // 2. dcsc_basket_browse takes the workspace id as session
     workspace.serverState['standaloneSoftwareState'] = {
       kind: 'standalone-software',
       features: [],
       selections: [],
     };
     const swRes = await client.callTool({
-      name: 'dcsc_software_inspect',
+      name: 'dcsc_basket_browse',
       arguments: {
+        basket: 'software',
         session: workspace.id,
       },
     });
@@ -212,10 +192,11 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     const swBody = JSON.parse(
       ((swRes.content as Array<{ text: string }>)[0]?.text) ?? '{}',
     ) as Obj;
-    expect(swBody['workspace']).toBe(workspace.id);
+    expect(swBody['session']).toBe(workspace.id);
+    expect(swBody['revision']).toBe(workspace.revision);
   });
 
-  it('supports inline mutation dispatch on dcsc_power_controls and dcsc_pci_wizard', async () => {
+  it('supports a single-call mutation on dcsc_wizard_set', async () => {
     const { service, client } = await createConnectedHarness();
     const raw = structuredClone(pciFixture.before);
     const session = service.sessions.create({
@@ -240,9 +221,10 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     });
 
     const mutateRes = await client.callTool({
-      name: 'dcsc_pci_wizard',
+      name: 'dcsc_wizard_set',
       arguments: {
         session: session.id,
+        wizard: 'pci',
         expectedRevision: workspace.revision,
         optionId: '1P Rear5-a',
         rowId: '2',
@@ -253,7 +235,7 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     const mutateBody = JSON.parse(
       ((mutateRes.content as Array<{ text: string }>)[0]?.text) ?? '{}',
     ) as Obj;
-    expect(mutateBody['workspaceRevision']).toBe(workspace.revision);
+    expect(mutateBody['revision']).toBe(workspace.revision);
     expect(mutateBody['affectedConfigurationCount']).toBe(1);
   });
 

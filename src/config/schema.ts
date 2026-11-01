@@ -156,7 +156,7 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
-/** Masks anything sensitive before config is logged or returned by dcsc_health. */
+/** Masks anything sensitive before config is logged or returned to clients. */
 export function redactConfig(config: Config): Record<string, unknown> {
   return { ...config, credentials: config.credentials ? '[redacted]' : null };
 }

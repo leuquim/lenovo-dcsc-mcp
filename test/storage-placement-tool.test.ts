@@ -114,8 +114,8 @@ describe('dcsc_storage_set place', () => {
       storageName: 'Primary SAN',
       templates: [{ configurationId: 'controller-template', created: false },
         { configurationId: 'switch-template', created: false }],
-      inspect: { tool: 'dcsc_storage_get', arguments: {
-        session: value.workspace.id, expectedRevision: revision + 1,
+      inspect: { tool: 'dcsc_workspace_get', arguments: {
+        session: value.workspace.id, view: 'layout', path: ['rawRackArea'], expectedRevision: revision + 1,
       } },
     });
     const placements = result['placements'] as Obj[];

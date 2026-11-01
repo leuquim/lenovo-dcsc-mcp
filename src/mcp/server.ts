@@ -24,7 +24,7 @@ async function main(): Promise<void> {
     {
       instructions:
         'Drives the Lenovo Data Center Solution Configurator (DCSC).\n\n' +
-        'Typical flow: dcsc_find_products -> dcsc_launch -> dcsc_list_options -> dcsc_get_feature -> dcsc_get_configuration.\n\n' +
+        'Workflow: dcsc_search -> dcsc_launch -> dcsc_configuration_get/dcsc_configure -> racks -> network, storage, power -> dcsc_validate -> dcsc_export. Read the dcsc://docs/capabilities resource for the full guide.\n\n' +
         'Important: all prices are LIST prices for the configured country and currency, retrieved anonymously. ' +
         'They are not a quote, and partner or bid pricing is not available without a Lenovo login. ' +
         'Always state this when reporting a price to a user.',

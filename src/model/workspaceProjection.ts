@@ -498,7 +498,7 @@ export function projectWorkspaceSummary(
     revision: workspace.revision,
     ...(workspace.serverState.connectionGraphInvalidation !== undefined ? {
       connectionGraphStale: true,
-      refreshConnections: { tool: 'dcsc_add_cabling', arguments: { session: workspace.id, mode: 'auto' } },
+      refreshConnections: { tool: 'dcsc_auto_connect', arguments: { session: workspace.id } },
     } : {}),
     workspaceRevision: workspace.revision,
     revisionScope: 'workspace',
@@ -603,7 +603,7 @@ export function projectWorkspaceLayout(
     rackCount: totals.racks,
     ...(workspace.serverState.connectionGraphInvalidation !== undefined ? {
       connectionGraphStale: true,
-      refreshConnections: { tool: 'dcsc_add_cabling', arguments: { session: workspace.id, mode: 'auto' } },
+      refreshConnections: { tool: 'dcsc_auto_connect', arguments: { session: workspace.id } },
     } : {}),
     racks: rackPreview,
     unracked: unrackedPreview,

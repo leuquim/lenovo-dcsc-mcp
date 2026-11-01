@@ -400,7 +400,7 @@ export async function assignStorageNetwork(rt: Runtime, handle: string, opts: {
   }
   const session = resolved.session;
   let connectionCount: number | undefined;
-  await rt.sessions.transact(resolved.workspace.id, { expectedRevision: opts.expectedRevision, remoteApplied: true,
+  await rt.sessions.transact(session.workspaceId, { expectedRevision: opts.expectedRevision, remoteApplied: true,
     actionHistory: updateHistoryFactory(session.configurationId) }, async (workspace) => {
     const draft = workspace.configurations.get(session.id);
     if (!draft) throw new Error('Storage assignment requires one configuration.');

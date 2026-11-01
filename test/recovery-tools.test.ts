@@ -56,7 +56,7 @@ describe('dcsc_recovery_export', () => {
     expect(reply.isError).not.toBe(true);
     const result = parse(reply);
     expect(result).toMatchObject({
-      workspace: workspace.id,
+      session: workspace.id,
       integrity: 'damaged',
       integrityWarnings: workspace.integrityWarnings,
       recoveryRecords: 1,

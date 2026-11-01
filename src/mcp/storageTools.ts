@@ -85,6 +85,9 @@ export function registerStorageTools(server: McpServer, service: DcscService): v
       ...(args.change.action === 'assign' && result['autoConnectRequired'] === true ? {
         next: { tool: 'dcsc_auto_connect', arguments: { session: result['workspace'] } },
         reason: 'The storage assignment is saved, but cables were not regenerated because autoConnect was not true.' } : {}),
-      inspect: { tool: 'dcsc_storage_get', arguments: { session: result['workspace'], expectedRevision: result['revision'] } } };
+      inspect: args.change.action === 'place'
+        ? { tool: 'dcsc_workspace_get', arguments: { session: result['workspace'], view: 'layout', path: ['rawRackArea'],
+          expectedRevision: result['revision'], offset: 0, limit: 20 } }
+        : { tool: 'dcsc_storage_get', arguments: { session: result['workspace'], expectedRevision: result['revision'] } } };
   }, 'dcsc_storage_set failed'));
 }

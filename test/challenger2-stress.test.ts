@@ -500,7 +500,7 @@ describe('Adversarial Challenge: Tool Ergonomics & Character Budget', () => {
 
     console.log(`[CHALLENGE EMPIRICAL METRIC] Tool count: ${tools.length}, Total description characters: ${totalDescChars}`);
 
-    expect(tools.length).toBeGreaterThanOrEqual(100);
+    expect(tools.length).toBe(40);
     expect(totalDescChars).toBeLessThan(28_000);
 
     await client.close();

@@ -11,7 +11,7 @@ import { isStandaloneHardwareRow, parseStandaloneHardwareRows, type StandaloneHa
 import { finiteNumber, nonBlankString, type Obj, objectItems, objectOrUndefined } from '../util/coerce.js';
 
 
-export const SERVICE_METADATA_REFRESH_WARNING = 'DCSC import restores the complete service catalog but strips exact derive-section metadata for unselected services. Use dcsc_services_launch with workspace and refresh=true before choosing a different service; the imported selection remains inspectable, quantity-editable and exportable.';
+export const SERVICE_METADATA_REFRESH_WARNING = 'DCSC import restores the complete service catalog but strips exact derive-section metadata for unselected services. Use dcsc_launch with mode services, the workspace and refresh=true before choosing a different service; the imported selection remains inspectable, quantity-editable and exportable.';
 
 export interface StandaloneImportDiagnostics {
   missingParts: unknown[];

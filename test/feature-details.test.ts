@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import { featureSpecs, smartRecommendations, subTabRecommendations } from '../src/app/catalog.js';

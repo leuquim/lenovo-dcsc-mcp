@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { compareScenarios, sizeScaleOut } from '../app/compare.js';
 import { launchEntry, LAUNCH_MODES } from '../app/launchEntry.js';
 import { assertWorkspaceRevision } from '../app/serviceHelpers.js';
+import { BASKETS } from '../app/standalone.js';
 import { inspectValidationJobs } from '../app/validation.js';
 import {
   inspectBaskets,
@@ -67,9 +68,7 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
           const session = outcome.session;
           const workspace = requireWorkspaceOf(service, session.id);
           return {
-            session: session.id,
             workspace: workspace.id,
-            revision: workspace.revision,
             ...projectSummary({
               sessionId: session.id,
               revision: workspace.revision,
@@ -263,6 +262,7 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
       inputSchema: {
         session: z.string(),
         view: z.enum(['summary', 'layout', 'baskets', 'history', 'validation']).optional().default('summary'),
+        basket: z.enum(BASKETS).optional().describe('View baskets: the basket to read when the workspace holds several.'),
         jobId: z.string().optional().describe('View validation: one saved job to inspect.'),
         path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
         offset: z.number().int().min(0).optional().default(0),
