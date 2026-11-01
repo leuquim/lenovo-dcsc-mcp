@@ -28,7 +28,7 @@ import { VALIDATION_JOBS_STATE_KEY } from '../domain/validationJobs.js';
 import { buildIndex } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
 import type { CreateSessionInput, WorkspaceStateInput } from './SessionStore.js';
-import type { CableLink, ConfigIntent, ConfigSession, FloorItem, PduSelection, RackPlacement, WorkspaceHistory, WorkspaceHistoryEntry, WorkspaceSession } from '../model/session.js';
+import type { CableLink, ConfigIntent, ConfigSession, FloorItem, PduSelection, WorkspaceHistory, WorkspaceHistoryEntry, WorkspaceSession } from '../model/session.js';
 import { errorMessage } from '../util/coerce.js';
 import { newId } from './ids.js';
 
@@ -63,7 +63,6 @@ export function buildEmptyWorkspace(
     solution: structuredClone(input.solution),
     validationMode: input.validationMode ?? 'guided',
     configurations: new Map(),
-    racks: new Map(),
     rackArea: [],
     nonRackArea: [],
     serverState: {},
@@ -185,11 +184,6 @@ export function applyWorkspaceState(
   if (!state) return;
   if ('label' in state) workspace.label = state.label;
   if (state.validationMode !== undefined) workspace.validationMode = state.validationMode;
-  if (state.racks !== undefined) {
-    workspace.racks = new Map(
-      [...state.racks].map(([id, rack]) => [id, structuredClone(rack)]),
-    );
-  }
   if (state.rackArea !== undefined) workspace.rackArea = structuredClone(state.rackArea);
   if (state.nonRackArea !== undefined) workspace.nonRackArea = structuredClone(state.nonRackArea);
   if (state.serverState !== undefined) workspace.serverState = structuredClone(state.serverState);
@@ -268,7 +262,6 @@ export function captureWorkspaceHistoryState(workspace: WorkspaceSession): Recor
       lastAccessAt: session.lastAccessAt,
       pricedAt: session.pricedAt,
     })),
-    racks: [...workspace.racks.entries()],
     rackArea: workspace.rackArea,
     nonRackArea: workspace.nonRackArea,
     serverState: withoutOperationalMetadata(workspace.serverState),
@@ -327,7 +320,6 @@ export function applyWorkspaceHistoryState(
   workspace.solution = solution.data;
   workspace.validationMode = state['validationMode'] === 'expert' ? 'expert' : 'guided';
   workspace.configurations = restored;
-  workspace.racks = restoreRacks(state['racks']);
   workspace.rackArea = arrayOrEmpty<RackObject>(state['rackArea']);
   workspace.nonRackArea = arrayOrEmpty<RackObject>(state['nonRackArea']);
   const currentServerState = workspace.serverState;
@@ -625,13 +617,9 @@ export function cloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
     ...structuredClone({
       ...workspace,
       configurations: undefined,
-      racks: undefined,
     }),
     configurations: new Map(
       [...workspace.configurations].map(([id, session]) => [id, cloneConfig(session)]),
-    ),
-    racks: new Map(
-      [...workspace.racks].map(([id, rack]) => [id, structuredClone(rack)]),
     ),
   };
 }
@@ -695,7 +683,6 @@ export function sameWorkspaceCanonicalState(
       locale: left.locale,
       solution: left.solution,
       validationMode: left.validationMode,
-      racks: [...left.racks],
       rackArea: left.rackArea,
       nonRackArea: left.nonRackArea,
       serverState: withoutOperationalMetadata(left.serverState),
@@ -712,7 +699,6 @@ export function sameWorkspaceCanonicalState(
       locale: right.locale,
       solution: right.solution,
       validationMode: right.validationMode,
-      racks: [...right.racks],
       rackArea: right.rackArea,
       nonRackArea: right.nonRackArea,
       serverState: withoutOperationalMetadata(right.serverState),
@@ -920,61 +906,6 @@ export function restoreSnapshots(
   return restored.slice(-10);
 }
 
-export function restoreRacks(
-  value: unknown,
-  discarded: Array<{ warning: string; record: unknown }> = [],
-): Map<string, RackPlacement> {
-  if (value === undefined) return new Map();
-  if (!Array.isArray(value)) {
-    discarded.push({ warning: 'Malformed rack placement collection was quarantined', record: value });
-    return new Map();
-  }
-  const entries: Array<[string, RackPlacement]> = [];
-  const ids = new Set<string>();
-  for (const [position, candidate] of value.entries()) {
-    if (!Array.isArray(candidate) || candidate.length !== 2 || typeof candidate[0] !== 'string') {
-      discarded.push({ warning: `Malformed rack placement ${position} was quarantined`, record: candidate });
-      continue;
-    }
-    if (!isRackPlacement(candidate[1]) || ids.has(candidate[0])) {
-      discarded.push({
-        warning: ids.has(candidate[0])
-          ? `Duplicate rack placement ${candidate[0]} was quarantined`
-          : `Malformed rack placement ${candidate[0]} was quarantined`,
-        record: candidate,
-      });
-      continue;
-    }
-    ids.add(candidate[0]);
-    entries.push([candidate[0], structuredClone(candidate[1] as RackPlacement)]);
-  }
-  return new Map(entries);
-}
-
-function isRackPlacement(value: unknown): value is RackPlacement {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const rack = value as Record<string, unknown>;
-  if (
-    typeof rack['id'] !== 'string' ||
-    typeof rack['code'] !== 'string' ||
-    typeof rack['description'] !== 'string' ||
-    !Number.isFinite(rack['uheight']) ||
-    !Number.isFinite(rack['position']) ||
-    !Array.isArray(rack['items'])
-  )
-    return false;
-  return rack['items'].every((item) => {
-    if (typeof item !== 'object' || item === null || Array.isArray(item)) return false;
-    const record = item as Record<string, unknown>;
-    return (
-      typeof record['configId'] === 'string' &&
-      typeof record['code'] === 'string' &&
-      Number.isFinite(record['position']) &&
-      Number.isFinite(record['height'])
-    );
-  });
-}
-
 export function restoreObjectArray<T>(
   value: unknown,
   name: string,
@@ -1003,16 +934,7 @@ export function validateKnownReferences(workspace: WorkspaceSession): void {
     configurationIds.add(session.configurationId);
   }
 
-  for (const rack of workspace.racks.values()) {
-    const retained: RackPlacement['items'] = [];
-    for (const item of rack.items) {
-      if (configurationIds.has(item.configId)) retained.push(item);
-      else markDamaged(workspace, `Rack ${rack.id} references missing ${item.configId}`, item);
-    }
-    rack.items = retained;
-  }
-
-  const rackIds = new Set(workspace.racks.keys());
+  const rackIds = new Set<string>();
   for (const item of workspace.rackArea) {
     if (typeof item['id'] === 'string') rackIds.add(item['id']);
   }

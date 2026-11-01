@@ -174,11 +174,6 @@ export function buildClusterPreferences(
   });
 }
 
-/** Captured automatic-switch map: calculation calls the role usage, export calls it type. */
-export function buildSwitchMapEntry(id: string, network: string, usage: 'main' | 'leaf', code: string) {
-  return { id, network, type: usage, code } as const;
-}
-
 /** Exact /auto_connect request shape: the SPA never seeds regeneration with prior graph rows. */
 export function buildAutoConnectRequest(payload: AutoConnectPayload): AutoConnectPayload {
   const requestState: AutoConnectPayload = {

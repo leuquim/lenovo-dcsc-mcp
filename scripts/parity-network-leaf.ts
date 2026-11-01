@@ -100,7 +100,6 @@ function autoConnectPayload(snapshot: Obj): Obj {
   const workspace = structuredClone(snapshot) as unknown as WorkspaceSession;
   workspace.configurations = new Map(rows(snapshot['configurations']).map(configuration =>
     [string(configuration['id']), configuration as unknown as ConfigSession]));
-  workspace.racks = new Map();
   const floor = buildFloorState(workspace);
   const state = object(workspace.serverState);
   const previous = object(state['autoConnectState']);

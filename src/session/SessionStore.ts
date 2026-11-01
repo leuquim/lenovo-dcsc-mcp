@@ -26,7 +26,6 @@ import type {
   ConfigSession,
   FloorItem,
   PduSelection,
-  RackPlacement,
   WorkspaceSession,
 } from '../model/session.js';
 import type { RawConfiguration } from '../model/types.js';
@@ -55,7 +54,6 @@ import {
   recordOrEmpty,
   reducedMode,
   restoreObjectArray,
-  restoreRacks,
   restoreSnapshots,
   restoreWorkspaceHistory,
   restoreWorkspaceHistoryEnvelope,
@@ -109,7 +107,6 @@ export interface CreateSessionInput {
 export interface WorkspaceStateInput {
   label?: string | undefined;
   validationMode?: 'guided' | 'expert' | undefined;
-  racks?: ReadonlyMap<string, RackPlacement> | undefined;
   rackArea?: RackObject[] | undefined;
   nonRackArea?: RackObject[] | undefined;
   serverState?: Record<string, unknown> | undefined;
@@ -311,7 +308,6 @@ export class SessionStore {
         solution: input.solution,
         validationMode: input.validationMode ?? 'guided',
         configurations: new Map(),
-        racks: new Map(),
         rackArea: [],
         nonRackArea: [],
         serverState: {},
@@ -645,17 +641,6 @@ export class SessionStore {
     await this.#persistenceMutex.drain();
   }
 
-  withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
-    const ws = this.getWorkspace(id);
-    const lockId = ws?.id ?? id;
-    let mutex = this.#mutexes.get(lockId);
-    if (!mutex) {
-      mutex = new Mutex();
-      this.#mutexes.set(lockId, mutex);
-    }
-    return mutex.run(fn);
-  }
-
   transact<T>(
     handle: string,
     options: TransactionOptions,
@@ -831,163 +816,6 @@ export class SessionStore {
     });
   }
 
-  commit(
-    session: ConfigSession,
-    raw: RawConfiguration,
-    reduced: ReducedConfiguration,
-    intent?: ConfigIntent,
-  ): ConfigSession {
-    const MAX_SNAPSHOTS = 10;
-    session.snapshots.push({
-      revision: session.revision,
-      raw: structuredClone(session.raw),
-      reduced: structuredClone(session.reduced),
-    });
-    if (session.snapshots.length > MAX_SNAPSHOTS) session.snapshots.shift();
-
-    session.raw = raw;
-    session.reduced = reduced;
-    session.index = buildIndex(raw);
-    session.revision += 1;
-    session.pricedAt = Date.now();
-    session.lastAccessAt = Date.now();
-    if (intent) session.intents.push(intent);
-
-    const ws = this.#workspaces.get(session.workspaceId);
-    if (ws) {
-      ws.revision += 1;
-      ws.pricedAt = Date.now();
-      ws.lastAccessAt = Date.now();
-    }
-
-    return session;
-  }
-
-  undo(session: ConfigSession): boolean {
-    const prev = session.snapshots.pop();
-    if (!prev) return false;
-    session.raw = prev.raw;
-    session.reduced = prev.reduced;
-    session.index = buildIndex(prev.raw);
-    session.revision += 1;
-    session.lastAccessAt = Date.now();
-    if (session.intents.length > 0) session.intents.pop();
-
-    const ws = this.#workspaces.get(session.workspaceId);
-    if (ws) {
-      ws.revision += 1;
-      ws.lastAccessAt = Date.now();
-    }
-    return true;
-  }
-
-  addRack(
-    workspaceId: string,
-    rackCode: string,
-    description = 'Rack Enclosure',
-    uheight = 42,
-    position = 1,
-  ): RackPlacement {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    const rackId = newId('rack');
-    const rack: RackPlacement = {
-      id: rackId,
-      code: rackCode,
-      description,
-      uheight,
-      position,
-      items: [],
-    };
-    ws.racks.set(rackId, rack);
-    ws.lastAccessAt = Date.now();
-    return rack;
-  }
-
-  placeInRack(
-    workspaceId: string,
-    configId: string,
-    rackId: string,
-    uPosition: number,
-    height = 1,
-  ): boolean {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) return false;
-    const rack = ws.racks.get(rackId);
-    if (!rack) return false;
-    const session = ws.configurations.get(configId);
-    if (!session) return false;
-
-    for (const r of ws.racks.values()) {
-      r.items = r.items.filter((item) => item.configId !== configId);
-    }
-
-    rack.items.push({
-      configId,
-      code: session.product.code,
-      position: uPosition,
-      height,
-    });
-    ws.lastAccessAt = Date.now();
-    return true;
-  }
-
-  setCables(workspaceId: string, cables: CableLink[]): void {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    ws.cables = cables;
-    ws.lastAccessAt = Date.now();
-  }
-
-  addCabling(workspaceId: string, cable: Omit<CableLink, 'id'>): CableLink {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    const link: CableLink = {
-      id: newId('cable'),
-      ...cable,
-    };
-    ws.cables.push(link);
-    ws.lastAccessAt = Date.now();
-    return link;
-  }
-
-  setFloorItem(workspaceId: string, item: FloorItem): FloorItem {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    ws.floorItems = ws.floorItems.filter((f) => f.rackId !== item.rackId);
-    ws.floorItems.push(item);
-    ws.lastAccessAt = Date.now();
-    return item;
-  }
-
-  /** @deprecated Prefer service.placeOnFloor, which validates the rack exists. */
-  placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem {
-    return this.setFloorItem(workspaceId, {
-      id: newId('floor'),
-      rackId,
-      x,
-      y,
-    });
-  }
-
-  setPowerSelection(workspaceId: string, selection: PduSelection): PduSelection {
-    const ws = this.getWorkspace(workspaceId);
-    if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    ws.powerSelections = ws.powerSelections.filter((ps) => ps.rackId !== selection.rackId);
-    ws.powerSelections.push(selection);
-    ws.lastAccessAt = Date.now();
-    return selection;
-  }
-
-  /** @deprecated Prefer service.configurePdu, which selects features via DCSC. */
-  configurePdu(
-    workspaceId: string,
-    rackId: string,
-    pduSelection: Omit<PduSelection, 'rackId'>,
-  ): PduSelection {
-    return this.setPowerSelection(workspaceId, { rackId, ...pduSelection });
-  }
-
   findByConfigurationId(workspaceId: string, configurationId: string): ConfigSession | undefined {
     const ws = this.getWorkspace(workspaceId);
     if (!ws) return undefined;
@@ -1147,9 +975,6 @@ export class SessionStore {
     original.solution = structuredClone(draft.solution);
     original.validationMode = draft.validationMode;
     original.configurations = publishedConfigs;
-    original.racks = new Map(
-      [...draft.racks].map(([id, rack]) => [id, structuredClone(rack)]),
-    );
     original.rackArea = structuredClone(draft.rackArea);
     original.nonRackArea = structuredClone(draft.nonRackArea);
     original.serverState = structuredClone(draft.serverState);
@@ -1223,7 +1048,6 @@ export class SessionStore {
       const restoredHistory = restoreWorkspaceHistoryEnvelope(
         w['history'], historyWarnings, discardedHistory,
       );
-      const restoredRacks = restoreRacks(w['racks'], discardedCanonical);
       const ws: WorkspaceSession = {
         id: id.trim(),
         ...(typeof w['label'] === 'string' ? { label: w['label'] } : {}),
@@ -1231,7 +1055,6 @@ export class SessionStore {
         solution: solution.data,
         validationMode: (w['validationMode'] as 'guided' | 'expert') ?? 'guided',
         configurations: new Map(),
-        racks: restoredRacks,
         rackArea: restoreObjectArray<RackObject>(w['rackArea'], 'rackArea', discardedCanonical),
         nonRackArea: restoreObjectArray<RackObject>(w['nonRackArea'], 'nonRackArea', discardedCanonical),
         serverState: normalizeReconciliationProposalMetadata(

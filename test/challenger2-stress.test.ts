@@ -5,11 +5,7 @@ import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 import type { WorkspaceSession } from '../src/model/session.js';
 import { fetchVlhAttributes } from '../src/domain/vlh.js';
-import {
-  fetchVirtualBlackList,
-  fetchVirtualContainerCompatibleProducts,
-  checkVirtualContainerRules,
-} from '../src/domain/virtualContainers.js';
+import { fetchVirtualContainerCompatibleProducts, checkVirtualContainerRules } from '../src/domain/virtualContainers.js';
 import type { DcscHttpClient, RequestCtx } from '../src/http/request.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { DcscService } from '../src/mcp/service.js';
@@ -430,15 +426,6 @@ describe('Adversarial Challenge: VLH and Virtual Containers', () => {
       }),
     );
     expect(res.type).toBe('server');
-  });
-
-  it('fetchVirtualBlackList handles empty or null raw responses cleanly', async () => {
-    const mockHttp = {
-      send: vi.fn().mockResolvedValue({ raw: null }),
-    } as unknown as DcscHttpClient;
-
-    const blacklist = await fetchVirtualBlackList(mockHttp, mockCtx);
-    expect(blacklist).toEqual([]);
   });
 
   it('fetchVirtualContainerCompatibleProducts handles empty responses safely', async () => {

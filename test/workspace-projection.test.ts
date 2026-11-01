@@ -49,7 +49,7 @@ function workspace(options: { configurations?: number; racks?: number; cables?: 
   return {
     id: 'workspace-large', locale: { geo: 'NA', country: 'US', language: 'en', currency: 'USD' },
     solution: { solutionMode: 'General Purpose', masterSlices: ['GP'] },
-    validationMode: 'guided', configurations, racks: new Map(), rackArea: [], nonRackArea: [], serverState: {},
+    validationMode: 'guided', configurations, rackArea: [], nonRackArea: [], serverState: {},
     rackSummaries: Array.from({ length: rackCount }, (_, index) => ({
       id: `rack-${index}`, code: `RACK-${index}`, description: `Rack ${index}`,
       sizeU: 42, usedU: 2, freeU: 40, totalWeightKg: 120 + index,

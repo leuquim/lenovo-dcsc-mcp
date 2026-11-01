@@ -9,7 +9,7 @@ import {
   type AutoFixResult,
 } from '../domain/autoFix.js';
 import { buildExportData, reduceConfiguration } from '../domain/reduce.js';
-import { collectExpansionMessages, summariseValidation, type ValidationReport } from '../domain/validate.js';
+import { collectLocalDiagnostics, summariseValidation, type ValidationReport } from '../domain/validate.js';
 import {
   readValidationJobs,
   runValidationJob,
@@ -247,7 +247,7 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
         solution, fileTypes: ['XML'], validationMode,
       });
 
-  const messages = collectExpansionMessages(
+  const messages = collectLocalDiagnostics(
     targets.map((s) => ({
       configurationId: s.configurationId,
       raw: s.raw as Record<string, unknown>,

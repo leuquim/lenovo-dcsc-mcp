@@ -9,7 +9,6 @@ import { registerTools } from '../src/mcp/tools.js';
 import type { RawConfiguration } from '../src/model/types.js';
 import {
   generateConfigId,
-  validateConfigId,
   retrieveConfigId,
   querySids,
   customizeSid,
@@ -35,11 +34,7 @@ import {
 import {
   fetchVlhAttributes,
 } from '../src/domain/vlh.js';
-import {
-  fetchVirtualContainerCompatibleProducts,
-  checkVirtualContainerRules,
-  fetchVirtualBlackList,
-} from '../src/domain/virtualContainers.js';
+import { fetchVirtualContainerCompatibleProducts, checkVirtualContainerRules } from '../src/domain/virtualContainers.js';
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 
 type Obj = Record<string, unknown>;
@@ -178,30 +173,6 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       await expect(generateConfigId(service.http, ctx)).rejects.toThrow(
         /empty or invalid Configuration ID/,
       );
-    });
-
-    it('validateConfigId: rejects empty/whitespace input before sending HTTP', async () => {
-      const { service } = await createHarness();
-      const ctx = service.newCtx();
-      const httpSpy = vi.spyOn(service.http, 'send');
-
-      await expect(validateConfigId(service.http, '', ctx)).rejects.toThrow(
-        /non-empty configuration ID is required/,
-      );
-      await expect(validateConfigId(service.http, '   \t\n  ', ctx)).rejects.toThrow(
-        /non-empty configuration ID is required/,
-      );
-      expect(httpSpy).not.toHaveBeenCalled();
-
-      // Malformed non-JSON upstream string throws SyntaxError from JSON.parse (caught by MCP tool guard)
-      httpSpy.mockResolvedValueOnce({ raw: 'not-json-but-string' } as never);
-      await expect(validateConfigId(service.http, 'INVALID_ID', ctx)).rejects.toThrow(SyntaxError);
-
-      // Structured failure response
-      httpSpy.mockResolvedValueOnce({ raw: { success: false, message: 'Expired' } } as never);
-      const invalidRes = await validateConfigId(service.http, 'INVALID_ID', ctx);
-      expect(invalidRes.valid).toBe(false);
-      expect(invalidRes.message).toBe('Expired');
     });
 
     it('retrieveConfigId: verifies boundary rejections, error messages, and currentFileType normalization', async () => {
@@ -868,7 +839,7 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       );
     });
 
-    it('fetchVirtualContainerCompatibleProducts & fetchVirtualBlackList: handle null/empty responses', async () => {
+    it('fetchVirtualContainerCompatibleProducts: handles null/empty responses', async () => {
       const { service } = await createHarness();
       const ctx = service.newCtx();
       const raw = createMinimalRawConfig('vc-node');
@@ -879,11 +850,6 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: null } as never);
       const compat = await fetchVirtualContainerCompatibleProducts(service.http, workspace, ctx);
       expect(compat).toEqual([]);
-
-      // Blacklist null response returns empty array
-      vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: null } as never);
-      const blacklist = await fetchVirtualBlackList(service.http, ctx);
-      expect(blacklist).toEqual([]);
 
       // checkVirtualContainerRules null response returns empty array
       vi.spyOn(service.http, 'send').mockResolvedValueOnce({ raw: null } as never);

@@ -117,7 +117,6 @@ export function removeWorkspaceReferences(workspace: WorkspaceSession, removed: 
   const cloneReferences = rebaseCloneReferences(workspace.serverState, removedIds);
   for (const id of removedIds) {
     detachPhysicalItem(workspace, id);
-    workspace.racks.delete(id);
   }
   workspace.cables = workspace.cables.filter((item) => !removedIds.has(item.fromConfigId) && !removedIds.has(item.toConfigId));
   workspace.floorItems = workspace.floorItems.filter((item) => !removedIds.has(item.rackId));

@@ -74,17 +74,6 @@ function asArray(v: unknown): Obj[] {
   return Array.isArray(v) ? v.filter((item): item is Obj => typeof item === 'object' && item !== null) : [];
 }
 
-export function paginateFabric<T>(
-  items: readonly T[],
-  opts: { offset?: number | undefined; limit?: number | undefined } = {},
-): FabricPage<T> {
-  const offset = Math.max(0, Math.trunc(opts.offset ?? 0));
-  const limit = Math.max(1, Math.trunc(opts.limit ?? 50));
-  const page = items.slice(offset, offset + limit);
-  return { items: page, total: items.length, offset, limit,
-    ...(offset + page.length < items.length ? { nextOffset: offset + page.length } : {}) };
-}
-
 export async function fetchFabricOptions(
   http: DcscHttpClient,
   ctx: RequestCtx,

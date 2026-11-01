@@ -1,7 +1,5 @@
 import { buildRackConfigurations, type RackConfigurationWire, type RackObject } from './rack.js';
 import { isObject, type Obj } from '../util/coerce.js';
-import { autoDerivePath, racksCustomizePath } from './endpoints.js';
-
 
 /** Fields the browser posts to `/switch_calculation`, in captured wire order. */
 const SWITCH_CALCULATION_ARRAY_FIELDS = [
@@ -236,40 +234,6 @@ export function buildGeneratedSwitch(
     cloneDependency: { [id]: [id] },
   };
 }
-
-/** The browser-authoritative endpoint order for a populated automatic-switch run. */
-export const SWITCH_PROVISIONING_SEQUENCE = [
-  {
-    phase: 'calculate',
-    method: 'POST',
-    path: '/switch_calculation',
-    query: { autoArrange: true, autoConnect: true, cogValidation: true },
-  },
-  {
-    phase: 'launch-each-generated-switch',
-    method: 'POST',
-    path: '/ctos/{code}/launch',
-    query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
-  },
-  {
-    phase: 'customize-generated-layout',
-    method: 'POST',
-    path: racksCustomizePath('ctos'),
-    query: { autoArrange: true, autoConnect: true, cogValidation: true },
-  },
-  {
-    phase: 'derive-generated-configuration',
-    method: 'POST',
-    path: autoDerivePath('ctos'),
-    query: { guideMode: true },
-  },
-  {
-    phase: 'connect-p2p',
-    method: 'POST',
-    path: '/auto_connect',
-    query: { autoArrange: true, autoConnect: true, cogValidation: true },
-  },
-] as const;
 
 function requiredObject(value: unknown, label: string): RackObject {
   if (!isObject(value)) throw new Error(`${label} must be an object.`);

@@ -1,12 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { reduceConfiguration } from '../src/domain/reduce.js';
+import { buildRackHierarchy, physicalRackData } from '../src/domain/workspaceWire.js';
 import {
-  rackToLocalExportShape,
-  rackToServerExportShape,
-  reduceConfiguration,
-} from '../src/domain/reduce.js';
-import {
-  collectExpansionMessages,
+  collectLocalDiagnostics,
   summariseValidation,
 } from '../src/domain/validate.js';
 import { localeFromOption, type LocaleOption } from '../src/domain/locale.js';
@@ -17,24 +14,24 @@ describe('rack export dual-shape transforms', () => {
     physical: Array<Record<string, unknown>>; hierarchy: Array<Record<string, unknown>>;
   };
   it('matches the captured slim hierarchy with manufacturing placement features', () => {
-    expect(fixture.physical.map((rack, index) => rackToLocalExportShape(rack, index))).toEqual(fixture.hierarchy);
+    expect(fixture.physical.map((rack, index) => buildRackHierarchy(rack, index))).toEqual(fixture.hierarchy);
   });
   it('preserves physical one-based positions independently of the hierarchy', () => {
     const before = structuredClone(fixture.physical[0]!);
-    const physical = rackToServerExportShape(before);
+    const physical = physicalRackData(before);
     expect(physical).toEqual(before);
     expect(physical).not.toBe(before);
     expect(physical.servers).toBeUndefined();
     expect((physical.rackItems as Array<Record<string, unknown>>)[0]?.position).toBe(1);
   });
   it('does not pretend an obsolete local servers shape is authoritative physical data', () => {
-    expect(() => rackToServerExportShape({ servers: [] })).toThrow('reconciliation');
+    expect(() => physicalRackData({ servers: [] })).toThrow('reconciliation');
   });
 });
 
 describe('validation reducers', () => {
   it('collects expansionMessages by severity from raw configs', () => {
-    const msgs = collectExpansionMessages([
+    const msgs = collectLocalDiagnostics([
       {
         configurationId: 'cfg1',
         raw: {

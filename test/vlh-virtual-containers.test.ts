@@ -9,7 +9,6 @@ import { registerVlhTools } from '../src/mcp/vlhTools.js';
 import { fetchVlhAttributes, fetchVlhWizardInfo, type VlhAttributes, type VlhWizardInfo } from '../src/domain/vlh.js';
 import {
   checkVirtualContainerRules,
-  fetchVirtualBlackList,
   fetchVirtualContainerCompatibleProducts,
   type VirtualContainerCompatibleCategory,
 } from '../src/domain/virtualContainers.js';
@@ -224,28 +223,6 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
         }),
       );
       expect(result).toEqual(mockRules);
-    });
-
-    it('fetchVirtualBlackList gets blacklist from allAvailableBlackList', async () => {
-      const service = createTestService();
-      const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValueOnce({
-        status: 200,
-        headers: {},
-        raw: ['BL-PRODUCT-1', 'BL-PRODUCT-2'],
-      } as never);
-
-      const ctx = service.newCtx();
-      const result = await fetchVirtualBlackList(service.http, ctx);
-
-      expect(sendSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          endpoint: 'virtualContainers.blackList',
-          method: 'GET',
-          path: '/virtual-containers/allAvailableBlackList',
-          responseKind: 'json',
-        }),
-      );
-      expect(result).toEqual(['BL-PRODUCT-1', 'BL-PRODUCT-2']);
     });
   });
 

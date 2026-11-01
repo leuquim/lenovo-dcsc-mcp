@@ -154,7 +154,6 @@ export function canonicalWorkspaceHash(workspace: WorkspaceSession): string {
     integrity: workspace.integrity,
     integrityWarnings: workspace.integrityWarnings,
     recoveryData: workspace.recoveryData,
-    racks: [...workspace.racks].sort(([left], [right]) => left.localeCompare(right)),
     rackArea: workspace.rackArea,
     nonRackArea: workspace.nonRackArea,
     serverState,
@@ -549,7 +548,7 @@ function collectIntentWarnings(
 }
 
 function cloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
-  const clone = structuredClone({ ...workspace, configurations: undefined, racks: undefined });
+  const clone = structuredClone({ ...workspace, configurations: undefined });
   return {
     ...clone,
     configurations: new Map(
@@ -557,9 +556,6 @@ function cloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
         const sessionClone = structuredClone({ ...session, index: undefined });
         return [id, { ...sessionClone, index: buildIndex(sessionClone.raw) }];
       }),
-    ),
-    racks: new Map(
-      [...workspace.racks].map(([id, rack]) => [id, structuredClone(rack)]),
     ),
   } as WorkspaceSession;
 }

@@ -62,7 +62,6 @@ function workspace(): WorkspaceSession {
     solution: rack.solution,
     validationMode: 'guided',
     configurations: new Map([[rack.id, rack], [server.id, server]]),
-    racks: new Map(),
     rackArea: [{ id: RACK_ID, code: '7D6DCTO1WW', type: 'rack', size: 42,
       rackItems: [{ id: SERVER_ID, code: '7D73CTO1WW', type: 'server', size: 1, position: 1 }] }],
     nonRackArea: [],

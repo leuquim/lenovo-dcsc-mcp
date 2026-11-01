@@ -127,7 +127,6 @@ function workspace(
     solution: first.solution,
     validationMode: 'guided',
     configurations: new Map(configs.map((config) => [config.id, config])),
-    racks: new Map(),
     rackArea: [],
     nonRackArea: [],
     serverState: {},

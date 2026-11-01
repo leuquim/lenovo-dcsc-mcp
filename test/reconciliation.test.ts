@@ -360,7 +360,7 @@ describe('legacy reconciliation', () => {
 });
 
 function structuredCloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
-  const clone = structuredClone({ ...workspace, configurations: undefined, racks: undefined });
+  const clone = structuredClone({ ...workspace, configurations: undefined });
   return {
     ...clone,
     configurations: new Map(
@@ -369,6 +369,5 @@ function structuredCloneWorkspace(workspace: WorkspaceSession): WorkspaceSession
         index: session.index,
       }]),
     ),
-    racks: new Map([...workspace.racks].map(([id, rack]) => [id, structuredClone(rack)])),
   } as WorkspaceSession;
 }

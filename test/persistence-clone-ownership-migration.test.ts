@@ -125,7 +125,7 @@ function oldSingletonStore(diverge = false): SessionStore {
 
 function persistedState(workspace: Record<string, unknown>): Record<string, unknown> {
   const keys = [
-    'label', 'locale', 'solution', 'validationMode', 'configurations', 'racks', 'rackArea',
+    'label', 'locale', 'solution', 'validationMode', 'configurations', 'rackArea',
     'nonRackArea', 'serverState', 'rackSummaries', 'cables', 'floorItems', 'powerSelections',
     'integrity', 'integrityWarnings', 'recoveryData', 'createdAt', 'lastAccessAt', 'pricedAt',
   ];
@@ -201,7 +201,6 @@ describe('persisted clone ownership canonical migration', () => {
 
     const deletionProbe = structuredClone(workspace) as WorkspaceSession;
     deletionProbe.configurations = new Map(workspace.configurations);
-    deletionProbe.racks = new Map(workspace.racks);
     expect(() => removeWorkspaceReferences(deletionProbe, new Set(['root']))).not.toThrow();
     expect(deletionProbe.serverState.cloneDependencyColor).toEqual({
       clone: expect.objectContaining({ dependBy: ['clone'] }),

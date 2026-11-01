@@ -27,7 +27,7 @@ function workspace(payload = fixture): WorkspaceSession {
   }
   return {
     id: 'ws-import', locale: ctx.locale, solution: ctx.solution!, validationMode: 'guided',
-    configurations, racks: new Map(), rackArea: [], nonRackArea: [], serverState: {},
+    configurations, rackArea: [], nonRackArea: [], serverState: {},
     rackSummaries: [], cables: [], floorItems: [], powerSelections: [], integrity: 'verified',
     integrityWarnings: [], revision: 1, createdAt: 1, lastAccessAt: 1, pricedAt: 1,
   } as WorkspaceSession;

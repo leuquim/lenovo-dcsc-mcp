@@ -124,7 +124,6 @@ describe('session persistence recovery archives', () => {
     };
     envelope.version = 2;
     Object.assign(envelope.workspaces[0]!, {
-      racks: [['rack-broken', { id: 'rack-broken' }]],
       rackArea: [null],
       floorItems: [null, { id: 'floor-broken', rackId: 'missing-rack', x: 1, y: 2 }],
       cables: [null],
@@ -136,7 +135,6 @@ describe('session persistence recovery archives', () => {
     expect(loadSessions(store, config)).toBe(1);
     const workspace = store.listWorkspaces()[0]!;
     expect(workspace.integrity).toBe('damaged');
-    expect(workspace.racks.size).toBe(0);
     expect(workspace.rackArea).toEqual([]);
     expect(workspace.floorItems).toEqual([]);
     expect(workspace.cables).toEqual([]);

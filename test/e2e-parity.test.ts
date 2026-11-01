@@ -7,17 +7,14 @@ import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
-import { validateConfigId, type SidQueryResult } from '../src/domain/configId.js';
+import { type SidQueryResult } from '../src/domain/configId.js';
 import { fetchConvergedCategoryDetail } from '../src/domain/specialtyCatalog.js';
 import {
   fetchUpstreamFeatureDetails,
   type UpstreamFeatureDetail,
 } from '../src/domain/featureDetails.js';
 import type { VlhAttributes, VlhWizardInfo } from '../src/domain/vlh.js';
-import {
-  fetchVirtualBlackList,
-  type VirtualContainerCompatibleCategory,
-} from '../src/domain/virtualContainers.js';
+import { type VirtualContainerCompatibleCategory } from '../src/domain/virtualContainers.js';
 import type { RawConfiguration } from '../src/model/types.js';
 
 type Obj = Record<string, unknown>;
@@ -803,15 +800,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       expect(data['content']).toEqual([]);
     });
 
-    it('T2.2: R1 — validateConfigId correctly parses non-existent Config ID rejection', async () => {
-      const { service } = await createHarness();
-      const ctx = service.newCtx();
-
-      const check = await validateConfigId(service.http, 'NONEXISTENT', ctx);
-      expect(check.valid).toBe(false);
-      expect(check.message).toContain('Invalid Config ID');
-    });
-
     it('T2.3: R1 — retrieveConfigId throws structured error on invalid Config ID without corrupting session store', async () => {
       const { service } = await createHarness();
       const initialCount = service.sessions.list().length;
@@ -1002,14 +990,6 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
         expect(ids).toContain(`qty10-node__clone_${k}`);
       }
       expect(new Set(ids).size).toBe(10);
-    });
-
-    it('T2.13: R6 — virtual containers blacklist query handles empty blacklist gracefully', async () => {
-      const { service } = await createHarness();
-      const ctx = service.newCtx();
-
-      const blacklist = await fetchVirtualBlackList(service.http, ctx);
-      expect(blacklist).toEqual([]);
     });
   });
 

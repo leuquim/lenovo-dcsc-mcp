@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { autoConnect, buildClusterPreferences, buildSwitchMapEntry } from '../src/domain/cabling.js';
-import { fetchFabricOptions, paginateFabric } from '../src/domain/fabric.js';
+import { autoConnect, buildClusterPreferences } from '../src/domain/cabling.js';
+import { fetchFabricOptions } from '../src/domain/fabric.js';
 import type { DcscHttpClient, RequestCtx, SendInput } from '../src/http/request.js';
 
 const fixture = JSON.parse(readFileSync('test/fixtures/parity/fabric-cabling.json', 'utf8')) as {
@@ -39,16 +39,7 @@ describe('fabric vocabulary', () => {
     expect(fabric.networkDevices[0]?.id).toBe('network-device:7D5FCTOFWW:BPC7:NVIDIA SN2201');
   });
 
-  it('paginates deterministically and reports the true total', () => {
-    const values = Array.from({ length: 5 }, (_, index) => ({ id: `item-${index}` }));
-    const first = paginateFabric(values, { limit: 2 });
-    const second = paginateFabric(values, { offset: first.nextOffset, limit: 2 });
-    const third = paginateFabric(values, { offset: second.nextOffset, limit: 2 });
-    expect([first.total, first.nextOffset, second.nextOffset, third.nextOffset]).toEqual([5, 2, 4, undefined]);
-    expect([...first.items, ...second.items, ...third.items]).toEqual(values);
-  });
-
-  it('builds the same network preference and switch-map shapes as the SPA', async () => {
+  it('builds the same network preference shapes as the SPA', async () => {
     const fabric = await fetchFabricOptions(httpReturning({
       getTopologies: fixture.topology, node_roles: fixture.roles,
       getStoragePreferences: fixture.storage,
@@ -61,9 +52,6 @@ describe('fabric vocabulary', () => {
       leafCableColor: undefined, leafCableType: '', leafSwitch: {}, leafMaximumPorts: 0,
       leafTrunks: 0, leafCabling: '',
     }]);
-    expect(buildSwitchMapEntry('switch-1', 'Management', 'main', '7D5FCTOFWW')).toEqual({
-      id: 'switch-1', network: 'Management', type: 'main', code: '7D5FCTOFWW',
-    });
   });
 });
 
