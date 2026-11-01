@@ -31,6 +31,7 @@ import type { CreateSessionInput, WorkspaceStateInput } from './SessionStore.js'
 import type { CableLink, ConfigIntent, ConfigSession, FloorItem, PduSelection, WorkspaceHistory, WorkspaceHistoryEntry, WorkspaceSession } from '../model/session.js';
 import { errorMessage } from '../util/coerce.js';
 import { newId } from './ids.js';
+import { digestOf, sameValue } from './valueDigest.js';
 
 export function firstNonempty(...values: unknown[]): string | undefined {
   for (const value of values) {
@@ -211,10 +212,24 @@ export function applyWorkspaceState(
 export const WORKSPACE_HISTORY_BYTE_BUDGET = 48 * 1024 * 1024;
 const historyEntryBytes = new WeakMap<WorkspaceHistoryEntry, number>();
 
+function valueBytes(value: unknown): number {
+  if (typeof value === 'string') return value.length;
+  return typeof value === 'object' && value !== null ? digestOf(value).bytes : 0;
+}
+
 function entryBytes(entry: WorkspaceHistoryEntry): number {
   let bytes = historyEntryBytes.get(entry);
   if (bytes === undefined) {
-    bytes = JSON.stringify(entry.state).length;
+    bytes = 0;
+    for (const [key, value] of Object.entries(entry.state)) {
+      if (key === 'configurations' && Array.isArray(value)) {
+        for (const configuration of value as Array<Record<string, unknown>>) {
+          bytes += valueBytes(configuration['raw']);
+        }
+      } else {
+        bytes += valueBytes(value);
+      }
+    }
     historyEntryBytes.set(entry, bytes);
   }
   return bytes;
@@ -235,8 +250,9 @@ export function trimHistoryToBudget(
   return entries.slice(keepFrom);
 }
 
+/** Entries share the workspace's immutable values; nothing is copied. */
 export function captureWorkspaceHistoryState(workspace: WorkspaceSession): Record<string, unknown> {
-  return structuredClone({
+  return {
     label: workspace.label,
     locale: workspace.locale,
     solution: workspace.solution,
@@ -271,7 +287,7 @@ export function captureWorkspaceHistoryState(workspace: WorkspaceSession): Recor
     createdAt: workspace.createdAt,
     lastAccessAt: workspace.lastAccessAt,
     pricedAt: workspace.pricedAt,
-  });
+  };
 }
 
 export function restoreWorkspaceHistory(
@@ -368,8 +384,7 @@ function restoreHistoryConfig(
   const revision = typeof saved['revision'] === 'number' ? saved['revision'] : 1;
   const snapshots = (current.get(id)?.snapshots ?? [])
     .filter((snapshot) => snapshot.revision < revision)
-    .slice(-10)
-    .map((snapshot) => structuredClone(snapshot));
+    .slice(-10);
   return {
     id,
     workspaceId,
@@ -620,46 +635,44 @@ export function cloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
 }
 
 export function cloneConfig(session: ConfigSession): ConfigSession {
-  return {
-    ...structuredClone({ ...session, index: undefined }),
-    index: buildIndex(structuredClone(session.raw)),
-  };
+  const clone = structuredClone({ ...session, index: undefined, snapshots: undefined });
+  return { ...clone, snapshots: [...session.snapshots], index: buildIndex(clone.raw) };
+}
+
+function sameSnapshots(left: ConfigSession['snapshots'], right: ConfigSession['snapshots']): boolean {
+  return left.length === right.length && left.every((snapshot, position) => {
+    const other = right[position]!;
+    return snapshot === other ||
+      (snapshot.revision === other.revision && sameValue(snapshot.raw, other.raw));
+  });
 }
 
 export function sameConfigCanonicalState(left: ConfigSession, right: ConfigSession): boolean {
-  return isDeepStrictEqual(
-    {
-      label: left.label,
-      locale: left.locale,
-      solution: left.solution,
-      product: left.product,
-      mode: left.mode,
-      validationMode: left.validationMode,
-      autoCorrect: left.autoCorrect,
-      raw: left.raw,
-      configurationId: left.configurationId,
-      primed: left.primed,
-      configurable: left.configurable,
-      intents: left.intents,
-      snapshots: left.snapshots,
-    },
-    {
-      label: right.label,
-      locale: right.locale,
-      solution: right.solution,
-      product: right.product,
-      mode: right.mode,
-      validationMode: right.validationMode,
-      autoCorrect: right.autoCorrect,
-      raw: right.raw,
-      configurationId: right.configurationId,
-      primed: right.primed,
-      configurable: right.configurable,
-      intents: right.intents,
-      snapshots: right.snapshots,
-    },
-  );
+  return left.label === right.label &&
+    left.mode === right.mode &&
+    left.validationMode === right.validationMode &&
+    left.autoCorrect === right.autoCorrect &&
+    left.configurationId === right.configurationId &&
+    left.primed === right.primed &&
+    left.configurable === right.configurable &&
+    isDeepStrictEqual(left.locale, right.locale) &&
+    isDeepStrictEqual(left.solution, right.solution) &&
+    isDeepStrictEqual(left.product, right.product) &&
+    isDeepStrictEqual(left.intents, right.intents) &&
+    sameValue(left.raw, right.raw) &&
+    sameSnapshots(left.snapshots, right.snapshots);
 }
+
+const DIGESTED_WORKSPACE_FIELDS = [
+  'rackArea',
+  'nonRackArea',
+  'serverState',
+  'rackSummaries',
+  'cables',
+  'floorItems',
+  'powerSelections',
+  'recoveryData',
+] as const;
 
 export function sameWorkspaceCanonicalState(
   left: WorkspaceSession,
@@ -672,45 +685,26 @@ export function sameWorkspaceCanonicalState(
     const rightSession = right.configurations.get(id);
     if (!rightSession || !sameConfigCanonicalState(leftSession, rightSession)) return false;
   }
-  return isDeepStrictEqual(
-    {
-      label: left.label,
-      locale: left.locale,
-      solution: left.solution,
-      validationMode: left.validationMode,
-      rackArea: left.rackArea,
-      nonRackArea: left.nonRackArea,
-      serverState: withoutOperationalMetadata(left.serverState),
-      rackSummaries: left.rackSummaries,
-      cables: left.cables,
-      floorItems: left.floorItems,
-      powerSelections: left.powerSelections,
-      integrity: left.integrity,
-      integrityWarnings: left.integrityWarnings,
-      recoveryData: left.recoveryData,
-    },
-    {
-      label: right.label,
-      locale: right.locale,
-      solution: right.solution,
-      validationMode: right.validationMode,
-      rackArea: right.rackArea,
-      nonRackArea: right.nonRackArea,
-      serverState: withoutOperationalMetadata(right.serverState),
-      rackSummaries: right.rackSummaries,
-      cables: right.cables,
-      floorItems: right.floorItems,
-      powerSelections: right.powerSelections,
-      integrity: right.integrity,
-      integrityWarnings: right.integrityWarnings,
-      recoveryData: right.recoveryData,
-    },
-  );
+  return left.label === right.label &&
+    left.validationMode === right.validationMode &&
+    left.integrity === right.integrity &&
+    isDeepStrictEqual(left.locale, right.locale) &&
+    isDeepStrictEqual(left.solution, right.solution) &&
+    isDeepStrictEqual(left.integrityWarnings, right.integrityWarnings) &&
+    DIGESTED_WORKSPACE_FIELDS.every((field) => sameValue(left[field], right[field]));
 }
 
+/** An unchanged draft value becomes the original's own object, so history entries keep sharing it. */
+export function shareUnchangedValues(original: WorkspaceSession, draft: WorkspaceSession): void {
+  const share = <K extends (typeof DIGESTED_WORKSPACE_FIELDS)[number]>(field: K): void => {
+    if (sameValue(original[field], draft[field])) draft[field] = original[field];
+  };
+  for (const field of DIGESTED_WORKSPACE_FIELDS) share(field);
+}
+
+/** The draft is discarded after publication, so its values move to the live session uncopied. */
 export function assignConfig(target: ConfigSession, source: ConfigSession): void {
-  const clone = cloneConfig(source);
-  Object.assign(target, clone);
+  Object.assign(target, source);
 }
 
 export function preserveOperationalMetadata(
@@ -718,7 +712,7 @@ export function preserveOperationalMetadata(
   target: Record<string, unknown>,
 ): void {
   if (Object.hasOwn(source, VALIDATION_JOBS_STATE_KEY)) {
-    target[VALIDATION_JOBS_STATE_KEY] = structuredClone(source[VALIDATION_JOBS_STATE_KEY]);
+    target[VALIDATION_JOBS_STATE_KEY] = source[VALIDATION_JOBS_STATE_KEY];
   } else {
     delete target[VALIDATION_JOBS_STATE_KEY];
   }
@@ -740,16 +734,18 @@ export function preserveOperationalMetadata(
   if (newlyAccepted) {
     delete target[RECONCILIATION_PROPOSALS_STATE_KEY];
   } else if (Object.hasOwn(source, RECONCILIATION_PROPOSALS_STATE_KEY)) {
-    target[RECONCILIATION_PROPOSALS_STATE_KEY] = structuredClone(
-      source[RECONCILIATION_PROPOSALS_STATE_KEY],
-    );
+    target[RECONCILIATION_PROPOSALS_STATE_KEY] = source[RECONCILIATION_PROPOSALS_STATE_KEY];
   } else {
     delete target[RECONCILIATION_PROPOSALS_STATE_KEY];
   }
 }
 
 export function withoutOperationalMetadata(state: Record<string, unknown>): Record<string, unknown> {
-  const copy = structuredClone(state);
+  if (
+    !Object.hasOwn(state, VALIDATION_JOBS_STATE_KEY) &&
+    !Object.hasOwn(state, RECONCILIATION_PROPOSALS_STATE_KEY)
+  ) return state;
+  const copy = { ...state };
   delete copy[VALIDATION_JOBS_STATE_KEY];
   delete copy[RECONCILIATION_PROPOSALS_STATE_KEY];
   return copy;
@@ -768,7 +764,7 @@ export function saveReconciliationProposal(
     .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
     .slice(-5);
   return {
-    ...structuredClone(serverState),
+    ...serverState,
     [RECONCILIATION_PROPOSALS_STATE_KEY]: proposals,
   };
 }
@@ -816,7 +812,7 @@ function isStoredReconciliationProposal(value: unknown): value is Reconciliation
 
 function reconciliationHistory(state: Record<string, unknown>): unknown[] {
   return Array.isArray(state[RECONCILIATION_HISTORY_STATE_KEY])
-    ? structuredClone(state[RECONCILIATION_HISTORY_STATE_KEY] as unknown[])
+    ? state[RECONCILIATION_HISTORY_STATE_KEY] as unknown[]
     : [];
 }
 
@@ -834,7 +830,7 @@ function mergeReconciliationHistory(source: unknown[], target: unknown[]): unkno
     const key = id || JSON.stringify(entry);
     if (seen.has(key)) continue;
     seen.add(key);
-    merged.push(structuredClone(entry));
+    merged.push(entry);
   }
   return merged.slice(-20);
 }

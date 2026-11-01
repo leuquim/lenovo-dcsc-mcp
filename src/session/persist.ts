@@ -9,12 +9,12 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import type { Dirent } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -28,14 +28,29 @@ import type {
   SessionStore,
   WorkspaceIndexEntry,
 } from './SessionStore.js';
-import type { ConfigSession, WorkspaceSession } from '../model/session.js';
+import type {
+  ConfigSession,
+  WorkspaceHistory,
+  WorkspaceHistoryEntry,
+  WorkspaceSession,
+} from '../model/session.js';
 import { asSessionPersistenceError } from '../http/persistenceError.js';
 import { errorMessage } from '../util/coerce.js';
+import { canonicalJson, digestOf, sha256Hex } from './valueDigest.js';
 
-/** Envelope of every workspace file. Derived reduced/index data is deliberately absent. */
+/** Self-contained envelope of recovery exports and archives. Derived reduced/index data is deliberately absent. */
 export const SNAPSHOT_VERSION = 2;
+/** Envelope of a workspace's doc.json, whose large values are references into blobs/. */
+export const WORKSPACE_DOC_VERSION = 3;
 const INDEX_VERSION = 1;
-const WORKSPACE_FILE_SUFFIX = '.json';
+const DOC_FILE = 'doc.json';
+const BLOBS_DIRECTORY = 'blobs';
+const BLOB_SUFFIX = '.json';
+const BLOB_REF_KEY = '$blob';
+const BLOB_HASH_PATTERN = /^[0-9a-f]{64}$/;
+/** Values smaller than this stay in doc.json instead of getting a file of their own. */
+const INLINE_VALUE_BYTES = 4096;
+const LEGACY_WORKSPACE_SUFFIX = '.json';
 const LEGACY_BACKUP_SUFFIX = '.bak';
 const MAX_SNAPSHOTS_PERSISTED = 3;
 const RECOVERY_ID_PATTERN = /^recovery_([0-9a-f]{64})$/;
@@ -113,7 +128,7 @@ export function readSessionRecoveryArchive(config: Config, id: string): Buffer {
     const bytes = readFileSync(fd);
     closeSync(fd);
     fd = undefined;
-    if (sha256(bytes) !== expectedHash) {
+    if (sha256Hex(bytes) !== expectedHash) {
       throw new RecoveryArchiveReadError('Session recovery archive failed its integrity check.');
     }
     return bytes;
@@ -143,33 +158,87 @@ export function saveSessions(store: SessionStore, config: Config): void {
   }
 }
 
+/** Self-contained JSON of workspaces with every value inline, for recovery export and archives. */
 export function serializeWorkspaces(workspaces: readonly WorkspaceSession[]): string {
   return JSON.stringify({
     version: SNAPSHOT_VERSION,
     savedAt: Date.now(),
-    workspaces: workspaces.map(serializeWorkspace),
+    workspaces: workspaces.map((workspace) => serializeWorkspace(workspace, keepInline)),
   });
 }
 
-/** Rewrites only the changed workspace files, then the index that locates them. */
+/** Writes the changed workspaces, drops the removed ones, then refreshes the index that locates them. */
 function commitChange(
   config: Config,
   changed: readonly WorkspaceSession[],
   removedIds: readonly string[],
   index: readonly WorkspaceIndexEntry[],
 ): void {
-  const directory = workspacesDirectory(config);
-  mkdirSync(directory, { recursive: true });
-  for (const workspace of changed) {
-    writeFileAtomic(workspaceFile(config, workspace.id), serializeWorkspaces([workspace]));
-  }
-  for (const id of removedIds) removeFileIfPresent(workspaceFile(config, id));
-  syncDirectory(directory);
+  mkdirSync(workspacesDirectory(config), { recursive: true });
+  for (const workspace of changed) writeWorkspace(config, workspace);
+  for (const id of removedIds) removeWorkspaceDirectory(config, id);
+  if (removedIds.length > 0) syncDirectory(workspacesDirectory(config));
   writeFileAtomic(
     indexFile(config),
-    JSON.stringify({ version: INDEX_VERSION, savedAt: Date.now(), workspaces: index }),
+    JSON.stringify({ version: INDEX_VERSION, workspaces: index }),
+    { durable: false },
   );
-  syncDirectory(stateDirectory(config));
+}
+
+/**
+ * Writes a workspace as doc.json plus the large values it references, each stored
+ * once under blobs/ by content hash. The document is renamed into place last, so
+ * every reference a readable document holds resolves.
+ */
+function writeWorkspace(config: Config, workspace: WorkspaceSession): void {
+  const directory = workspaceDirectory(config, workspace.id);
+  const blobsDirectory = join(directory, BLOBS_DIRECTORY);
+  const createdDirectory = mkdirSync(blobsDirectory, { recursive: true });
+
+  const blobs = new Map<string, object>();
+  const document = JSON.stringify({
+    version: WORKSPACE_DOC_VERSION,
+    workspace: serializeWorkspace(workspace, (value) => externalize(value, blobs)),
+  });
+
+  let wroteBlob = false;
+  for (const [hash, value] of blobs) {
+    const path = blobFile(blobsDirectory, hash);
+    if (existsSync(path)) continue;
+    const json = canonicalJson(value);
+    if (sha256Hex(json) !== hash) {
+      throw new Error('A persisted workspace value changed after it was hashed.');
+    }
+    writeFileAtomic(path, json);
+    wroteBlob = true;
+  }
+  if (wroteBlob) syncDirectory(blobsDirectory);
+  writeFileAtomic(docFile(directory), document);
+  syncDirectory(directory);
+  if (createdDirectory !== undefined) syncDirectory(workspacesDirectory(config));
+  removeUnreferencedBlobs(blobsDirectory, blobs);
+}
+
+function externalize(value: unknown, blobs: Map<string, object>): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const { hash, bytes } = digestOf(value);
+  if (bytes < INLINE_VALUE_BYTES) return value;
+  blobs.set(hash, value);
+  return { [BLOB_REF_KEY]: hash };
+}
+
+function removeUnreferencedBlobs(blobsDirectory: string, referenced: ReadonlyMap<string, object>): void {
+  try {
+    for (const name of readdirSync(blobsDirectory)) {
+      const hash = name.endsWith(BLOB_SUFFIX) ? name.slice(0, -BLOB_SUFFIX.length) : undefined;
+      if (hash === undefined || !referenced.has(hash)) removeFileIfPresent(join(blobsDirectory, name));
+    }
+  } catch (error) {
+    logger().warn(
+      { err: errorMessage(error) },
+      'Could not remove unreferenced workspace values; they are ignored',
+    );
+  }
 }
 
 /**
@@ -201,26 +270,56 @@ function retireLegacySessionFile(config: Config): void {
   );
 }
 
+/** Sets aside per-workspace `<id>.json` files from the earlier layout; they are ignored. */
+function retireLegacyWorkspaceFiles(directory: string, names: readonly string[]): void {
+  if (names.length === 0) return;
+  try {
+    for (const name of names) {
+      const path = join(directory, name);
+      renameSync(path, `${path}${LEGACY_BACKUP_SUFFIX}`);
+    }
+    syncDirectory(directory);
+  } catch (error) {
+    throw asSessionPersistenceError(error, { operation: 'retire legacy workspace files' });
+  }
+  logger().info(
+    { files: names.length },
+    'Legacy per-workspace files renamed to .bak and ignored; starting without them',
+  );
+}
+
 function readWorkspaceIndex(config: Config): WorkspaceIndexEntry[] {
   const directory = workspacesDirectory(config);
-  let names: string[];
+  let children: Dirent<string>[];
   try {
-    names = readdirSync(directory);
+    children = readdirSync(directory, { withFileTypes: true });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw asSessionPersistenceError(error, { operation: 'list persisted workspaces' });
   }
+  retireLegacyWorkspaceFiles(
+    directory,
+    children.filter((child) => child.isFile() && child.name.endsWith(LEGACY_WORKSPACE_SUFFIX))
+      .map((child) => child.name),
+  );
   const index = readIndexFile(config);
   const entries: WorkspaceIndexEntry[] = [];
-  for (const name of names) {
-    if (!name.endsWith(WORKSPACE_FILE_SUFFIX)) continue;
-    const id = workspaceIdOfFile(name);
+  for (const child of children) {
+    if (!child.isDirectory()) continue;
+    const id = workspaceIdOfDirectory(child.name);
     if (id === undefined) continue;
-    const path = join(directory, name);
+    const path = docFile(join(directory, child.name));
+    let modifiedAt: number;
+    try {
+      modifiedAt = statSync(path).mtimeMs;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw asSessionPersistenceError(error, { operation: 'list persisted workspaces' });
+    }
     const indexed = index?.byId.get(id);
-    // A file newer than the index means a crash between the file and index writes.
+    // A document newer than the index means a crash between the document and index writes.
     entries.push(
-      indexed && statSync(path).mtimeMs <= index!.savedAt ? indexed : scanWorkspaceFile(path, id),
+      indexed && modifiedAt <= index!.modifiedAt ? indexed : scanWorkspaceFile(path, id),
     );
   }
   return entries;
@@ -228,17 +327,15 @@ function readWorkspaceIndex(config: Config): WorkspaceIndexEntry[] {
 
 function readIndexFile(
   config: Config,
-): { savedAt: number; byId: Map<string, WorkspaceIndexEntry> } | undefined {
+): { modifiedAt: number; byId: Map<string, WorkspaceIndexEntry> } | undefined {
   try {
-    const parsed = JSON.parse(readFileSync(indexFile(config), 'utf8')) as {
+    const path = indexFile(config);
+    const modifiedAt = statSync(path).mtimeMs;
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as {
       version?: unknown;
-      savedAt?: unknown;
       workspaces?: unknown;
     };
-    if (
-      parsed.version !== INDEX_VERSION || typeof parsed.savedAt !== 'number' ||
-      !Array.isArray(parsed.workspaces)
-    ) return undefined;
+    if (parsed.version !== INDEX_VERSION || !Array.isArray(parsed.workspaces)) return undefined;
     const byId = new Map<string, WorkspaceIndexEntry>();
     for (const value of parsed.workspaces as Array<Partial<WorkspaceIndexEntry>>) {
       if (
@@ -252,17 +349,17 @@ function readIndexFile(
         configurationIds: value.configurationIds,
       });
     }
-    return { savedAt: parsed.savedAt, byId };
+    return { modifiedAt, byId };
   } catch {
     return undefined;
   }
 }
 
-/** Rebuilds one index entry from a workspace file the index does not cover. */
+/** Rebuilds one index entry from a workspace document the index does not cover. */
 function scanWorkspaceFile(path: string, id: string): WorkspaceIndexEntry {
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { workspaces?: unknown[] };
-    const workspace = parsed.workspaces?.[0] as
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { workspace?: unknown };
+    const workspace = parsed.workspace as
       { lastAccessAt?: unknown; configurations?: Array<{ id?: unknown }> } | undefined;
     return {
       id,
@@ -276,7 +373,7 @@ function scanWorkspaceFile(path: string, id: string): WorkspaceIndexEntry {
   }
 }
 
-/** Removes the least recently used workspace files over capacity, keeping their bytes archived. */
+/** Removes the least recently used workspaces over capacity, keeping their content archived. */
 function evictBeyondCapacity(
   store: SessionStore,
   config: Config,
@@ -290,13 +387,12 @@ function evictBeyondCapacity(
   const evicted = ordered.slice(0, excess);
   try {
     for (const entry of evicted) {
-      const path = workspaceFile(config, entry.id);
       preserveRecoveryArchive(
         config,
-        readFileSync(path),
+        recoverySourceBytes(config, entry.id, readFileSync(docFile(workspaceDirectory(config, entry.id)))),
         `Workspace ${entry.id} retained after eviction to enforce session capacity.`,
       );
-      unlinkSync(path);
+      removeWorkspaceDirectory(config, entry.id);
     }
     syncDirectory(workspacesDirectory(config));
   } catch (error) {
@@ -317,9 +413,9 @@ type WorkspaceFileProblem = {
   version?: unknown;
 };
 
-/** Restores one persisted workspace on first access; unusable files are archived and removed. */
+/** Restores one persisted workspace on first access; unusable ones are archived and removed. */
 function hydrateWorkspace(store: SessionStore, config: Config, id: string): void {
-  const path = workspaceFile(config, id);
+  const path = docFile(workspaceDirectory(config, id));
   let sourceBytes: Buffer;
   try {
     sourceBytes = readFileSync(path);
@@ -333,7 +429,7 @@ function hydrateWorkspace(store: SessionStore, config: Config, id: string): void
     throw asSessionPersistenceError(error, { operation: 'read persisted workspace' });
   }
 
-  const parsed = parseWorkspaceFile(sourceBytes, id);
+  const parsed = parseWorkspaceDoc(config, sourceBytes, id);
   if ('warning' in parsed) {
     const archive = preserveRecoveryArchive(config, sourceBytes, parsed.warning);
     store.recordRestoreDiagnostics({
@@ -345,7 +441,7 @@ function hydrateWorkspace(store: SessionStore, config: Config, id: string): void
       }],
       recoveryArchives: mergeRecoveryArchives(config, archive),
     });
-    discardWorkspaceFile(config, path);
+    discardWorkspace(config, id);
     logger().warn(
       { path, archiveId: archive.id },
       'Could not load a persisted workspace; an exact recovery archive was retained',
@@ -360,28 +456,25 @@ function hydrateWorkspace(store: SessionStore, config: Config, id: string): void
       : [];
     const sourceArchive = preserveRecoveryArchive(
       config,
-      sourceBytes,
+      recoverySourceBytes(config, id, sourceBytes),
       `Original workspace file retained${reasons.length > 0 ? `: ${reasons.join('; ')}` : ''}.`,
     );
     store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
   } else if (report.canonicalRewriteReasons.length > 0) {
     const sourceArchive = preserveRecoveryArchive(
       config,
-      sourceBytes,
+      recoverySourceBytes(config, id, sourceBytes),
       `Original workspace file retained before safe canonical rewrite: ${report.canonicalRewriteReasons.join(' ')}`,
     );
     store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
   }
 
   if (report.restored === 0) {
-    discardWorkspaceFile(config, path);
+    discardWorkspace(config, id);
   } else if (!report.normalizationRequired && report.canonicalRewriteReasons.length > 0) {
     const workspace = store.peekWorkspace(id);
     try {
-      if (workspace) {
-        writeFileAtomic(path, serializeWorkspaces([workspace]));
-        syncDirectory(workspacesDirectory(config));
-      }
+      if (workspace) writeWorkspace(config, workspace);
     } catch (error) {
       throw asSessionPersistenceError(error, { operation: 'v2 clone ownership canonical migration' });
     }
@@ -389,14 +482,77 @@ function hydrateWorkspace(store: SessionStore, config: Config, id: string): void
   logRestoreWarnings(report, path);
 }
 
-function parseWorkspaceFile(
+class BlobReadError extends Error {}
+
+function blobRefHash(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== BLOB_REF_KEY) return undefined;
+  const hash = (value as Record<string, unknown>)[BLOB_REF_KEY];
+  return typeof hash === 'string' && BLOB_HASH_PATTERN.test(hash) ? hash : undefined;
+}
+
+function readBlob(blobsDirectory: string, hash: string): unknown {
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(blobFile(blobsDirectory, hash));
+  } catch {
+    throw new BlobReadError(`value ${hash} is missing`);
+  }
+  if (sha256Hex(bytes) !== hash) throw new BlobReadError(`value ${hash} failed its integrity check`);
+  try {
+    return JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    throw new BlobReadError(`value ${hash} is not valid JSON`);
+  }
+}
+
+/** Parses a document and replaces each reference by its value; equal references share one object. */
+function readDocument(
+  config: Config,
+  id: string,
+  bytes: Buffer,
+  loaded = new Map<string, unknown>(),
+): unknown {
+  const blobsDirectory = join(workspaceDirectory(config, id), BLOBS_DIRECTORY);
+  return JSON.parse(bytes.toString('utf8'), (_key, value: unknown) => {
+    const hash = blobRefHash(value);
+    if (hash === undefined) return value;
+    if (!loaded.has(hash)) loaded.set(hash, readBlob(blobsDirectory, hash));
+    return loaded.get(hash);
+  }) as unknown;
+}
+
+/** The document with every value inline, so an archive stays complete after its values are collected. */
+function recoverySourceBytes(config: Config, id: string, documentBytes: Buffer): Buffer {
+  try {
+    const loaded = new Map<string, unknown>();
+    const parsed = readDocument(config, id, documentBytes, loaded) as { workspace?: unknown };
+    if (loaded.size === 0) return documentBytes;
+    return Buffer.from(
+      JSON.stringify({ version: SNAPSHOT_VERSION, workspaces: [parsed.workspace] }),
+      'utf8',
+    );
+  } catch {
+    return documentBytes;
+  }
+}
+
+function parseWorkspaceDoc(
+  config: Config,
   bytes: Buffer,
   id: string,
 ): { workspaces: unknown[] } | WorkspaceFileProblem {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(bytes.toString('utf8')) as unknown;
-  } catch {
+    parsed = readDocument(config, id, bytes);
+  } catch (error) {
+    if (error instanceof BlobReadError) {
+      return {
+        kind: 'unreadable-session-value',
+        warning: `Persisted workspace ${id} references a value that cannot be read (${error.message}); it was not restored.`,
+      };
+    }
     return {
       kind: 'unreadable-session-snapshot',
       warning: `Persisted workspace ${id} is unreadable; it was not restored.`,
@@ -408,33 +564,36 @@ function parseWorkspaceFile(
       warning: `Persisted workspace ${id} root is not an object; it was not restored.`,
     };
   }
-  const payload = parsed as { version?: unknown; workspaces?: unknown };
-  if (payload.version !== SNAPSHOT_VERSION) {
+  const payload = parsed as { version?: unknown; workspace?: unknown };
+  if (payload.version !== WORKSPACE_DOC_VERSION) {
     return {
       kind: 'unsupported-session-snapshot',
       version: payload.version,
       warning: `Unsupported session snapshot version ${String(payload.version)} for workspace ${id}; it was not restored.`,
     };
   }
-  const workspace = Array.isArray(payload.workspaces) && payload.workspaces.length === 1
-    ? payload.workspaces[0] as { id?: unknown } | null
-    : undefined;
-  if (typeof workspace?.id !== 'string' || workspace.id.trim() !== id) {
+  const workspace = payload.workspace as { id?: unknown } | null | undefined;
+  if (typeof workspace !== 'object' || workspace === null || Array.isArray(workspace) ||
+    typeof workspace.id !== 'string' || workspace.id.trim() !== id) {
     return {
       kind: 'invalid-session-envelope',
       warning: `Persisted workspace file for ${id} does not hold exactly that workspace; it was not restored.`,
     };
   }
-  return { workspaces: payload.workspaces as unknown[] };
+  return { workspaces: [workspace] };
 }
 
-function discardWorkspaceFile(config: Config, path: string): void {
+function discardWorkspace(config: Config, id: string): void {
   try {
-    removeFileIfPresent(path);
+    removeWorkspaceDirectory(config, id);
     syncDirectory(workspacesDirectory(config));
   } catch (error) {
     throw asSessionPersistenceError(error, { operation: 'discard unusable persisted workspace' });
   }
+}
+
+function removeWorkspaceDirectory(config: Config, id: string): void {
+  rmSync(workspaceDirectory(config, id), { recursive: true, force: true });
 }
 
 export function workspacesDirectory(config: Config): string {
@@ -449,13 +608,31 @@ function indexFile(config: Config): string {
   return join(stateDirectory(config), 'workspace-index.json');
 }
 
-export function workspaceFile(config: Config, id: string): string {
-  return join(workspacesDirectory(config), `${encodeURIComponent(id)}${WORKSPACE_FILE_SUFFIX}`);
+export function workspaceDirectory(config: Config, id: string): string {
+  const name = encodeURIComponent(id).replace(/^\.+$/, (dots) => dots.replaceAll('.', '%2E'));
+  return join(workspacesDirectory(config), name);
 }
 
-function workspaceIdOfFile(name: string): string | undefined {
+/** The document of one workspace; its large values live next to it under blobs/. */
+export function workspaceFile(config: Config, id: string): string {
+  return docFile(workspaceDirectory(config, id));
+}
+
+export function workspaceBlobsDirectory(config: Config, id: string): string {
+  return join(workspaceDirectory(config, id), BLOBS_DIRECTORY);
+}
+
+function docFile(directory: string): string {
+  return join(directory, DOC_FILE);
+}
+
+function blobFile(blobsDirectory: string, hash: string): string {
+  return join(blobsDirectory, `${hash}${BLOB_SUFFIX}`);
+}
+
+function workspaceIdOfDirectory(name: string): string | undefined {
   try {
-    return decodeURIComponent(name.slice(0, -WORKSPACE_FILE_SUFFIX.length));
+    return decodeURIComponent(name);
   } catch {
     return undefined;
   }
@@ -469,14 +646,18 @@ function removeFileIfPresent(path: string): void {
   }
 }
 
-/** Writes a fully synced temporary file and renames it over the target. */
-function writeFileAtomic(path: string, data: string | Buffer): void {
+/** Writes a temporary file and renames it over the target; durable also syncs the file first. */
+function writeFileAtomic(
+  path: string,
+  data: string | Buffer,
+  { durable = true }: { durable?: boolean } = {},
+): void {
   const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
   let fd: number | undefined;
   try {
     fd = openSync(tmp, 'wx', 0o600);
     writeFileSync(fd, data);
-    fsyncSync(fd);
+    if (durable) fsyncSync(fd);
     closeSync(fd);
     fd = undefined;
     renameSync(tmp, path);
@@ -513,7 +694,7 @@ function preserveRecoveryArchive(
   bytes: Buffer,
   reasonValue: string,
 ): RestoreRecoveryArchive {
-  const hash = sha256(bytes);
+  const hash = sha256Hex(bytes);
   const id = `recovery_${hash}`;
   const path = recoveryArchivePath(config, hash);
   const reason = reasonValue.trim().slice(0, RECOVERY_REASON_LIMIT) ||
@@ -531,7 +712,7 @@ function preserveRecoveryArchive(
     } catch (error) {
       throw asSessionPersistenceError(error, { operation: 'preserve session recovery archive' });
     }
-    if (sha256(existing) !== hash) {
+    if (sha256Hex(existing) !== hash) {
       throw asSessionPersistenceError(
         new Error('Existing session recovery archive failed its integrity check.'),
         { operation: 'preserve session recovery archive' },
@@ -623,10 +804,6 @@ function safeCreatedAt(birthtimeMs: number, mtimeMs: number): number {
   return 0;
 }
 
-function sha256(value: Buffer): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
 function normalizeValidationJobs(workspaces: unknown[]): unknown[] {
   const now = Date.now();
   return workspaces.map((workspace) => {
@@ -651,25 +828,31 @@ function normalizeValidationJobs(workspaces: unknown[]): unknown[] {
   });
 }
 
-function serializeWorkspace(workspace: WorkspaceSession): Record<string, unknown> {
+type ValueEncoder = (value: unknown) => unknown;
+
+const keepInline: ValueEncoder = (value) => value;
+
+function serializeWorkspace(workspace: WorkspaceSession, encode: ValueEncoder): Record<string, unknown> {
   return {
     id: workspace.id,
     label: workspace.label,
     locale: workspace.locale,
     solution: workspace.solution,
     validationMode: workspace.validationMode,
-    configurations: [...workspace.configurations.values()].map(serializeConfiguration),
-    rackArea: workspace.rackArea,
-    nonRackArea: workspace.nonRackArea,
-    serverState: workspace.serverState,
-    rackSummaries: workspace.rackSummaries,
-    cables: workspace.cables,
-    floorItems: workspace.floorItems,
-    powerSelections: workspace.powerSelections,
+    configurations: [...workspace.configurations.values()].map(
+      (session) => serializeConfiguration(session, encode),
+    ),
+    rackArea: encode(workspace.rackArea),
+    nonRackArea: encode(workspace.nonRackArea),
+    serverState: encode(workspace.serverState),
+    rackSummaries: encode(workspace.rackSummaries),
+    cables: encode(workspace.cables),
+    floorItems: encode(workspace.floorItems),
+    powerSelections: encode(workspace.powerSelections),
     integrity: workspace.integrity,
     integrityWarnings: workspace.integrityWarnings,
-    recoveryData: workspace.recoveryData,
-    history: workspace.history,
+    recoveryData: encode(workspace.recoveryData),
+    history: serializeHistory(workspace.history, encode),
     revision: workspace.revision,
     createdAt: workspace.createdAt,
     lastAccessAt: workspace.lastAccessAt,
@@ -677,7 +860,7 @@ function serializeWorkspace(workspace: WorkspaceSession): Record<string, unknown
   };
 }
 
-function serializeConfiguration(session: ConfigSession): Record<string, unknown> {
+function serializeConfiguration(session: ConfigSession, encode: ValueEncoder): Record<string, unknown> {
   return {
     id: session.id,
     label: session.label,
@@ -685,7 +868,7 @@ function serializeConfiguration(session: ConfigSession): Record<string, unknown>
     mode: session.mode,
     validationMode: session.validationMode,
     autoCorrect: session.autoCorrect,
-    raw: session.raw,
+    raw: encode(session.raw),
     configurationId: session.configurationId,
     primed: session.primed,
     configurable: session.configurable,
@@ -693,12 +876,38 @@ function serializeConfiguration(session: ConfigSession): Record<string, unknown>
     intents: session.intents,
     snapshots: session.snapshots.slice(-MAX_SNAPSHOTS_PERSISTED).map((snapshot) => ({
       revision: snapshot.revision,
-      raw: snapshot.raw,
+      raw: encode(snapshot.raw),
     })),
     createdAt: session.createdAt,
     lastAccessAt: session.lastAccessAt,
     pricedAt: session.pricedAt,
   };
+}
+
+function serializeHistory(
+  history: WorkspaceHistory | undefined,
+  encode: ValueEncoder,
+): WorkspaceHistory | undefined {
+  if (!history) return history;
+  const entries = (list: WorkspaceHistoryEntry[]): WorkspaceHistoryEntry[] =>
+    list.map((entry) => ({ revision: entry.revision, state: serializeHistoryState(entry.state, encode) }));
+  return { undo: entries(history.undo), redo: entries(history.redo) };
+}
+
+function serializeHistoryState(
+  state: Record<string, unknown>,
+  encode: ValueEncoder,
+): Record<string, unknown> {
+  const encoded: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(state)) {
+    encoded[key] = key === 'configurations' && Array.isArray(value)
+      ? value.map((configuration: Record<string, unknown>) => ({
+          ...configuration,
+          raw: encode(configuration['raw']),
+        }))
+      : encode(value);
+  }
+  return encoded;
 }
 
 function logRestoreWarnings(report: RestoreReport, path: string): void {

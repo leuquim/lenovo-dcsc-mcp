@@ -3,12 +3,13 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigSchema, type Config } from '../src/config/schema.js';
@@ -21,8 +22,8 @@ import {
   loadSessions,
   readSessionRecoveryArchive,
   serializeWorkspaces,
+  WORKSPACE_DOC_VERSION,
   workspaceFile,
-  workspacesDirectory,
 } from '../src/session/persist.js';
 import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { CLONE_OWNERSHIP_RECOVERY_STATE_KEY, SessionStore } from '../src/session/SessionStore.js';
@@ -33,7 +34,9 @@ const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) {
     try {
-      chmodSync(join(root, 'state', 'workspaces'), 0o700);
+      const workspaces = join(root, 'state', 'workspaces');
+      chmodSync(workspaces, 0o700);
+      for (const name of readdirSync(workspaces)) chmodSync(join(workspaces, name), 0o700);
     } catch {
       // The test may fail before creating its state directory.
     }
@@ -151,13 +154,21 @@ function fixtureBytes(options: { divergeCurrent?: boolean; divergentHistory?: bo
     undo: [{ revision: 16, state }],
     redo: [{ revision: 18, state: persistedState(workspace) }],
   };
-  return Buffer.from(JSON.stringify(envelope), 'utf8');
+  return asDocument(JSON.stringify(envelope));
+}
+
+function asDocument(envelopeJson: string): Buffer {
+  const envelope = JSON.parse(envelopeJson) as { workspaces: unknown[] };
+  return Buffer.from(
+    JSON.stringify({ version: WORKSPACE_DOC_VERSION, workspace: envelope.workspaces[0] }),
+    'utf8',
+  );
 }
 
 function installWorkspaceFile(config: Config, bytes: Buffer): string {
-  const envelope = JSON.parse(bytes.toString('utf8')) as { workspaces: Array<{ id: string }> };
-  mkdirSync(workspacesDirectory(config), { recursive: true });
-  const file = workspaceFile(config, envelope.workspaces[0]!.id);
+  const document = JSON.parse(bytes.toString('utf8')) as { workspace: { id: string } };
+  const file = workspaceFile(config, document.workspace.id);
+  mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, bytes);
   return file;
 }
@@ -276,7 +287,7 @@ describe('persisted clone ownership canonical migration', () => {
       status: 'changes-proposed',
       diffs: [], warnings: [], target: {},
     }];
-    installWorkspaceFile(config, Buffer.from(serializeWorkspaces(source.listWorkspaces()), 'utf8'));
+    installWorkspaceFile(config, asDocument(serializeWorkspaces(source.listWorkspaces())));
 
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
@@ -311,7 +322,7 @@ describe('persisted clone ownership canonical migration', () => {
     expect(readSessionRecoveryArchive(config, id)).toEqual(original);
 
     writeFileSync(file, original);
-    chmodSync(workspacesDirectory(config), 0o500);
+    chmodSync(dirname(file), 0o500);
     const blocked = new SessionStore();
     expect(loadSessions(blocked, config)).toBe(1);
     expect(() => blocked.listWorkspaces()).toThrow(SessionPersistenceError);
