@@ -319,3 +319,12 @@ it('retains an explicit cable as a spare when native auto-connect removes its la
   expect(changed).toEqual(before);
   expect(() => stageNativeManualCableQuantity(changed, plan, changed)).toThrow(/unambiguous pre-connect physical record/);
 });
+it('emits the connection keys the website posts for a saved cabling row (p3 Edit Save capture)', () => {
+  const { input, request } = setup();
+  expect(Object.keys(stageNativeManualConnection(input, request)).sort()).toEqual([
+    'cableDistance', 'cableFeature', 'cableOption', 'cablePart', 'cablePrice', 'cableType', 'category', 'destinationId',
+    'destinationItem', 'destinationLocation', 'destinationPart', 'destinationPortName', 'destinationPortNumber', 'divider',
+    'network', 'preferredCable', 'sourceId', 'sourceItem', 'sourceLocation', 'sourcePart', 'sourcePortName', 'sourcePortNumber',
+    'subType', 'topology', 'totalDistance', 'type',
+  ]);
+});

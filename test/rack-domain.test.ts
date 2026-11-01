@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
+  addRackHardware,
   fetchRackCabinets,
   buildEnvelopeRequest,
   buildRackConfigurations,
@@ -190,4 +191,19 @@ it('queries product-compatible rack cabinets while preserving generic discovery'
   await fetchRackCabinets(http, ctx);
   expect(calls[1]?.path).toBe('/ctos/racks/categories');
   expect(calls[1]?.query).toBeUndefined();
+});
+
+it('posts the captured Add Hardware request and returns the id-less new rack item', async () => {
+  const capture = JSON.parse(readFileSync('test/fixtures/parity/rack-add-hardware-capture.json', 'utf8'));
+  const calls: SendInput[] = [];
+  const http = fakeHttp([capture.response], calls);
+  const rack = { id: capture.request.rackId, rackItems: capture.request.rackItems };
+  const added = await addRackHardware(http, ctx, { rack, product: capture.request.newHardware[0],
+    workspace: { rackArea: [rack], nonRackArea: [], configurations: [], cloneDependency: {} } });
+  expect(calls[0]).toMatchObject({ method: 'POST', path: '/ctos/racks/hardware' });
+  expect(Object.fromEntries(Object.entries(calls[0]!.query as Record<string, unknown>).map(([key, value]) => [key, String(value)])))
+    .toEqual(capture.query);
+  expect(Object.keys((calls[0]!.body as { value: object }).value).sort()).toEqual(['newHardware', 'rack', 'workspace']);
+  expect((calls[0]!.body as { value: { newHardware: unknown[] } }).value.newHardware).toEqual(capture.request.newHardware);
+  expect(added.item).toMatchObject({ id: null, code: '7D73CTO1WW', position: 2 });
 });

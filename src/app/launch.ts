@@ -138,7 +138,12 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     ctx: { ...ctx, solution },
   });
   // The website loads the SW scope first, then the HW scope, which carries the configurable tree.
-  const res = await (mode === 'lfo' ? send('SW').then(() => send('HW')) : send()).catch((err: unknown) => {
+  const res = await (mode === 'lfo'
+    ? send('SW').then(async software => {
+      const hardware = await send('HW');
+      return { ...hardware, raw: mergeLfoSoftwareTab(hardware.raw as RawConfiguration, software.raw as RawConfiguration) };
+    })
+    : send()).catch((err: unknown) => {
     // Verified 2026-08-08: /lfos/{code}/add_options_launch is 404 across
     // models ("No static resource"). The route is gone from this release;
     // lfo-as-cto is the mode that actually yields a configurable tree.

@@ -1,0 +1,1067 @@
+{
+ "sw": {
+  "showPrice": true,
+  "addedItems": [],
+  "warnings": [],
+  "tabs": [
+   {
+    "title": "OS & Software",
+    "description": "OS & Software",
+    "subTabs": [
+     {
+      "title": "Microsoft",
+      "description": null,
+      "sections": [
+       {
+        "name": "T1KB",
+        "title": "T1KB",
+        "description": "Windows Server 2025 ROK",
+        "productNumber": null,
+        "hasTopFeature": false,
+        "groups": [
+         {
+          "code": "T1KC",
+          "description": "Windows Server 2025 ROK",
+          "multiselect": true,
+          "features": [
+           "7S1S0009WW",
+           "7S1S000JWW",
+           "7S1S000NWW",
+           "7S1S000XWW",
+           "7S1S0011WW",
+           "7S1S0015WW",
+           "7S1S0019WW",
+           "7S1S001DWW",
+           "7S1S001HWW",
+           "7S1S001MWW"
+          ],
+          "attributeValueSoftware": {
+           "Language": [
+            "Multilanguage"
+           ],
+           "License": [
+            "10 core",
+            "16 core",
+            "2025 to 2019 Downgrade",
+            "2025 to 2022 Downgrade"
+           ],
+           "Type": [
+            "Datacenter",
+            "Essentials",
+            "Standard"
+           ]
+          },
+          "sequence": 838,
+          "recommendedFeature": true
+         }
+        ],
+        "results": [],
+        "features": [
+         {
+          "code": "7S1S0009WW",
+          "quantityOptions": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7,
+           8,
+           9,
+           10,
+           11,
+           12,
+           13,
+           14,
+           15,
+           16,
+           17,
+           18,
+           19,
+           20,
+           21,
+           22,
+           23,
+           24,
+           25,
+           26,
+           27,
+           28,
+           29,
+           30,
+           31,
+           32,
+           33,
+           34,
+           35,
+           36,
+           37,
+           38,
+           39,
+           40,
+           41,
+           42,
+           43,
+           44,
+           45,
+           46,
+           47,
+           48,
+           49,
+           50,
+           51,
+           52,
+           53,
+           54,
+           55,
+           56,
+           57,
+           58,
+           59,
+           60,
+           61,
+           62,
+           63,
+           64,
+           65,
+           66,
+           67,
+           68,
+           69,
+           70,
+           71,
+           72,
+           73,
+           74,
+           75,
+           76,
+           77,
+           78,
+           79,
+           80,
+           81,
+           82,
+           83,
+           84,
+           85,
+           86,
+           87,
+           88,
+           89,
+           90,
+           91,
+           92,
+           93,
+           94,
+           95,
+           96,
+           97,
+           98,
+           99,
+           100,
+           101,
+           102,
+           103,
+           104,
+           105,
+           106,
+           107,
+           108,
+           109,
+           110,
+           111,
+           112,
+           113,
+           114,
+           115,
+           116,
+           117,
+           118,
+           119,
+           120,
+           121,
+           122,
+           123,
+           124,
+           125,
+           126,
+           127,
+           128,
+           129,
+           130,
+           131,
+           132,
+           133,
+           134,
+           135,
+           136,
+           137,
+           138,
+           139,
+           140,
+           141,
+           142,
+           143,
+           144,
+           145,
+           146,
+           147,
+           148,
+           149,
+           150,
+           151,
+           152,
+           153,
+           154,
+           155,
+           156,
+           157,
+           158,
+           159,
+           160,
+           161,
+           162,
+           163,
+           164,
+           165,
+           166,
+           167,
+           168,
+           169,
+           170,
+           171,
+           172,
+           173,
+           174,
+           175,
+           176,
+           177,
+           178,
+           179,
+           180,
+           181,
+           182,
+           183,
+           184,
+           185,
+           186,
+           187,
+           188,
+           189,
+           190,
+           191,
+           192,
+           193,
+           194,
+           195,
+           196,
+           197,
+           198,
+           199,
+           200,
+           201,
+           202,
+           203,
+           204,
+           205,
+           206,
+           207,
+           208,
+           209,
+           210,
+           211,
+           212,
+           213,
+           214,
+           215,
+           216,
+           217,
+           218,
+           219,
+           220,
+           221,
+           222,
+           223,
+           224,
+           225,
+           226,
+           227,
+           228,
+           229,
+           230,
+           231,
+           232,
+           233,
+           234,
+           235,
+           236,
+           237,
+           238,
+           239,
+           240,
+           241,
+           242,
+           243,
+           244,
+           245,
+           246,
+           247,
+           248,
+           249,
+           250
+          ],
+          "description": "Windows Server 2025 Standard ROK (16 core) - MultiLang",
+          "announceDate": "2024-11-05",
+          "withdrawnDate": "2999-12-31",
+          "unitPrice": 1894.5,
+          "productNumber": "7S1SCTO3WW",
+          "type": "software",
+          "displayCode": "7S1S0009WW",
+          "recommendedFeature": true,
+          "prices": [
+           {
+            "priceTypeId": 1,
+            "price": 1894.5,
+            "priceNotAvailable": false
+           }
+          ],
+          "optionAttributes": {
+           "Type": "Standard",
+           "License": "16 core",
+           "Language": "Multilanguage"
+          },
+          "marketValue": [
+           {
+            "marketId": "TC",
+            "marketTag": "Top Choice",
+            "marketColor": "#7A196B",
+            "marketFlag": "Good",
+            "marketAudience": 0,
+            "hover": null,
+            "priority": 1,
+            "validRecommendTagColorWhenSupplyStatusIsGray": true,
+            "goodOrEoFlag": true,
+            "topChoice": true,
+            "eoFlag": false,
+            "lenovoRecommended": false
+           }
+          ],
+          "tCost": 0.0,
+          "eccnRestricted": false,
+          "isOption": false
+         }
+        ],
+        "selectedItems": [],
+        "errors": [],
+        "multiCto": false,
+        "recommended": true,
+        "swType": false,
+        "isMultiCto": false,
+        "isSwType": false
+       }
+      ],
+      "visible": true,
+      "sequence": 4
+     },
+     {
+      "title": "Other SW",
+      "description": null,
+      "sections": [
+       {
+        "name": "T1HL",
+        "title": "T1HL",
+        "description": "VMware Add-on",
+        "productNumber": null,
+        "hasTopFeature": false,
+        "groups": [
+         {
+          "code": "T1HM",
+          "description": "VMware Add-on",
+          "multiselect": true,
+          "features": [
+           "7S1P000UWW"
+          ],
+          "attributeValueSoftware": {
+           "Add-on type": [
+            "VMware Special bid"
+           ],
+           "Duration": [
+            ""
+           ]
+          },
+          "sequence": 869,
+          "recommendedFeature": false
+         }
+        ],
+        "results": [],
+        "features": [
+         {
+          "code": "7S1P000UWW",
+          "quantityOptions": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7,
+           8,
+           9,
+           10,
+           11,
+           12,
+           13,
+           14,
+           15,
+           16,
+           17,
+           18,
+           19,
+           20,
+           21,
+           22,
+           23,
+           24,
+           25,
+           26,
+           27,
+           28,
+           29,
+           30,
+           31,
+           32,
+           33,
+           34,
+           35,
+           36,
+           37,
+           38,
+           39,
+           40,
+           41,
+           42,
+           43,
+           44,
+           45,
+           46,
+           47,
+           48,
+           49,
+           50,
+           51,
+           52,
+           53,
+           54,
+           55,
+           56,
+           57,
+           58,
+           59,
+           60,
+           61,
+           62,
+           63,
+           64,
+           65,
+           66,
+           67,
+           68,
+           69,
+           70,
+           71,
+           72,
+           73,
+           74,
+           75,
+           76,
+           77,
+           78,
+           79,
+           80,
+           81,
+           82,
+           83,
+           84,
+           85,
+           86,
+           87,
+           88,
+           89,
+           90,
+           91,
+           92,
+           93,
+           94,
+           95,
+           96,
+           97,
+           98,
+           99,
+           100,
+           101,
+           102,
+           103,
+           104,
+           105,
+           106,
+           107,
+           108,
+           109,
+           110,
+           111,
+           112,
+           113,
+           114,
+           115,
+           116,
+           117,
+           118,
+           119,
+           120,
+           121,
+           122,
+           123,
+           124,
+           125,
+           126,
+           127,
+           128,
+           129,
+           130,
+           131,
+           132,
+           133,
+           134,
+           135,
+           136,
+           137,
+           138,
+           139,
+           140,
+           141,
+           142,
+           143,
+           144,
+           145,
+           146,
+           147,
+           148,
+           149,
+           150,
+           151,
+           152,
+           153,
+           154,
+           155,
+           156,
+           157,
+           158,
+           159,
+           160,
+           161,
+           162,
+           163,
+           164,
+           165,
+           166,
+           167,
+           168,
+           169,
+           170,
+           171,
+           172,
+           173,
+           174,
+           175,
+           176,
+           177,
+           178,
+           179,
+           180,
+           181,
+           182,
+           183,
+           184,
+           185,
+           186,
+           187,
+           188,
+           189,
+           190,
+           191,
+           192,
+           193,
+           194,
+           195,
+           196,
+           197,
+           198,
+           199,
+           200,
+           201,
+           202,
+           203,
+           204,
+           205,
+           206,
+           207,
+           208,
+           209,
+           210,
+           211,
+           212,
+           213,
+           214,
+           215,
+           216,
+           217,
+           218,
+           219,
+           220,
+           221,
+           222,
+           223,
+           224,
+           225,
+           226,
+           227,
+           228,
+           229,
+           230,
+           231,
+           232,
+           233,
+           234,
+           235,
+           236,
+           237,
+           238,
+           239,
+           240,
+           241,
+           242,
+           243,
+           244,
+           245,
+           246,
+           247,
+           248,
+           249,
+           250
+          ],
+          "description": "VMware special bid",
+          "announceDate": "2024-06-11",
+          "withdrawnDate": "2050-01-01",
+          "unitPrice": 0.005,
+          "productNumber": "7S1PCTOCWW",
+          "type": "software",
+          "displayCode": "7S1P000UWW",
+          "prices": [
+           {
+            "priceTypeId": 1,
+            "price": 0.005,
+            "priceNotAvailable": false
+           }
+          ],
+          "optionAttributes": {
+           "Duration": "",
+           "Add-on type": "VMware Special bid"
+          },
+          "tCost": 0.0,
+          "eccnRestricted": false,
+          "isOption": false
+         }
+        ],
+        "selectedItems": [],
+        "errors": [],
+        "multiCto": false,
+        "recommended": false,
+        "swType": false,
+        "isMultiCto": false,
+        "isSwType": false
+       }
+      ],
+      "visible": true,
+      "sequence": 30
+     }
+    ],
+    "type": "software",
+    "guideUrl": null
+   }
+  ]
+ },
+ "hw": {
+  "code": "7DCEA04VNA",
+  "ctoCode": "7DCECTO1WW",
+  "description": "ThinkSystem ST250 V3-3yr Base Warranty",
+  "quantity": 1,
+  "totalPrice": 5555.5,
+  "type": "server",
+  "needLaunchSwTab": true,
+  "swTabIsAfter": null,
+  "warnings": [],
+  "tabs": [
+   {
+    "title": "Base",
+    "description": "Base",
+    "type": "hardware",
+    "subTabs": [
+     {
+      "title": "Base",
+      "description": null,
+      "sections": [
+       {
+        "name": "BASE",
+        "title": "BASE",
+        "description": "Base",
+        "singleEntry": true,
+        "features": [
+         {
+          "code": "BZB9",
+          "min": 0,
+          "max": 1,
+          "quantityOptions": [
+           1
+          ],
+          "description": "ST250 V3 2.5\" Chassis Base(Standard)",
+          "announceDate": "2024-01-09",
+          "withdrawnDate": "2999-12-31",
+          "productNumber": "7DCECTO1WW",
+          "preSelectedQuantity": 1,
+          "base": true,
+          "type": "hardware",
+          "deltaTotalPrice": 824.5,
+          "prices": [
+           {
+            "priceTypeId": 1,
+            "price": 824.5,
+            "priceNotAvailable": false
+           }
+          ],
+          "optionAttributes": {},
+          "attributeMap": {
+           "#PRICE": "824.5",
+           "#PN": null
+          },
+          "fixed": true,
+          "eccnRestricted": false,
+          "isOption": false
+         }
+        ],
+        "results": [
+         {
+          "ctoCode": "7DCECTO1WW",
+          "derived": false,
+          "quantity": 1,
+          "description": "ST250 V3 2.5\" Chassis Base(Standard)",
+          "price": null,
+          "priceNotAvailable": false,
+          "shippingStatus": [],
+          "shippingMessageCode": null,
+          "installations": [],
+          "placementErrors": [],
+          "autoCorrected": false,
+          "hide": false,
+          "option": false,
+          "eccnRestricted": false,
+          "characterName": "BASE",
+          "storageWizardDerivedQuantity": 0,
+          "isOption": false,
+          "code": "BZB9"
+         }
+        ],
+        "required": true,
+        "selectable": true,
+        "totalPrices": [
+         {
+          "priceTypeId": 1,
+          "price": 824.5,
+          "priceNotAvailable": false
+         }
+        ],
+        "excludedFilter": false,
+        "recommended": false
+       }
+      ],
+      "warn": [
+       "\u201cTo comply with local regulations, systems shipped to EU, UK or T\u00fcrkiye will ship with UEFI operating mode set to \u201cEfficiency - Favoring Performance\u201d (BFYE) \u00a0or \u201cMaximum Efficiency\u201d (BFYA)\u201d"
+      ],
+      "type": null
+     }
+    ]
+   },
+   {
+    "title": "Processors",
+    "description": "Processors",
+    "type": "hardware",
+    "subTabs": [
+     {
+      "title": "Processors",
+      "description": null,
+      "sections": [
+       {
+        "name": "PROCESSOR",
+        "title": "PROCESSOR",
+        "description": "Processor",
+        "singleEntry": true,
+        "features": [
+         {
+          "code": "C521",
+          "min": 0,
+          "max": 1,
+          "quantityOptions": [
+           1
+          ],
+          "description": "Intel Xeon 6333P 6C 65W 3.1GHz Processor(Standard)",
+          "announceDate": "2025-04-22",
+          "withdrawnDate": "2999-12-31",
+          "productNumber": "7DCECTO1WW",
+          "preSelectedQuantity": 1,
+          "base": true,
+          "type": "hardware",
+          "deltaTotalPrice": 769.5,
+          "prices": [
+           {
+            "priceTypeId": 1,
+            "price": 769.5,
+            "priceNotAvailable": false
+           }
+          ],
+          "optionAttributes": {},
+          "attributeMap": {
+           "corecount": "6C",
+           "intelondemand": "",
+           "busspeed": "3.1",
+           "powerwatts": "65",
+           "manufname": "3rd Gen Intel Xeon SP",
+           "shelf": "Xeon",
+           "status": "Release Production",
+           "lfo": "",
+           "description": "",
+           "procl2cache": "",
+           "processorfamily": "Xeon",
+           "clockrate": "4800",
+           "procl3cache": "",
+           "#PRICE": "769.5",
+           "#PN": null
+          },
+          "attributeShowInPageMap": {
+           "corecount": {
+            "attributeName": "corecount",
+            "attributeValue": "6C",
+            "expertMode": "BOTH",
+            "unit": null,
+            "sequence": null
+           },
+           "busspeed": {
+            "attributeName": "busspeed",
+            "attributeValue": "3.1",
+            "expertMode": "BOTH",
+            "unit": "GHz",
+            "sequence": null
+           },
+           "powerwatts": {
+            "attributeName": "powerwatts",
+            "attributeValue": "65",
+            "expertMode": "BOTH",
+            "unit": "Watts",
+            "sequence": null
+           }
+          },
+          "fixed": true,
+          "eccnRestricted": false,
+          "isOption": false
+         }
+        ],
+        "results": [
+         {
+          "ctoCode": "7DCECTO1WW",
+          "derived": false,
+          "quantity": 1,
+          "description": "Intel Xeon 6333P 6C 65W 3.1GHz Processor(Standard)",
+          "price": null,
+          "priceNotAvailable": false,
+          "shippingStatus": [],
+          "shippingMessageCode": null,
+          "installations": [
+           {
+            "targetFeatureCode": "C521",
+            "targetSpaceConnector": "CPU_S",
+            "installSequence": "1",
+            "spaceConnectorDescription": "CPU Slot",
+            "virtualSequence": 0
+           }
+          ],
+          "placementErrors": [],
+          "autoCorrected": false,
+          "hide": false,
+          "option": false,
+          "eccnRestricted": false,
+          "characterName": "PROCESSOR",
+          "storageWizardDerivedQuantity": 0,
+          "isOption": false,
+          "code": "C521"
+         }
+        ],
+        "required": true,
+        "selectable": true,
+        "totalPrices": [
+         {
+          "priceTypeId": 1,
+          "price": 769.5,
+          "priceNotAvailable": false
+         }
+        ],
+        "attributeValue": {
+         "corecount": [
+          "6C"
+         ],
+         "manufname": [
+          "3rd Gen Intel Xeon SP"
+         ],
+         "shelf": [
+          "Xeon"
+         ]
+        },
+        "attributeValueSoftware": {
+         "corecount": [
+          "6C"
+         ],
+         "manufname": [
+          "3rd Gen Intel Xeon SP"
+         ],
+         "shelf": [
+          "Xeon"
+         ]
+        },
+        "hasTopFeature": true,
+        "excludedFilter": false,
+        "recommended": false
+       }
+      ],
+      "filters": [
+       {
+        "title": "Processor Speed",
+        "key": "busspeed",
+        "value": "3.0-4.9 GHz",
+        "dynamic": "1"
+       },
+       {
+        "title": "Power Usage",
+        "key": "powerwatts",
+        "value": "61-80 Watts",
+        "dynamic": "1"
+       }
+      ],
+      "type": null
+     }
+    ]
+   },
+   {
+    "title": "Services",
+    "description": "Services",
+    "type": "servicesAndor",
+    "subTabs": [
+     {
+      "title": "Lenovo Recommends|Good",
+      "description": "Good",
+      "sections": [
+       {
+        "name": "Lenovo Recommends|Good",
+        "title": "Lenovo Recommends|Good",
+        "description": "Good",
+        "features": [
+         {
+          "code": "5PS7C02338",
+          "description": "3Yr KYD Add-On ST250 V3",
+          "announceDate": "2024-10-28",
+          "withdrawnDate": "2999-12-31",
+          "unitPrice": 142.0,
+          "productNumber": "7DCECTO1WW",
+          "type": "Keep Your Drive",
+          "typeSequence": 10,
+          "deltaTotalPrice": 142.0,
+          "prices": [
+           {
+            "priceTypeId": 1,
+            "price": 142.0,
+            "priceNotAvailable": false
+           }
+          ],
+          "optionAttributes": {},
+          "attributeMap": {
+           "#PN": null,
+           "#PRICE": "142.0"
+          },
+          "greyOnPage": true,
+          "facets": [
+           {
+            "facetID": "WARRANTYPERIOD",
+            "facetName": "Term",
+            "facetValue": "3 Year",
+            "translatedFacetValue": "3 Year"
+           },
+           {
+            "facetID": "SERVICETYPE",
+            "facetName": "Additional Service Upgrade Options",
+            "facetValue": "KYD",
+            "translatedFacetValue": "KYD"
+           },
+           {
+            "facetID": "LONGDESC_WAR",
+            "facetName": "LONGDESC_WAR",
+            "facetValue": "Keep Your Drive",
+            "translatedFacetValue": "Keep Your Drive"
+           },
+           {
+            "facetID": "WARRANTYTYPE",
+            "facetName": "Service Delivery Type",
+            "facetValue": "Add On",
+            "translatedFacetValue": "Add On"
+           }
+          ],
+          "eccnRestricted": false,
+          "isOption": false
+         }
+        ],
+        "selectable": true,
+        "totalPrices": [
+         {
+          "priceTypeId": 1,
+          "price": 1033.0,
+          "priceNotAvailable": false
+         }
+        ],
+        "excludedFilter": false,
+        "selected": false,
+        "disabled": false,
+        "priceNotAvailable": false,
+        "recommended": false
+       }
+      ],
+      "type": "service",
+      "markingInfo": [
+       "3Yr Premier NBD + Keep Your Drive"
+      ],
+      "totalPrices": [
+       {
+        "priceTypeId": 1,
+        "price": 1033.0,
+        "priceNotAvailable": false
+       }
+      ],
+      "markingHeaderInfo": null,
+      "selected": false,
+      "urlLink": null,
+      "source": "Lenovo Recommends",
+      "soureceDesc": "Lenovo Recommends",
+      "priceNotAvailable": false
+     }
+    ]
+   }
+  ]
+ }
+}

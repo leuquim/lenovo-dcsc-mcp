@@ -1,0 +1,90 @@
+{
+ "query": {
+  "autoArrange": "false",
+  "autoConnect": "true",
+  "cogValidation": "true"
+ },
+ "request": {
+  "newHardware": [
+   {
+    "code": "7D73CTO1WW",
+    "ctoCode": "7D73CTO1WW",
+    "machineType": "7D73",
+    "model": "CTO1WW",
+    "announceDate": "2023-01-12",
+    "withdrawnDate": "2999-12-31",
+    "eosDate": null,
+    "type": "CTO",
+    "phCode": null,
+    "hardwareType": "server",
+    "categories": null,
+    "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+    "price": 0.01,
+    "slice": "GP",
+    "showPrice": true,
+    "preselectionBase": [],
+    "priceNotCredible": false,
+    "rackless": false,
+    "marketingTag": [],
+    "marketValue": [],
+    "prodClass": "",
+    "cost": null,
+    "priceNotAvailable": false,
+    "shipStatus": 0,
+    "multiShipStatus": 0,
+    "shipDate": null,
+    "isExpress": false,
+    "tceAudience": 0,
+    "expressShipStatus": 0,
+    "lvrInventories": null,
+    "eccnRestricted": false,
+    "iad": false,
+    "cto": true,
+    "lfo": false,
+    "isStatic": null
+   }
+  ],
+  "rackId": "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+  "rackItems": [
+   {
+    "id": "US__b4c1cddd-19ce-46a5-aaaf-ecbbb62e78600",
+    "code": "7D73CTO1WW",
+    "sliceCtoCode": "7D73CTO1WW",
+    "type": "server",
+    "position": 2,
+    "size": 1,
+    "name": "Server"
+   }
+  ]
+ },
+ "response": {
+  "rackArea": [
+   {
+    "id": "US__697d3063-73b6-43a2-ad2f-b1a6a78a8c2d0",
+    "code": "7D6DCTO1WW",
+    "rackItems": [
+     {
+      "id": "US__b4c1cddd-19ce-46a5-aaaf-ecbbb62e78600",
+      "code": "7D73CTO1WW",
+      "sliceCtoCode": "7D73CTO1WW",
+      "type": "server",
+      "position": 1,
+      "size": 1,
+      "name": null
+     },
+     {
+      "id": null,
+      "code": "7D73CTO1WW",
+      "sliceCtoCode": "7D73CTO1WW",
+      "type": "server",
+      "position": 2,
+      "size": 1,
+      "name": null
+     }
+    ]
+   }
+  ],
+  "nonRackArea": [],
+  "connections": []
+ }
+}

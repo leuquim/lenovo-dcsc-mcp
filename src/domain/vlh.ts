@@ -122,3 +122,18 @@ export async function exportVlhItems(http: DcscHttpClient, items: readonly VlhIt
     ctx,
   });
 }
+
+/** Import Items: uploads a .vlh file as the multipart part `vlhXmlFile`. */
+export async function importVlhItems(http: DcscHttpClient, file: { fileName: string; content: Uint8Array }, ctx: RequestCtx) {
+  const res = await http.send({
+    endpoint: 'vlh.import',
+    method: 'POST',
+    path: '/vlh/import',
+    body: { kind: 'multipart', parts: [{ name: 'vlhXmlFile', filename: file.fileName, contentType: 'application/octet-stream', content: file.content }] },
+    requiresSolution: false,
+    responseKind: 'json',
+    timeoutClass: 'interactive',
+    ctx,
+  });
+  return res.raw;
+}

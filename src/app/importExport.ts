@@ -30,6 +30,7 @@ import {
   reduceConfiguration,
   type ExportFileType,
 } from '../domain/reduce.js';
+import { applyLogicalGroups, type LogicalGroup } from '../domain/exportGroups.js';
 import { prepareImportFile } from '../domain/importFile.js';
 import { hydrateImportedLayout, mergeImportedState } from '../domain/importLayout.js';
 import { parseStandaloneImportResponse } from '../domain/importStandalone.js';
@@ -379,6 +380,7 @@ export async function exportZip(rt: Runtime, sessionHandle: string,
     fileName: string;
     ctx: RequestCtx;
     scope?: 'auto' | 'configuration' | 'workspace' | undefined;
+    logicalGroups?: LogicalGroup[] | undefined;
     /** Retained for compatibility; rack data is always included for workspace export. */
     attemptRackPayload?: boolean | undefined;
   },): Promise<{
@@ -457,9 +459,9 @@ export async function exportZip(rt: Runtime, sessionHandle: string,
   const form = buildExportForm({
     data,
     image: useWorkspace && hasRacks && opts.fileTypes.includes('RACK_REPORT') ? renderRackImage(workspace) : undefined,
-    groups: useWorkspace
+    groups: applyLogicalGroups(useWorkspace
       ? buildGroups(stripped!)
-      : buildGroups(session!.raw, session!.configurationId, session!.mode),
+      : buildGroups(session!.raw, session!.configurationId, session!.mode), opts.logicalGroups ?? []),
   });
 
   const res = await rt.http.send({
@@ -646,6 +648,7 @@ export interface ExportArgs {
   fileName?: string | undefined;
   fileTypes?: ExportFileType[] | undefined;
   includeShareUrl?: boolean | undefined;
+  groups?: LogicalGroup[] | undefined;
   name?: string | undefined;
   dataList?: Array<{ typeName: string; contents: string[] }> | undefined;
   crnId?: string | undefined;
@@ -734,6 +737,7 @@ async function exportReports(rt: Runtime, args: ExportArgs): Promise<Record<stri
     await exportZip(rt, handle, {
       fileTypes, fileName, ctx,
       ...(args.scope !== undefined ? { scope: args.scope } : {}),
+      ...(args.groups !== undefined ? { logicalGroups: args.groups } : {}),
     });
 
   const bundle = await writeExportBundle(stream, fileName, rt.config);

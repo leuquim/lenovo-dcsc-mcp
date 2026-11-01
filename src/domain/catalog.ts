@@ -250,3 +250,16 @@ function pagination(
   }
   return { offset, limit };
 }
+
+/** The raw catalog product, exactly as the website posts it when it picks one. */
+export function findCatalogProduct(catalog: Catalog, code: string): Product | undefined {
+  const wanted = code.toUpperCase();
+  const walk = (nodes: CategoryNode[]): Product | undefined => {
+    for (const node of nodes) {
+      const found = node.products?.find(product => product.code.toUpperCase() === wanted) ?? walk(node.children ?? []);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  return walk(catalog.tree);
+}

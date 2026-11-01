@@ -1,5 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-import { rackLaunchPath, rackLaunchQuery, racksCustomizePath } from './endpoints.js';
+import { rackLaunchPath, rackLaunchQuery, racksCustomizePath, racksHardwarePath } from './endpoints.js';
 import { hardwareEndpointFamily } from './modeFamily.js';
 import { nonEmptyString, numericValueBlankAsZero, objectOrEmpty } from '../util/coerce.js';
 
@@ -573,4 +573,40 @@ function toErrors(v: unknown): Array<{ code?: string | undefined; message: strin
     out.push({ code: nonEmptyString(o['code']), message });
   }
   return out;
+}
+
+export interface AddedRackHardware {
+  /** The rack after DCSC placed the product; the new item carries no id yet. */
+  rack: RackObject;
+  item: RackObject;
+}
+
+/** Website Add Hardware: DCSC places the catalog product in the rack and returns the item without an id. */
+export async function addRackHardware(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  input: { rack: RackObject; product: RackObject; workspace: RackObject },
+  opts: CustomizeOptions = {},
+): Promise<AddedRackHardware> {
+  const res = await http.send({
+    endpoint: 'racks_hardware',
+    method: 'POST',
+    path: racksHardwarePath(hardwareEndpointFamily('cto')),
+    query: {
+      autoArrange: opts.autoArrange ?? false,
+      autoConnect: opts.autoConnect ?? true,
+      cogValidation: opts.cogValidation ?? true,
+    },
+    body: { kind: 'json', value: { rack: input.rack, newHardware: [input.product], workspace: input.workspace } },
+    responseKind: 'json',
+    timeoutClass: 'heavy',
+    ctx,
+  });
+  const rackArea = objectOrEmpty(res.raw)['rackArea'];
+  const rack = Array.isArray(rackArea) ? rows(rackArea).find(candidate => candidate['id'] === input.rack['id']) : undefined;
+  if (!rack) throw new Error('DCSC returned no rack for the added hardware.');
+  const known = new Set(rows(input.rack['rackItems']).map(item => item['id']));
+  const added = rows(rack['rackItems']).filter(item => !known.has(item['id']));
+  if (added.length !== 1) throw new Error('DCSC did not place the hardware in the rack.');
+  return { rack, item: added[0]! };
 }

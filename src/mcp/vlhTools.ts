@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { exportVlh, inspectVirtualContainers, inspectVlh, VIRTUAL_CONTAINER_CHECKS, VLH_SECTIONS } from '../app/vlh.js';
+import { exportVlh, importVlh, inspectVirtualContainers, inspectVlh, VIRTUAL_CONTAINER_CHECKS, VLH_SECTIONS } from '../app/vlh.js';
 import { VLH_TYPES } from '../domain/vlh.js';
 import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
@@ -42,11 +42,20 @@ export function registerVlhTools(server: McpServer, service: DcscService): void 
 
   server.registerTool('dcsc_vlh_set', {
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    title: 'VLH Item Editor export',
-    description: 'Creates VLH items as the VLH Item Editor does and exports them (Export Items) to a .vlh file; returns its path.',
+    title: 'VLH Item Editor export and import',
+    description: 'Creates VLH items as the VLH Item Editor does and exports them (action export, default) to a .vlh file, returning its path; or imports a .vlh file (action import).',
     inputSchema: {
-      items: z.array(vlhItemSchema).min(1).max(50),
-      fileName: z.string().min(1).optional().describe('Base name without extension; defaults to vlh.'),
+      action: z.enum(['export', 'import']).optional().default('export'),
+      items: z.array(vlhItemSchema).min(1).max(50).optional().describe('export: the items to create.'),
+      fileName: z.string().min(1).optional().describe('export: base name without extension; defaults to vlh.'),
+      filePath: z.string().min(1).optional().describe('import: absolute path of a .vlh file.'),
     },
-  }, args => guard(() => exportVlh(service, args), 'dcsc_vlh_set failed'));
+  }, args => guard(() => {
+    if (args.action === 'import') {
+      if (!args.filePath) throw new Error('filePath is required for action import.');
+      return importVlh(service, { filePath: args.filePath });
+    }
+    if (!args.items) throw new Error('items is required for action export.');
+    return exportVlh(service, { items: args.items, fileName: args.fileName });
+  }, 'dcsc_vlh_set failed'));
 }

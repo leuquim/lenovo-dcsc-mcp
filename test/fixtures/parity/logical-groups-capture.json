@@ -1,0 +1,265 @@
+{
+ "base": [
+  {
+   "name": "Config 1",
+   "parent": null,
+   "index": -1,
+   "products": [
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "quantity": 1,
+     "price": 12941.51,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 15648.51,
+       "priceNotAvailable": false
+      }
+     ],
+     "type": "hardware",
+     "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+     "shippingStatus": [
+      "30",
+      "30",
+      "30",
+      "30",
+      "30",
+      "30"
+     ],
+     "asMultiProd": false,
+     "priceNotAvailable": false,
+     "unitPrice": 12941.51,
+     "code": "7D73CTO1WW",
+     "showPrice": true,
+     "specialBid": false,
+     "groupId": "Config 1"
+    },
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "code": "7S0XCTO5WW",
+     "description": "XClarity Controller Platin-FOD",
+     "quantity": 1,
+     "price": 211.5,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 1,
+       "priceNotAvailable": false
+      }
+     ],
+     "unitPrice": 210.5,
+     "targetCtoUnitPrice": 1,
+     "type": "hipo",
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "asMultiProd": false,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTO2WW",
+     "description": "SERVER CO2 OFFSET",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 191,
+     "quantity": 1,
+     "unitPrice": 191,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTS4WW",
+     "description": "SERVER PREMIER 24X7 4HR RESP",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 1829,
+     "quantity": 1,
+     "unitPrice": 1829,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTSAWW",
+     "description": "SERVER KEEP YOUR DRIVE ADD-ON",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 173,
+     "quantity": 1,
+     "unitPrice": 173,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    },
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "code": "7S0XCTO6WW",
+     "description": "XClarity One",
+     "quantity": 1,
+     "price": 306.5,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 1,
+       "priceNotAvailable": false
+      }
+     ],
+     "unitPrice": 305.5,
+     "targetCtoUnitPrice": 1,
+     "type": "hipo",
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "asMultiProd": false,
+     "groupId": "Config 1"
+    }
+   ]
+  }
+ ],
+ "logical": [
+  {
+   "name": "G1",
+   "products": []
+  },
+  {
+   "name": "G2",
+   "parent": "G1",
+   "products": [
+    "7S0XCTO6WW"
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "name": "Config 1",
+   "parent": null,
+   "index": -1,
+   "products": [
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "quantity": 1,
+     "price": 12941.51,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 15648.51,
+       "priceNotAvailable": false
+      }
+     ],
+     "type": "hardware",
+     "description": "ThinkSystem SR630 V3-3yr Base Warranty",
+     "shippingStatus": [
+      "30",
+      "30",
+      "30",
+      "30",
+      "30",
+      "30"
+     ],
+     "asMultiProd": false,
+     "priceNotAvailable": false,
+     "unitPrice": 12941.51,
+     "code": "7D73CTO1WW",
+     "showPrice": true,
+     "specialBid": false,
+     "groupId": "Config 1"
+    },
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "code": "7S0XCTO5WW",
+     "description": "XClarity Controller Platin-FOD",
+     "quantity": 1,
+     "price": 211.5,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 1,
+       "priceNotAvailable": false
+      }
+     ],
+     "unitPrice": 210.5,
+     "targetCtoUnitPrice": 1,
+     "type": "hipo",
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "asMultiProd": false,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTO2WW",
+     "description": "SERVER CO2 OFFSET",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 191,
+     "quantity": 1,
+     "unitPrice": 191,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTS4WW",
+     "description": "SERVER PREMIER 24X7 4HR RESP",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 1829,
+     "quantity": 1,
+     "unitPrice": 1829,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    },
+    {
+     "code": "7Q01CTSAWW",
+     "description": "SERVER KEEP YOUR DRIVE ADD-ON",
+     "titleType": "serviceCtoHipo",
+     "type": "servicectohipo",
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "price": 173,
+     "quantity": 1,
+     "unitPrice": 173,
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "groupId": "Config 1"
+    }
+   ]
+  },
+  {
+   "name": "G1",
+   "index": 1,
+   "products": []
+  },
+  {
+   "name": "G2",
+   "parent": "G1",
+   "index": 0,
+   "products": [
+    {
+     "id": "US__5276513d-1379-4d49-bad3-44d394597f940",
+     "code": "7S0XCTO6WW",
+     "description": "XClarity One",
+     "quantity": 1,
+     "price": 306.5,
+     "prices": [
+      {
+       "priceTypeId": 1,
+       "price": 1,
+       "priceNotAvailable": false
+      }
+     ],
+     "unitPrice": 305.5,
+     "targetCtoUnitPrice": 1,
+     "type": "hipo",
+     "priceNotAvailable": false,
+     "showPrice": true,
+     "asMultiProd": false,
+     "groupId": "G2"
+    }
+   ]
+  }
+ ]
+}

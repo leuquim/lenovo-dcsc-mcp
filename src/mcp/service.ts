@@ -3,7 +3,7 @@ import { modesContaining, launch, configure, loadUnconfigured, setUnconfigured, 
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
-import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setFloorPreferences, setLayoutControls, setRackColor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
+import { scaleOut, addRack, addHardware, changeRackModel, placeInRack, editLayout, placeOnFloor, setFloorPreferences, setLayoutControls, setRackColor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
 import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
 
@@ -187,6 +187,14 @@ export class DcscService extends Runtime {
 
   addRack(...args: AppArgs<typeof addRack>): ReturnType<typeof addRack> {
     return addRack(this, ...args);
+  }
+
+  addHardware(...args: AppArgs<typeof addHardware>): ReturnType<typeof addHardware> {
+    return addHardware(this, ...args);
+  }
+
+  changeRackModel(...args: AppArgs<typeof changeRackModel>): ReturnType<typeof changeRackModel> {
+    return changeRackModel(this, ...args);
   }
 
   placeInRack(...args: AppArgs<typeof placeInRack>): ReturnType<typeof placeInRack> {

@@ -62,3 +62,7 @@ export function rackLaunchQuery(solutionMode: string): Record<string, string | b
 export function ctoLaunchPath(productCode: string): string {
   return `/ctos/${encodeURIComponent(productCode)}/launch`;
 }
+
+export function racksHardwarePath(family: EndpointFamily): string {
+  return `/${family}/racks/hardware`;
+}

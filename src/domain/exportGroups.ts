@@ -488,3 +488,34 @@ function money(value: number): number {
 function browserMoney(value: number): number {
   return Math.floor((value + Number.EPSILON) * 100) / 100;
 }
+
+export interface LogicalGroup { name: string; parent?: string | undefined; products: string[] }
+
+/**
+ * Logical Groups are client state on the website; they reach DCSC only as the export form's `groups` field.
+ * Product lines move out of the default group by code; index is the position among siblings, with the
+ * default group counted as the first top-level sibling.
+ */
+export function applyLogicalGroups(base: ReadonlyArray<Record<string, unknown>>, logical: readonly LogicalGroup[]): Array<Record<string, unknown>> {
+  const [fallback, ...rest] = base as [{ name: string; products: Array<Record<string, unknown>> } & Record<string, unknown>, ...unknown[]];
+  if (!fallback || rest.length > 0) throw new Error('Logical groups need exactly one default export group.');
+  const names = new Set([fallback.name]);
+  const siblings = new Map<string | undefined, number>([[undefined, 1]]);
+  const claimed = new Set<string>();
+  const groups = logical.map(group => {
+    if (names.has(group.name)) throw new Error(`Group name "${group.name}" is duplicated or reserved.`);
+    if (group.parent !== undefined && !names.has(group.parent)) throw new Error(`Group "${group.name}" needs its parent "${group.parent}" listed before it.`);
+    names.add(group.name);
+    const index = siblings.get(group.parent) ?? 0;
+    siblings.set(group.parent, index + 1);
+    const products = group.products.flatMap(code => {
+      if (claimed.has(code)) throw new Error(`Product ${code} is assigned to more than one group.`);
+      claimed.add(code);
+      const lines = fallback.products.filter(product => product['code'] === code);
+      if (lines.length === 0) throw new Error(`Product ${code} is not in this export.`);
+      return lines.map(line => ({ ...line, groupId: group.name }));
+    });
+    return { name: group.name, ...(group.parent !== undefined ? { parent: group.parent } : {}), index, products };
+  });
+  return [{ ...fallback, products: fallback.products.filter(product => !claimed.has(String(product['code']))) }, ...groups];
+}

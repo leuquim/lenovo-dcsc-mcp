@@ -1,4 +1,5 @@
 import { configurationListPrice } from '../domain/pricing.js';
+import { findCatalogProduct } from '../domain/catalog.js';
 import { hardwareModeFamily, usesCtoWire } from '../domain/modeFamily.js';
 import { buildGroups, newConfigurationId, reduceConfiguration } from '../domain/reduce.js';
 import {
@@ -10,6 +11,7 @@ import {
   fetchRackCabinets,
   fetchEnvelopes,
   openRackLaunch,
+  addRackHardware,
   type LayoutResult,
   type RackObject,
 } from '../domain/rack.js';
@@ -177,12 +179,17 @@ export async function scaleOut(rt: Runtime, opts: {
  * a rackArea entry pointing at an id with no matching configuration makes the
  * export endpoint fail with "Index 0 out of bounds for length 0".
  */
-export async function addRack(rt: Runtime, sessionHandle: string, rackCode: string, ctx: RequestCtx, expectedRevision?: number): Promise<LayoutResult> {
+export async function addRack(rt: Runtime, sessionHandle: string, rackCode: string, ctx: RequestCtx, expectedRevision?: number,
+  containedConfiguration?: string): Promise<LayoutResult> {
   const ws = rt.sessions.getWorkspace(sessionHandle);
   if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
   // Avoid unnecessary launch requests on an already-stale call. Atomic creation
   // checks again under the workspace lock after remote preparation.
   assertWorkspaceRevision(ws, expectedRevision);
+  if (containedConfiguration !== undefined) {
+    const item = ws.nonRackArea.find(candidate => candidate['id'] === ws.configurations.get(containedConfiguration)?.configurationId);
+    if (!item) throw new Error(`Configuration ${containedConfiguration} is not a non-rack item of this workspace.`);
+  }
 
   const prepared = await prepareLaunch(rt, {
     productCode: rackCode,
@@ -193,14 +200,7 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
   });
 
   const rackCtx = { ...ctx, locale: ws.locale, solution: ws.solution };
-  await openRackLaunch(rt.http, rackCtx, rackCode, ws.solution.solutionMode);
-  const envelopes = await fetchEnvelopes(rt.http, rackCtx, [{ code: rackCode, type: 'rack' }]);
-  const envelope = envelopes.get(rackCode.toUpperCase());
-  if (!envelope) {
-    throw new Error(
-      `DCSC returned no physical data for rack ${rackCode}. Use dcsc_rack_get for valid codes.`,
-    );
-  }
+  const envelope = await openRackEnvelope(rt, rackCtx, rackCode, ws.solution.solutionMode);
 
   let result: LayoutResult | undefined;
   await rt.sessions.createManyAtomic([prepared], {
@@ -214,6 +214,79 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
     },
   });
   if (!result) throw new Error('Rack creation did not produce a layout.');
+  if (containedConfiguration === undefined) return result;
+  const rackId = result.racks.find(rack => !ws.rackArea.some(known => known['id'] === rack.id))?.id;
+  if (!rackId) throw new Error('Rack creation did not report the new rack.');
+  return placeInRack(rt, ws.id, { rackId, sessionId: containedConfiguration, ctx });
+}
+
+async function openRackEnvelope(rt: Runtime, ctx: RequestCtx, rackCode: string, solutionMode: string) {
+  await openRackLaunch(rt.http, ctx, rackCode, solutionMode);
+  const envelope = (await fetchEnvelopes(rt.http, ctx, [{ code: rackCode, type: 'rack' }])).get(rackCode.toUpperCase());
+  if (!envelope) throw new Error(`DCSC returned no physical data for rack ${rackCode}. Use dcsc_rack_get for valid codes.`);
+  return envelope;
+}
+
+/** Website Add Hardware on a rack: DCSC places the catalog product, then it is launched and customized as a configuration. */
+export async function addHardware(rt: Runtime, sessionHandle: string,
+  opts: { rackId: string; productCode: string; expectedRevision?: number | undefined; ctx: RequestCtx },): Promise<LayoutResult> {
+  const ws = rt.sessions.getWorkspace(sessionHandle);
+  if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+  assertWorkspaceRevision(ws, opts.expectedRevision);
+  const rackCtx = { ...opts.ctx, locale: ws.locale, solution: ws.solution };
+  const product = findCatalogProduct(await rt.catalog(rackCtx, ws.solution), opts.productCode);
+  if (!product || product.cto !== true) throw new Error(`${opts.productCode} is not a CTO product in this solution mode's catalog.`);
+  const payload = buildRackCustomizePayload({ ...workspaceNetworkState(ws), rackArea: ws.rackArea, nonRackArea: ws.nonRackArea },
+    [...ws.configurations.values()].map(session => session.raw));
+  const rack = payload.rackArea.find(candidate => candidate['id'] === opts.rackId);
+  if (!rack) throw new Error(`Rack ${opts.rackId} not found in this workspace. Add one with dcsc_rack_add.`);
+  const added = await addRackHardware(rt.http, rackCtx, { rack, product,
+    workspace: { cloneDependency: payload.cloneDependency, configurations: payload.configurations,
+      nonRackArea: payload.nonRackArea, rackArea: payload.rackArea } },
+  layoutToggleOverrides(ws.serverState));
+
+  const prepared = await prepareLaunch(rt, { productCode: opts.productCode, mode: 'cto', solution: ws.solution, ctx: opts.ctx, workspaceId: ws.id });
+  let result: LayoutResult | undefined;
+  await rt.sessions.createManyAtomic([prepared], {
+    remoteApplied: true,
+    actionHistory: addHistoryFactory(prepared.configurationId),
+    workspaceHandle: ws.id, expectedRevision: opts.expectedRevision,
+    prepare: async (draft) => {
+      const items = (added.rack['rackItems'] as RackObject[]).map(item => item === added.item ? { ...item, id: prepared.configurationId } : item);
+      result = await syncLayout(rt, draft, draft.rackArea.map(candidate =>
+        candidate['id'] === opts.rackId ? { ...added.rack, rackItems: items } : candidate), opts.ctx);
+    },
+  });
+  if (!result) throw new Error('Adding hardware did not produce a layout.');
+  return result;
+}
+
+/** Website Change rack model: the new rack model replaces the old one and keeps its contents. */
+export async function changeRackModel(rt: Runtime, sessionHandle: string,
+  opts: { rackId: string; rackCode: string; expectedRevision?: number | undefined; ctx: RequestCtx },): Promise<LayoutResult> {
+  const ws = rt.sessions.getWorkspace(sessionHandle);
+  if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+  assertWorkspaceRevision(ws, opts.expectedRevision);
+  const current = ws.rackArea.find(candidate => candidate['id'] === opts.rackId);
+  if (!current) throw new Error(`Rack ${opts.rackId} not found in this workspace.`);
+  if (current['code'] === opts.rackCode) throw new Error(`Rack ${opts.rackId} is already model ${opts.rackCode}.`);
+
+  const prepared = await prepareLaunch(rt, { productCode: opts.rackCode, mode: 'cto', solution: ws.solution, ctx: opts.ctx, workspaceId: ws.id });
+  const envelope = await openRackEnvelope(rt, { ...opts.ctx, locale: ws.locale, solution: ws.solution }, opts.rackCode, ws.solution.solutionMode);
+  let result: LayoutResult | undefined;
+  await rt.sessions.createManyAtomic([prepared], {
+    remoteApplied: true,
+    actionHistory: addHistoryFactory(prepared.configurationId),
+    workspaceHandle: ws.id, expectedRevision: opts.expectedRevision,
+    prepare: async (draft) => {
+      const replacement = buildRackObject(envelope, prepared.configurationId, current['rackItems'] as RackObject[] | undefined);
+      for (const [id, session] of draft.configurations) if (session.configurationId === opts.rackId) draft.configurations.delete(id);
+      draft.floorItems = draft.floorItems.map(item => item.rackId === opts.rackId ? { ...item, rackId: prepared.configurationId } : item);
+      draft.powerSelections = draft.powerSelections.filter(selection => selection.rackId !== opts.rackId);
+      result = await syncLayout(rt, draft, draft.rackArea.map(candidate => candidate['id'] === opts.rackId ? replacement : candidate), opts.ctx);
+    },
+  });
+  if (!result) throw new Error('Changing the rack model did not produce a layout.');
   return result;
 }
 

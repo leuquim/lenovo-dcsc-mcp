@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 import { writeVlhArtifact } from '../files/artifactStore.js';
-import { exportVlhItems, fetchVlhAttributes, fetchVlhWizardInfo, VLH_PRODUCT_TYPE, type VlhConnectorRecord, type VlhItem, type VlhType } from '../domain/vlh.js';
+import { exportVlhItems, importVlhItems, fetchVlhAttributes, fetchVlhWizardInfo, VLH_PRODUCT_TYPE, type VlhConnectorRecord, type VlhItem, type VlhType } from '../domain/vlh.js';
 import { checkVirtualContainerRules, fetchVirtualContainerCompatibleProducts } from '../domain/virtualContainers.js';
 import type { Runtime } from './runtime.js';
 import { assertWorkspaceRevision } from './serviceHelpers.js';
@@ -69,4 +71,10 @@ export function buildVlhItem(input: VlhItemInput): VlhItem {
 export async function exportVlh(rt: Runtime, opts: { items: VlhItemInput[]; fileName?: string | undefined }) {
   const response = await exportVlhItems(rt.http, opts.items.map(buildVlhItem), rt.newCtx());
   return writeVlhArtifact(response.stream, opts.fileName ?? 'vlh', rt.config);
+}
+
+/** Import Items: uploads a .vlh file to the VLH Item Editor. */
+export async function importVlh(rt: Runtime, opts: { filePath: string }) {
+  const items = await importVlhItems(rt.http, { fileName: basename(opts.filePath), content: readFileSync(opts.filePath) }, rt.newCtx());
+  return { imported: items };
 }

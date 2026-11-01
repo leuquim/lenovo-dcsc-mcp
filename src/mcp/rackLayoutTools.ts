@@ -243,17 +243,18 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Add a rack',
-      description: 'Adds a rack cabinet (rackCode from dcsc_rack_get) to a workspace and returns the DCSC-validated layout.',
+      description: 'Adds a rack cabinet (rackCode from dcsc_rack_get) to a workspace, optionally moving a non-rack configuration into it (Add Container), and returns the DCSC-validated layout.',
       inputSchema: {
         session: z.string().describe('Workspace or configuration handle.'),
         rackCode: z.string().describe('Rack product code, e.g. "7D6DCTO1WW".'),
+        configuration: z.string().optional().describe('Non-rack configuration to move into the new rack.'),
         expectedRevision: workspaceRevision,
       },
     },
     async (args) =>
       guard(async () => {
         const workspaceId = requireWorkspaceOf(service, args.session).id;
-        const layout = await service.addRack(workspaceId, args.rackCode, service.newCtx(), args.expectedRevision);
+        const layout = await service.addRack(workspaceId, args.rackCode, service.newCtx(), args.expectedRevision, args.configuration);
         const workspace = service.sessions.getWorkspace(workspaceId)!;
         return { ...writeHeader(service, args.session), ...projectLayout(layout, workspace) };
       }, 'dcsc_rack_add failed'),
@@ -265,12 +266,14 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       title: 'Edit rack contents',
       description:
-        'Places, moves, unplaces, detaches or removes items, arranges rack contents, locks or unlocks an item or empty U, clones a configuration, or copies a racked item. Layout actions return the validated layout.',
+        'Places, moves, unplaces, detaches or removes items, arranges rack contents, locks or unlocks an item or empty U, clones a configuration, copies a racked item, adds catalog hardware to a rack, or changes a rack model. Layout actions return the validated layout.',
       inputSchema: {
         session: z.string().describe('Workspace handle, or a configuration handle in it.'),
-        action: z.enum(['place', 'move', 'unplace', 'detach', 'remove', 'arrange', 'lock', 'unlock', 'clone', 'copy']),
+        action: z.enum(['place', 'move', 'unplace', 'detach', 'remove', 'arrange', 'lock', 'unlock', 'clone', 'copy', 'addHardware', 'changeModel']),
         configuration: z.string().optional().describe('Configuration or physical item to act on.'),
-        rackId: z.string().optional().describe('place, move: destination rack. lock: rack of an empty U.'),
+        rackId: z.string().optional().describe('place, move: destination rack. lock: rack of an empty U. addHardware, changeModel: the rack.'),
+        productCode: z.string().optional().describe('addHardware: CTO product code from dcsc_search.'),
+        rackCode: z.string().optional().describe('changeModel: new rack product code.'),
         uPosition: z.number().int().min(1).max(60).optional().describe('place, move: starting U (omit to let DCSC choose). lock: the empty U.'),
         chassisId: z.string().optional().describe('place: placed chassis to copy a non-rack node into.'),
         itemId: z.string().optional().describe('lock, unlock: physical item id.'),
@@ -310,6 +313,12 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
             expectedRevision: args.expectedRevision, ctx });
           return layoutResult(layout);
         }
+        case 'addHardware':
+          return layoutResult(await service.addHardware(workspace.id, { rackId: need(args.rackId, 'rackId'),
+            productCode: need(args.productCode, 'productCode'), expectedRevision: args.expectedRevision, ctx }));
+        case 'changeModel':
+          return layoutResult(await service.changeRackModel(workspace.id, { rackId: need(args.rackId, 'rackId'),
+            rackCode: need(args.rackCode, 'rackCode'), expectedRevision: args.expectedRevision, ctx }));
         case 'unplace': case 'detach': case 'remove': case 'arrange': {
           if (args.action !== 'arrange') need(args.configuration, 'configuration');
           const layout = await service.editLayout(workspace.id, { action: args.action, configurationId: args.configuration,

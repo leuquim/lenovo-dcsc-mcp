@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
-import { buildLfoHardwareDeriveRequest } from '../src/domain/lfoWire.js';
+import { buildLfoHardwareDeriveRequest, mergeLfoSoftwareTab } from '../src/domain/lfoWire.js';
 import type { ReducedConfiguration } from '../src/domain/reduce.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { SessionStore } from '../src/session/SessionStore.js';
@@ -19,4 +19,13 @@ it('matches the complete captured LFO hardware derive envelope and physical cont
   workspace.nonRackArea = structuredClone(expected.workspaceInformation.nonRackData);
   expect(buildLfoHardwareDeriveRequest(input, workspace)).toEqual(expected);
   expect(input).toEqual(fixture.inputConfiguration);
+});
+
+it('appends the SW-scope OS & Software tab after the HW tabs, as the website renders it', () => {
+  const { sw, hw } = JSON.parse(readFileSync(new URL('./fixtures/parity/lfo-launch-scopes.json', import.meta.url), 'utf8'));
+  const merged = mergeLfoSoftwareTab(hw, sw);
+  expect(merged.tabs!.map(tab => tab.title)).toEqual([...hw.tabs.map((tab: { title: string }) => tab.title), 'OS & Software']);
+  expect(merged.tabs!.at(-1)).toEqual(sw.tabs[0]);
+  expect(merged['totalPrice']).toBe(hw.totalPrice);
+  expect(mergeLfoSoftwareTab({ ...hw, needLaunchSwTab: false }, sw).tabs).toEqual(hw.tabs);
 });

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { buildExportGroups } from '../src/domain/exportGroups.js';
+import { applyLogicalGroups, buildExportGroups, type LogicalGroup } from '../src/domain/exportGroups.js';
 import type { RawConfiguration } from '../src/model/types.js';
 
 it.each([1, 2])('matches captured physical storage commercial rows for %i placements', quantity => {
@@ -517,5 +517,21 @@ describe('unavailable export hardware pricing', () => {
     expect(buildExportGroups({ ...raw, priceNotAvailable: true })[0]!.products[0]).toMatchObject({
       price: null, unitPrice: null, priceNotAvailable: true,
     });
+  });
+});
+
+describe('logical groups', () => {
+  const capture = JSON.parse(readFileSync(new URL('./fixtures/parity/logical-groups-capture.json', import.meta.url), 'utf8')) as {
+    base: Array<Record<string, unknown>>; logical: LogicalGroup[]; expected: unknown;
+  };
+
+  it('produces the captured website groups field', () => {
+    expect(applyLogicalGroups(capture.base, capture.logical)).toEqual(capture.expected);
+  });
+
+  it('rejects unknown parents, duplicate names and products outside the export', () => {
+    expect(() => applyLogicalGroups(capture.base, [{ name: 'A', parent: 'B', products: [] }])).toThrow(/parent/);
+    expect(() => applyLogicalGroups(capture.base, [{ name: 'A', products: [] }, { name: 'A', products: [] }])).toThrow(/duplicated/);
+    expect(() => applyLogicalGroups(capture.base, [{ name: 'A', products: ['NOPE'] }])).toThrow(/not in this export/);
   });
 });

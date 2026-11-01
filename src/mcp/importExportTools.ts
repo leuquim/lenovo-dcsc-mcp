@@ -44,6 +44,8 @@ export function registerImportExportTools(server: McpServer, service: DcscServic
         fileName: z.string().optional().describe('reports/power/servicesCatalog: base name without extension.'),
         fileTypes: z.array(z.enum(EXPORT_TYPE_NAMES)).min(1).optional().describe('reports/power: defaults to all applicable reports.'),
         includeShareUrl: z.boolean().optional().describe('reports/power: include the shareable web URL.'),
+        groups: z.array(z.object({ name: z.string().min(1), parent: z.string().optional(), products: z.array(z.string()) })).optional()
+          .describe('reports: Logical Groups; product codes move out of the default group. Parents listed first.'),
         name: z.string().optional().describe('configurationTree: configuration name or display code.'),
         dataList: z.array(z.object({ typeName: z.string(), contents: z.array(z.string()) })).optional()
           .describe('configurationTree: type categories and their contents.'),

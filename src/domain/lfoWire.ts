@@ -1,5 +1,13 @@
 import { buildAutoDeriveRequest, type ReducedConfiguration } from './reduce.js';
 import type { WorkspaceSession } from '../model/session.js';
+import type { RawConfiguration } from '../model/types.js';
+
+/** The website appends the SW-scope "OS & Software" tab to the HW tree when the HW response asks for it. */
+export function mergeLfoSoftwareTab(hardware: RawConfiguration, software: RawConfiguration): RawConfiguration {
+  if (hardware['needLaunchSwTab'] !== true || !Array.isArray(software.tabs)) return hardware;
+  const tabs = hardware.tabs ?? [];
+  return { ...hardware, tabs: hardware['swTabIsAfter'] === false ? [...software.tabs, ...tabs] : [...tabs, ...software.tabs] };
+}
 
 /** Captured LFO hardware DTO: the CTO-only configuration fields are rejected. */
 export function buildLfoHardwareDeriveRequest(

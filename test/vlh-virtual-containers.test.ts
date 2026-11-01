@@ -10,7 +10,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerVlhTools } from '../src/mcp/vlhTools.js';
-import { buildVlhExportForm, fetchVlhAttributes, fetchVlhWizardInfo, type VlhAttributes, type VlhWizardInfo } from '../src/domain/vlh.js';
+import { buildVlhExportForm, importVlhItems, fetchVlhAttributes, fetchVlhWizardInfo, type VlhAttributes, type VlhWizardInfo } from '../src/domain/vlh.js';
 import {
   checkVirtualContainerRules,
   fetchVirtualContainerCompatibleProducts,
@@ -371,4 +371,12 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       expect(missingText).toContain('Workspace session nonexistent-session-id not found');
     });
   });
+});
+
+it('importVlhItems posts the captured multipart request with the vlhXmlFile part', async () => {
+  const send = vi.fn().mockResolvedValue({ raw: { ok: true } });
+  const content = new TextEncoder().encode('<VLHData/>');
+  await importVlhItems({ send } as never, { fileName: 'vlh.vlh', content }, {} as never);
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', path: '/vlh/import', requiresSolution: false,
+    body: { kind: 'multipart', parts: [{ name: 'vlhXmlFile', filename: 'vlh.vlh', contentType: 'application/octet-stream', content }] } }));
 });
