@@ -1,15 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 
-export interface GenerateConfigIdResult {
-  configId: string;
-}
-
-export interface ValidateConfigIdResult {
-  valid: boolean;
-  url?: string | undefined;
-  message?: string | undefined;
-}
-
 export interface SidQueryOptions {
   categoryId: string;
   pageIndex?: number | undefined;
@@ -34,100 +24,6 @@ export interface SidQueryResult {
   content: SidItem[];
   totalElements: number;
   number: number;
-}
-
-/**
- * Requests an online 10-character alphanumeric Configuration ID from DCSC.
- *
- * Upstream route: POST /api/generateConfigId?country_or_region=${country}&controlExpressModal=false&_request=web
- * Critical header: integrationParams: '{}' (applied by composeHeaders via REQUIRED_HEADERS).
- */
-export async function generateConfigId(
-  http: DcscHttpClient,
-  ctx: RequestCtx,
-): Promise<GenerateConfigIdResult> {
-  const response = await http.send({
-    endpoint: 'generate_config_id',
-    method: 'POST',
-    path: '/generateConfigId',
-    query: {
-      controlExpressModal: 'false',
-    },
-    requiresSolution: false,
-    responseKind: 'text',
-    timeoutClass: 'interactive',
-    ctx,
-  });
-
-  const raw = response.raw;
-  let configId = '';
-  if (typeof raw === 'string') {
-    configId = raw.trim().replace(/^"|"$/g, '');
-  } else if (raw && typeof raw === 'object') {
-    const obj = raw as Record<string, unknown>;
-    configId = String(obj['configId'] ?? obj['configuration_id'] ?? obj['id'] ?? '').trim();
-  }
-
-  if (!configId) {
-    throw new Error('DCSC returned an empty or invalid Configuration ID.');
-  }
-
-  return { configId };
-}
-
-/**
- * Retrieves an online configuration by ID from DCSC.
- *
- * Upstream route: POST /api/retrieve/configId?country_or_region=${country}&language=${language}&currency=${currency}&configuration_id=${configId}&currentFileType=CTO
- * Request body: multipart/form-data with existing `configurationIds` keys.
- * Returns the raw import payload array or object to be ingested by acceptImportPayload in app/importExport.ts.
- */
-export async function retrieveConfigId(
-  http: DcscHttpClient,
-  configId: string,
-  existingIds: string[],
-  ctx: RequestCtx,
-  currentFileType = 'CTO',
-): Promise<unknown> {
-  const trimmed = configId.trim();
-  if (!trimmed) {
-    throw new Error('A non-empty configuration ID is required for retrieval.');
-  }
-
-  const normalizedFileType = currentFileType.toUpperCase() === 'LFO' ? 'LFO' : 'CTO';
-
-  const response = await http.send({
-    endpoint: 'retrieve_config_id',
-    method: 'POST',
-    path: '/retrieve/configId',
-    query: {
-      configuration_id: trimmed,
-      currentFileType: normalizedFileType,
-    },
-    body: {
-      kind: 'multipart',
-      parts: existingIds.map((id) => ({ name: 'configurationIds', value: id })),
-    },
-    requiresSolution: false,
-    responseKind: 'json',
-    timeoutClass: 'heavy',
-    ctx,
-  });
-
-  const raw = response.raw;
-
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    const obj = raw as Record<string, unknown>;
-    if (typeof obj['errorMessage'] === 'string' && obj['errorMessage']) {
-      throw new Error(`DCSC failed to retrieve Config ID ${trimmed}: ${obj['errorMessage']}`);
-    }
-  }
-
-  if (!raw || (Array.isArray(raw) && raw.length === 0)) {
-    throw new Error(`DCSC returned no configuration data for Config ID ${trimmed}.`);
-  }
-
-  return raw;
 }
 
 /**

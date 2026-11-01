@@ -299,6 +299,25 @@ export async function launchStandaloneSoftware(
   };
 }
 
+/** The Software page's MT/CTO/LFO ID search: the software offered for one product (GET /software/portal/search/:code). */
+export async function searchSoftwareForProduct(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  productCode: string,
+  mode: 'CTO' | 'LFO',
+): Promise<StandaloneSoftwareFeature[]> {
+  const response = await http.send({
+    endpoint: 'software_portal_search',
+    method: 'GET',
+    path: `/software/portal/search/${encodeURIComponent(productCode)}`,
+    query: { mode: mode.toLowerCase(), serviceCto: true },
+    responseKind: 'json',
+    timeoutClass: 'heavy',
+    ctx,
+  });
+  return indexSoftwareFeatures(response.raw);
+}
+
 /** Local browse over the complete response already fetched from DCSC. */
 export function browseStandaloneSoftware(
   state: StandaloneSoftwareState,
@@ -582,6 +601,16 @@ export function buildProductServiceExportEnvelope(
     throw new Error('A product service must be selected before export.');
   }
   const data = buildProductServiceSummaryRequest(state);
+  return {
+    endpoint: '/service_pacs/export',
+    data,
+    serviceAndorRequest: state.lastDeriveRequest,
+    fields: serviceExportFields(data, JSON.stringify(state.lastDeriveRequest)),
+  };
+}
+
+/** The 14 form fields every Services export button posts. */
+function serviceExportFields(data: unknown, serviceAndorRequest: string): Record<string, string> {
   const integrationParams = {
     returnUrl: null,
     site: '',
@@ -592,26 +621,60 @@ export function buildProductServiceExportEnvelope(
     serviceWithProductNumber: false,
   };
   return {
-    endpoint: '/service_pacs/export',
-    data,
-    serviceAndorRequest: state.lastDeriveRequest,
-    fields: {
-      data: JSON.stringify(data),
-      crnId: '',
-      userGeneratedConfigId: '',
-      lfoCode: '',
-      cancelDownload: 'false',
-      multipleProductData: '',
-      excelData: 'null',
-      groups: '',
-      integrationParams: JSON.stringify(integrationParams),
-      image: '',
-      user: '',
-      'dcsc-isFromIntegration': 'false',
-      serviceAndorRequest: JSON.stringify(state.lastDeriveRequest),
-      uuid: '',
-    },
+    data: JSON.stringify(data),
+    crnId: '',
+    userGeneratedConfigId: '',
+    lfoCode: '',
+    cancelDownload: 'false',
+    multipleProductData: '',
+    excelData: 'null',
+    groups: '',
+    integrationParams: JSON.stringify(integrationParams),
+    image: '',
+    user: '',
+    'dcsc-isFromIntegration': 'false',
+    serviceAndorRequest,
+    uuid: '',
   };
+}
+
+export interface ServiceCatalogDownloadRequest {
+  path: string;
+  query: Record<string, string>;
+  fields: Record<string, string>;
+}
+
+/**
+ * The Services page Export button (one product's service catalog) and Download Catalog button
+ * (the whole country catalog, which posts no service list).
+ */
+export function buildServiceCatalogDownload(input: {
+  productCode?: string | undefined;
+  serviceCodes: string[];
+  country: string;
+  downloadToken: number;
+}): ServiceCatalogDownloadRequest {
+  if (input.productCode !== undefined) {
+    const services = input.serviceCodes.map((serviceCode) => ({ serviceCode, facets: '' }));
+    return {
+      path: `/service_pacs_download/${encodeURIComponent(input.productCode)}`,
+      query: {},
+      fields: serviceExportFields({ services }, ''),
+    };
+  }
+  return {
+    path: '/service_pacs_downloadV2',
+    query: { download: input.country, country_or_regions: input.country, downloadToken: String(input.downloadToken) },
+    fields: serviceExportFields({ services: [] }, ''),
+  };
+}
+
+/** Service codes of one product's catalog, from GET /service_pacs/:productCode. */
+export function serviceCatalogCodes(catalogRaw: unknown): string[] {
+  const services = objectOrUndefined(catalogRaw)?.['services'];
+  return Array.isArray(services)
+    ? services.flatMap((service) => nonBlankString(objectOrUndefined(service)?.['code']) ?? [])
+    : [];
 }
 
 function indexSoftwareFeatures(raw: unknown): StandaloneSoftwareFeature[] {
@@ -857,6 +920,38 @@ function uniqueByCode<T extends { code: string }>(items: T[], code: string, kind
   if (matches.length === 0) throw new Error(`Unknown ${kind} code: ${code}`);
   if (matches.length > 1) throw new Error(`Ambiguous ${kind} code: ${code}`);
   return matches[0] as T;
+}
+
+export interface ServiceProduct {
+  code: string;
+  type: string;
+  description: string;
+  withdrawn: boolean;
+}
+
+/** Products the Services page can attach service packs to (GET /service_pacs_product), filtered by code or description. */
+export async function searchServiceProducts(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  query: string,
+): Promise<ServiceProduct[]> {
+  const response = await http.send({
+    endpoint: 'service_pacs_product',
+    method: 'GET',
+    path: '/service_pacs_product',
+    query: { serviceCto: true },
+    responseKind: 'json',
+    timeoutClass: 'heavy',
+    ctx,
+  });
+  const needle = query.trim().toLowerCase();
+  return objectArray(response.raw).flatMap((raw) => {
+    const code = nonBlankString(raw['code']);
+    if (!code) return [];
+    const description = nonBlankString(raw['description']) ?? '';
+    if (!`${code} ${description}`.toLowerCase().includes(needle)) return [];
+    return [{ code, type: String(raw['type'] ?? ''), description, withdrawn: raw['withdrawn'] === true }];
+  });
 }
 
 function objectArray(value: unknown): Obj[] {

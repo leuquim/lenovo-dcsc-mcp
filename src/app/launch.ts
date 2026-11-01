@@ -10,7 +10,6 @@ import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../doma
 import type { ConfigMode } from '../config/constants.js';
 import type { SolutionContext } from '../config/schema.js';
 import { applySoftwareDerivePatch, isSoftwareDerivePatch } from '../domain/softwareDerive.js';
-import { generateConfigId as domainGenerateConfigId } from '../domain/configId.js';
 import {
   buildAutoDeriveRequest,
   buildGroups,
@@ -79,39 +78,6 @@ class SkipPriming extends Error {
 }
 
 /**
- * Generates an online 10-character Lenovo DCSC Configuration ID.
- * If a session or workspace handle is supplied, binds the ID to its state.
- */
-export async function generateConfigId(rt: Runtime, handle?: string, ctx?: RequestCtx): Promise<{ configId: string }> {
-  let effectiveCtx = ctx;
-  let session: ConfigSession | undefined;
-  let workspace: WorkspaceSession | undefined;
-
-  if (handle) {
-    const resolved = rt.sessions.resolveHandle(handle);
-    session = resolved?.session;
-    workspace = resolved?.workspace;
-    if (session) {
-      effectiveCtx = ctx ?? rt.newCtx({ locale: session.locale, solution: session.solution });
-    } else if (workspace) {
-      effectiveCtx = ctx ?? rt.newCtx({ locale: workspace.locale, solution: workspace.solution });
-    }
-  }
-
-  if (!effectiveCtx) effectiveCtx = rt.newCtx();
-  const result = await domainGenerateConfigId(rt.http, effectiveCtx);
-
-  if (session || workspace) {
-    await rt.sessions.transact(session?.id ?? workspace!.id, {}, (draftWorkspace, draft) => {
-      if (draft) draft.raw.userGeneratedConfigId = result.configId;
-      if (workspace) draftWorkspace.serverState.userGeneratedConfigId = result.configId;
-    });
-  }
-
-  return result;
-}
-
-/**
  * Which solution modes' catalogs contain each of these product codes.
  *
  * DCSC resolves a product against the catalog of whichever mode it is asked
@@ -129,15 +95,12 @@ export async function modesContaining(rt: Runtime, ctx: RequestCtx, codes: strin
   for (const code of wanted) out.set(code, []);
   if (wanted.size === 0) return out;
 
-  for (const info of await rt.solutionModes(ctx)) {
-    const solution = await rt.resolveSolution(ctx, info.mode);
-    const catalog = await rt.catalog(ctx, solution);
-    const codeSet = catalogCodeSet(catalog);
+  const modes = await rt.solutionModes(ctx);
+  const catalogs = await Promise.all(modes.map(async info =>
+    ({ mode: info.mode, codeSet: catalogCodeSet(await rt.catalog(ctx, await rt.resolveSolution(ctx, info.mode))) })));
+  for (const { mode, codeSet } of catalogs) {
     for (const code of wanted) {
-      if (codeSet.has(code)) {
-        const modes = out.get(code)!;
-        if (!modes.includes(info.mode)) modes.push(info.mode);
-      }
+      if (codeSet.has(code)) out.get(code)!.push(mode);
     }
   }
   return out;

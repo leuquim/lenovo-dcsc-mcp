@@ -20,13 +20,12 @@ import {
   referencePath,
   type ReferenceQuery,
 } from '../domain/referenceSolutions.js';
-import { retrieveConfigId as domainRetrieveConfigId, customizeSid as domainCustomizeSid } from '../domain/configId.js';
+import { customizeSid as domainCustomizeSid } from '../domain/configId.js';
 import { writeCfxmlArtifact, sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import {
   buildExportData,
   buildExportForm,
   buildGroups,
-  DEFAULT_EXPORT_TYPES,
   newConfigurationId,
   reduceConfiguration,
   type ExportFileType,
@@ -49,15 +48,16 @@ import {
   type RawImportResponse,
 } from './serviceHelpers.js';
 import { exportZipPath } from '../domain/endpoints.js';
-import { CATALOG_TTL_MS, type Runtime } from './runtime.js';
+import type { Runtime } from './runtime.js';
 import { manualCablingInput, prepareConfigIdsDraft, syncLayout } from './workspaceRefresh.js';
-import { configureDraft, generateConfigId } from './launch.js';
+import { configureDraft } from './launch.js';
 import { exportConfigurationTree } from '../domain/exportConfigurationTree.js';
 import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
 import { powerLoadFactor } from '../domain/power.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import {
   exportProductServiceArtifact,
+  exportServiceCatalogArtifact,
   exportStandaloneSoftwareArtifact,
   hardwareState,
   serviceState,
@@ -73,15 +73,11 @@ export async function downloadReferenceSolutionArtifact(rt: Runtime, crnId: stri
 
 export async function referenceSolutions(rt: Runtime, query: ReferenceQuery, ctx: RequestCtx, solutionMode?: string) {
   const solution = await rt.resolveSolution(ctx, solutionMode);
-  const key = JSON.stringify([ctx.locale, solution, referencePath(query)]);
-  const hit = rt.referencesCache.get(key);
+  const load = () => fetchReferenceSolutions(rt.http, { ...ctx, solution }, query);
   // Validation is live; catalogs share the ordinary metadata TTL.
-  if (query.view !== 'validation' && hit && Date.now() - hit.at < CATALOG_TTL_MS) {
-    return { raw: structuredClone(hit.value), solution };
-  }
-  const raw = await fetchReferenceSolutions(rt.http, { ...ctx, solution }, query);
-  if (query.view !== 'validation') rt.referencesCache.set(key, { at: Date.now(), value: structuredClone(raw) });
-  return { raw, solution };
+  if (query.view === 'validation') return { raw: await load(), solution };
+  const key = JSON.stringify([ctx.locale, solution, referencePath(query), ctx.withdrawnSince]);
+  return { raw: structuredClone(await rt.referencesCache.get(key, load)), solution };
 }
 
 export async function launchReferenceSolution(rt: Runtime, crnId: string, ctx: RequestCtx, solutionMode?: string): Promise<ImportResult> {
@@ -93,54 +89,6 @@ export async function launchReferenceSolution(rt: Runtime, crnId: string, ctx: R
   const raw: unknown = response.raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('DCSC returned no customizable reference solution.');
   return acceptImportPayload(rt, { ...raw, crnId: id }, { ctx, solution, fileName: `${id}.xml` });
-}
-
-/**
- * Retrieves an online configuration by ID from DCSC and ingests it into a workspace session.
- */
-export async function retrieveConfigId(rt: Runtime, configId: string,
-  opts: {
-    workspaceId?: string | undefined;
-    solutionMode?: string | undefined;
-    expectedRevision?: number | undefined;
-    mode?: ConfigMode | undefined;
-    ctx?: RequestCtx | undefined;
-  } = {},): Promise<ImportResult> {
-  const ctx = opts.ctx ?? rt.newCtx();
-  const solution = await rt.resolveSolution(ctx, opts.solutionMode);
-
-  let existingIds: string[] = [];
-  if (opts.workspaceId) {
-    const ws = rt.sessions.getWorkspace(opts.workspaceId);
-    if (ws) {
-      existingIds = [...ws.configurations.values()].map((s) => s.configurationId);
-    }
-  }
-
-  let payload: unknown;
-  try {
-    payload = await domainRetrieveConfigId(rt.http, configId, existingIds, { ...ctx, solution });
-  } catch (err) {
-    // If anonymous DCSC upstream does not persist newly minted IDs to cloud,
-    // fallback to active local session that holds userGeneratedConfigId.
-    const localMatch = rt.sessions.list().find((s) => s.raw.userGeneratedConfigId === configId);
-    if (localMatch) {
-      payload = [{
-        configuration: [structuredClone(localMatch.raw)],
-        workspace: {},
-      }];
-    } else {
-      throw err;
-    }
-  }
-  return acceptImportPayload(rt, payload, {
-    ctx: { ...ctx, solution },
-    solution,
-    mode: opts.mode,
-    workspaceId: opts.workspaceId,
-    fileName: `${configId}.xml`,
-    expectedRevision: opts.expectedRevision,
-  });
 }
 
 /**
@@ -670,7 +618,7 @@ export async function exportPowerReport(rt: Runtime, sessionHandle: string,
   const placement = session && workspace?.nonRackArea.find((item) => item.id === session.configurationId);
   const validationMode = workspace?.validationMode ?? session?.validationMode ?? 'expert';
 
-  const fileTypes = opts.fileTypes ?? DEFAULT_EXPORT_TYPES;
+  const fileTypes = opts.fileTypes ?? await rt.defaultExportTypes(effectiveSolution);
   const form = scope === 'workspace' && workspace
     ? buildWorkspaceReportForm(workspace, effectiveSolution, fileTypes, validationMode)
     : buildConfigurationReportForm(session!, workspace, placement, effectiveSolution, fileTypes, validationMode);
@@ -689,7 +637,7 @@ export async function exportPowerReport(rt: Runtime, sessionHandle: string,
   };
 }
 
-export const EXPORT_KINDS = ['reports', 'power', 'configurationTree', 'reference', 'configId'] as const;
+export const EXPORT_KINDS = ['reports', 'power', 'configurationTree', 'reference', 'servicesCatalog'] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 export interface ExportArgs {
@@ -702,6 +650,7 @@ export interface ExportArgs {
   name?: string | undefined;
   dataList?: Array<{ typeName: string; contents: string[] }> | undefined;
   crnId?: string | undefined;
+  productCode?: string | undefined;
   solutionMode?: string | undefined;
 }
 
@@ -736,9 +685,10 @@ export async function exportArtifact(rt: Runtime, args: ExportArgs): Promise<Rec
       const artifact = await downloadReferenceSolutionArtifact(rt, args.crnId, rt.newCtx(), args.solutionMode);
       return { crnId: args.crnId, ...artifact };
     }
-    case 'configId': {
-      const result = await generateConfigId(rt, args.session, rt.newCtx());
-      return { ...(args.session !== undefined ? { session: args.session } : {}), ...workspaceRevision(rt, args.session), configId: result.configId };
+    case 'servicesCatalog': {
+      const fileName = sanitiseFileName(args.fileName ?? `services-catalog-${Date.now()}`);
+      const bundle = await exportServiceCatalogArtifact(rt, { productCode: args.productCode, fileName });
+      return { ...(args.productCode !== undefined ? { productCode: args.productCode } : {}), ...bundle };
     }
   }
 }
@@ -753,7 +703,7 @@ async function exportReports(rt: Runtime, args: ExportArgs): Promise<Record<stri
   const fileName = sanitiseFileName(args.fileName ?? `${pCode}-${Date.now()}`);
   const solution = workspace?.solution ?? session!.solution;
   const ctx = rt.newCtx({ locale: workspace?.locale ?? session!.locale, solution });
-  const fileTypes = args.fileTypes ?? DEFAULT_EXPORT_TYPES;
+  const fileTypes = args.fileTypes ?? await rt.defaultExportTypes(solution);
   const configId = session?.configurationId
     ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
     ?? handle;
@@ -820,7 +770,6 @@ async function exportReports(rt: Runtime, args: ExportArgs): Promise<Record<stri
 export interface ImportArgs {
   content?: string | undefined;
   filePath?: string | undefined;
-  configId?: string | undefined;
   mode?: ConfigMode | undefined;
   session?: string | undefined;
   expectedRevision?: number | undefined;
@@ -831,31 +780,20 @@ const PATH_LIKE_CONTENT = /\.(xml|xlsx|xls)$/i;
 
 export async function importArtifact(rt: Runtime, args: ImportArgs): Promise<Record<string, unknown>> {
   const ctx = rt.newCtx();
-  let res: ImportResult;
-  if (args.configId) {
-    res = await retrieveConfigId(rt, args.configId, {
-      workspaceId: args.session,
-      expectedRevision: args.expectedRevision,
-      solutionMode: args.solutionMode,
-      mode: args.mode,
-      ctx,
-    });
-  } else {
-    const inputPath = args.filePath ?? (args.content &&
-      (PATH_LIKE_CONTENT.test(args.content) || args.content.startsWith('/') || args.content.startsWith('./'))
-      ? args.content : undefined);
-    const content: string | Uint8Array | undefined = inputPath ? readFileSync(inputPath) : args.content;
-    if (!content) throw new Error('Provide filePath, content or configId.');
-    res = await importConfig(rt, {
-      content,
-      ctx,
-      ...(args.mode !== undefined ? { mode: args.mode } : {}),
-      expectedRevision: args.expectedRevision,
-      ...(args.session !== undefined ? { workspaceId: args.session } : {}),
-      ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
-      ...(inputPath !== undefined ? { fileName: inputPath.split(/[\\/]/).pop() ?? 'configuration.xml' } : {}),
-    });
-  }
+  const inputPath = args.filePath ?? (args.content &&
+    (PATH_LIKE_CONTENT.test(args.content) || args.content.startsWith('/') || args.content.startsWith('./'))
+    ? args.content : undefined);
+  const content: string | Uint8Array | undefined = inputPath ? readFileSync(inputPath) : args.content;
+  if (!content) throw new Error('Provide filePath or content.');
+  const res = await importConfig(rt, {
+    content,
+    ctx,
+    ...(args.mode !== undefined ? { mode: args.mode } : {}),
+    expectedRevision: args.expectedRevision,
+    ...(args.session !== undefined ? { workspaceId: args.session } : {}),
+    ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
+    ...(inputPath !== undefined ? { fileName: inputPath.split(/[\\/]/).pop() ?? 'configuration.xml' } : {}),
+  });
   return projectImport(rt, res);
 }
 

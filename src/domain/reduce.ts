@@ -546,11 +546,37 @@ export const EXPORT_FILE_TYPES = {
   FLOOR: 'FLOOR',
   MESSAGE_HISTORY: 'MESSAGE_HISTORY',
   P2P_REPORT: 'P2P_REPORT',
+  QUOTE_REFERENCE: 'QUOTE_REFERENCE',
+  P2P_BY_RACK: 'P2P_BY_RACK',
+  VLH: 'VLH',
 } as const;
 
 export type ExportFileType = keyof typeof EXPORT_FILE_TYPES;
 
-export const DEFAULT_EXPORT_TYPES: ExportFileType[] = Object.keys(EXPORT_FILE_TYPES) as ExportFileType[];
+/** Export types the website offers per solution mode, keyed by the mode's systemFunctionList switch. */
+const EXPORT_TYPE_FUNCTION: Partial<Record<ExportFileType, string>> = {
+  QUOTE: 'Quote',
+  QUOTE_SUPPLYINFO: 'QuoteSupplyInfo',
+  QUOTE_GROUP: 'QuoteGroup',
+  QUOTE_REFERENCE: 'QuoteReference',
+  SUMMARY: 'Summary',
+  POWER_REPORT: 'PowerReport',
+  RACK_REPORT: 'RackReport',
+  RACK_DIAGRAM: 'RackDiagram',
+  FLOOR: 'Floor',
+  MESSAGE_HISTORY: 'MessageHistory',
+  P2P_REPORT: 'P2PReport',
+  P2P_BY_RACK: 'P2PByRack',
+  VLH: 'VLH',
+};
+
+/** The solution mode's exports as the website's export popover lists them; QUOTE_CSV and EPRICE_CSV are software-only. */
+export function defaultExportTypes(functions?: Record<string, boolean> | undefined): ExportFileType[] {
+  return (Object.keys(EXPORT_FILE_TYPES) as ExportFileType[]).filter(type => {
+    const fn = EXPORT_TYPE_FUNCTION[type];
+    return type === 'XML' || (fn !== undefined && functions?.[fn] !== false);
+  });
+}
 
 export interface ExportGroupProduct {
   id: string;

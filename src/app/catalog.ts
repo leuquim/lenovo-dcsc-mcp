@@ -23,6 +23,7 @@ import { projectCatalogPage } from '../model/catalogPage.js';
 import { projectJsonPage } from '../model/pagedJson.js';
 import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 import { jsonBytes } from '../util/jsonBytes.js';
+import { searchServiceProducts, searchSoftwareForProduct } from '../domain/standalone.js';
 import { lookupParts, partSupplyStatus, pricingContext } from './standalone.js';
 import { modesContaining } from './launch.js';
 import type { Runtime } from './runtime.js';
@@ -32,9 +33,6 @@ const SID_PAGE_DEFAULT = 10;
 const RAW_PAGE_DEFAULT = 20;
 const SPECIALTY_ROWS_MAX = 50;
 const SERVICE_PORTAL_CHILD_PREVIEW = 12;
-
-export const SEARCH_KINDS = ['products', 'tree', 'parts', 'preconfigured', 'sids', 'specialty'] as const;
-export type SearchKind = (typeof SEARCH_KINDS)[number];
 
 export const CATEGORY_KINDS = [
   'detail', 'services', 'caseStudies', 'conditions', 'products', 'topChoiceCountry',
@@ -65,14 +63,24 @@ export async function settingsGet(rt: Runtime, args: { localeQuery?: string | un
       })),
     };
   }
-  return { locale: rt.locale, solutionModes: modes, ...(locales ? { locales } : {}) };
+  return { locale: rt.locale, withdrawnSince: rt.withdrawnSince ?? null, solutionModes: modes, ...(locales ? { locales } : {}) };
 }
 
-export async function settingsSet(rt: Runtime, args: { country: string; language?: string | undefined }) {
-  const locale = await rt.resolveLocale(rt.newCtx(), args.country, args.language);
-  rt.setLocale(locale);
+const WITHDRAWN_SINCE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function settingsSet(rt: Runtime, args: {
+  country?: string | undefined; language?: string | undefined; withdrawnSince?: string | undefined;
+}) {
+  if (args.country === undefined && args.language !== undefined) throw new Error('language requires country.');
+  if (args.withdrawnSince !== undefined && args.withdrawnSince !== '' && !WITHDRAWN_SINCE_FORMAT.test(args.withdrawnSince)) {
+    throw new Error('withdrawnSince must be YYYY-MM-DD, or "" for available products only.');
+  }
+  const locale = args.country === undefined ? undefined : await rt.resolveLocale(rt.newCtx(), args.country, args.language);
+  if (locale) rt.setLocale(locale);
+  if (args.withdrawnSince !== undefined) rt.setWithdrawnSince(args.withdrawnSince || undefined);
   return {
-    locale,
+    locale: rt.locale,
+    withdrawnSince: rt.withdrawnSince ?? null,
     scope: 'process-default',
     persisted: false,
     priceType: 'LIST',
@@ -84,9 +92,9 @@ interface Paging { offset?: number | undefined; limit?: number | undefined; path
 interface Fingerprinted { expectedCatalogFingerprint?: string | undefined }
 
 export type SearchArgs =
-  | ({ kind: 'products'; query: string; type?: 'CTO' | 'LFO' | undefined; includeWithdrawn?: boolean | undefined;
+  | ({ kind: 'products'; query: string; type?: 'CTO' | 'LFO' | undefined;
       solutionMode?: string | undefined } & Paging & Fingerprinted)
-  | ({ kind: 'tree'; categoryPath?: string[] | undefined; includeWithdrawn?: boolean | undefined;
+  | ({ kind: 'tree'; categoryPath?: string[] | undefined;
       categoryOffset?: number | undefined; detailPath?: string[] | undefined; solutionMode?: string | undefined }
       & Omit<Paging, 'path'> & Fingerprinted)
   | ({ kind: 'parts'; query: string; types?: Array<'SOFTWARE' | 'SERVICE' | 'HARDWARE'> | undefined;
@@ -94,11 +102,14 @@ export type SearchArgs =
       solutionMode?: string | undefined } & Paging & Fingerprinted)
   | ({ kind: 'preconfigured' } & Paging & Fingerprinted)
   | ({ kind: 'sids'; categoryId: string; query?: string | undefined; tceFlag?: boolean | undefined } & Omit<Paging, 'path'>)
+  | ({ kind: 'serviceProducts'; query: string; solutionMode?: string | undefined } & Paging & Fingerprinted)
+  | ({ kind: 'software'; productCode: string; mode?: 'CTO' | 'LFO' | undefined; solutionMode?: string | undefined }
+      & Paging & Fingerprinted)
   | ({ kind: 'specialty'; catalog?: 'lvr' | 'converged' | 'promotion' | undefined; categoryId?: string | undefined;
       subType?: 'hierarchies' | 'sid' | 'lfo' | 'option' | undefined; query?: string | undefined;
       solutionMode?: string | undefined } & Paging);
 
-type SearchVariant<K extends SearchKind> = Extract<SearchArgs, { kind: K }>;
+type SearchVariant<K extends SearchArgs['kind']> = Extract<SearchArgs, { kind: K }>;
 
 function requireArg<T>(value: T | undefined, name: string, kind: string): T {
   if (value === undefined || value === '') throw new Error(`${name} is required for kind "${kind}".`);
@@ -113,13 +124,48 @@ export async function searchCatalog(rt: Runtime, args: SearchArgs): Promise<unkn
     case 'preconfigured': return preconfiguredCodes(rt, args);
     case 'sids': return searchSids(rt, args);
     case 'specialty': return searchSpecialty(rt, args);
+    case 'serviceProducts': return searchServices(rt, args);
+    case 'software': return searchSoftware(rt, args);
   }
+}
+
+async function searchServices(rt: Runtime, args: SearchVariant<'serviceProducts'>) {
+  const ctx = rt.newCtx();
+  const solution = await rt.resolveSolution(ctx, args.solutionMode);
+  const products = await searchServiceProducts(rt.http, { ...ctx, solution }, args.query);
+  return projectCatalogPage({
+    tool: 'dcsc_search', collection: 'products', context: ctx.locale,
+    arguments: { kind: 'serviceProducts', query: args.query, solutionMode: solution.solutionMode },
+    offset: args.offset ?? 0, limit: args.limit ?? 15, path: args.path,
+    expectedCatalogFingerprint: args.expectedCatalogFingerprint,
+    items: products.map(({ withdrawn, ...product }) => ({ ...product, ...(withdrawn ? { withdrawn } : {}) })),
+    base: { solutionMode: solution.solutionMode, total: products.length, page: { total: products.length } },
+  });
+}
+
+async function searchSoftware(rt: Runtime, args: SearchVariant<'software'>) {
+  const productCode = requireArg(args.productCode, 'productCode', 'software');
+  const mode = args.mode ?? 'CTO';
+  const ctx = rt.newCtx();
+  const solution = await rt.resolveSolution(ctx, args.solutionMode);
+  const features = await searchSoftwareForProduct(rt.http, { ...ctx, solution }, productCode, mode);
+  return projectCatalogPage({
+    tool: 'dcsc_search', collection: 'software', context: ctx.locale,
+    arguments: { kind: 'software', productCode, mode, solutionMode: solution.solutionMode },
+    offset: args.offset ?? 0, limit: args.limit ?? 15, path: args.path,
+    expectedCatalogFingerprint: args.expectedCatalogFingerprint,
+    items: features.map(feature => ({
+      code: feature.code, description: feature.description, path: feature.path, unitPrice: feature.unitPrice,
+    })),
+    base: { productCode, mode, solutionMode: solution.solutionMode,
+      ...pricingContext(ctx.locale.country, ctx.locale.currency), total: features.length, page: { total: features.length } },
+  });
 }
 
 async function searchProducts(rt: Runtime, args: SearchVariant<'products'>) {
   const query = requireArg(args.query, 'query', 'products');
-  const includeWithdrawn = args.includeWithdrawn ?? false;
   const ctx = rt.newCtx();
+  const includeWithdrawn = ctx.withdrawnSince !== undefined;
   const solution = await rt.resolveSolution(ctx, args.solutionMode);
   const catalog = await rt.catalog(ctx, solution);
   const page = searchCatalogPage(catalog, {
@@ -131,8 +177,8 @@ async function searchProducts(rt: Runtime, args: SearchVariant<'products'>) {
   });
   const availability = await modesContaining(rt, ctx, page.items.map((h) => h.code));
   return projectCatalogPage({
-    tool: 'dcsc_search', collection: 'products', context: ctx.locale,
-    arguments: { kind: 'products', query, type: args.type, includeWithdrawn, solutionMode: solution.solutionMode },
+    tool: 'dcsc_search', collection: 'products', context: { ...ctx.locale, withdrawnSince: ctx.withdrawnSince },
+    arguments: { kind: 'products', query, type: args.type, solutionMode: solution.solutionMode },
     offset: args.offset ?? 0, limit: args.limit ?? 15, path: args.path,
     expectedCatalogFingerprint: args.expectedCatalogFingerprint,
     items: page.items.map((h) => ({
@@ -150,16 +196,16 @@ async function searchProducts(rt: Runtime, args: SearchVariant<'products'>) {
 }
 
 async function browseTree(rt: Runtime, args: SearchVariant<'tree'>) {
-  const includeWithdrawn = args.includeWithdrawn ?? false;
   const ctx = rt.newCtx();
+  const includeWithdrawn = ctx.withdrawnSince !== undefined;
   const solution = await rt.resolveSolution(ctx, args.solutionMode);
   const catalog = await rt.catalog(ctx, solution);
   const result = browseCatalog(catalog, args.categoryPath ?? [], {
     offset: 0, limit: Math.max(catalog.entries.length, 1), includeWithdrawn,
   });
   return projectCatalogBrowsePage({
-    tool: 'dcsc_search', context: ctx.locale, path: result.path,
-    arguments: { kind: 'tree', categoryPath: result.path, solutionMode: solution.solutionMode, includeWithdrawn },
+    tool: 'dcsc_search', context: { ...ctx.locale, withdrawnSince: ctx.withdrawnSince }, path: result.path,
+    arguments: { kind: 'tree', categoryPath: result.path, solutionMode: solution.solutionMode },
     categories: result.children,
     products: result.products.map((p) => ({ code: p.code, type: p.type, description: p.description })),
     categoryOffset: args.categoryOffset ?? 0, productOffset: args.offset ?? 0, limit: args.limit ?? 25,

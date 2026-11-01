@@ -13,7 +13,7 @@ import {
   buildHttpError,
 } from './errors.js';
 import { redactBody } from './redact.js';
-import { assertPreamble, composeHeaders, composeQuery, type QueryValue } from './preamble.js';
+import { assertPreamble, composeHeaders, composeQuery, withdrawnDateQuery, type QueryValue } from './preamble.js';
 import { CircuitBreaker } from './resilience/breaker.js';
 import { RequestBudget, Semaphore, TokenBucket, sleep } from './resilience/pacer.js';
 import { backoffDelay, isRetryableTransportError, shouldRetry } from './resilience/retry.js';
@@ -41,6 +41,8 @@ export interface RequestCtx {
   solution?: SolutionContext | undefined;
   signal?: AbortSignal | undefined;
   budget?: RequestBudget | undefined;
+  /** Website "withdrawn since" setting (YYYY-MM-DD); sent to the catalog endpoints that honour it. */
+  withdrawnSince?: string | undefined;
 }
 
 export interface SendInput {
@@ -268,7 +270,7 @@ export class DcscHttpClient {
     const params = composeQuery({
       locale: input.ctx.locale,
       solution: input.ctx.solution,
-      query: input.query,
+      query: { ...withdrawnDateQuery(input.path, input.ctx.withdrawnSince), ...input.query },
     });
     assertPreamble(params, {
       endpoint: input.endpoint,

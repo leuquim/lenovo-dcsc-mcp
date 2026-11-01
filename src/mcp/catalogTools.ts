@@ -25,13 +25,11 @@ const searchSchema = z.discriminatedUnion('kind', [
     kind: z.literal('products'),
     query: z.string().min(1).describe('Name, model or part number.'),
     type: z.enum(['CTO', 'LFO']).optional().describe('Configure-to-order or preconfigured only.'),
-    includeWithdrawn: z.boolean().optional(),
     solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
   }),
   z.object({
     kind: z.literal('tree'),
     categoryPath: z.array(z.string()).optional().describe('Breadcrumb, e.g. ["Servers", "Rack Server"]; omit for the top level.'),
-    includeWithdrawn: z.boolean().optional(),
     categoryOffset: pageOffset.describe('Category cursor from a continuation.'),
     detailPath,
     solutionMode, offset: pageOffset, limit: rowLimit, expectedCatalogFingerprint: fingerprint,
@@ -52,6 +50,17 @@ const searchSchema = z.discriminatedUnion('kind', [
     query: z.string().optional().describe('SID number.'),
     tceFlag: z.boolean().optional(),
     offset: pageOffset, limit: z.number().int().min(1).max(25).optional().describe('Rows per page (default 10).'),
+  }),
+  z.object({
+    kind: z.literal('serviceProducts'),
+    query: z.string().describe('Code or name text; "" lists all.'),
+    solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+  }),
+  z.object({
+    kind: z.literal('software'),
+    productCode: z.string().min(1).describe('MT, CTO or LFO ID.'),
+    mode: z.enum(['CTO', 'LFO']).optional().describe('Default CTO.'),
+    solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
   }),
   z.object({
     kind: z.literal('specialty'),
@@ -121,12 +130,13 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
     'dcsc_settings_set',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      title: 'Set DCSC country and language',
+      title: 'Set DCSC country, language and withdrawn-since date',
       description:
-        'Sets the default country, language and currency for later launches and searches. Existing workspaces keep their own locale.',
+        'Sets the default country, language and currency for later launches and searches, and the withdrawn-since catalog date. Existing workspaces keep their own locale.',
       inputSchema: {
-        country: z.string().describe('ISO country code, e.g. "US", "DE".'),
+        country: z.string().optional().describe('ISO country code, e.g. "US", "DE".'),
         language: z.string().optional().describe('Language code; defaults to the country default.'),
+        withdrawnSince: z.string().optional().describe('YYYY-MM-DD: also list products withdrawn since then. "" lists available products only.'),
       },
     },
     async (args) => guard(() => settingsSet(service, args), 'dcsc_settings_set failed'),
@@ -138,7 +148,7 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Search the DCSC catalog',
       description:
-        'Finds products, parts, preconfigured codes, SIDs and specialty catalog entries. Pick the kind: products (configurable systems), tree (category browsing), parts, preconfigured (CTO/LFO codes), sids (preconfigured solutions in a category), specialty (LVR, converged, promotion). Follow returned continuations unchanged.',
+        'Finds products, parts, preconfigured codes, SIDs and specialty catalog entries. Pick the kind: products (configurable systems), tree (category browsing), parts, preconfigured (CTO/LFO codes), sids (preconfigured solutions in a category), specialty (LVR, converged, promotion), serviceProducts (products that take service packs), software (software offered for a product ID). Follow returned continuations unchanged.',
       inputSchema: { search: searchSchema },
     },
     async (args) => guard(async () => nestContinuations(await searchCatalog(service, args.search), 'dcsc_search', 'search'), 'dcsc_search failed'),
