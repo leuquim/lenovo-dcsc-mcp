@@ -277,7 +277,7 @@ describe('Service Integration: Config ID & SIDs', () => {
 });
 
 describe('MCP Tools: Config ID & SIDs', () => {
-  it('dcsc_generate_config_id returns configId and binds to handle', async () => {
+  it('dcsc_export configId returns configId and binds to handle', async () => {
     const service = createService();
     const client = await createMcpClient(service);
 
@@ -286,8 +286,8 @@ describe('MCP Tools: Config ID & SIDs', () => {
     } as never);
 
     const res = await client.callTool({
-      name: 'dcsc_generate_config_id',
-      arguments: {},
+      name: 'dcsc_export',
+      arguments: { kind: 'configId' },
     });
 
     expect(res.isError).toBeFalsy();
@@ -295,7 +295,7 @@ describe('MCP Tools: Config ID & SIDs', () => {
     expect(parsed['configId']).toBe('CIDU888888');
   });
 
-  it('dcsc_query_sids returns paginated SID list', async () => {
+  it('dcsc_search sids returns paginated SID list', async () => {
     const service = createService();
     const client = await createMcpClient(service);
 
@@ -320,8 +320,8 @@ describe('MCP Tools: Config ID & SIDs', () => {
     } as never);
 
     const res = await client.callTool({
-      name: 'dcsc_query_sids',
-      arguments: { categoryId: 'servers', pageIndex: 1, pageSize: 10 },
+      name: 'dcsc_search',
+      arguments: { kind: 'sids', categoryId: 'servers', offset: 0, limit: 10 },
     });
 
     expect(res.isError).toBeFalsy();
@@ -331,7 +331,7 @@ describe('MCP Tools: Config ID & SIDs', () => {
     expect((parsed['content'] as Obj[])[0]!['sidNumber']).toBe('SID999');
   });
 
-  it('dcsc_import_config_id retrieves and imports saved configuration', async () => {
+  it('dcsc_import with configId retrieves and imports saved configuration', async () => {
     const service = createService();
     const client = await createMcpClient(service);
 
@@ -368,13 +368,13 @@ describe('MCP Tools: Config ID & SIDs', () => {
     });
 
     const res = await client.callTool({
-      name: 'dcsc_import_config_id',
+      name: 'dcsc_import',
       arguments: { configId: 'CIDU00CKWN' },
     });
 
     expect(res.isError).toBeFalsy();
     const parsed = JSON.parse((res.content as Array<{ type: 'text'; text: string }>)[0]!.text) as Obj;
     expect(parsed['importedConfigurations']).toBe(1);
-    expect(parsed['workspace']).toBeDefined();
+    expect(parsed['session']).toBeDefined();
   });
 });

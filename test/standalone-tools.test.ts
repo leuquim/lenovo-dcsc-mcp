@@ -12,6 +12,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { registerStandaloneTools } from '../src/mcp/standaloneTools.js';
+import { registerImportExportTools } from '../src/mcp/importExportTools.js';
+import { basketView, launchServices, launchSoftware, pricingContext, softwareState } from '../src/app/standalone.js';
 import { DcscService } from '../src/mcp/service.js';
 
 type ToolReply = {
@@ -141,11 +143,35 @@ async function setup() {
     },
   };
   registerStandaloneTools(server as unknown as McpServer, service);
+  registerImportExportTools(server as unknown as McpServer, service);
   return { service, handlers };
 }
 
 function parse(reply: ToolReply): Record<string, unknown> {
   return JSON.parse(reply.content[0]?.text ?? '{}') as Record<string, unknown>;
+}
+
+function reply(run: () => Promise<Record<string, unknown>>): Promise<ToolReply> {
+  return run().then(
+    (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] }),
+    (error: unknown) => ({ content: [{ type: 'text', text: JSON.stringify({ error: String(error) }) }], isError: true }),
+  );
+}
+
+function launchTool(service: DcscService, name: string): ToolHandler {
+  if (name === 'dcsc_software_launch') {
+    return (args) => reply(async () => {
+      const { workspace, state } = await launchSoftware(service, { replace: false, refresh: false, ...args });
+      return { workspace: workspace.id, revision: workspace.revision, catalogItems: state.features.length,
+        selections: softwareState(workspace).selections.length,
+        ...pricingContext(workspace.locale.country, workspace.locale.currency) };
+    });
+  }
+  return (args) => reply(async () => {
+    const workspace = await launchServices(service, { productQuantity: 1, subCategory: 'Point of Sale',
+      replace: false, refresh: false, ...args } as Parameters<typeof launchServices>[1]);
+    return { ...basketView(workspace, 'services'), workspace: workspace.id };
+  });
 }
 
 function handler(handlers: Map<string, ToolHandler>, name: string): ToolHandler {
@@ -164,8 +190,8 @@ describe('standalone MCP tools', () => {
       if (request.path === '/findpart') return { raw: parts } as never;
       throw new Error(`Unexpected ${request.path}`);
     });
-    const lookup = handler(handlers, 'dcsc_find_parts');
-    let args: Record<string, unknown> | undefined = { keyword: 'catalog', types: ['SOFTWARE'], mode: 'CTO', offset: 0, limit: 50 };
+    const lookup = handler(handlers, 'dcsc_search');
+    let args: Record<string, unknown> | undefined = { kind: 'parts', query: 'catalog', types: ['SOFTWARE'], mode: 'CTO', offset: 0, limit: 50 };
     const codes: string[] = [];
     let savedContinuation: Record<string, unknown> | undefined;
     while (args) {
@@ -178,7 +204,7 @@ describe('standalone MCP tools', () => {
       args = (result.next as { arguments: Record<string, unknown> } | undefined)?.arguments;
       if (args) {
         savedContinuation ??= args;
-        expect(args).toMatchObject({ keyword: 'catalog', types: ['SOFTWARE'], offset: codes.length });
+        expect(args).toMatchObject({ query: 'catalog', types: ['SOFTWARE'], offset: codes.length });
       }
     }
     expect(codes).toEqual(parts.map(part => part.code));
@@ -190,12 +216,12 @@ describe('standalone MCP tools', () => {
       .toBe(`PART-${String(savedContinuation!['offset'])}`);
     expect(send.mock.calls.filter(([request]) => request.path === '/findpart')).toHaveLength(1);
 
-    const mismatched = await lookup({ ...savedContinuation, keyword: 'different catalog' });
+    const mismatched = await lookup({ ...savedContinuation, query: 'different catalog' });
     expect(mismatched.isError).toBe(true);
     expect(mismatched.content[0]!.text).toContain('catalog or query context changed');
     expect(send.mock.calls.filter(([request]) => request.path === '/findpart')).toHaveLength(2);
 
-    const refreshed = parse(await lookup({ keyword: 'catalog', types: ['SOFTWARE'], mode: 'CTO', offset: 0, limit: 50 }));
+    const refreshed = parse(await lookup({ kind: 'parts', query: 'catalog', types: ['SOFTWARE'], mode: 'CTO', offset: 0, limit: 50 }));
     expect((refreshed.parts as Array<{ code: string }>)[0]?.code).toBe('PART-1');
     expect(send.mock.calls.filter(([request]) => request.path === '/findpart')).toHaveLength(3);
   });
@@ -213,8 +239,9 @@ describe('standalone MCP tools', () => {
       if (request.path === '/software/portal/launch') return { raw: portal } as never;
       throw new Error(`Unexpected ${request.path}`);
     });
-    const launched = parse(await handler(handlers, 'dcsc_software_launch')({ replace: false }));
-    const browse = handler(handlers, 'dcsc_software_browse');
+    const launched = parse(await launchTool(service, 'dcsc_software_launch')({ replace: false }));
+    const browseTool = handler(handlers, 'dcsc_basket_browse');
+    const browse = (args: Record<string, unknown>) => browseTool({ basket: 'software', ...args });
     const first = parse(await browse({ session: launched.workspace, query: 'License', subTab: 'Microsoft', offset: 0, limit: 50 }));
     const compact = (first.software as Array<Record<string, unknown>>)[0]!;
     expect(compact).toMatchObject({ code: 'SOFTWARE-0', compacted: true });
@@ -265,8 +292,8 @@ describe('standalone MCP tools', () => {
     });
 
     const result = parse(
-      await handler(handlers, 'dcsc_find_parts')({
-        keyword: 'lenovo',
+      await handler(handlers, 'dcsc_search')({ kind: 'parts',
+        query: 'lenovo',
         types: ['SOFTWARE', 'SERVICE'],
         mode: 'CTO',
         offset: 0,
@@ -288,7 +315,7 @@ describe('standalone MCP tools', () => {
         continuationScope: 'local-snapshot',
       },
       parts: [{ code: 'SW1', nextAction: 'browse_software_catalog' }],
-      next: { tool: 'dcsc_find_parts', arguments: { offset: 1, limit: 1 } },
+      next: { tool: 'dcsc_search', arguments: { offset: 1, limit: 1 } },
     });
     expect(result.scope).toContain('website paginates it client-side');
     expect(send).toHaveBeenCalledWith(
@@ -299,7 +326,7 @@ describe('standalone MCP tools', () => {
     );
     expect(result).not.toHaveProperty('total');
 
-    const second = parse(await handler(handlers, 'dcsc_find_parts')(
+    const second = parse(await handler(handlers, 'dcsc_search')(
       (result.next as { arguments: Record<string, unknown> }).arguments,
     ));
     expect(second.parts).toEqual([expect.objectContaining({ code: 'SV1' })]);
@@ -326,13 +353,13 @@ describe('standalone MCP tools', () => {
     });
 
     const launched = parse(
-      await handler(handlers, 'dcsc_software_launch')({ replace: false }),
+      await launchTool(service, 'dcsc_software_launch')({ replace: false }),
     );
     const workspace = String(launched['workspace']);
     expect(launched).toMatchObject({ catalogItems: 1, selections: 0, account: 'anonymous' });
 
     const page = parse(
-      await handler(handlers, 'dcsc_software_browse')({
+      await handler(handlers, 'dcsc_basket_browse')({ basket: 'software',
         session: workspace,
         offset: 0,
         limit: 1,
@@ -345,38 +372,38 @@ describe('standalone MCP tools', () => {
           code: '7S1S002WWW',
           unitPrice: 234.5,
           next: {
-            tool: 'dcsc_software_select',
-            arguments: { session: workspace, code: '7S1S002WWW', quantity: 1 },
+            tool: 'dcsc_basket_set',
+            arguments: { session: workspace, basket: 'software', action: 'select', code: '7S1S002WWW', quantity: 1 },
           },
         },
       ],
     });
 
     const selected = parse(
-      await handler(handlers, 'dcsc_software_select')({
+      await handler(handlers, 'dcsc_basket_set')({ basket: 'software', action: 'select',
         session: workspace,
         code: '7S1S002WWW',
         quantity: 2,
       }),
     );
     expect(selected).toMatchObject({ totalListPrice: 469, priceIncomplete: false });
-    const stale = await handler(handlers, 'dcsc_software_set_quantity')({
+    const stale = await handler(handlers, 'dcsc_basket_set')({ basket: 'software', action: 'setQuantity',
       session: workspace,
       code: '7S1S002WWW',
       quantity: 9,
       expectedRevision: launched['revision'],
     });
     expect(stale.isError).toBe(true);
-    expect(parse(await handler(handlers, 'dcsc_software_inspect')({ session: workspace }))).toMatchObject({
+    expect(basketView(service.sessions.getWorkspace(workspace)!, 'software')).toMatchObject({
       selections: [{ code: '7S1S002WWW', quantity: 2 }],
     });
 
     const exported = parse(
-      await handler(handlers, 'dcsc_software_export')({ session: workspace, fileName: 'software' }),
+      await handler(handlers, 'dcsc_export')({ kind: 'reports', session: workspace, fileName: 'software' }),
     );
     expect(exported).toMatchObject({
-      workspace,
-      kind: 'standalone-software',
+      session: workspace,
+      scope: 'workspace',
       bytes: zip.length,
       contentDisposition: 'attachment; filename="software.zip"',
     });
@@ -439,7 +466,7 @@ describe('standalone MCP tools', () => {
         ],
       },
     ];
-    await handler(handlers, 'dcsc_software_export')({
+    await handler(handlers, 'dcsc_export')({ kind: 'reports',
       session: workspace,
       fileName: 'mixed',
       fileTypes: ['XML', 'RACK_REPORT'],
@@ -483,13 +510,13 @@ describe('standalone MCP tools', () => {
     service.sessions.setPersistenceWriter(() => {
       throw new Error('simulated durable write failure');
     });
-    const failed = await handler(handlers, 'dcsc_software_set_quantity')({
+    const failed = await handler(handlers, 'dcsc_basket_set')({ basket: 'software', action: 'setQuantity',
       session: workspace,
       code: '7S1S002WWW',
       quantity: 3,
     });
     expect(failed.isError).toBe(true);
-    const after = parse(await handler(handlers, 'dcsc_software_inspect')({ session: workspace }));
+    const after = basketView(service.sessions.getWorkspace(workspace)!, 'software');
     expect(after).toMatchObject({
       totalListPrice: 469,
       selections: [{ code: '7S1S002WWW', quantity: 2 }],
@@ -522,7 +549,7 @@ describe('standalone MCP tools', () => {
     });
     const beforeExport = buildProductServiceExportEnvelope(imported.state);
     const before = structuredClone(imported.state);
-    const refreshed = await handler(handlers,'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision});
+    const refreshed = await launchTool(service, 'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision});
     expect(refreshed.isError).not.toBe(true);
     expect(workspace.integrityWarnings).toEqual(['Retained unrelated import diagnostic']);
     const state = workspace.serverState.standaloneServiceState as typeof imported.state;
@@ -531,7 +558,7 @@ describe('standalone MCP tools', () => {
     expect(state.summaryRaw).toEqual(before.summaryRaw);
     expect(buildProductServiceExportEnvelope(state)).toEqual(beforeExport);
     expect(state.options.some(option=>option.code==='NEW-SERVICE')).toBe(true);
-    const resized = parse(await handler(handlers, 'dcsc_services_set_product_quantity')({
+    const resized = parse(await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setProductQuantity',
       session: workspace.id,
       quantity: 4,
       expectedRevision: workspace.revision,
@@ -551,18 +578,16 @@ describe('standalone MCP tools', () => {
         }],
       },
     });
-    const exported = parse(await handler(handlers, 'dcsc_services_export')({
+    const exported = parse(await handler(handlers, 'dcsc_export')({ kind: 'reports',
       session: workspace.id,
       fileName: 'imported-non-unit-service',
     }));
-    expect(exported['warnings']).toEqual(expect.arrayContaining([
-      expect.stringContaining('native Save after import and a product-quantity change'),
-    ]));
+    expect(exported['warning']).toEqual(expect.stringContaining('native Save after import and a product-quantity change'));
     const requestCount = send.mock.calls.length;
-    const stale = await handler(handlers,'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision-1});
+    const stale = await launchTool(service, 'dcsc_services_launch')({session:workspace.id,refresh:true,expectedRevision:workspace.revision-1});
     expect(stale.isError).toBe(true);
     expect(send).toHaveBeenCalledTimes(requestCount);
-    const selected = await handler(handlers,'dcsc_services_select')({session:workspace.id,serviceCode:'NEW-SERVICE',quantity:1,expectedRevision:workspace.revision});
+    const selected = await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',session:workspace.id,code:'NEW-SERVICE',quantity:1,expectedRevision:workspace.revision});
     expect(selected.isError).not.toBe(true);
     expect(parse(selected)).toMatchObject({selections:[{code:'NEW-SERVICE',quantity:1}],summary:{totalPrice:2400}});
   });
@@ -593,7 +618,7 @@ describe('standalone MCP tools', () => {
       throw new Error(`Unexpected ${request.path}`);
     });
 
-    const launched = parse(await handler(handlers, 'dcsc_services_launch')({
+    const launched = parse(await launchTool(service, 'dcsc_services_launch')({
       productCode: '7D73CTO1WW',
       productQuantity: 3,
       subCategory: 'Point of Sale',
@@ -604,9 +629,9 @@ describe('standalone MCP tools', () => {
     const initialWorkspace = service.sessions.getWorkspace(workspace)!;
     const initialServerState = structuredClone(initialWorkspace.serverState);
     const initialHistory = structuredClone(initialWorkspace.history);
-    const rejectedSelection = await handler(handlers, 'dcsc_services_select')({
+    const rejectedSelection = await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',
       session: workspace,
-      serviceCode: '5WS7B99623',
+      code: '5WS7B99623',
       quantity: 2,
     });
     expect(rejectedSelection.isError).toBe(true);
@@ -614,8 +639,8 @@ describe('standalone MCP tools', () => {
     expect(rejectedSelection.content[0]!.text).toContain('requestedQuantity=2');
     expect(rejectedSelection.content[0]!.text).toContain('acceptedQuantity=1');
     expect(rejectedSelection.content[0]!.text).toContain('No workspace change was saved');
-    expect(rejectedSelection.content[0]!.text).toContain('dcsc_services_set_product_quantity');
-    expect(rejectedSelection.content[0]!.text).toContain('dcsc_services_remove');
+    expect(rejectedSelection.content[0]!.text).toContain('setProductQuantity');
+    expect(rejectedSelection.content[0]!.text).toContain('(remove)');
     expect(service.sessions.getWorkspace(workspace)?.revision).toBe(initialRevision);
     expect(service.sessions.getWorkspace(workspace)?.serverState).toEqual(initialServerState);
     expect(service.sessions.getWorkspace(workspace)?.history).toEqual(initialHistory);
@@ -623,9 +648,9 @@ describe('standalone MCP tools', () => {
       selections: unknown[];
     }).selections).toEqual([]);
 
-    const selected = await handler(handlers, 'dcsc_services_select')({
+    const selected = await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',
       session: workspace,
-      serviceCode: '5WS7B99623',
+      code: '5WS7B99623',
       quantity: 1,
       expectedRevision: initialRevision,
     });
@@ -640,9 +665,9 @@ describe('standalone MCP tools', () => {
       >[0],
     );
 
-    const rejectedChange = await handler(handlers, 'dcsc_services_set_quantity')({
+    const rejectedChange = await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setQuantity',
       session: workspace,
-      serviceCode: '5WS7B99623',
+      code: '5WS7B99623',
       quantity: 4,
     });
     expect(rejectedChange.isError).toBe(true);
@@ -688,7 +713,7 @@ describe('standalone MCP tools', () => {
     });
 
     const launched = parse(
-      await handler(handlers, 'dcsc_services_launch')({
+      await launchTool(service, 'dcsc_services_launch')({
         productCode: '7D73CTO1WW',
         productQuantity: 1,
         subCategory: 'Point of Sale',
@@ -703,9 +728,9 @@ describe('standalone MCP tools', () => {
     });
 
     const selected = parse(
-      await handler(handlers, 'dcsc_services_select')({
+      await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',
         session: workspace,
-        serviceCode: '5WS7B99623',
+        code: '5WS7B99623',
         quantity: 1,
       }),
     );
@@ -715,14 +740,14 @@ describe('standalone MCP tools', () => {
     });
 
     const changedService = parse(
-      await handler(handlers, 'dcsc_services_set_quantity')({ session: workspace, quantity: 2 }),
+      await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setQuantity', session: workspace, quantity: 2 }),
     );
     expect(changedService).toMatchObject({
       product: { code: '7D73CTO1WW', quantity: 1 },
       selections: [{ code: '5WS7B99623', quantity: 2 }],
     });
     const changedProduct = parse(
-      await handler(handlers, 'dcsc_services_set_product_quantity')({
+      await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setProductQuantity',
         session: workspace,
         quantity: 3,
       }),
@@ -734,13 +759,11 @@ describe('standalone MCP tools', () => {
     });
 
     const exported = parse(
-      await handler(handlers, 'dcsc_services_export')({ session: workspace, fileName: 'services' }),
+      await handler(handlers, 'dcsc_export')({ kind: 'reports', session: workspace, fileName: 'services' }),
     );
     expect(exported).toMatchObject({
-      kind: 'product-bound-services',
-      selectionSemantics: 'base-plus-add-ons-verified',
-      importSupported: true,
-      importTool: 'dcsc_import',
+      session: workspace,
+      scope: 'workspace',
       bytes: zip.length,
     });
     const exportRequest = requests.find((request) => request['path'] === '/service_pacs/export');
@@ -769,7 +792,7 @@ describe('standalone MCP tools', () => {
       'dcsc-isFromIntegration': 'false',
     });
 
-    const removed = parse(await handler(handlers, 'dcsc_services_remove')({ session: workspace }));
+    const removed = parse(await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'remove', session: workspace }));
     expect(removed).toMatchObject({
       product: { code: '7D73CTO1WW', quantity: 3 },
       selections: [],
@@ -840,15 +863,15 @@ describe('standalone MCP tools', () => {
       throw new Error(`Unexpected ${request.path}`);
     });
 
-    const launched = parse(await handler(handlers, 'dcsc_services_launch')({
+    const launched = parse(await launchTool(service, 'dcsc_services_launch')({
       productCode: '7D73CTO1WW', subCategory: 'Point of Sale', replace: false,
     }));
     const workspace = String(launched['workspace']);
-    await handler(handlers, 'dcsc_services_select')({
-      session: workspace, serviceCode: serviceFeature.code, quantity: 1,
+    await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',
+      session: workspace, code: serviceFeature.code, quantity: 1,
     });
-    const withAddOn = parse(await handler(handlers, 'dcsc_services_select')({
-      session: workspace, serviceCode: addOn.code, quantity: 1,
+    const withAddOn = parse(await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'select',
+      session: workspace, code: addOn.code, quantity: 1,
     }));
     expect(withAddOn).toMatchObject({
       selectionSemantics: 'base-plus-add-ons-verified',
@@ -856,17 +879,17 @@ describe('standalone MCP tools', () => {
       summary: { totalPrice: 1810 },
     });
 
-    const ambiguous = await handler(handlers, 'dcsc_services_set_quantity')({ session: workspace, quantity: 2 });
+    const ambiguous = await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setQuantity', session: workspace, quantity: 2 });
     expect(ambiguous.isError).toBe(true);
-    const changed = parse(await handler(handlers, 'dcsc_services_set_quantity')({
-      session: workspace, serviceCode: addOn.code, quantity: 2,
+    const changed = parse(await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'setQuantity',
+      session: workspace, code: addOn.code, quantity: 2,
     }));
     expect(changed).toMatchObject({
       selections: [{ code: serviceFeature.code, quantity: 1 }, { code: addOn.code, quantity: 2 }],
     });
 
-    const removed = parse(await handler(handlers, 'dcsc_services_remove')({
-      session: workspace, serviceCode: addOn.code,
+    const removed = parse(await handler(handlers, 'dcsc_basket_set')({ basket: 'services', action: 'remove',
+      session: workspace, code: addOn.code,
     }));
     expect(removed).toMatchObject({
       selections: [{ code: serviceFeature.code, quantity: 1 }],

@@ -13,22 +13,22 @@ async function inspectModes(raw: unknown) {
   const service = new DcscService(ConfigSchema.parse({ files: { persistSessions: false } }));
   try {
     vi.spyOn(service.http, 'send').mockResolvedValue({ raw } as never);
-    let handler: (() => Promise<Reply>) | undefined;
-    registerTools({ registerTool(name: string, _definition: unknown, callback: () => Promise<Reply>) {
-      if (name === 'dcsc_solution_modes') handler = callback;
+    let handler: ((args: Record<string, unknown>) => Promise<Reply>) | undefined;
+    registerTools({ registerTool(name: string, _definition: unknown, callback: (args: Record<string, unknown>) => Promise<Reply>) {
+      if (name === 'dcsc_settings_get') handler = callback;
       return { remove() {}, update() {} };
     } } as unknown as McpServer, service);
-    const reply = await handler!();
+    const reply = await handler!({});
     expect(reply.isError).not.toBe(true);
     expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8000);
-    return JSON.parse(reply.content[0]!.text) as { modes: Array<Record<string, unknown>> };
+    return JSON.parse(reply.content[0]!.text) as { solutionModes: Array<Record<string, unknown>> };
   } finally { await service.close(); }
 }
 
 describe('website mode capability discovery', () => {
   it('retains UI labels and the exact GP versus AI/HPC function differences', async () => {
     const result = await inspectModes(modes);
-    expect(result.modes).toEqual([
+    expect(result.solutionModes).toEqual([
       expect.objectContaining({ mode: 'General Purpose', description: 'General Purpose',
         websiteFunctions: expect.objectContaining({ Preference: false, AutoConnection: false, AutoArrange: false }) }),
       expect.objectContaining({ mode: 'HPC and AI - Systems', description: 'AI & HPC – ThinkSystem Hardware',
@@ -38,6 +38,6 @@ describe('website mode capability discovery', () => {
 
   it('does not invent capability values when the upstream response omits them', async () => {
     const result = await inspectModes([{ mode: 'General Purpose', masterSlices: ['GP'] }]);
-    expect(result.modes).toEqual([{ mode: 'General Purpose', masterSlices: ['GP'] }]);
+    expect(result.solutionModes).toEqual([{ mode: 'General Purpose', masterSlices: ['GP'] }]);
   });
 });

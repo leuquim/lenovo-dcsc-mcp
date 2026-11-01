@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
-import { registerCatalogTools } from '../src/mcp/catalogTools.js';
+import { featureSpecs, smartRecommendations, subTabRecommendations } from '../src/app/catalog.js';
 import {
   fetchUpstreamFeatureDetails,
   summarizeFeatureSpec,
@@ -85,23 +85,19 @@ function setupService() {
 }
 
 function getToolHandlers(service: DcscService) {
-  const handlers = new Map<
-    string,
-    (args: Obj) => Promise<{ isError?: boolean; content: Array<{ text: string }> }>
-  >();
-  registerCatalogTools(
-    {
-      registerTool(
-        name: string,
-        _spec: unknown,
-        handler: typeof handlers extends Map<string, infer H> ? H : never,
-      ) {
-        handlers.set(name, handler);
-      },
-    } as unknown as McpServer,
-    service,
-  );
-  return handlers;
+  type Reply = { isError?: boolean; content: Array<{ text: string }> };
+  const wrap = (run: (args: Obj) => Promise<unknown>) => async (args: Obj): Promise<Reply> => {
+    try {
+      return { content: [{ text: JSON.stringify(await run(args)) }] };
+    } catch (error) {
+      return { isError: true, content: [{ text: String(error) }] };
+    }
+  };
+  return new Map<string, (args: Obj) => Promise<Reply>>([
+    ['dcsc_subtab_recommendations', wrap((args) => subTabRecommendations(service, args))],
+    ['dcsc_feature_details', wrap((args) => featureSpecs(service, args as Parameters<typeof featureSpecs>[1]))],
+    ['dcsc_smart_recommendations', wrap((args) => smartRecommendations(service, args))],
+  ]);
 }
 
 describe('Feature Details & Smart Recommendations (R4)', () => {
@@ -302,7 +298,7 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
     });
   });
 
-  describe('MCP Tools: dcsc_subtab_recommendations, dcsc_feature_details, dcsc_smart_recommendations', () => {
+  describe('Recommendation and feature-spec app functions', () => {
     it('calls dcsc_subtab_recommendations with either productCode or an active session', async () => {
       const service = setupService();
       vi.spyOn(service.http, 'send').mockResolvedValue({

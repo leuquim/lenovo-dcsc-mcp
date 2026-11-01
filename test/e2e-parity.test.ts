@@ -16,6 +16,15 @@ import {
 import type { VlhAttributes, VlhWizardInfo } from '../src/domain/vlh.js';
 import { type VirtualContainerCompatibleCategory } from '../src/domain/virtualContainers.js';
 import type { RawConfiguration } from '../src/model/types.js';
+import { featureSpecs, subTabRecommendations } from '../src/app/catalog.js';
+
+async function appResult(run: () => Promise<unknown>) {
+  try {
+    return { content: [{ type: 'text', text: JSON.stringify(await run()) }] };
+  } catch {
+    return { isError: true, content: [{ type: 'text', text: 'error' }] };
+  }
+}
 
 type Obj = Record<string, unknown>;
 
@@ -541,8 +550,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
 
       const toolRes = await client.callTool({
-        name: 'dcsc_generate_config_id',
-        arguments: { session: session.id },
+        name: 'dcsc_export',
+        arguments: { kind: 'configId', session: session.id },
       });
       const data = parseResult(toolRes);
 
@@ -556,14 +565,14 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       const { client } = await createHarness();
 
       const toolRes = await client.callTool({
-        name: 'dcsc_import_config_id',
+        name: 'dcsc_import',
         arguments: { configId: mockConfigId },
       });
       const data = parseResult(toolRes);
 
-      expect(data['workspace']).toBeDefined();
+      expect(data['session']).toBeDefined();
       expect(data['importedConfigurations']).toBe(1);
-      const sessions = data['sessions'] as Array<{ productCode: string }>;
+      const sessions = data['configurations'] as Array<{ productCode: string }>;
       expect(sessions[0]?.productCode).toBe('7D73CTO1WW');
     });
 
@@ -571,8 +580,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       const { service, client } = await createHarness();
 
       const toolRes = await client.callTool({
-        name: 'dcsc_query_sids',
-        arguments: { categoryId: 'STG@Servers', pageIndex: 1, pageSize: 10 },
+        name: 'dcsc_search',
+        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 },
       });
       const data = parseResult(toolRes);
 
@@ -624,8 +633,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 1. LVR Refurbished
       const lvrRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'lvr' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'lvr' },
       });
       const lvrData = parseResult(lvrRes);
       expect(lvrData['catalog']).toBe('lvr');
@@ -634,8 +643,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 2. Converged MultiProd
       const convRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'converged' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'converged' },
       });
       const convData = parseResult(convRes);
       expect(convData['catalog']).toBe('converged');
@@ -644,8 +653,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 3. Converged Detail
       const detailRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: {
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty',
           catalog: 'converged',
           categoryId: 'STG@Software Defined Infrastructure@ThinkAgile FX Series',
         },
@@ -655,8 +664,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 4. Promotions
       const promoRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'promotion', subType: 'sid' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'promotion', subType: 'sid' },
       });
       const promoData = parseResult(promoRes);
       expect(promoData['catalog']).toBe('promotion');
@@ -664,13 +673,10 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
     });
 
     it('T1.6: R4 — query rich upstream feature specs and subtab recommendations', async () => {
-      const { client } = await createHarness();
+      const { service } = await createHarness();
 
       // 1. Rich Feature Specs
-      const featRes = await client.callTool({
-        name: 'dcsc_feature_details',
-        arguments: { ctoCode: '7D73CTO1WW', codes: ['BYW4'] },
-      });
+      const featRes = await appResult(() => featureSpecs(service, { ctoCode: '7D73CTO1WW', codes: ['BYW4'] }));
       const featData = parseResult(featRes);
       const specs = featData['features'] as Array<{ code: string; lifecycle: Obj; commercial: Obj }>;
       expect(specs[0]?.code).toBe('BYW4');
@@ -679,10 +685,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       expect(specs[0]?.commercial['marketingTag']).toContain('TopChoice');
 
       // 2. SubTab Recommendations
-      const subRes = await client.callTool({
-        name: 'dcsc_subtab_recommendations',
-        arguments: { productCode: '7D73CTO1WW', mode: 'CTO' },
-      });
+      const subRes = await appResult(() => subTabRecommendations(service, { productCode: '7D73CTO1WW', mode: 'CTO' }));
       const subData = parseResult(subRes);
       expect(subData['count']).toBe(2);
       const recs = subData['recommendations'] as Array<{ subTab: string; content: string }>;
@@ -789,8 +792,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       const { client } = await createHarness();
 
       const toolRes = await client.callTool({
-        name: 'dcsc_query_sids',
-        arguments: { categoryId: 'STG@Servers', pageIndex: 99, pageSize: 10 },
+        name: 'dcsc_search',
+        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 980, limit: 10 },
       });
       const data = parseResult(toolRes);
 
@@ -895,8 +898,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       const { client } = await createHarness();
 
       const toolRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'lvr', query: 'NON_EXISTENT_PRODUCT_XYZ' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'lvr', query: 'NON_EXISTENT_PRODUCT_XYZ' },
       });
       const data = parseResult(toolRes);
 
@@ -915,12 +918,9 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
     });
 
     it('T2.10: R4 — subtab recommendations rejects empty or whitespace product code', async () => {
-      const { client } = await createHarness();
+      const { service } = await createHarness();
 
-      const toolRes = await client.callTool({
-        name: 'dcsc_subtab_recommendations',
-        arguments: { productCode: '   ' },
-      });
+      const toolRes = await appResult(() => subTabRecommendations(service, { productCode: '   ' }));
       const res = toolRes as { isError?: boolean; content?: Array<{ text: string }> };
       expect(res.isError).toBe(true);
       expect(res.content?.[0]?.text).toContain('Provide either a valid productCode');
@@ -1019,8 +1019,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 2. Generate online Config ID via MCP
       const genRes = await client.callTool({
-        name: 'dcsc_generate_config_id',
-        arguments: { session: session.id },
+        name: 'dcsc_export',
+        arguments: { kind: 'configId', session: session.id },
       });
       const genData = parseResult(genRes);
       expect(genData['configId']).toBe(mockConfigId);
@@ -1037,7 +1037,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 4. Retrieve online configuration by Config ID via MCP
       const impRes = await client.callTool({
-        name: 'dcsc_import_config_id',
+        name: 'dcsc_import',
         arguments: { configId: mockConfigId },
       });
       const impData = parseResult(impRes);
@@ -1049,8 +1049,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // 1. Browse LVR catalog to find model
       const catRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'lvr', query: 'SR650' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'lvr', query: 'SR650' },
       });
       const catData = parseResult(catRes);
       const entries = catData['entries'] as Array<{ code: string }>;
@@ -1100,10 +1100,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
 
       // Query specs for the auto-fixed feature code
-      const specRes = await client.callTool({
-        name: 'dcsc_feature_details',
-        arguments: { session: session.id, codes: ['BYW4'] },
-      });
+      const specRes = await appResult(() => featureSpecs(service, { session: session.id, codes: ['BYW4'] }));
       const specData = parseResult(specRes);
       const specs = specData['features'] as Array<{ code: string; commercial: Obj; supply: Obj }>;
       expect(specs[0]?.code).toBe('BYW4');
@@ -1111,10 +1108,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       expect(specs[0]?.supply['shippingStatus']).toBeDefined();
 
       // Query subtab recommendations for this model
-      const subRes = await client.callTool({
-        name: 'dcsc_subtab_recommendations',
-        arguments: { session: session.id },
-      });
+      const subRes = await appResult(() => subTabRecommendations(service, { session: session.id }));
       const subData = parseResult(subRes);
       expect(subData['productCode']).toBe('7D73CTO1WW');
       expect(subData['count']).toBe(2);
@@ -1171,8 +1165,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 1: Discover Certified Refurbished server in LVR specialty catalog
       const catRes = await client.callTool({
-        name: 'dcsc_specialty_catalog',
-        arguments: { catalog: 'lvr', query: 'SR650' },
+        name: 'dcsc_search',
+        arguments: { kind: 'specialty', catalog: 'lvr', query: 'SR650' },
       });
       const catData = parseResult(catRes);
       const chosenModel = (catData['entries'] as Array<{ code: string }>)[0]?.code ?? '7Y51CTO1WW';
@@ -1190,17 +1184,11 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       });
 
       // Step 3: Check subtab recommendations for licensing/storage rules
-      const subRes = await client.callTool({
-        name: 'dcsc_subtab_recommendations',
-        arguments: { session: session.id },
-      });
+      const subRes = await appResult(() => subTabRecommendations(service, { session: session.id }));
       expect(parseResult(subRes)['count']).toBeGreaterThan(0);
 
       // Step 4: Check feature spec details
-      const specRes = await client.callTool({
-        name: 'dcsc_feature_details',
-        arguments: { ctoCode: chosenModel, codes: ['BYW4'] },
-      });
+      const specRes = await appResult(() => featureSpecs(service, { ctoCode: chosenModel, codes: ['BYW4'] }));
       const features = parseResult(specRes)['features'] as Array<{ code: string; commercial: { topChoice: boolean } }>;
       expect(features[0]?.commercial.topChoice).toBe(true);
 
@@ -1213,8 +1201,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 6: Generate official online Config ID
       const genRes = await client.callTool({
-        name: 'dcsc_generate_config_id',
-        arguments: { session: session.id },
+        name: 'dcsc_export',
+        arguments: { kind: 'configId', session: session.id },
       });
       const configId = parseResult(genRes)['configId'] as string;
       expect(configId).toBe(mockConfigId);
@@ -1240,7 +1228,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 9: Re-import via online Config ID
       const impRes = await client.callTool({
-        name: 'dcsc_import_config_id',
+        name: 'dcsc_import',
         arguments: { configId },
       });
       expect(parseResult(impRes)['importedConfigurations']).toBe(1);
@@ -1251,8 +1239,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 1: Query preconfigured SID templates for Servers
       const sidRes = await client.callTool({
-        name: 'dcsc_query_sids',
-        arguments: { categoryId: 'STG@Servers', pageIndex: 1, pageSize: 10 },
+        name: 'dcsc_search',
+        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 },
       });
       const sidList = parseResult(sidRes)['content'] as Array<{ sidNumber: string; sidPrice: number }>;
       const chosenSid = sidList[0]?.sidNumber ?? 'SID123456';
@@ -1294,8 +1282,8 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       // Step 6: Validate and generate online Config ID for quote handoff
       const genRes = await client.callTool({
-        name: 'dcsc_generate_config_id',
-        arguments: { session: session.id },
+        name: 'dcsc_export',
+        arguments: { kind: 'configId', session: session.id },
       });
       expect(parseResult(genRes)['configId']).toBe(mockConfigId);
     });
