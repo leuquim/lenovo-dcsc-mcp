@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { assertNativeConnectionsRetained } from '../src/domain/nativeManualCabling.js';
 import { assertGroupedCommercialParity } from './lib/groupedRackParity.js';
-import { selectBrowserSolutionMode } from './lib/browser-solution-mode.js';
+import { selectBrowserSolutionMode } from './parity/browser.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';

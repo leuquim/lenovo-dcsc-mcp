@@ -106,7 +106,7 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:storage-reimport -- --mcp-report artifacts/release/storage/report.json', class: 'headless' },
   { command: 'npm run parity:storage-placement-reimport -- --mcp-report artifacts/release/storage-placement/report.json --out artifacts/release/storage-placement/reimport', class: 'headless' },
   { command: 'npm run parity:rack-power', class: 'headless' },
-  { command: 'npm run parity:power-controls', class: 'headless' },
+  { command: 'npm run parity -- power-controls', class: 'headless' },
   { command: 'npm run parity:pci-wizard', class: 'headless' },
   { command: 'npm run parity:pci-wizard -- --linked', class: 'headless' },
   { command: 'npm run parity:storage-wizard', class: 'headless' },
@@ -125,7 +125,7 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:grouped-rack-import', class: 'headless' },
   { command: 'npm run parity:xconfig-import', class: 'headless' },
   { command: 'npm run parity:reference-solutions', class: 'headless' },
-  { command: 'npm run parity:reference-download', class: 'headless' },
+  { command: 'npm run parity -- reference-download', class: 'headless' },
   { command: 'npm run parity:unconfigured', class: 'headless' },
   { command: 'npm run parity:rack-power -- --multi', class: 'headless' },
   { command: 'npm run parity:rack-lock', class: 'headless' },
@@ -149,11 +149,8 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:projections', class: 'live' },
   { command: 'npm run parity:catalogs', class: 'live' },
   { command: 'npm run parity:blueprints', class: 'live' },
-  { command: 'npm run parity:validation', class: 'live', blockedExit: 2 },
+  { command: 'npm run parity -- validation', class: 'live', blockedExit: 2 },
   { command: 'npm run parity:headless', class: 'headless', blockedExit: 2 },
-  { command: 'npm run parity:phase1', class: 'live' },
-  { command: 'npm run parity:phase2', class: 'live' },
-  { command: 'npm run parity:phase3', class: 'live' },
 ];
 
 function git(args: string[], encoding: BufferEncoding = 'utf8'): string {

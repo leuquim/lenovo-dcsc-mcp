@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, type Page, type Response } from 'playwright';
-import { selectBrowserSolutionMode } from './lib/browser-solution-mode.js';
+import { selectBrowserSolutionMode } from './parity/browser.js';
 
 type Obj = Record<string, unknown>;
 

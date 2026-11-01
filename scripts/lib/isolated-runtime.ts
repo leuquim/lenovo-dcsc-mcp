@@ -27,6 +27,7 @@ export function isolateRuntime(config: Config): Config {
 /** Environment for a spawned MCP server that cannot reach the user's state. */
 export function isolatedChildEnv(
   extra: Record<string, string> = {},
+  persistSessions = false,
 ): Record<string, string> {
   const root = temporaryRoot();
   const configFile = join(root, 'config.json');
@@ -34,7 +35,7 @@ export function isolatedChildEnv(
     configFile,
     JSON.stringify({
       files: {
-        persistSessions: false,
+        persistSessions,
         sessionFile: join(root, 'sessions.json'),
         artifactDir: join(root, 'artifacts'),
       },

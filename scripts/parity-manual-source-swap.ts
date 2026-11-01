@@ -7,7 +7,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {chromium} from 'playwright';
 import {assertNativeConnectionsRetained} from '../src/domain/nativeManualCabling.js';
 import {assertGroupedCommercialParity} from './lib/groupedRackParity.js';
-import {selectBrowserSolutionMode} from './lib/browser-solution-mode.js';
+import {selectBrowserSolutionMode} from './parity/browser.js';
 type Obj=Record<string,unknown>;
 const object=(v:unknown):Obj=>v&&typeof v==='object'?v as Obj:{};
 const rows=(v:unknown):Obj[]=>Array.isArray(v)?v.map(object):[];
