@@ -21,7 +21,7 @@ export async function openServiceProduct(page: Page): Promise<{ derive: Json; ca
   await page.locator('#selectMode').fill(SERVICE_PRODUCT_SEARCH);
   await page.waitForTimeout(800);
   const productSearch = (await page.locator('.ant-select-dropdown-menu-item').allInnerTexts())
-    .flatMap(text => /^\s*(\S+)/.exec(text)?.[1] ?? []);
+    .flatMap(text => /^\s*([A-Z0-9]+)/.exec(text)?.[1] ?? []);
   const derivePending = page.waitForResponse(response =>
     response.request().method() === 'POST' && response.url().includes(DERIVE_PATH), { timeout: 120_000 });
   const catalogPending = page.waitForResponse(response =>
