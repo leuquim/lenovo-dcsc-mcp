@@ -629,7 +629,7 @@ npm run parity:chassis-copy      # independent populated-chassis Copy and browse
 npm run parity:chassis-linked-copy # preserve linked sources while creating an independent copy
 npm run parity:chassis-member-copy # Copy from a linked member; preserve original parent/child groups
 npm run parity:nested-grouped-import # populated chassis/node groups, restart and native reimport
-npm run parity:grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
+npm run parity -- grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
 npm run parity:xconfig-import    # native x-config import/layout, restart and export handoff
 npm run parity:workbook-import   # Excel import over stdio, crash/restart, export and native browser controls
 npm run parity:unconfigured      # Unconfigured quantity edit, restart and browser XML handoff
@@ -648,8 +648,8 @@ npm run parity:manual-create:storage-prepare # explicit optical-to-DAC hardware 
 npm run parity:manual-create:fresh-storage # fresh managed template, hardware setup, placement, cabling and browser import
 npm run parity:manual-create:shared-storage # two managed physical instances, separate routes and spare preservation
 npm run parity:manual-create:linked-source # shared source ports, sibling route/BOM, restart and browser import
-npm run parity:switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
-npm run parity:switch-edit       # linked HPC switch cable edit and native handoff
+npm run parity -- switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
+npm run parity -- switch-edit       # linked HPC switch cable edit and native handoff
 npm run parity:manual-create:linked-destination # create on both linked switches; verify per-member quantities
 npm run parity:manual-cabling    # existing-row cable derive, SIGKILL recovery and export
 npm run parity:manual-cabling:shared    # preserve a shared cable quantity while splitting one row
