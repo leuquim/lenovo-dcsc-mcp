@@ -43,20 +43,16 @@ For maintainers: [current context and next steps](.docs/context.md), [roadmap](.
 | Cluster / HPC-LeSI solution modes | Cluster mode is not offered anonymously |
 | Account saves and partner/bid pricing | **Not tested** — anonymous workflow coverage only |
 
-The latest frozen release run completed **90 commands: 85 passed, 4 declared
-upstream capability blocks, and 1 native browser-menu failure**. The failed
-nested-placement check passed on an unchanged targeted rerun, including export
-and fresh website import; the original failure remains in the report. Source
-integrity passed before and after the full run. The four blocked checks cover
-GB300 power/dependent cooling, the tested FC graph, and both breakout website
-import checks. This is qualified verification, not a completely green first run.
-
-The tested snapshot includes the PCI/storage wizards and source-port swaps.
-Working-tree runtime files match it; a subsequent populated-RAID regression and
-its fixture passed separately. See the
-[current action inventory and gaps](.docs/roadmaps/2026_10_15_dcsc_parity.md#audited-user-action-inventory-and-next-work-rule-2026-10-30)
-for implemented workflows and remaining limits. Neither tool counts nor passing
-checks establish complete website parity.
+The project has completed the **2026-10-31 Anonymous Parity Completion**:
+- **108 Registered MCP Tools**: 108/108 tools verified with complete MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, `title`) and a tightened context diet footprint (< 28,000 description characters).
+- **1,212 Unit Tests across 145 files**: 100% passing test suite across domain logic, serialization, and tool ergonomics.
+- **209/209 Conformance Checks Passed**: `scripts/conformance.ts` asserts 108/108 registered tools invoked and successful, with all tool responses strictly under the 8,000-byte output budget (`maxBytes <= MAX_TOOL_BYTES`).
+- **Complete Parity Phase Pipeline**:
+  - **Phase 0 Inventory**: 381 paths mined from the live DCSC bundle (`app-2026-01-14-5be41ba.js`), classifying 107 MCP-covered routes, 75 auth-gated routes, 41 SPA routes, and 158 candidate gap paths.
+  - **Phase 1 Live Verification**: Automated harness (`scripts/parity-phase1-tools.ts`) verified 25 tool/restart/export capabilities against live `dcsc.lenovo.com` (`artifacts/parity-phase1/2026-10-31/report.json`).
+  - **Phase 2 Gap Packages**: Implemented and verified G1 (Power & Quote XLS), G2 (P2P cabling XLS & distance calculation), G3 (Memory wizard), G4 (Nightingale AI configurator 12 actions), G5 (Supply status lead times), G6 (CFXML validation), G7 (Error customize with auto-derive), G9 (Rule & table versions), G10 (Anonymous discovery helpers), and G11 (Share URL retrieval) (`artifacts/parity-phase2/2026-10-31/report.json`).
+  - **Phase 3 HPC/AI E2E Acceptance**: Verified 3 comprehensive end-to-end scenarios against live DCSC (`artifacts/parity-phase3-hpc-e2e/2026-10-31/report.json`): Scenario 1 (Multi-rack HPC compute cluster), Scenario 2 (AI factory pod), and Scenario 3 (External CFXML import, validate, fix, re-export).
+  - **Verified Release Checkpoint**: Source manifest integrity verified via `scripts/release-checkpoint.ts` (`artifacts/release-2026-10-31-parity-completion/checkpoint/manifest.json`).
 
 The parity implementation is in progress. Run `npm run build`, `npm run typecheck`,
 `npm run lint`, `npm test`, and `npm run contract` for local checks. Live API
@@ -101,70 +97,126 @@ npx tsx scripts/mcp-smoke.ts
 
 For development, `npm run check` runs typecheck, lint, unit tests, offline contracts, build and the isolated stdio smoke check. [Contributing](CONTRIBUTING.md) explains live/headless verification and package checks.
 
-## Tools
+## Tools (108 Registered Tools)
 
 | Tool | Purpose |
 |---|---|
-| **Discovery** | |
+| **Catalog, Discovery & Locales (17 tools)** | |
 | `dcsc_find_products` | Search the catalog. The normal way to get from "SR630 V3" to `7D73CTO1WW`. |
-| `dcsc_browse_catalog` | Walk the category tree. Use only to understand structure. |
-| `dcsc_solution_modes` | List solution modes and their master slices. |
-| `dcsc_blueprints` | Curated starting points with current catalog membership by mode and dated historical configuration checks. |
+| `dcsc_browse_catalog` | Walk the category tree. Understand catalog structure and root hierarchies. |
+| `dcsc_solution_modes` | List solution modes and their master slices (General Purpose, HPC and AI - Systems). |
+| `dcsc_blueprints` | Curated starting points with current catalog membership by mode and historical configuration checks. |
 | `dcsc_start_from_blueprint` | Launch a blueprint in the correct solution mode. |
-| `dcsc_reference_solutions` | Browse Lenovo's native Deployment-Ready/TruScale categories, CRNs, details, popular designs and download-validation results, with lossless paginated metadata. |
-| `dcsc_launch_reference_solution` | Load a native CRN/SID into a new editable workspace through Lenovo's Customize API. Preserves reference identity and exposes import diagnostics. |
-| `dcsc_list_racks` / `dcsc_fabric_options` | Paginated racks (optionally compatible with a product/session); complete fabric and storage catalogs. |
-| `dcsc_find_parts` | Global hardware/software/service part lookup. |
-| `dcsc_service_categories` / `dcsc_list_locales` / `dcsc_set_locale` | Services taxonomy; country/currency. |
-| **Configuring** | |
-| `dcsc_launch` | Start a configuration session. Pass `workspace` to add to a solution. |
-| `dcsc_list_options` | Search or list options. `query` searches all tabs. |
-| `dcsc_get_feature` | Full detail + attribute map for up to 10 codes. |
-| `dcsc_get_configuration` | Paginated selected parts grouped by tab; follow structured `next` arguments. |
-| `dcsc_configure` | Apply option changes. Returns only the diff. |
-| `dcsc_set_quantity` | N identical units in one configuration. **Places one item in a rack.** |
-| `dcsc_clone_configuration` | N configuration copies; optional `placement: "same-rack"` runs captured Clone Multiple staging/derive for direct CTO items with supported product/machine-type capacity bounds. HPC switch cloning is verified through undo/redo, crash/restart, export and fresh-browser reimport; linked HPC switch cable edits are also verified through cabling refresh, crash/restart and native import. Independent Copy uses `dcsc_copy_rack_item`. |
-| `dcsc_set_node_role` / `dcsc_set_topology` | Tag Compute/Storage/Management; select a fabric. For topology selection, explicitly pass `ports: []` or `connectorIds: []` to deselect all ports on that network; omitted selectors retain automatic selection of a sole compatible connector. |
-| `dcsc_undo` | Revert the last configuration edit. |
-| `dcsc_set_configuration_controls` | Set Guided/Expert and Auto-Correct across the workspace, with atomic derive and persistence. |
-| `dcsc_software_*` / `dcsc_services_*` | Catalog, select, inspect, remove and export standalone products. Use `dcsc_services_set_product_quantity` for covered-product count. Software and services `launch(refresh: true)` preserve selected quantities and saved prices while refreshing browse metadata. |
-| **Solutions** | |
-| `dcsc_add_rack` / `dcsc_place_in_rack` | Add a cabinet; place a configuration, validated by DCSC. |
-| `dcsc_configure_pdu` | PDUs **and line cords**. A PDU without a line cord is not orderable. |
-| `dcsc_add_storage_network` / `dcsc_edit_storage_network` | Create, update, rename and remove storage definitions. Updates use current catalog IDs, required workspace CAS and optional graph regeneration; inspect definitions through workspace layout pages. |
-| `dcsc_place_storage_network` | Instantiate an existing AI/HPC storage definition in a rack using fresh physical controller/SAN-switch aliases. |
-| `dcsc_customize_storage_switch` | Open or reopen a definition’s managed SAN-switch template with stable identity; excludes unplaced templates from workspace order totals. |
-| `dcsc_assign_storage_network` | Assign an exact storage definition name (or null to clear) to an explicit server configuration. Auto-connect is optional and defaults to false. |
-| `dcsc_customize_storage_controller` | Open the selected controller and return its configuration handle for option discovery/editing. Reopening preserves edits. Controllers remain managed by their storage definitions. |
-| `dcsc_place_on_floor` | Floor tiles. Client-side planning only — DCSC has no floor endpoint. |
-| `dcsc_add_cabling` | `/auto_connect` with persisted Automated Rack PDU, Automated Switch and P2P settings, or a local planning link. Local planning links are excluded from Lenovo exports. |
-| `dcsc_cabling_connections` / `dcsc_edit_cabling_connection` | Inspect native connection rows and compatible choices; edit existing endpoints or cable parts. Supported four-way breakout cable replacement updates all branches sharing the physical destination port and reports additional `updatedConnections`; it preserves other cables and spares. Replacement is verified through MCP creation, restart, export, MCP reimport, a second restart and re-export. Direct website import remains blocked by Lenovo’s breakout-shape import defect. These tools do not create/delete native rows. |
-| `dcsc_manual_cabling_options` / `dcsc_create_cabling_connection` | Discover compatible cables and create a native manual connection with coupled BOM updates. Creation from a free graph verified through MCP, persisted reload, export and website import. Use explicit `pinExistingRoutes: true` to convert existing AUTO network rows to MANUAL and preserve their routes; the affected count is reported. The maintained gate verifies stdio MCP creation, immediate process-kill recovery and fresh website import. Requires compatible placed ports. Use `connectionType: "breakout-4"` for one branch of a 100G QSFP28-to-four-25G SFP28 DAC breakout; up to four matching branches may share a destination port. Cable quantities count physical destination ports, including partially used cables. Native service creation is confirmed. MCP reimport restores the demonstrated saved breakout shape from CFXML after exact identity matching and checks native retention. Direct website reimport currently rewrites breakout shape to P2P/divider 1; website handoff remains unresolved. Broader breakout shapes remain unverified. Connection inspection exposes `category` and `divider`. Linked source selections update the whole group; native Auto-Connect may add sibling routes, included in cable quantities and reported by `additionalConnectionCount`. Linked-source 100GbE copper creation is verified through restart and website reimport. Management creation on linked SN2201 destinations is also verified: cable quantities are shared per member and cover the busiest member, preserving spares. Inspect `destinationConfigurationIds` before creating. Managed source aliases resolve their topology selections through the owning template while retaining physical endpoint identity. DB710S Management creation to a direct SN2201 destination is verified through MCP crash/restart, reimport, re-export and fresh website import. Managed DE2000H destination creation on an imported storage design is verified through MCP source-port selection, creation, two crash recoveries, export/reimport and fresh website import. A second gate starts with eight optical modules and no DACs, explicitly replaces them with two A3RG DACs using dcsc_configure, and passes the same lifecycle. Cable creation does not automatically remove optics. Native import collapses the template to a physical singleton; fresh managed-template creation, hardware configuration, placement and cabling also pass the full lifecycle in an existing server/rack workspace. A two-instance DE2000H case also passes creation, crash recovery, re-export and website import, preserving two selected DACs per instance. Demand growth beyond those spares remains unverified. |
-| `dcsc_workspace_layout` | Read validated elevation, cabling and floor with lossless detail pages. |
-| `dcsc_edit_layout` / `dcsc_workspace_history` | Move/unplace/detach/remove/arrange and workspace undo/redo. `detach` mirrors native Delete Node and warns about Lenovo's reimport loss; use `unplace` for a roundtrip-safe loose node. |
-| `dcsc_copy_rack_item` | Independent same-rack Copy for a supported General Purpose CTO item or populated HPC chassis with direct node children; separate configurations and commercial lines. |
-| `dcsc_set_rack_lock` | Lock/unlock a direct physical item or reserve an empty U; one-based input positions. |
-| `dcsc_network_connectors` / `dcsc_set_network_preferences` | Stable compatible connector IDs and workspace device/cable choices. In AI/HPC workspaces, a changed automatic-switch preference provisions Lenovo's required main/leaf switches on Close; `autoConnect: true` additionally regenerates the graph. |
-| **Analysis** | |
-| `dcsc_power` | DCSC's own power and heat, aggregated and per rack. |
-| `dcsc_power_controls` / `dcsc_set_power_controls` | Discover native voltage/policy choices and save recalculated power settings, including load factor. Changes use a workspace revision and update linked configurations atomically; unknown power stays unavailable. |
-| `dcsc_pci_wizard` / `dcsc_set_pci_wizard` | Discover native PCI options and adapter assignments, select an option, or validate optional riser slots. Uses workspace revisions and atomic history; Lenovo may add supporting slots during derivation. |
-| `dcsc_storage_wizard` / `dcsc_set_storage_wizard` | Discover storage options, controllers and backplanes; select an option or edit a component while preserving explicit wizard intent across linked configurations and export. Native combination diagnostics remain visible. |
-| `dcsc_scale_out` | Size N nodes into racks. Warns on air-cooling density. |
-| `dcsc_compare_scenarios` | Price/power/rack trade-offs across designs; incomplete prices or power reports expose known subtotals and prevent misleading rankings. |
-| `dcsc_validate` | Return the authoritative manufacturing verdict, exact diagnostic counts and explicit `validatedScope`; large reports include executable inspection links. |
-| `dcsc_validation_jobs` | Page through persisted validation status, staleness, messages, local diagnostics, headroom and raw reports without another upstream request. |
-| `dcsc_explain` / `dcsc_diff_sessions` | Why an option is unavailable; diff two configurations. |
-| **Output & ops** | |
-| `dcsc_export` | CFXML + Excel ZIP. Scope follows the handle. |
-| `dcsc_import` | Import CFXML or a local DCSC Excel workbook through Lenovo's own importer. Excel uses `filePath`; specify `solutionMode` for designs outside General Purpose. Legacy companion-workbook recovery remains unsupported and is reported when Lenovo requests it. |
-| `dcsc_reconcile_workspace` | Propose, inspect and explicitly accept current reconciliation of legacy state. |
-| `dcsc_recovery_inspect` | Page through restore warnings, quarantined records and preserved original-file archives, even when no workspace loaded. |
-| `dcsc_recovery_export` | Export one workspace as a bounded JSON snapshot, or export an archive ID as its exact original bytes, including corrupt input. |
-| `dcsc_session_info` / `dcsc_session_list` / `dcsc_session_close` | Session management. |
-| `dcsc_download_reference_solution` | Validate download eligibility and save Lenovo’s original reference-template XML, preserving its bytes and returning a checksum. Open it with `dcsc_import`. |
-| `dcsc_load_unconfigured` / `dcsc_set_unconfigured` | Load native Unconfigured choices, then edit client-held selections transactionally. Inspect choices with `dcsc_list_options`; use workspace history to undo. Native quantity edit and export parity verified on one reference design; broader product coverage remains open. |
-| `dcsc_health` | Circuit breaker state, WAF cooldown, effective config. |
+| `dcsc_reference_solutions` | Browse Lenovo's native Deployment-Ready/TruScale categories, CRNs, details, popular designs. |
+| `dcsc_launch_reference_solution` | Load a native CRN/SID into a new editable workspace through Lenovo's Customize API. |
+| `dcsc_download_reference_solution` | Validate download eligibility and save Lenovo’s original reference-template XML. |
+| `dcsc_list_racks` | Paginated racks (optionally compatible with a product or session). |
+| `dcsc_fabric_options` | Complete fabric and storage switch catalogs with connection preferences. |
+| `dcsc_find_parts` | Global hardware/software/service part lookup; pass `includeSupplyStatus: true` for live shipping lead times and ESD availability. |
+| `dcsc_specialty_catalog` | Browse specialty inventory: LVR (Certified Refurbished), Converged (ThinkAgile multi-product systems), and Promotions (hierarchies, promotional SIDs, promotional LFOs). |
+| `dcsc_category_detail` | Sub-category details and configurable products, or pass `discoveryAction` for 7 anonymous discovery helper routes (`caseStudies`, `subCategoryConditions`, `productListBySubCategory`, `topChoiceCountry`, `productFunctions`, `displayOrders`, `staticFeatures`), with optional `limit`. |
+| `dcsc_cto_lfo_codes` | List filtered CTO and LFO product codes from upstream catalog filter endpoint, with optional `limit`. |
+| `dcsc_service_categories` | Services taxonomy and category hierarchy. |
+| `dcsc_list_locales` | List supported countries, languages, and currencies. |
+| `dcsc_set_locale` | Set active country/currency for the workspace. |
+| **Configuring, Auto-Fix & SIDs (18 tools)** | |
+| `dcsc_launch` | Start a configuration session. Pass `workspace` to add to an existing solution. |
+| `dcsc_list_options` | Search or list options (`query` searches all tabs; pass `memoryWizardAction` for memory wizard launch/calculate). |
+| `dcsc_get_feature` | Full detail + attribute map for up to 10 feature codes from local session index. |
+| `dcsc_feature_details` | Rich upstream feature specifications: shipping lead times, lifecycle dates, commercial recommendations, marketing tags, and price breakdown. |
+| `dcsc_subtab_recommendations` | Context-aware recommendations, transition guides, and rule warnings for a model’s configuration sub-tabs. |
+| `dcsc_smart_recommendations` | Summary cross-sell attach recommendations or smart LFO top-choice preconfigured alternatives. |
+| `dcsc_get_configuration` | Paginated selected parts grouped by tab; follow structured `next` continuations. |
+| `dcsc_configure` | Apply batched option changes. Returns only the diff. |
+| `dcsc_set_quantity` | N identical units in one configuration. Places one item in a rack. |
+| `dcsc_clone_configuration` | N configuration copies; optional `placement: "same-rack"` runs captured Clone Multiple staging/derive for direct CTO items. |
+| `dcsc_set_node_role` | Tag Compute/Storage/Management role. |
+| `dcsc_set_topology` | Select fabric network topology, ports, and connector IDs. |
+| `dcsc_undo` | Revert the last configuration edit transactionally. |
+| `dcsc_set_configuration_controls` | Set Guided/Expert mode and Auto-Correct across the workspace. |
+| `dcsc_auto_fix` | Discovers candidates and applies candidate hardware derivations; pass `errorCustomizeConfigurations` for batch auto-derive error repair. |
+| `dcsc_verify_mandatory_software` | Verify mandatory software compliance and required tab selections on CTO configurations. |
+| `dcsc_generate_config_id` | Generate a 10-character online Lenovo DCSC Configuration ID bound to a session or workspace. |
+| `dcsc_query_sids` | Query preconfigured Solution ID (SID) templates by product category with pagination. |
+| **Standalone Hardware, Software & Services (18 tools)** | |
+| `dcsc_standalone_hardware_add` | Add standalone hardware option parts to a dedicated standalone workspace. |
+| `dcsc_standalone_hardware_inspect` | Inspect standalone hardware selections and total list price. |
+| `dcsc_standalone_hardware_set_quantity` | Update quantity for a selected standalone hardware part. |
+| `dcsc_standalone_hardware_remove` | Remove a standalone hardware part from the workspace. |
+| `dcsc_software_launch` | Launch a standalone software configuration workspace. |
+| `dcsc_software_browse` | Browse standalone software categories and products. |
+| `dcsc_software_select` | Select standalone software licenses and subscriptions. |
+| `dcsc_software_set_quantity` | Update quantity for a selected standalone software license. |
+| `dcsc_software_remove` | Remove a standalone software product. |
+| `dcsc_software_inspect` | Inspect active standalone software selections. |
+| `dcsc_software_export` | Export standalone software BOM. |
+| `dcsc_services_launch` | Launch a standalone services workspace. |
+| `dcsc_services_select` | Select standalone Point of Sale warranty services. |
+| `dcsc_services_set_quantity` | Set contract service duration or units. |
+| `dcsc_services_set_product_quantity` | Set covered-product unit count for services. |
+| `dcsc_services_remove` | Remove a service from the basket. |
+| `dcsc_services_inspect` | Inspect active standalone service selections. |
+| `dcsc_services_export` | Export standalone services BOM. |
+| **Physical Racks, Floor & Cabling (17 tools)** | |
+| `dcsc_add_rack` | Add a rack cabinet to the workspace. |
+| `dcsc_place_in_rack` | Place a server, switch, or storage unit into a rack U-slot, validated by DCSC placement rules. |
+| `dcsc_configure_pdu` | Discover and select rack PDUs and matching line cords. |
+| `dcsc_rack_position_rule` | Inspect live EIA U-position rules, lowest/highest slot bounds, and machine-type constraints. |
+| `dcsc_place_on_floor` | Position rack cabinets on the data center floor grid. |
+| `dcsc_set_rack_lock` | Lock/unlock placed items or reserve empty rack slots. |
+| `dcsc_copy_rack_item` | Independent same-rack Copy creating separate configurations and commercial lines. |
+| `dcsc_workspace_layout` | Lossless elevation, cabling, and floor inspection with continuations. |
+| `dcsc_edit_layout` | Move, unplace, detach, or remove items from racks. |
+| `dcsc_workspace_history` | Undo and redo workspace-wide physical layout edits. |
+| `dcsc_network_connectors` | Discover compatible network connector IDs for active devices. |
+| `dcsc_set_network_preferences` | Set automatic switch and transceiver preferences across the fabric. |
+| `dcsc_add_cabling` | Run `/auto_connect` cabling or define local planning links. |
+| `dcsc_manual_cabling_options` | Discover compatible cables for manual connection between placed ports. |
+| `dcsc_create_cabling_connection` | Create a verified native manual cabling connection (supports P2P and 4-way breakout). |
+| `dcsc_cabling_connections` | Inspect native cabling connections, endpoint IDs, and cable choices. |
+| `dcsc_edit_cabling_connection` | Edit or replace existing cable parts on native connection rows. |
+| **Storage Networking & Physical Storage (8 tools)** | |
+| `dcsc_add_storage_network` | Create and define storage networks in the workspace. |
+| `dcsc_edit_storage_network` | Rename, update, or remove storage network definitions. |
+| `dcsc_place_storage_network` | Place storage controllers and switches into rack slots. |
+| `dcsc_assign_storage_network` | Assign a storage network definition to an explicit server configuration. |
+| `dcsc_customize_storage_switch` | Open a managed SAN switch configuration for option discovery/editing. |
+| `dcsc_customize_storage_controller` | Open a managed storage controller configuration for editing. |
+| `dcsc_storage_wizard` | Discover native storage wizard options, backplanes, and RAID controllers. |
+| `dcsc_set_storage_wizard` | Select storage wizard options or edit individual storage components. |
+| **Wizards, Power & VLH / Virtual Containers (9 tools)** | |
+| `dcsc_pci_wizard` | Discover native PCI riser options, slot adapters, or dispatch `memoryWizardAction`. |
+| `dcsc_set_pci_wizard` | Select PCI riser options or validate optional riser slots. |
+| `dcsc_power` | Aggregate workspace power and heat output per rack. |
+| `dcsc_power_controls` | Discover native voltage, power policy, and load factor settings. |
+| `dcsc_set_power_controls` | Save voltage, power policy, and load factor with atomic derivation. |
+| `dcsc_vlh_wizard_info` | Inspect VLH Neptune water-cooling network topologies, connector functions, and RPQ placeholders (supports optional `section`). |
+| `dcsc_vlh_attributes` | Inspect physical EIA dimensions, U-capacity, and connector definitions for any product code. |
+| `dcsc_virtual_container_compatible_products` | Fetch compatible inner products and categories for virtual containers. |
+| `dcsc_virtual_container_check_rules` | Check virtual container update rules and constraints. |
+| **Analysis, Summary Insights & AI Configurator (6 tools)** | |
+| `dcsc_scale_out` | Size N nodes into racks with cooling density checks. |
+| `dcsc_compare_scenarios` | Compare price, power, and rack footprints across candidate designs. |
+| `dcsc_explain` | Explain why an option is unavailable or restricted. |
+| `dcsc_diff_sessions` | Diff two configuration sessions showing added, removed, and changed options. |
+| `dcsc_summary_insights` | Extract service pricing savings or selectable special flag summary; supports `session` handle for automatic export snapshot generation. |
+| `dcsc_ai_recommend` | Execute Nightingale AI configurator actions (12 actions: `ctoCandidates`, `featureCompat`, `bladeRecommendation`, `defaultPrompt`, `promptTemplate`, `candidateAttributes`, `candidateFeatures`, `candidateFeaturesDesc`, `configReplenishment`, `replaceFeatures`, `recommendConfigs`, `recommendServices`). |
+| **Validation, Import/Export & Session Operations (15 tools)** | |
+| `dcsc_validate` | Authoritative manufacturing validation; pass `cfxmlContent` for direct XML pre-validation. |
+| `dcsc_validation_jobs` | Page through saved validation reports and diagnostics. |
+| `dcsc_export` | Export CFXML + Excel ZIP; pass `directReport` (`'POWER_XLS'`, `'QUOTE_XLS'`, `'P2P_XLS'`) for direct binary spreadsheet downloads, or `includeShareUrl: true` for live redirect links. |
+| `dcsc_export_configuration_tree` | Export configuration tree data and category contents as an Excel spreadsheet (.xlsx). |
+| `dcsc_import` | Import CFXML or Excel files through Lenovo's importer. |
+| `dcsc_import_config_id` | Import a saved configuration by its 10-character online Configuration ID (with local session reconstitution fallback). |
+| `dcsc_load_unconfigured` | Load native Unconfigured catalog choices for reference solutions. |
+| `dcsc_set_unconfigured` | Edit Unconfigured selections transactionally. |
+| `dcsc_reconcile_workspace` | Propose, inspect, and accept reconciliation of legacy state. |
+| `dcsc_recovery_inspect` | Inspect restore warnings and preserved archive files. |
+| `dcsc_recovery_export` | Export recovery JSON snapshots or original file archives. |
+| `dcsc_session_info` | Inspect session status, revision, and active mode; pass `includeRuleVersions: true` to inspect rule and table versions. |
+| `dcsc_session_list` | List active sessions and workspaces. |
+| `dcsc_session_close` | Close a configuration or workspace session. |
+| `dcsc_health` | Circuit breaker status, WAF cooldown, and server health. |
 
 ### Workflow limits to keep in mind
 

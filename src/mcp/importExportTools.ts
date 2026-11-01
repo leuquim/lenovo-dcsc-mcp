@@ -143,6 +143,18 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           )
           .optional()
           .describe('Defaults to the applicable reports for this workflow.'),
+        directReport: z
+          .enum(['POWER_XLS', 'GROUP_XLS', 'P2P_XLS'])
+          .optional()
+          .describe('Directly export Power, Quote Group, or Cabling P2P spreadsheet.'),
+        includeShareUrl: z
+          .boolean()
+          .optional()
+          .describe('Include shareable web URL for the configuration in the output.'),
+        outputPath: z
+          .string()
+          .optional()
+          .describe('Optional file system path to save direct report.'),
       },
     },
     async (args) =>
@@ -155,6 +167,31 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
         const fileName = sanitiseFileName(args.fileName ?? `${pCode}-${Date.now()}`);
         const solution = workspace?.solution ?? session!.solution;
         const ctx = service.newCtx({ locale: workspace?.locale ?? session!.locale, solution });
+
+        if (args.directReport) {
+          return service.exportWorkspace(args.session, {
+            scope: args.scope,
+            fileName,
+            directReport: args.directReport,
+            includeShareUrl: args.includeShareUrl,
+            outputPath: args.outputPath,
+            fileTypes: (args.fileTypes ?? DEFAULT_EXPORT_TYPES) as ExportFileType[],
+            ctx,
+          });
+        }
+        let shareUrl: string | undefined;
+        if (args.includeShareUrl) {
+          const configId = session?.configurationId
+            ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
+            ?? args.session;
+          try {
+            const share = await service.fetchShareUrl(configId, ctx);
+            shareUrl = share.shareUrl;
+          } catch {
+            // Soft failure for share url
+          }
+        }
+
         const workspaceScope = args.scope === 'workspace' || (args.scope !== 'configuration' && args.session === workspace?.id);
         if (workspaceScope && workspace) {
           const software = workspace.serverState.standaloneSoftwareState as { selections?: unknown[] } | undefined;
@@ -172,7 +209,8 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
                 ...(args.fileTypes ? { fileTypes: args.fileTypes } : {}),
               });
             return { session: args.session, scope: 'workspace', configurationsExported: workspace.configurations.size,
-              ...bundle, currency: workspace.locale.currency, priceType: 'LIST' };
+              ...bundle, currency: workspace.locale.currency, priceType: 'LIST',
+              ...(shareUrl ? { shareUrl } : {}) };
           }
         }
 
@@ -196,6 +234,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           ...bundle,
           priceType: 'LIST',
           rackDataOmitted,
+          ...(shareUrl ? { shareUrl } : {}),
           ...(powerSettings.some(value => value !== undefined && value !== 70) ? { powerSettingsWarning:
             'Lenovo CFXML reimport can reset custom load factors (verified SR630 V3: 100% to 70%). Saved MCP sessions retain them. Inspect dcsc_power_controls and reapply the desired load factor after XML import.' } : {}),
           ...(scope === 'workspace' && workspace && detachedNestedNodeIds(workspace).size > 0 ? {

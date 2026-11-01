@@ -1614,6 +1614,117 @@ async function main(): Promise<void> {
     check('dcsc_clone_configuration setup', false, 'could not launch a clone source');
   }
 
+  // --- 2026-10-31 anonymous parity tools coverage --------------------------
+  const hwAdd = await track('dcsc_standalone_hardware_add', { code: '4X77A08621', quantity: 2 });
+  check('dcsc_standalone_hardware_add creates standalone workspace', !hwAdd.isError, JSON.stringify(hwAdd.json).slice(0, 160));
+  const hwWs = (hwAdd.json as { workspace?: string }).workspace;
+  if (hwWs) {
+    const hwInspect = await track('dcsc_standalone_hardware_inspect', { workspace: hwWs });
+    check('dcsc_standalone_hardware_inspect reports selections', !hwInspect.isError, JSON.stringify(hwInspect.json).slice(0, 160));
+    const hwQty = await track('dcsc_standalone_hardware_set_quantity', { workspace: hwWs, code: '4X77A08621', quantity: 3 });
+    check('dcsc_standalone_hardware_set_quantity updates total', !hwQty.isError, JSON.stringify(hwQty.json).slice(0, 160));
+    const hwRem = await track('dcsc_standalone_hardware_remove', { workspace: hwWs, code: '4X77A08621' });
+    check('dcsc_standalone_hardware_remove clears selections', !hwRem.isError, JSON.stringify(hwRem.json).slice(0, 160));
+    await track('dcsc_session_close', { session: hwWs });
+  }
+
+  const parityLaunch = await track('dcsc_launch', { productCode: '7D73CTO1WW', mode: 'cto' });
+  const paritySession = (parityLaunch.json as { session?: string }).session;
+  if (paritySession) {
+    const parityInfo = await track('dcsc_session_info', { session: paritySession });
+    const parityWs = (parityInfo.json as { workspace?: string }).workspace;
+
+    const genCid = await track('dcsc_generate_config_id', { session: paritySession });
+    const configId = (genCid.json as { configId?: string }).configId;
+    check('dcsc_generate_config_id generates 10-char ID', !genCid.isError && typeof configId === 'string' && configId.length === 10, JSON.stringify(genCid.json).slice(0, 160));
+
+    if (configId) {
+      const impCid = await track('dcsc_import_config_id', { configId });
+      check('dcsc_import_config_id imports online configuration', !impCid.isError, JSON.stringify(impCid.json).slice(0, 160));
+      const impWs = (impCid.json as { workspace?: string }).workspace;
+      if (impWs) await track('dcsc_session_close', { session: impWs });
+    }
+
+    const qSids = await track('dcsc_query_sids', { categoryId: 'STG@Servers@Rack Server', pageIndex: 1, pageSize: 5 });
+    check('dcsc_query_sids queries category SIDs', !qSids.isError, JSON.stringify(qSids.json).slice(0, 160));
+
+    const autoFix = await track('dcsc_auto_fix', { session: paritySession });
+    check('dcsc_auto_fix applies candidate derivations', !autoFix.isError, JSON.stringify(autoFix.json).slice(0, 160));
+
+    const specCat = await track('dcsc_specialty_catalog', { catalog: 'lvr', limit: 2 });
+    check('dcsc_specialty_catalog browses specialty inventory', !specCat.isError, JSON.stringify(specCat.json).slice(0, 160));
+
+    const featDetails = await track('dcsc_feature_details', { session: paritySession, codes: ['CA0Z'] });
+    check('dcsc_feature_details fetches rich specs', !featDetails.isError, JSON.stringify(featDetails.json).slice(0, 160));
+
+    const subtabRec = await track('dcsc_subtab_recommendations', { productCode: '7D73CTO1WW' });
+    check('dcsc_subtab_recommendations returns context recommendations', !subtabRec.isError, JSON.stringify(subtabRec.json).slice(0, 160));
+
+    const smartRec = await track('dcsc_smart_recommendations', { type: 'summary', ctoCode: '7D73CTO1WW' });
+    check('dcsc_smart_recommendations returns smart recommendations', !smartRec.isError, JSON.stringify(smartRec.json).slice(0, 160));
+
+    const vlhW = await track('dcsc_vlh_wizard_info', { section: 'topologies' });
+    check('dcsc_vlh_wizard_info returns wizard data', !vlhW.isError, JSON.stringify(vlhW.json).slice(0, 160));
+
+    const vlhA = await track('dcsc_vlh_attributes', { code: '7D73CTO1WW' });
+    check('dcsc_vlh_attributes returns physical specifications', !vlhA.isError, JSON.stringify(vlhA.json).slice(0, 160));
+
+    if (parityWs) {
+      const vcProd = await track('dcsc_virtual_container_compatible_products', { session: parityWs });
+      check('dcsc_virtual_container_compatible_products discovers products', !vcProd.isError, JSON.stringify(vcProd.json).slice(0, 160));
+
+      const vcRules = await track('dcsc_virtual_container_check_rules', { session: parityWs });
+      check('dcsc_virtual_container_check_rules checks update rules', !vcRules.isError, JSON.stringify(vcRules.json).slice(0, 160));
+    }
+
+    const catDetail = await track('dcsc_category_detail', { categoryId: 'STG@Servers@Rack Server', limit: 2 });
+    check('dcsc_category_detail discovers sub-category detail', !catDetail.isError, JSON.stringify(catDetail.json).slice(0, 160));
+
+    const ctoLfoCodes = await track('dcsc_cto_lfo_codes', { limit: 5 });
+    check('dcsc_cto_lfo_codes lists filtered product codes', !ctoLfoCodes.isError, JSON.stringify(ctoLfoCodes.json).slice(0, 160));
+
+    const rackRule = await track('dcsc_rack_position_rule', {
+      rack: {
+        code: '7D6DCTO1WW',
+        size: 42,
+        machineType: '7D6D',
+        sliceCtoCode: '7D6DCTO1WW',
+        rackItem: {
+          code: '7D73CTO1WW',
+          type: 'server',
+          machineType: '7D73',
+          sliceCtoCode: '7D73CTO1WW',
+          asVLH: false,
+        },
+      },
+      configurations: [],
+    });
+    check('dcsc_rack_position_rule validates U-position bounds', !rackRule.isError, JSON.stringify(rackRule.json).slice(0, 160));
+
+    const mandSw = await track('dcsc_verify_mandatory_software', {
+      mode: 'cto',
+      configuration: { id: paritySession, code: '7D73CTO1WW', sections: [] },
+    });
+    check('dcsc_verify_mandatory_software inspects mandatory tabs', !mandSw.isError, JSON.stringify(mandSw.json).slice(0, 160));
+
+    const insSave = await track('dcsc_summary_insights', { session: paritySession, type: 'serviceSaving' });
+    check('dcsc_summary_insights extracts service pricing savings', !insSave.isError, JSON.stringify(insSave.json).slice(0, 160));
+
+    const treeExp = await track('dcsc_export_configuration_tree', {
+      name: 'SR630V3_Tree',
+      dataList: [{ typeName: 'Processors', contents: ['Intel Xeon Gold 6430'] }],
+    });
+    check('dcsc_export_configuration_tree generates spreadsheet bytes', !treeExp.isError, JSON.stringify(treeExp.json).slice(0, 160));
+
+    const aiRec = await track('dcsc_ai_recommend', {
+      action: 'ctoCandidates',
+      payload: { solutionMode: 'General Purpose' },
+    });
+    check('dcsc_ai_recommend returns AI recommendations', !aiRec.isError, JSON.stringify(aiRec.json).slice(0, 160));
+
+    await track('dcsc_session_close', { session: paritySession });
+  }
+
   // --- coverage ------------------------------------------------------------
   const invoked = registered.filter((tool) => (coverage.get(tool)?.calls ?? 0) > 0);
   const missed = registered.filter((tool) => !coverage.has(tool));

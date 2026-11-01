@@ -157,6 +157,26 @@ describe('R3: Mandatory Software Selection Check (mandatoryVerifyConfig)', () =>
     expect(result.tabs).toHaveLength(0);
   });
 
+  it('handles null tabs returned by live upstream when status is false', async () => {
+    const service = setupService();
+    const liveNullTabsResponse = {
+      status: false,
+      message: 'function not work now',
+      tabs: null,
+    };
+
+    vi.spyOn(service.http, 'send').mockResolvedValue({
+      raw: liveNullTabsResponse,
+      requestId: 'req-live-null',
+    } as never);
+
+    const result = await mandatoryVerifyConfig(service.http, service.newCtx(), sampleCtoInput);
+    expect(result.status).toBe(false);
+    expect(result.showVerifyConfig).toBe(false);
+    expect(result.message).toBe('function not work now');
+    expect(result.tabs).toEqual([]);
+  });
+
   it('preserves existing tab introduction text if upstream provides one', async () => {
     const service = setupService();
     const mockResponse = {

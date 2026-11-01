@@ -145,6 +145,36 @@ describe('R2: Rack U-Position Placement Rules (getHardwareRuleInRack)', () => {
     expect(result.serverRule).toEqual({});
   });
 
+  it('handles live DCSC response shape with null mtMinMaxRule and productMinMaxRule', async () => {
+    const service = setupService();
+    const liveResponse = {
+      code: '7D6DCTO1WW',
+      sliceCtoCode: '7D6DCTO1WW',
+      rackItemResponse: {
+        code: '7D73CTO1WW',
+        sliceCtoCode: '7D73CTO1WW',
+        type: 'server',
+        highestPosition: 42,
+        lowestPosition: 1,
+        rule: {
+          mtMinMaxRule: null,
+          productMinMaxRule: null,
+        },
+      },
+    };
+
+    vi.spyOn(service.http, 'send').mockResolvedValue({
+      raw: liveResponse,
+      requestId: 'req-live-rack-rule',
+    } as never);
+
+    const result = await getHardwareRuleInRack(service.http, service.newCtx(), validSampleInput);
+    expect(result.lowestPosition).toBe(1);
+    expect(result.highestPosition).toBe(42);
+    expect(result.serverRule.mtMinMaxRule).toBeNull();
+    expect(result.serverRule.productMinMaxRule).toBeNull();
+  });
+
   it('validates rackItem with asVLH and sliceCtoCode attributes', async () => {
     const service = setupService();
     const vlhInput: RackPositionRuleInput = {

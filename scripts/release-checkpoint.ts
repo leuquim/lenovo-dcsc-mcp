@@ -151,6 +151,9 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity:blueprints', class: 'live' },
   { command: 'npm run parity:validation', class: 'live', blockedExit: 2 },
   { command: 'npm run parity:headless', class: 'headless', blockedExit: 2 },
+  { command: 'npm run parity:phase1', class: 'live' },
+  { command: 'npm run parity:phase2', class: 'live' },
+  { command: 'npm run parity:phase3', class: 'live' },
 ];
 
 function git(args: string[], encoding: BufferEncoding = 'utf8'): string {

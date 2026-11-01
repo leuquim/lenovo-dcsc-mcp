@@ -189,18 +189,36 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
     {
       title: 'Summarise a DCSC configuration or workspace',
       description:
-        'Returns the compact summary of a configuration or workspace: products, quantities, prices, tabs, constraints, and both configuration and workspace revisions.',
+        'Returns the compact summary of a configuration or workspace: products, quantities, prices, tabs, constraints, and revisions. Optionally inspects CTO and rule versions.',
       inputSchema: {
-        session: z.string(),
+        session: z.string().optional().describe('Session or workspace ID. Optional if inspecting rule versions via ctoCode.'),
         path: z.array(z.string()).optional().describe('Detail path from a returned inspect/detail continuation.'),
         offset: z.number().int().min(0).optional().default(0),
         limit: z.number().int().min(1).max(1000).optional().default(20),
         expectedWorkspaceRevision: z.number().int().min(1).optional()
           .describe('Revision supplied by a continuation; rejects pages from a workspace that changed.'),
+        includeRuleVersions: z.boolean().optional().describe('When true, fetches and includes CTO versions and rule versions.'),
+        ruleTableCode: z.string().optional().describe('Rule table code for rule versions lookup (defaults to 203).'),
+        ctoCode: z.string().optional().describe('CTO code for rule versions lookup when no session is supplied or to override.'),
       },
     },
     async (args) =>
       guard(async () => {
+        if (args.ctoCode && !args.session) {
+          const info = await service.fetchRuleVersionsInfo({
+            ctoCode: args.ctoCode,
+            tableCode: args.ruleTableCode,
+          });
+          return {
+            ctoCode: info.ctoCode,
+            versions: info.versions,
+            tableCode: info.tableCode,
+            ruleVersions: info.ruleVersions,
+          };
+        }
+        if (!args.session) {
+          throw new Error('A session ID or ctoCode is required for dcsc_session_info.');
+        }
         const resolved = service.sessions.resolveHandle(args.session);
         if (!resolved) {
           throw new Error(
@@ -252,13 +270,33 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
             workspace.serverState.standaloneHardwareState ||
             unplacedManagedStorageComponentIds(workspace).size > 0)
         ) {
-          return projectWorkspaceSummary(workspace, {
+          const summary = projectWorkspaceSummary(workspace, {
             tool: 'dcsc_session_info',
             arguments: { session: workspace.id, expectedWorkspaceRevision: workspace.revision },
           });
+          if (args.includeRuleVersions) {
+            const firstCto = args.ctoCode ?? [...workspace.configurations.values()][0]?.product.code;
+            if (firstCto) {
+              const ruleVersions = await service.fetchRuleVersionsInfo({
+                ctoCode: firstCto,
+                tableCode: args.ruleTableCode,
+              });
+              return { ...summary, ruleVersions };
+            }
+          }
+          return summary;
         }
 
         const session = requireSession(service, args.session);
+
+        let ruleVersions: unknown = undefined;
+        if (args.includeRuleVersions) {
+          const targetCto = args.ctoCode ?? session.product.code;
+          ruleVersions = await service.fetchRuleVersionsInfo({
+            ctoCode: targetCto,
+            tableCode: args.ruleTableCode,
+          });
+        }
 
         return {
           workspace: session.workspaceId,
@@ -280,6 +318,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           mode: session.mode,
           primed: session.primed,
           configurable: session.configurable,
+          ...(ruleVersions !== undefined ? { ruleVersions } : {}),
           ...(session.primed
             ? {}
             : !session.configurable

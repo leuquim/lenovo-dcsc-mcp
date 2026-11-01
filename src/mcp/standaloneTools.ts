@@ -80,6 +80,8 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
         path: z.array(z.string()).optional().describe('Lossless detail path from a returned continuation.'),
         expectedCatalogFingerprint: z.string().optional().describe('Returned continuation fingerprint; rejects catalog or context changes.'),
         solutionMode: z.string().optional(),
+        includeSupplyStatus: z.boolean().optional().describe('Fetch supply status and shipping lead-times for matched parts.'),
+        supplyStatusType: z.string().optional().describe('Type for supply status query (e.g. Option, CTO, LFO). Defaults to Option.'),
       },
     },
     async (args) =>
@@ -117,7 +119,7 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
             partLookupSnapshots.delete(oldest);
           }
         }
-        return projectCatalogPage({
+        const projected = projectCatalogPage({
           tool: 'dcsc_find_parts', collection: 'parts',
           context: ctx.locale,
           arguments: { keyword: args.keyword, types: args.types, mode: args.mode, solutionMode: solution.solutionMode },
@@ -145,6 +147,38 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
               'retry its exact code or a narrower keyword; use dcsc_find_products for configurable systems.',
           },
         });
+
+        if (args.includeSupplyStatus) {
+          const targetCode = items[0]?.code ?? args.keyword.trim();
+          try {
+            const supply = await service.fetchSupplyStatus({
+              code: targetCode,
+              type: args.supplyStatusType ?? 'Option',
+              country: ctx.locale.country,
+            }, ctx);
+            return {
+              ...projected,
+              supplyStatus: {
+                code: supply.code,
+                type: supply.type,
+                country: supply.country,
+                shippingStatus: supply.shippingStatus,
+              },
+            };
+          } catch {
+            return {
+              ...projected,
+              supplyStatus: {
+                code: targetCode,
+                type: args.supplyStatusType ?? 'Option',
+                country: ctx.locale.country,
+                shippingStatus: [],
+              },
+            };
+          }
+        }
+
+        return projected;
       }),
   );
 

@@ -32,8 +32,29 @@ export function registerPciWizardTools(rawServer: McpServer, service: DcscServic
       path: z.array(z.string()).default([]), offset: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(1000).default(20),
       optionId: z.string().min(1).optional(), rowId: z.string().optional(), enabled: z.boolean().optional(),
-      slotCodes: z.array(z.string().min(1)).min(1).max(32).optional() },
+      slotCodes: z.array(z.string().min(1)).min(1).max(32).optional(),
+      memoryWizardAction: z.enum([
+        'launch',
+        'options',
+        'capacityList',
+        'memoryList',
+        'loadmap',
+        'slotNumber',
+        'exportZip',
+        'validExportZip',
+      ]).optional().describe('Optional Memory Wizard action to execute on this session.'),
+      memoryWizardPayload: z.record(z.string(), z.unknown()).optional().describe('Optional payload for Memory Wizard action.'),
+    },
   }, async args => guard(async () => {
+    if (args.memoryWizardAction !== undefined) {
+      const resolved = service.sessions.resolveHandle(args.session);
+      const ctoCode = resolved?.session?.product.code ?? (resolved?.workspace ? [...resolved.workspace.configurations.values()][0]?.product.code : undefined);
+      return service.memoryWizard({
+        action: args.memoryWizardAction,
+        ctoCode,
+        payload: args.memoryWizardPayload,
+      });
+    }
     if (args.optionId !== undefined) {
       if (args.expectedWorkspaceRevision === undefined) {
         throw new Error('expectedWorkspaceRevision is required when mutating PCI wizard options.');

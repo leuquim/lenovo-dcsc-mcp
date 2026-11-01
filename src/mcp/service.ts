@@ -26,13 +26,43 @@ import {
   type ExportConfigurationTreeResult,
 } from '../domain/exportConfigurationTree.js';
 import {
+  exportPowerOrGroupXls,
+  exportP2pReport,
+  fetchShareUrl,
+  type ExportPowerOrGroupXlsInput,
+  type ExportDeliverableResult,
+  type ShareUrlResult,
+} from '../domain/exportExtras.js';
+import {
+  queryMemoryWizard,
+  launchMemoryWizard,
+  type MemoryWizardQueryInput,
+  type MemoryWizardQueryResult,
+  type MemoryWizardLaunchResult,
+} from '../domain/memoryWizard.js';
+import {
+  fetchSupplyStatus,
+  fetchEsdInfo,
+  type FetchSupplyStatusInput,
+  type SupplyStatusResult,
+  type FetchEsdInfoInput,
+  type EsdInfoResult,
+} from '../domain/supplyStatus.js';
+import {
   fetchAiRecommendCtos,
   fetchAiFeatureCompat,
   fetchAiBladeRecommendation,
+  fetchAiDefaultPrompt,
+  fetchAiPromptTemplate,
+  fetchAiCandidateAttributes,
+  fetchAiCandidateFeatures,
+  fetchAiCandidateFeaturesDesc,
+  fetchAiConfigReplenishment,
+  fetchAiReplaceFeatures,
+  fetchAiRecommendConfigs,
+  fetchAiRecommendServices,
+  type NightingaleAiAction,
   type AiRecommendCtosInput,
-  type AiRecommendCtosResult,
-  type AiFeatureCompatResult,
-  type AiBladeRecommendResult,
   type AiFeatureCompatInput,
   type AiBladeRecommendInput,
 } from '../domain/aiConfigurator.js';
@@ -71,10 +101,28 @@ import {
   buildAutoFixCurrentSelections,
   executeAutoFix,
   applyAutoFixSections,
+  errorCustomizeWithAutoDerive,
   type AutoFixCandidate,
   type AutoFixResult,
+  type ErrorCustomizeInput,
 } from '../domain/autoFix.js';
-import { writeCfxmlArtifact } from '../files/artifactStore.js';
+import {
+  validateCfxml,
+  type CfxmlValidationInput,
+  type CfxmlValidationResponse,
+} from '../domain/cfxmlValidation.js';
+import {
+  fetchCtoVersions,
+  fetchRuleVersions,
+  fetchRuleVersionsInfo,
+  type FetchRuleVersionsInput,
+  type RuleVersionsResult,
+} from '../domain/ruleVersions.js';
+import {
+  queryDiscoveryHelper,
+  type DiscoveryHelperInput,
+} from '../domain/discoveryHelpers.js';
+import { writeCfxmlArtifact, sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import {
   fetchSolutionModes,
   toSolutionContext,
@@ -85,6 +133,7 @@ import {
   buildExportData,
   buildExportForm,
   buildGroups,
+  DEFAULT_EXPORT_TYPES,
   newConfigurationId,
   reduceConfiguration,
   type ExportFileType,
@@ -201,7 +250,28 @@ import {
   type ScaleOutPlan,
 } from './serviceHelpers.js';
 
-export type { ImportDiagnostics, ImportPart, ImportResult, ScaleOutPlan, AutoFixCandidate, AutoFixResult, SidItem, SidQueryResult, SidQueryOptions };
+export type {
+  ImportDiagnostics,
+  ImportPart,
+  ImportResult,
+  ScaleOutPlan,
+  AutoFixCandidate,
+  AutoFixResult,
+  SidItem,
+  SidQueryResult,
+  SidQueryOptions,
+  ExportPowerOrGroupXlsInput,
+  ExportDeliverableResult,
+  ShareUrlResult,
+  MemoryWizardQueryInput,
+  MemoryWizardQueryResult,
+  MemoryWizardLaunchResult,
+  FetchSupplyStatusInput,
+  SupplyStatusResult,
+  FetchEsdInfoInput,
+  EsdInfoResult,
+  NightingaleAiAction,
+};
 
 interface LaunchOptions {
   expectedRevision?: number | undefined;
@@ -387,7 +457,22 @@ export class DcscService {
       }
     }
 
-    const payload = await domainRetrieveConfigId(this.http, configId, existingIds, { ...ctx, solution });
+    let payload: unknown;
+    try {
+      payload = await domainRetrieveConfigId(this.http, configId, existingIds, { ...ctx, solution });
+    } catch (err) {
+      // If anonymous DCSC upstream does not persist newly minted IDs to cloud,
+      // fallback to active local session that holds userGeneratedConfigId.
+      const localMatch = this.sessions.list().find((s) => s.raw.userGeneratedConfigId === configId);
+      if (localMatch) {
+        payload = [{
+          configuration: [structuredClone(localMatch.raw)],
+          workspace: {},
+        }];
+      } else {
+        throw err;
+      }
+    }
     return this.#acceptImportPayload(payload, {
       ctx: { ...ctx, solution },
       solution,
@@ -4296,45 +4381,330 @@ export class DcscService {
     return workspace.id;
   }
 
-  async categoryDetail(input: { categoryId: string; isTruScale?: boolean | undefined }): Promise<CategoryDetailResult> {
-    return fetchCategoryDetail(this.http, this.newCtx(), input);
+  async categoryDetail(input: { categoryId: string; isTruScale?: boolean | undefined }, ctx?: RequestCtx): Promise<CategoryDetailResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    return fetchCategoryDetail(this.http, effectiveCtx, input);
   }
 
-  async ctoLfoCodes(): Promise<LfoCodesResult> {
-    return fetchLfoCodes(this.http, this.newCtx());
+  async ctoLfoCodes(ctx?: RequestCtx): Promise<LfoCodesResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    return fetchLfoCodes(this.http, effectiveCtx);
   }
 
-  async rackPositionRule(input: RackPositionRuleInput): Promise<RackPositionRuleResult> {
-    return getHardwareRuleInRack(this.http, this.newCtx(), input);
+  async rackPositionRule(input: RackPositionRuleInput, ctx?: RequestCtx): Promise<RackPositionRuleResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx(), 'HPC and AI - Systems') });
+    return getHardwareRuleInRack(this.http, effectiveCtx, input);
   }
 
-  async verifyMandatorySoftware(input: VerifyMandatorySoftwareInput): Promise<VerifyMandatorySoftwareResult> {
-    return mandatoryVerifyConfig(this.http, this.newCtx(), input);
+  async verifyMandatorySoftware(input: VerifyMandatorySoftwareInput, ctx?: RequestCtx): Promise<VerifyMandatorySoftwareResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    return mandatoryVerifyConfig(this.http, effectiveCtx, input);
   }
 
-  async summaryInsights(input: { type?: 'serviceSaving' | 'flagSummary' | string; workspaceSnapshot: Record<string, unknown> }): Promise<ServiceSavingsResult | FlagSummaryResult> {
-    if (input.type === 'flagSummary') {
-      return fetchFlagSummary(this.http, this.newCtx(), input.workspaceSnapshot);
+  async summaryInsights(
+    input: {
+      session?: string | undefined;
+      type?: 'serviceSaving' | 'flagSummary' | string | undefined;
+      workspaceSnapshot?: Record<string, unknown> | undefined;
+    },
+    ctx?: RequestCtx,
+  ): Promise<ServiceSavingsResult | FlagSummaryResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    let snapshot = input.workspaceSnapshot;
+    if (!snapshot && input.session) {
+      const resolved = this.sessions.resolveHandle(input.session);
+      const ws = resolved?.workspace;
+      if (ws) {
+        snapshot = {
+          ...buildExportData({
+            workspace: ws,
+            solution: ws.solution,
+            fileTypes: ['SUMMARY'],
+            validationMode: 'guided',
+          }),
+          groups: buildGroups(ws),
+        };
+      }
     }
-    return fetchServiceSavings(this.http, this.newCtx(), input.workspaceSnapshot);
+    if (!snapshot) {
+      throw new Error('Either session handle or workspaceSnapshot must be provided for summary insights.');
+    }
+    if (input.type === 'flagSummary') {
+      return fetchFlagSummary(this.http, effectiveCtx, snapshot);
+    }
+    return fetchServiceSavings(this.http, effectiveCtx, snapshot);
   }
 
-  async exportConfigurationTree(input: ExportConfigurationTreeInput): Promise<ExportConfigurationTreeResult> {
-    return exportConfigurationTree(this.http, this.newCtx(), input);
+  async exportConfigurationTree(input: ExportConfigurationTreeInput, ctx?: RequestCtx): Promise<ExportConfigurationTreeResult> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    return exportConfigurationTree(this.http, effectiveCtx, input);
+  }
+
+  async exportWorkspace(
+    sessionHandle: string,
+    opts: {
+      fileTypes?: ExportFileType[] | undefined;
+      fileName?: string | undefined;
+      scope?: 'auto' | 'configuration' | 'workspace' | undefined;
+      directReport?: 'POWER_XLS' | 'GROUP_XLS' | 'P2P_XLS' | undefined;
+      includeShareUrl?: boolean | undefined;
+      outputPath?: string | undefined;
+      ctx?: RequestCtx | undefined;
+    } = {},
+  ): Promise<Record<string, unknown>> {
+    this.assertTrustedWorkspace(sessionHandle);
+    const resolved = this.sessions.resolveHandle(sessionHandle);
+    if (!resolved) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+
+    const requested = opts.scope ?? 'auto';
+    const scope: 'configuration' | 'workspace' =
+      requested === 'auto' ? (resolved.kind === 'workspace' ? 'workspace' : 'configuration') : requested;
+
+    const workspace = resolved.workspace ? structuredClone(resolved.workspace) : undefined;
+    const session = resolved.session ? (workspace?.configurations.get(resolved.session.id) ?? structuredClone(resolved.session)) : undefined;
+
+    const effectiveLocale = workspace?.locale ?? session?.locale ?? this.locale;
+    const effectiveSolution = workspace?.solution ?? session?.solution ?? await this.resolveSolution(this.newCtx());
+    const effectiveCtx = opts.ctx ?? this.newCtx({ locale: effectiveLocale, solution: effectiveSolution });
+
+    const pCode = session?.product.code ?? (workspace && [...workspace.configurations.values()][0]?.product.code) ?? 'solution';
+    const baseFileName = sanitiseFileName(opts.fileName ?? `${pCode}-${Date.now()}`);
+
+    const configId = session?.configurationId
+      ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
+      ?? sessionHandle;
+
+    if (opts.directReport === 'POWER_XLS' || opts.directReport === 'GROUP_XLS') {
+      const isLfo = scope === 'workspace' && workspace
+        ? workspaceHardwareMode(workspace.configurations.values()) === 'lfo'
+        : session ? !usesCtoWire(session.mode) : false;
+
+      const stripped = workspace;
+      if (stripped) await this.#prepareConfigIdsDraft(stripped, effectiveCtx);
+      const placement = session && stripped?.nonRackArea.find((item) => item.id === session.configurationId);
+      const validationMode = workspace?.validationMode ?? session?.validationMode ?? 'expert';
+
+      const data = scope === 'workspace' && workspace
+        ? buildExportData({
+            workspace: stripped!,
+            solution: effectiveSolution,
+            fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
+            validationMode,
+          })
+        : buildExportData({
+            raw: session!.raw,
+            config: session!.reduced,
+            ...(placement ? { placement } : {}),
+            autoDerivedResults: Array.isArray(stripped?.serverState.autoDerivedResults)
+              ? (stripped.serverState.autoDerivedResults.filter((value) => {
+                  if (!value || typeof value !== 'object') return false;
+                  const record = value as Record<string, unknown>;
+                  const part = record.derivePart as Record<string, unknown> | undefined;
+                  return part?.targetWorkspaceId === session!.configurationId ||
+                    (Array.isArray(record.appliedConfigurations) && record.appliedConfigurations.includes(session!.configurationId));
+                }) as Array<Record<string, unknown>>) : [],
+            solution: effectiveSolution,
+            fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
+            validationMode,
+          });
+
+      const form = buildExportForm({
+        data,
+        image: scope === 'workspace' && workspace && (workspace.rackArea.length > 0) && (opts.fileTypes ?? DEFAULT_EXPORT_TYPES).includes('RACK_REPORT') ? renderRackImage(workspace) : undefined,
+        groups: scope === 'workspace' && workspace
+          ? buildGroups(stripped!)
+          : buildGroups(session!.raw, session!.configurationId, session!.mode),
+      });
+
+      const reportResult = await exportPowerOrGroupXls(this.http, effectiveCtx, {
+        mode: isLfo ? 'lfo' : 'cto',
+        reportType: opts.directReport === 'POWER_XLS' ? 'power' : 'group',
+        fileName: `${baseFileName}.xlsx`,
+        exportFormPayload: form,
+        outputPath: opts.outputPath,
+      });
+
+      let shareUrl: string | undefined;
+      if (opts.includeShareUrl) {
+        try {
+          const share = await fetchShareUrl(this.http, effectiveCtx, configId);
+          shareUrl = share.shareUrl;
+        } catch {
+          // Soft failure for share url
+        }
+      }
+
+      return {
+        session: sessionHandle,
+        scope,
+        directReport: opts.directReport,
+        ...reportResult,
+        ...(shareUrl ? { shareUrl } : {}),
+      };
+    }
+
+    if (opts.directReport === 'P2P_XLS') {
+      const cablingPayload = (workspace?.serverState.cabling as Record<string, unknown>)
+        ?? { cabling: workspace?.cables ?? [] };
+
+      const reportResult = await exportP2pReport(this.http, effectiveCtx, cablingPayload, {
+        fileName: `${baseFileName}.xlsx`,
+        outputPath: opts.outputPath,
+      });
+
+      let shareUrl: string | undefined;
+      if (opts.includeShareUrl) {
+        try {
+          const share = await fetchShareUrl(this.http, effectiveCtx, configId);
+          shareUrl = share.shareUrl;
+        } catch {
+          // Soft failure for share url
+        }
+      }
+
+      return {
+        session: sessionHandle,
+        scope,
+        directReport: opts.directReport,
+        ...reportResult,
+        ...(shareUrl ? { shareUrl } : {}),
+      };
+    }
+
+    // Default ZIP export
+    const zipResult = await this.exportZip(sessionHandle, {
+      fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
+      fileName: baseFileName,
+      ctx: effectiveCtx,
+      scope: opts.scope,
+    });
+
+    const bundle = await writeExportBundle(zipResult.stream, baseFileName, this.config);
+
+    let shareUrl: string | undefined;
+    if (opts.includeShareUrl) {
+      try {
+        const share = await fetchShareUrl(this.http, effectiveCtx, configId);
+        shareUrl = share.shareUrl;
+      } catch {
+        // Soft failure for share url
+      }
+    }
+
+    return {
+      session: sessionHandle,
+      ...zipResult,
+      ...bundle,
+      ...(shareUrl ? { shareUrl } : {}),
+    };
+  }
+
+  async exportPowerOrGroupXls(input: ExportPowerOrGroupXlsInput, ctx?: RequestCtx): Promise<ExportDeliverableResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return exportPowerOrGroupXls(this.http, effectiveCtx, input);
+  }
+
+  async exportP2pReport(payload: Record<string, unknown>, opts?: { fileName?: string; outputPath?: string }, ctx?: RequestCtx): Promise<ExportDeliverableResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return exportP2pReport(this.http, effectiveCtx, payload, opts);
+  }
+
+  async fetchShareUrl(configurationId: string, ctx?: RequestCtx): Promise<ShareUrlResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return fetchShareUrl(this.http, effectiveCtx, configurationId);
+  }
+
+  async memoryWizard(input: MemoryWizardQueryInput, ctx?: RequestCtx): Promise<MemoryWizardQueryResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return queryMemoryWizard(this.http, effectiveCtx, input);
+  }
+
+  async launchMemoryWizard(ctoCode: string, ctx?: RequestCtx): Promise<MemoryWizardLaunchResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return launchMemoryWizard(this.http, effectiveCtx, ctoCode);
+  }
+
+  async fetchSupplyStatus(input: FetchSupplyStatusInput, ctx?: RequestCtx): Promise<SupplyStatusResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return fetchSupplyStatus(this.http, effectiveCtx, input);
+  }
+
+  async fetchEsdInfo(input: FetchEsdInfoInput, ctx?: RequestCtx): Promise<EsdInfoResult> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return fetchEsdInfo(this.http, effectiveCtx, input);
   }
 
   async aiRecommend(input: {
-    action: 'ctoCandidates' | 'featureCompat' | 'bladeRecommendation';
+    action: NightingaleAiAction;
     payload: Record<string, unknown>;
-  }): Promise<AiRecommendCtosResult | AiFeatureCompatResult | AiBladeRecommendResult> {
-    const ctx = this.newCtx();
-    if (input.action === 'featureCompat') {
-      return fetchAiFeatureCompat(this.http, ctx, input.payload as unknown as AiFeatureCompatInput);
+  }, ctx?: RequestCtx): Promise<unknown> {
+    const effectiveCtx = ctx ?? this.newCtx({ solution: await this.resolveSolution(this.newCtx()) });
+    switch (input.action) {
+      case 'featureCompat':
+        return fetchAiFeatureCompat(this.http, effectiveCtx, input.payload as unknown as AiFeatureCompatInput);
+      case 'bladeRecommendation':
+        return fetchAiBladeRecommendation(this.http, effectiveCtx, input.payload as unknown as AiBladeRecommendInput);
+      case 'ctoCandidates':
+        return fetchAiRecommendCtos(this.http, effectiveCtx, input.payload as unknown as AiRecommendCtosInput);
+      case 'defaultPrompt':
+        return fetchAiDefaultPrompt(this.http, effectiveCtx, input.payload);
+      case 'promptTemplate':
+        return fetchAiPromptTemplate(this.http, effectiveCtx, input.payload);
+      case 'candidateAttributes':
+        return fetchAiCandidateAttributes(this.http, effectiveCtx, input.payload);
+      case 'candidateFeatures':
+        return fetchAiCandidateFeatures(this.http, effectiveCtx, input.payload);
+      case 'candidateFeaturesDesc':
+        return fetchAiCandidateFeaturesDesc(this.http, effectiveCtx, input.payload);
+      case 'configReplenishment':
+        return fetchAiConfigReplenishment(this.http, effectiveCtx, input.payload);
+      case 'replaceFeatures':
+        return fetchAiReplaceFeatures(this.http, effectiveCtx, input.payload);
+      case 'recommendConfigs':
+        return fetchAiRecommendConfigs(this.http, effectiveCtx, input.payload);
+      case 'recommendServices':
+        return fetchAiRecommendServices(this.http, effectiveCtx, input.payload);
     }
-    if (input.action === 'bladeRecommendation') {
-      return fetchAiBladeRecommendation(this.http, ctx, input.payload as unknown as AiBladeRecommendInput);
-    }
-    return fetchAiRecommendCtos(this.http, ctx, input.payload as unknown as AiRecommendCtosInput);
+  }
+
+  async validateCfxml(input: CfxmlValidationInput, ctx?: RequestCtx): Promise<CfxmlValidationResponse> {
+    const effectiveCtx = ctx ?? this.newCtx();
+    return validateCfxml(this.http, effectiveCtx, input);
+  }
+
+  async errorCustomizeWithAutoDerive(input: ErrorCustomizeInput, ctx?: RequestCtx): Promise<unknown[]> {
+    const effectiveCtx = ctx?.solution
+      ? ctx
+      : this.newCtx({ ...(ctx ?? {}), solution: await this.resolveSolution(ctx ?? this.newCtx()) });
+    return errorCustomizeWithAutoDerive(this.http, effectiveCtx, input);
+  }
+
+  async fetchRuleVersionsInfo(input: FetchRuleVersionsInput, ctx?: RequestCtx): Promise<RuleVersionsResult> {
+    const effectiveCtx = ctx?.solution
+      ? ctx
+      : this.newCtx({ ...(ctx ?? {}), solution: await this.resolveSolution(ctx ?? this.newCtx()) });
+    return fetchRuleVersionsInfo(this.http, effectiveCtx, input);
+  }
+
+  async fetchCtoVersions(ctoCode: string, ctx?: RequestCtx): Promise<string[]> {
+    const effectiveCtx = ctx?.solution
+      ? ctx
+      : this.newCtx({ ...(ctx ?? {}), solution: await this.resolveSolution(ctx ?? this.newCtx()) });
+    return fetchCtoVersions(this.http, effectiveCtx, ctoCode);
+  }
+
+  async fetchRuleVersions(input: FetchRuleVersionsInput, ctx?: RequestCtx): Promise<unknown> {
+    const effectiveCtx = ctx?.solution
+      ? ctx
+      : this.newCtx({ ...(ctx ?? {}), solution: await this.resolveSolution(ctx ?? this.newCtx()) });
+    return fetchRuleVersions(this.http, effectiveCtx, input);
+  }
+
+  async discoveryHelper(input: DiscoveryHelperInput, ctx?: RequestCtx): Promise<unknown> {
+    const effectiveCtx = ctx?.solution
+      ? ctx
+      : this.newCtx({ ...(ctx ?? {}), solution: await this.resolveSolution(ctx ?? this.newCtx()) });
+    return queryDiscoveryHelper(this.http, effectiveCtx, input);
   }
 
   close(): Promise<void> {

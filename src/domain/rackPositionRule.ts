@@ -43,8 +43,8 @@ export interface MinMaxRule {
 }
 
 export interface ServerRule {
-  mtMinMaxRule?: MinMaxRule | undefined;
-  productMinMaxRule?: MinMaxRule | undefined;
+  mtMinMaxRule?: MinMaxRule | null | undefined;
+  productMinMaxRule?: MinMaxRule | null | undefined;
   [key: string]: unknown;
 }
 
@@ -87,16 +87,18 @@ const MinMaxRuleSchema = z.object({
 }).passthrough();
 
 const ServerRuleSchema = z.object({
-  mtMinMaxRule: MinMaxRuleSchema.optional(),
-  productMinMaxRule: MinMaxRuleSchema.optional(),
+  mtMinMaxRule: MinMaxRuleSchema.nullable().optional(),
+  productMinMaxRule: MinMaxRuleSchema.nullable().optional(),
 }).passthrough();
 
 export const RackItemResponseSchema = z.object({
   lowestPosition: z.number(),
   highestPosition: z.number(),
-  rule: ServerRuleSchema.optional(),
-  serverRule: ServerRuleSchema.optional(),
+  rule: ServerRuleSchema.nullable().optional(),
+  serverRule: ServerRuleSchema.nullable().optional(),
   code: z.string().optional(),
+  sliceCtoCode: z.string().optional(),
+  type: z.string().optional(),
 }).passthrough();
 
 export type RackItemResponse = z.infer<typeof RackItemResponseSchema>;

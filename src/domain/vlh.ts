@@ -63,6 +63,7 @@ export async function fetchVlhWizardInfo(
     endpoint: 'vlh.wizardInfo',
     method: 'GET',
     path: '/vlh/wizardInfo',
+    requiresSolution: false,
     responseKind: 'json',
     ctx,
   });
@@ -85,6 +86,7 @@ export async function fetchVlhAttributes(
     endpoint: 'vlh.attributes',
     method: 'GET',
     path: `/vlh/attributes/${encodeURIComponent(code)}`,
+    requiresSolution: false,
     responseKind: 'json',
     ctx,
   });

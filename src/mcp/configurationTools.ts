@@ -38,11 +38,36 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
         filter: z.enum(['all', 'selected', 'selectable']).optional().default('all'),
         limit: z.number().int().min(1).max(100).optional().default(25),
         offset: z.number().int().min(0).optional().default(0),
+        memoryWizardAction: z
+          .enum([
+            'launch',
+            'options',
+            'capacityList',
+            'memoryList',
+            'loadmap',
+            'slotNumber',
+            'exportZip',
+            'validExportZip',
+          ])
+          .optional()
+          .describe('Optional Memory Wizard action to execute on this configuration.'),
+        memoryWizardPayload: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Optional payload for Memory Wizard action.'),
       },
     },
     async (args) =>
       guard(async () => {
         const session = requireSession(service, args.session);
+
+        if (args.memoryWizardAction) {
+          return service.memoryWizard({
+            action: args.memoryWizardAction,
+            ctoCode: session.product.code,
+            payload: args.memoryWizardPayload,
+          });
+        }
 
         if (args.tab && !args.query && !args.section && args.offset === 0 && args.filter === 'all') {
           return projectTab({
@@ -167,14 +192,41 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
     {
       title: 'Validate a configuration with DCSC (LMC)',
       description:
-        'Runs DCSC manufacturing validation (/lmc_validation) and merges local expansionMessages. Returns valid/invalid/unavailable with revision, payload hash and diagnostics.',
+        'Runs DCSC manufacturing validation (/lmc_validation) or external CFXML validation (/ecomm/cfxml_validation).',
       inputSchema: {
-        session: z.string().describe('Session or workspace ID.'),
+        session: z.string().optional().describe('Session or workspace ID. Optional if validating external cfxmlContent.'),
         deadlineMs: z.number().int().min(1000).max(300000).optional().describe('Total validation deadline, at most five minutes.'),
+        cfxmlContent: z.string().optional().describe('External CFXML string content to validate via /ecomm/cfxml_validation.'),
+        cfxmlFilename: z.string().optional().describe('Optional filename for CFXML validation (defaults to config.xml).'),
       },
     },
     async (args) =>
       guard(async () => {
+        if (args.cfxmlContent) {
+          const session = args.session ? service.sessions.get(args.session) : undefined;
+          const ws = args.session ? service.sessions.getWorkspace(args.session) : undefined;
+          const ctx = service.newCtx(
+            session || ws
+              ? {
+                  locale: session?.locale ?? ws!.locale,
+                  solution: session?.solution ?? ws!.solution,
+                }
+              : undefined,
+          );
+          const cfxml = await service.validateCfxml(
+            { cfxmlContent: args.cfxmlContent, filename: args.cfxmlFilename },
+            ctx,
+          );
+          return {
+            cfxml,
+            valid: cfxml.success ?? false,
+            message: cfxml.message ?? null,
+            url: cfxml.url ?? null,
+          };
+        }
+        if (!args.session) {
+          throw new Error('A session ID or cfxmlContent is required for dcsc_validate.');
+        }
         const session = service.sessions.get(args.session);
         const ws = service.sessions.getWorkspace(args.session);
         if (!session && !ws) throw new Error(`No such session/workspace: ${args.session}`);
@@ -520,18 +572,41 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
     'dcsc_auto_fix',
     {
       title: 'Hardware auto-fix for CTO rule errors',
-      description: 'Automatically resolves rule validation errors for eligible hardware CTO sections.',
+      description: 'Automatically resolves rule validation errors for eligible hardware CTO sections or executes batch error customize.',
       inputSchema: {
-        session: z.string().describe('Configuration session or workspace ID.'),
+        session: z.string().optional().describe('Configuration session or workspace ID. Optional if errorCustomizeConfigurations is provided.'),
         sections: z
           .array(z.string())
           .optional()
           .describe('Optional list of section character names to fix (e.g. ["PROCESSOR"]). Defaults to all auto-fix candidates.'),
         expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision for optimistic concurrency.'),
+        mode: z.enum(['cto', 'lfo']).optional().describe('Mode for errorCustomizeWithAutoDerive (cto or lfo).'),
+        errorCustomizeConfigurations: z.array(z.unknown()).optional().describe('Configurations array for errorCustomizeWithAutoDerive.'),
       },
     },
     async (args) =>
       guard(async () => {
+        if (args.errorCustomizeConfigurations !== undefined) {
+          const session = args.session ? service.sessions.get(args.session) : undefined;
+          const ws = args.session ? service.sessions.getWorkspace(args.session) : undefined;
+          const solution = session?.solution ?? ws?.solution ?? (await service.resolveSolution(service.newCtx()));
+          const locale = session?.locale ?? ws?.locale;
+          const ctx = service.newCtx({
+            ...(locale ? { locale } : {}),
+            solution,
+          });
+          const configurations = await service.errorCustomizeWithAutoDerive(
+            { mode: args.mode, configurations: args.errorCustomizeConfigurations },
+            ctx,
+          );
+          return {
+            mode: args.mode ?? 'cto',
+            configurations,
+          };
+        }
+        if (!args.session) {
+          throw new Error('A session ID or errorCustomizeConfigurations is required for dcsc_auto_fix.');
+        }
         const report = await service.autoFix(args.session, {
           sections: args.sections,
           expectedRevision: args.expectedRevision,
@@ -576,13 +651,14 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
       title: 'Fetch service savings and flag summary insights',
       description: 'Fetches service pricing savings or selectable special feature flag summary from the workspace snapshot.',
       inputSchema: {
+        session: z.string().optional().describe('Session or workspace handle to resolve export snapshot from.'),
         type: z.enum(['serviceSaving', 'flagSummary']).optional().describe('Insight type.'),
-        workspaceSnapshot: z.record(z.string(), z.unknown()).describe('Complete workspace export snapshot data.'),
+        workspaceSnapshot: z.record(z.string(), z.unknown()).optional().describe('Complete workspace export snapshot data.'),
       },
     },
     async (args) =>
       guard(async () => {
-        return service.summaryInsights(args as unknown as { type?: 'serviceSaving' | 'flagSummary' | string; workspaceSnapshot: Record<string, unknown> });
+        return service.summaryInsights(args as unknown as { session?: string; type?: 'serviceSaving' | 'flagSummary' | string; workspaceSnapshot?: Record<string, unknown> });
       }, 'dcsc_summary_insights failed'),
   );
 }

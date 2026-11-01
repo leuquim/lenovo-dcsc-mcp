@@ -1,8 +1,8 @@
 {
-  "minedAt": "2026-08-07T21:20:10.726Z",
+  "minedAt": "2026-10-31T22:57:44.488Z",
   "host": "dcsc.lenovo.com",
-  "bundle": "app-2026-01-14-70b46f1.js",
-  "bundleSha256": "0c48bcb4287053e24307b221f4fd4803f103cc46013b919ab72c77e2990513c5",
+  "bundle": "app-2026-01-14-5be41ba.js",
+  "bundleSha256": "41d0ad97ac0905416d6250261431f15d754ce2ca8b7cd0537299e6346341d97d",
   "formFields": [
     "cancelDownload",
     "crnId",
@@ -21,10 +21,12 @@
   ],
   "exportOptionValues": [
     "CONFIGID",
+    "CTO",
     "EPRICE_CSV",
     "EXCEL_DISPLAY_FEATURE_PRICE",
     "FCN",
     "FLOOR",
+    "LFO",
     "MESSAGE_HISTORY",
     "NEWVLH",
     "P2P_BY_RACK",
@@ -152,6 +154,8 @@
     "/ctos/racks/new_hardware",
     "/ctos/save",
     "/ctos/serviceSaving",
+    "/ctos/standalone_software/autoDerive",
+    "/ctos/standalone_software/launch",
     "/ctos/user_configurations",
     "/ctos/user_configurations/",
     "/ctos/user_configurations/copy/",

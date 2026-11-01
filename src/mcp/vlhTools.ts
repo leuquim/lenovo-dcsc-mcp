@@ -18,12 +18,19 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
       title: 'Inspect VLH Neptune wizard info',
       description:
         'Queries available network topologies, connector functions, and RPQ placeholder options for Neptune water-cooling and VLH items.',
-      inputSchema: {},
+      inputSchema: {
+        section: z.enum(['topologies', 'connectors', 'functions', 'rpq']).optional().describe('Optional section to inspect.'),
+      },
     },
-    () =>
+    (args) =>
       guard(async () => {
         const ctx = service.newCtx();
-        return fetchVlhWizardInfo(service.http, ctx);
+        const info = await fetchVlhWizardInfo(service.http, ctx);
+        if (args.section === 'topologies') return { networkTopologies: info.networkTopologies };
+        if (args.section === 'connectors') return { networkTopologyConnectorsMap: info.networkTopologyConnectorsMap };
+        if (args.section === 'functions') return { connectorFunctions: info.connectorFunctions };
+        if (args.section === 'rpq') return { rpqPlaceholders: info.rpqPlaceholders };
+        return info;
       }, 'dcsc_vlh_wizard_info failed'),
   );
 
@@ -79,7 +86,7 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
             `Workspace revision conflict: expected revision ${args.expectedWorkspaceRevision}, but current revision is ${workspace.revision}.`,
           );
         }
-        const ctx = service.newCtx();
+        const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
         const categories = await fetchVirtualContainerCompatibleProducts(
           service.http,
           workspace,
@@ -125,7 +132,7 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
             `Workspace revision conflict: expected revision ${args.expectedWorkspaceRevision}, but current revision is ${workspace.revision}.`,
           );
         }
-        const ctx = service.newCtx();
+        const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
         const rules = await checkVirtualContainerRules(service.http, workspace, ctx);
         return {
           workspace: workspace.id,

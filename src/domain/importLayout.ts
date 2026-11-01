@@ -295,7 +295,7 @@ function assertNoUnknownLocations(
   for (const location of locations) {
     const id = nonemptyString(location['id']);
     if (!id || !childIds.has(id)) {
-      throw new Error(`Imported container ${containerId} contains placement metadata for an unknown ${childKind}.`);
+      throw new Error(`Imported container ${containerId} contains placement metadata for an unknown ${childKind} "${id}".`);
     }
   }
 }
@@ -328,7 +328,7 @@ function assertImportContext(workspace: WorkspaceSession, payload: Obj): void {
   // Native Excel imports return the selected mode with an empty slices list.
   // That omits catalog metadata; it does not contradict the resolved mode.
   if (Array.isArray(mode['masterSlices']) && mode['masterSlices'].length > 0 &&
-    !isDeepStrictEqual(mode['masterSlices'], workspace.solution.masterSlices)) {
+    !mode['masterSlices'].every((slice) => typeof slice === 'string' && workspace.solution.masterSlices.includes(slice))) {
     throw new Error('Imported master slices conflict with the workspace solution context.');
   }
 }

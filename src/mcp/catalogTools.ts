@@ -707,15 +707,44 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     'dcsc_category_detail',
     {
       title: 'Fetch sub-category detail & configurable products',
-      description: 'Fetches sub-category detail, products, and paths from standard, converged (SDI), or TruScale category IDs.',
+      description: 'Fetches sub-category detail, products, paths, or queries anonymous discovery helpers.',
       inputSchema: {
-        categoryId: z.string().describe('Category identifier, e.g. "STG@Servers@Rack Server".'),
+        categoryId: z.string().optional().describe('Category identifier, e.g. "STG@Servers@Rack Server". Optional if discoveryAction is provided.'),
         isTruScale: z.boolean().optional().describe('Set true to force TruScale reference solution category detail routing.'),
+        discoveryAction: z.enum([
+          'caseStudies',
+          'subCategoryConditions',
+          'productListBySubCategory',
+          'topChoiceCountry',
+          'productFunctions',
+          'displayOrders',
+          'staticFeatures',
+        ]).optional().describe('Anonymous discovery helper route to query.'),
+        discoveryParams: z.record(z.string(), z.unknown()).optional().describe('Parameters for the discovery action.'),
+        limit: z.number().int().min(1).max(50).optional().describe('Optional maximum sub-categories/children to return.'),
       },
     },
     async (args) =>
       guard(async () => {
-        return service.categoryDetail({ categoryId: args.categoryId, isTruScale: args.isTruScale });
+        if (args.discoveryAction) {
+          return service.discoveryHelper({
+            action: args.discoveryAction,
+            params: args.discoveryParams,
+          });
+        }
+        if (!args.categoryId) {
+          throw new Error('Either categoryId or discoveryAction must be provided for dcsc_category_detail.');
+        }
+        const result = await service.categoryDetail({ categoryId: args.categoryId, isTruScale: args.isTruScale });
+        if (args.limit !== undefined) {
+          return {
+            ...result,
+            ...(Array.isArray(result.children) ? { children: result.children.slice(0, args.limit), totalChildren: result.children.length } : {}),
+            ...(Array.isArray(result.products) ? { products: result.products.slice(0, args.limit), totalProducts: result.products.length } : {}),
+            ...(Array.isArray(result.categories) ? { categories: result.categories.slice(0, args.limit), totalCategories: result.categories.length } : {}),
+          };
+        }
+        return result;
       }, 'dcsc_category_detail failed'),
   );
 
@@ -724,11 +753,21 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     {
       title: 'List filtered CTO and LFO codes',
       description: 'Fetches filtered list of CTO and LFO product codes from upstream catalog filter endpoint.',
-      inputSchema: {},
+      inputSchema: {
+        limit: z.number().int().min(1).max(500).optional().describe('Optional maximum codes to return.'),
+      },
     },
-    async () =>
+    async (args) =>
       guard(async () => {
-        return service.ctoLfoCodes();
+        const result = await service.ctoLfoCodes();
+        if (args.limit !== undefined) {
+          return {
+            ...result,
+            lfoCodes: result.lfoCodes.slice(0, args.limit),
+            totalLfoCodes: result.lfoCodes.length,
+          };
+        }
+        return result;
       }, 'dcsc_cto_lfo_codes failed'),
   );
 
@@ -738,7 +777,22 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
       title: 'Nightingale AI configurator recommendations & feature validation',
       description: 'Executes Nightingale AI recommendation or feature compatibility validation via /ai-acceler endpoints.',
       inputSchema: {
-        action: z.enum(['ctoCandidates', 'featureCompat', 'bladeRecommendation']).describe('AI action type.'),
+        action: z
+          .enum([
+            'ctoCandidates',
+            'featureCompat',
+            'bladeRecommendation',
+            'defaultPrompt',
+            'promptTemplate',
+            'candidateAttributes',
+            'candidateFeatures',
+            'candidateFeaturesDesc',
+            'configReplenishment',
+            'replaceFeatures',
+            'recommendConfigs',
+            'recommendServices',
+          ])
+          .describe('AI action type.'),
         payload: z.record(z.string(), z.unknown()).describe('Payload object required by the specific AI endpoint.'),
       },
     },

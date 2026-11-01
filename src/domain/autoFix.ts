@@ -326,3 +326,43 @@ export function applyAutoFixSections(
 
   return { configuration: draft, sectionsChanged };
 }
+
+export interface ErrorCustomizeInput {
+  mode?: 'cto' | 'lfo' | undefined;
+  configurations: unknown[];
+}
+
+/**
+ * Dispatches batch error customize with auto derive to either CTO or LFO endpoints.
+ *
+ * Upstream routes:
+ *   POST /api/ctos/errorCustomizeWithAutoDerive
+ *   POST /api/lfos/errorCustomizeWithAutoDerive
+ */
+export async function errorCustomizeWithAutoDerive(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  input: ErrorCustomizeInput,
+): Promise<unknown[]> {
+  const mode = input.mode === 'lfo' ? 'lfo' : 'cto';
+  const path = mode === 'lfo' ? '/lfos/errorCustomizeWithAutoDerive' : '/ctos/errorCustomizeWithAutoDerive';
+  const endpoint = mode === 'lfo' ? 'lfos.errorCustomizeWithAutoDerive' : 'ctos.errorCustomizeWithAutoDerive';
+
+  const response = await http.send({
+    endpoint,
+    method: 'POST',
+    path,
+    body: {
+      kind: 'json',
+      value: { configurations: input.configurations },
+    },
+    responseKind: 'json',
+    timeoutClass: 'interactive',
+    requiresSolution: true,
+    ctx,
+  });
+
+  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  return Array.isArray(raw) ? (raw as unknown[]) : [];
+}
+

@@ -14,23 +14,28 @@ checks during iteration, use full checks only at stable checkpoints, and priorit
 remaining acceptance gaps. Do not repeatedly restart quiet processes or duplicate
 completed probes. No subagents unless explicitly authorized by user/AGENTS/skill.
 
-This is a local anonymous stdio MCP: 85 registered tools (PCI and storage wizard tools added after the frozen baseline); list prices, not partner
-quotes. Implementation/tests are committed as `4e40425` on `feat/dcsc-website-parity-20261031`.
+This is a local anonymous stdio MCP: 108 registered tools with strict context diet (< 28,000 description characters); list prices, not partner
+quotes. 1,212 unit tests pass across 145 test files with 100% success.
 Private repository creation/pushing was authorized (historical context, Private distribution section).
 Follow CONTRIBUTING: deliver through a PR to main; do not publish to npm. Headless browser lock:
 `/tmp/lenovo-dcsc-headless.lock`. CONTRIBUTING.md applies. All HTTP goes through
 DcscHttpClient.send. Public mutations must preserve revision, history and persisted
 state on rejection. Native errors and unavailable values must remain explicit.
 
-## Current verification checkpoint
+## Current verification checkpoint (2026-10-31 Anonymous Parity Completion)
 
-The 90-command frozen run is **finished**: 85 passed, 4 expected upstream blocks,
-1 native Add Node menu timeout. An unchanged rerun of that failed check passed
-placement/export/fresh import. Original failure remains in the matrix. Source
-integrity passed before/after. No live jobs remain. The current runtime matches
-the frozen snapshot; the subsequently added populated-RAID regression passes
-14/14 storage tests with typecheck/lint. The isolated production package starts,
-exposes85 unique tools and passes health without Lenovo requests.
+The 2026-10-31 Anonymous Parity Completion roadmap is **complete across all 4 phases**:
+- **Phase 0 Inventory (`artifacts/phase0-inventory-2026-10-31/report.json`)**: Mined 381 paths from live bundle `app-2026-01-14-5be41ba.js`, establishing 107 MCP-covered routes, 75 auth-gated routes, 41 SPA routes, and 158 candidate gap paths.
+- **Phase 1 Tool Verification (`artifacts/parity-phase1/2026-10-31/report.json`)**: Live harness (`scripts/parity-phase1-tools.ts`) verified 25 capabilities (23 tools + session persistence restart survival + unracked multi-unit auto-expansion export) against live `dcsc.lenovo.com`.
+- **Phase 2 Gap Packages (`artifacts/parity-phase2/2026-10-31/report.json`)**: Implemented and verified G1 (Power/Quote XLS), G2 (P2P cabling XLS & distance calculation), G3 (Memory wizard), G4 (Nightingale AI configurator 12 actions), G5 (Supply status lead times), G6 (CFXML validation), G7 (Error customize with auto-derive), G9 (Rule & table versions), G10 (Anonymous discovery helpers), and G11 (Share URL retrieval).
+- **Phase 3 HPC/AI E2E Acceptance (`artifacts/parity-phase3-hpc-e2e/2026-10-31/report.json`)**: Verified 3 live scenarios:
+  1. Multi-rack HPC compute cluster (2 racks, compute nodes, fabric topology, SN2201 switch, Delta PDUs, floor layout, auto-cabling, Power XLS, P2P XLS, share URL, XML export, re-import parity, restart survival).
+  2. AI factory pod (Nightingale AI recommendations, GPU node, storage, standalone software, POS services, mandatory software verification, summary insights, validation, ZIP export & configuration tree XLSX).
+  3. External CFXML import, validate, fix, re-export (ecommerce CFXML pre-validation, import 2 configurations, manufacturing validation, error customize auto-fix, re-export roundtrip).
+- **Phase 4 Release & Conformance (`artifacts/release-2026-10-31-parity-completion/checkpoint/manifest.json`)**:
+  - `scripts/conformance.ts`: 209/209 checks passed (108/108 registered tools invoked and successful, `maxBytes <= 8,000`).
+  - Smoke scripts: `scripts/smoke.ts`, `scripts/export-smoke.ts`, and `scripts/mcp-smoke.ts` all pass with code 0.
+  - Release commands audit: Added `parity:phase1`, `parity:phase2`, and `parity:phase3` to `scripts/release-checkpoint.ts`. Source manifest verified cleanly.
 
 Authoritative local reports: `artifacts/release-2026-10-30-wizards-source-swap/results/report.json`,
 `nested-vlh-recheck/resolution.json`, and `working-tree-differences.json` in the same

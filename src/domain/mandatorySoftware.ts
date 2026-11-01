@@ -60,7 +60,7 @@ const TabSchema = z.object({
 
 export const MandatorySoftwareWireSchema = z.object({
   status: z.boolean(),
-  tabs: z.array(TabSchema).default([]),
+  tabs: z.array(TabSchema).nullable().optional().transform((val) => val ?? []),
   message: z.string().nullable().optional(),
 }).passthrough();
 
