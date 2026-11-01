@@ -1,13 +1,8 @@
 import type { RawConfiguration } from '../model/types.js';
 import type { RackObject } from './rack.js';
+import { type Obj, objectItems } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 interface Membership { code: string; quantity: number }
-
-function objects(value: unknown): Obj[] {
-  return Array.isArray(value) ? value.filter((item): item is Obj =>
-    item !== null && typeof item === 'object' && !Array.isArray(item)) : [];
-}
 
 /**
  * The SPA's deriveGroupIdToConfiguration adds catalog-backed MI_P selections
@@ -32,13 +27,13 @@ export function projectChassisManufacturing(input: {
   const memberships = new Map<string, Membership>();
   const physical = new Map<string, Obj>();
   const rootOf = (item: Obj): string => roots.get(String(item.id)) ?? String(item.id);
-  for (const area of [...input.rackArea.map(rack => objects(rack.rackItems)), input.nonRackArea]) {
+  for (const area of [...input.rackArea.map(rack => objectItems(rack.rackItems)), input.nonRackArea]) {
     const counters = new Map<string, number>();
     const groups = new Map<string, number>();
     for (const item of [...area].sort((a, b) => Number(a.position ?? Infinity) - Number(b.position ?? Infinity))) {
       physical.set(String(item.id), item);
       if (item.type !== 'chassis') continue;
-      const nodes = objects(item.nodes);
+      const nodes = objectItems(item.nodes);
       for (const node of nodes) physical.set(String(node.id), node);
       const model = String(item.chassisModel ?? '');
       const key = JSON.stringify([rootOf(item), model, item.shipUninstalled === true,
@@ -59,16 +54,16 @@ export function projectChassisManufacturing(input: {
     const item = physical.get(String(source.id));
     if (!item || item.type !== 'chassis' && item.type !== 'node') return source;
     const configuration = structuredClone(source);
-    const sections = objects(configuration.unSelectableCharacters);
+    const sections = objectItems(configuration.unSelectableCharacters);
     const section = sections.find(value => value.name === 'MI_P');
     if (!section) return configuration;
     const membership = memberships.get(String(source.id));
     const prefix = membership?.code.slice(0, 2) ?? (item.chassisModel === 'flex' ? '33' : '75');
-    section.results = objects(section.results).filter(result => !String(result.code).startsWith(prefix));
-    if (membership && objects(section.features).some(feature => feature.code === membership.code)) {
+    section.results = objectItems(section.results).filter(result => !String(result.code).startsWith(prefix));
+    if (membership && objectItems(section.features).some(feature => feature.code === membership.code)) {
       (section.results as Obj[]).push({ code: membership.code, quantity: membership.quantity });
     }
-    const selected = objects(configuration.unSelectableCharacterResults).find(value => value.characterName === 'MI_P');
+    const selected = objectItems(configuration.unSelectableCharacterResults).find(value => value.characterName === 'MI_P');
     if (selected) selected.results = structuredClone(section.results);
     return configuration;
   });

@@ -10,8 +10,8 @@ import {
   type ValidationStatus,
   type LocalMessage,
 } from './validate.js';
+import { errorMessage, isObject, type Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export const VALIDATION_JOBS_STATE_KEY = 'validationJobs';
 export const DEFAULT_VALIDATION_DEADLINE_MS = 5 * 60_000;
@@ -345,7 +345,7 @@ function toRequestError(phase: ValidationRequestError['phase'], error: unknown):
   const value = isObject(error) ? error : {};
   const message = typeof value['userMessage'] === 'string'
     ? value['userMessage']
-    : error instanceof Error ? error.message : String(error);
+    : errorMessage(error);
   return {
     phase,
     message,
@@ -367,10 +367,6 @@ function normalize(value: unknown): unknown {
     if (normalized !== undefined) out[key] = normalized;
   }
   return out;
-}
-
-function isObject(value: unknown): value is Obj {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isStatus(value: unknown): value is ValidationStatus {

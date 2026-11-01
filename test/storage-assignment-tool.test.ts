@@ -5,7 +5,7 @@ import { ConfigSchema } from '../src/config/schema.js';
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 import { registerStorageTools } from '../src/mcp/storageTools.js';
 import { DcscService } from '../src/mcp/service.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 
 type Reply = { isError?: boolean; content: Array<{ text: string }> };
 type Handler = (args: Record<string, unknown>) => Promise<Reply>;

@@ -1,6 +1,6 @@
 import { deflateSync } from 'node:zlib';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface RackImageWorkspace {
   rackArea: Obj[];

@@ -1,12 +1,13 @@
 import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
 import { readConnectionGraph } from '../domain/cabling.js';
 import { cablingDiagnostics } from '../domain/cablingDiagnostics.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from './session.js';
 import { projectJsonPage } from './pagedJson.js';
 import { storageConnectionNetworkSource, storageComponentQuantities, storagePhysicalTemplateIds } from '../domain/storagePreferences.js';
 import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import { physicalIds } from '../domain/workspaceReferences.js';
+import { isObject } from '../util/coerce.js';
 
 const DEFAULT_PAGE_LIMIT = 20;
 const PREVIEW_TEXT_LIMIT = 160;
@@ -59,13 +60,9 @@ export interface WorkspaceProjectionTotals {
   integrityWarnings: number;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
 function clonedRecords(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value)
-    ? value.filter(isRecord).map(record => structuredClone(record))
+    ? value.filter(isObject).map(record => structuredClone(record))
     : [];
 }
 
@@ -160,7 +157,7 @@ function rackAttachmentPreview(
   detail: Continuation,
   kind: 'floor' | 'power',
 ): Record<string, unknown> | null {
-  if (!isRecord(value)) return null;
+  if (!isObject(value)) return null;
   const preview: Record<string, unknown> = {};
   const stringFields = kind === 'floor'
     ? ['id', 'rackId']
@@ -260,11 +257,11 @@ export function workspaceDetailSource(workspace: WorkspaceSession): Record<strin
     })];
 
   const softwareState = workspace.serverState['standaloneSoftwareState'];
-  const standaloneSoftware = isRecord(softwareState)
+  const standaloneSoftware = isObject(softwareState)
     ? clonedRecords(softwareState['selections'])
     : [];
   const hardwareState = workspace.serverState['standaloneHardwareState'];
-  const standaloneHardware = isRecord(hardwareState)
+  const standaloneHardware = isObject(hardwareState)
     ? clonedRecords(hardwareState['selections']).map(selection => {
         const unitPrice = selection['unitPrice'];
         const quantity = selection['quantity'];
@@ -280,7 +277,7 @@ export function workspaceDetailSource(workspace: WorkspaceSession): Record<strin
   const rawConnections = readConnectionGraph(workspace.serverState);
   const autoConnectMessages = workspace.rackArea.flatMap(rack => {
     const errors = Array.isArray(rack['errors']) ? rack['errors'] : [];
-    const messages = errors.filter(isRecord)
+    const messages = errors.filter(isObject)
       .filter(error => String(error['code'] ?? '') === '102')
       .map(error => String(error['message'] ?? ''))
       .filter(Boolean);
@@ -709,7 +706,7 @@ function softwareSelectionPriceAvailable(selection: Record<string, unknown>): bo
   const feature = selection['feature'];
   return typeof selection['totalPrice'] === 'number' && Number.isFinite(selection['totalPrice']) &&
     selection['priceNotAvailable'] !== true &&
-    (!isRecord(feature) || feature['priceNotAvailable'] !== true);
+    (!isObject(feature) || feature['priceNotAvailable'] !== true);
 }
 
 /** Lossless bounded detail page used when a projection tool receives path. */

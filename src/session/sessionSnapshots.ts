@@ -1,5 +1,4 @@
 import { isDeepStrictEqual } from 'node:util';
-import { ulid } from 'ulid';
 
 import type { ConfigMode } from '../config/constants.js';
 import {
@@ -28,19 +27,10 @@ import {
 import { VALIDATION_JOBS_STATE_KEY } from '../domain/validationJobs.js';
 import { buildIndex } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
-import type {
-  CableLink,
-  ConfigIntent,
-  ConfigSession,
-  CreateSessionInput,
-  FloorItem,
-  PduSelection,
-  RackPlacement,
-  WorkspaceHistory,
-  WorkspaceHistoryEntry,
-  WorkspaceSession,
-  WorkspaceStateInput,
-} from './SessionStore.js';
+import type { CreateSessionInput, WorkspaceStateInput } from './SessionStore.js';
+import type { CableLink, ConfigIntent, ConfigSession, FloorItem, PduSelection, RackPlacement, WorkspaceHistory, WorkspaceHistoryEntry, WorkspaceSession } from '../model/session.js';
+import { errorMessage } from '../util/coerce.js';
+import { newId } from './ids.js';
 
 export function firstNonempty(...values: unknown[]): string | undefined {
   for (const value of values) {
@@ -50,7 +40,7 @@ export function firstNonempty(...values: unknown[]): string | undefined {
 }
 
 export function normalizeNewWorkspaceId(requested: string | undefined): string {
-  if (requested === undefined) return `ws_${ulid().slice(-8).toLowerCase()}`;
+  if (requested === undefined) return newId('ws');
   const id = requested.trim();
   if (!id || id !== requested) throw new Error('New workspace id must be non-empty and trimmed');
   return id;
@@ -119,7 +109,7 @@ export function buildConfigSession(
   const canonicalRaw = structuredClone(input.raw);
   canonicalRaw.id = configurationId;
   return {
-    id: `sess_${code}_${ulid().slice(-6).toLowerCase()}`,
+    id: newId('sess', code),
     workspaceId,
     ...(input.label !== undefined ? { label: input.label } : {}),
     locale: structuredClone(input.locale),
@@ -593,7 +583,7 @@ export function discardInvalidHistorySnapshots(
         migrated += 1;
         return [next];
       } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
+        const detail = errorMessage(error);
         const warning = `Unrestorable workspace ${direction} history entry ${index} was discarded: ${detail}`;
         warnings.push(warning);
         workspace.recoveryData = mergeRecoveryRecords(workspace.recoveryData ?? [], [

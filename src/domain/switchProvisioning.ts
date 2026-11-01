@@ -1,6 +1,7 @@
 import { buildRackConfigurations, type RackConfigurationWire, type RackObject } from './rack.js';
+import { isObject, type Obj } from '../util/coerce.js';
+import { autoDerivePath, racksCustomizePath } from './endpoints.js';
 
-type Obj = Record<string, unknown>;
 
 /** Fields the browser posts to `/switch_calculation`, in captured wire order. */
 const SWITCH_CALCULATION_ARRAY_FIELDS = [
@@ -253,13 +254,13 @@ export const SWITCH_PROVISIONING_SEQUENCE = [
   {
     phase: 'customize-generated-layout',
     method: 'POST',
-    path: '/ctos/racks/customize',
+    path: racksCustomizePath('ctos'),
     query: { autoArrange: true, autoConnect: true, cogValidation: true },
   },
   {
     phase: 'derive-generated-configuration',
     method: 'POST',
-    path: '/ctos/autoDerive',
+    path: autoDerivePath('ctos'),
     query: { guideMode: true },
   },
   {
@@ -273,10 +274,6 @@ export const SWITCH_PROVISIONING_SEQUENCE = [
 function requiredObject(value: unknown, label: string): RackObject {
   if (!isObject(value)) throw new Error(`${label} must be an object.`);
   return value;
-}
-
-function isObject(value: unknown): value is RackObject {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function requiredString(value: unknown, label: string): string {

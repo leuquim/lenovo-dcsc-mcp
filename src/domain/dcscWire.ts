@@ -1,4 +1,5 @@
 import type { RawConfiguration, RawSection, RawSubTab } from '../model/types.js';
+import type { Obj } from '../util/coerce.js';
 
 /** Outgoing selections are distinct from both the full catalog and MCP views. */
 export interface WireResult {
@@ -21,7 +22,6 @@ export interface WireSection {
   [key: string]: unknown;
 }
 
-type Obj = Record<string, unknown>;
 const resultFields = [
   'code', 'quantity', 'productNumber', 'derived', 'ctoCode', 'description',
   'preSelected', 'serviceVariant', 'derivedQuantity', 'priceNotAvailable',

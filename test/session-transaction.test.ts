@@ -3,12 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { loadValidationJobs, type ValidationJob } from '../src/domain/validationJobs.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import {
-  SessionConflictError,
-  SessionStore,
-  type ConfigSession,
-  type CreateSessionInput,
-} from '../src/session/SessionStore.js';
+import { SessionConflictError, SessionStore, type CreateSessionInput } from '../src/session/SessionStore.js';
+import type { ConfigSession } from '../src/model/session.js';
 
 const locale = { country: 'US', geo: 'NA', language: 'en', currency: 'USD' } as const;
 const solution = { solutionMode: 'General Purpose', masterSlices: ['ISG'] };

@@ -1,7 +1,6 @@
 import type { RawConfiguration, RawPrice } from '../model/types.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (v: unknown): Obj => v && typeof v === 'object' && !Array.isArray(v) ? v as Obj : {};
 const money = (v: number) => Math.round(v * 100) / 100;
 
 /** The native lazy loader merges selections by section identity, never array order. */
@@ -69,7 +68,7 @@ function repriceUnconfigured(raw: RawConfiguration, next: RawConfiguration): Raw
 export function unconfiguredProducts(raw: RawConfiguration) {
   return (raw.tabs ?? []).filter(t => t.type === 'UNCONFIGURED_TAB').flatMap(t => t.subTabs ?? [])
     .flatMap(t => t.sections ?? []).flatMap(section => (section.results ?? []).filter(r => Number(r.quantity) > 0).map(result => {
-      const feature = object(section.features?.find(f => f.code === result.code &&
+      const feature = objectOrEmpty(section.features?.find(f => f.code === result.code &&
         (!result['optionCode'] || f['optionCode'] === result['optionCode'])));
       const unavailable = feature['priceNotAvailable'] === true || result['priceNotAvailable'] === true;
       const value = feature['noCharge'] === true || result['noCharge'] === true ? 0 : feature['unitPrice'];
@@ -97,8 +96,8 @@ export function adjustUnconfiguredPrices(prices: RawPrice[] | null | undefined, 
 }
 
 export function preserveUnconfiguredSelections(current: RawConfiguration, derived: RawConfiguration): RawConfiguration {
-  const retained = (current.tabs ?? []).filter(t => t.type === 'UNCONFIGURED_TAB' && object(t)['mockTab'] !== true);
-  if (retained.length === 0 || (derived.tabs ?? []).some(t => t.type === 'UNCONFIGURED_TAB' && object(t)['mockTab'] !== true)) return derived;
+  const retained = (current.tabs ?? []).filter(t => t.type === 'UNCONFIGURED_TAB' && objectOrEmpty(t)['mockTab'] !== true);
+  if (retained.length === 0 || (derived.tabs ?? []).some(t => t.type === 'UNCONFIGURED_TAB' && objectOrEmpty(t)['mockTab'] !== true)) return derived;
   const merged = { ...derived, tabs: [...(derived.tabs ?? []).filter(t => t.type !== 'UNCONFIGURED_TAB'), ...structuredClone(retained)] };
   const products = unconfiguredProducts(merged);
   if (products.length === 0) return merged;

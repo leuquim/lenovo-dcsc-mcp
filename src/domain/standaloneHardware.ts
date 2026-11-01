@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import { findParts, type PartLookupMode } from './standalone.js';
+import { finiteNumber, nonBlankString, type Obj, objectItems, requirePositiveSafeInteger } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 /**
  * Hardware option part numbers (transceivers, cables, kits) added from the
@@ -52,16 +52,16 @@ export async function lookupStandaloneHardwarePart(
 }
 
 export function standaloneHardwareSelection(part: Obj, quantity: number, id: string = randomUUID()): StandaloneHardwareSelection {
-  const code = string(part['code']);
+  const code = nonBlankString(part['code']);
   if (!code) throw new Error('Part Search row has no part number.');
-  const unitPrice = number(part['price']) ?? number(objects(part['prices'])[0]?.['price']);
+  const unitPrice = finiteNumber(part['price']) ?? finiteNumber(objectItems(part['prices'])[0]?.['price']);
   return {
     id,
     kind: 'hardware',
     code,
-    quantity: positiveInteger(quantity, 'quantity'),
-    description: string(part['description']) ?? '',
-    ...(string(part['featureCode']) ? { featureCode: string(part['featureCode']) } : {}),
+    quantity: requirePositiveSafeInteger(quantity, 'quantity'),
+    description: nonBlankString(part['description']) ?? '',
+    ...(nonBlankString(part['featureCode']) ? { featureCode: nonBlankString(part['featureCode']) } : {}),
     ...(unitPrice !== undefined ? { unitPrice } : {}),
     priceNotAvailable: part['priceNotAvailable'] === true,
     part: structuredClone(part),
@@ -74,7 +74,7 @@ export function selectStandaloneHardware(
   part: Obj,
   quantity: number,
 ): StandaloneHardwareState {
-  const code = string(part['code']);
+  const code = nonBlankString(part['code']);
   const existing = state.selections.find((selection) => selection.code === code);
   const selection = standaloneHardwareSelection(part, quantity, existing?.id);
   return {
@@ -132,16 +132,16 @@ export function parseStandaloneHardwareRows(rows: Obj[], groupProducts: Obj[]): 
   return {
     kind: 'standalone-hardware',
     selections: hardware.map((row) => {
-      const code = string(row['code']);
+      const code = nonBlankString(row['code']);
       if (!code) throw new Error('Imported standalone hardware row has no part number.');
-      const id = string(row['id']) ?? randomUUID();
-      const group = groupProducts.find((candidate) => string(candidate['id']) === id);
-      const unitPrice = number(group?.['unitPrice']);
+      const id = nonBlankString(row['id']) ?? randomUUID();
+      const group = groupProducts.find((candidate) => nonBlankString(candidate['id']) === id);
+      const unitPrice = finiteNumber(group?.['unitPrice']);
       const part: Obj = structuredClone(row);
       delete part['id'];
       delete part['quantity'];
-      if (unitPrice !== undefined && number(part['price']) === undefined) part['price'] = unitPrice;
-      return standaloneHardwareSelection(part, positiveInteger(number(row['quantity']) ?? 0, `standalone ${code} quantity`), id);
+      if (unitPrice !== undefined && finiteNumber(part['price']) === undefined) part['price'] = unitPrice;
+      return standaloneHardwareSelection(part, requirePositiveSafeInteger(finiteNumber(row['quantity']) ?? 0, `standalone ${code} quantity`), id);
     }),
   };
 }
@@ -169,21 +169,3 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function objects(value: unknown): Obj[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is Obj => typeof item === 'object' && item !== null && !Array.isArray(item))
-    : [];
-}
-
-function string(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
-function number(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function positiveInteger(value: number, name: string): number {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer.`);
-  return value;
-}

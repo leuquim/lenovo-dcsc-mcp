@@ -1,5 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import { buildAutoDeriveRequest } from './reduce.js';
 
 export interface VirtualCompatibleProduct {

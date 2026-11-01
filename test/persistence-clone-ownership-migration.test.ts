@@ -22,12 +22,9 @@ import {
   readSessionRecoveryArchive,
   serializeWorkspaces,
 } from '../src/session/persist.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
-import {
-  CLONE_OWNERSHIP_RECOVERY_STATE_KEY,
-  SessionStore,
-  type WorkspaceSession,
-} from '../src/session/SessionStore.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
+import { CLONE_OWNERSHIP_RECOVERY_STATE_KEY, SessionStore } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 
 const roots: string[] = [];
 

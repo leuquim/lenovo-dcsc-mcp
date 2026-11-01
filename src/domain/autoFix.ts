@@ -1,5 +1,7 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import type { RawConfiguration, RawFeature, RawResult, RawSection } from '../model/types.js';
+import { errorCustomizeWithAutoDerivePath } from './endpoints.js';
+import { hardwareEndpointFamily } from './modeFamily.js';
 
 export interface AutoFixCandidate {
   tabTitle: string;
@@ -345,7 +347,7 @@ export async function errorCustomizeWithAutoDerive(
   input: ErrorCustomizeInput,
 ): Promise<unknown[]> {
   const mode = input.mode === 'lfo' ? 'lfo' : 'cto';
-  const path = mode === 'lfo' ? '/lfos/errorCustomizeWithAutoDerive' : '/ctos/errorCustomizeWithAutoDerive';
+  const path = errorCustomizeWithAutoDerivePath(hardwareEndpointFamily(mode));
   const endpoint = mode === 'lfo' ? 'lfos.errorCustomizeWithAutoDerive' : 'ctos.errorCustomizeWithAutoDerive';
 
   const response = await http.send({

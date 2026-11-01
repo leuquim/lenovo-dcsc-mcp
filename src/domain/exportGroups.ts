@@ -6,8 +6,8 @@ import { hardwareModeFamily } from './modeFamily.js';
 import { storageComponentQuantities } from './storagePreferences.js';
 import { storagePhysicalConfigurations } from './storagePhysicalState.js';
 import { adjustUnconfiguredPrices, unconfiguredProducts } from './unconfigured.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface ExportGroup {
   name: string;

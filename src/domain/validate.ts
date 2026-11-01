@@ -1,4 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import { nonBlankString, type Obj } from '../util/coerce.js';
 
 /**
  * DCSC manufacturing validation is a two-request job.
@@ -65,7 +66,6 @@ export interface ValidationReport {
   isValid: boolean;
 }
 
-type Obj = Record<string, unknown>;
 
 const DIAGNOSTIC_ARRAYS: Record<string, LocalMessage['severity']> = {
   expansionMessages: 'info',
@@ -78,10 +78,6 @@ const DIAGNOSTIC_ARRAYS: Record<string, LocalMessage['severity']> = {
   notices: 'info',
   serviceValidationMessages: 'error',
 };
-
-function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v.trim() !== '' ? v : undefined;
-}
 
 /** Starts a manufacturing-validation job and retains the exact descriptor array. */
 export async function startLmcValidation(
@@ -109,9 +105,9 @@ export async function startLmcValidation(
   const entry = descriptors[0];
   const first = (typeof entry === 'object' && entry !== null ? entry : {}) as Obj;
   return {
-    buildEntityNumber: str(first['buildEntityNumber']),
-    uuid: str(first['uuid']),
-    lmcURL: str(first['lmcURL']),
+    buildEntityNumber: nonBlankString(first['buildEntityNumber']),
+    uuid: nonBlankString(first['uuid']),
+    lmcURL: nonBlankString(first['lmcURL']),
     raw: res.raw,
     descriptors,
   };
@@ -375,13 +371,13 @@ function toLocalMessage(
         ? 'warning'
         : fallback;
   const message =
-    str(obj['text']) ?? str(obj['message']) ?? str(obj['description']) ?? str(obj['messageKey']);
+    nonBlankString(obj['text']) ?? nonBlankString(obj['message']) ?? nonBlankString(obj['description']) ?? nonBlankString(obj['messageKey']);
   if (!message) return undefined;
   return {
     severity,
-    code: str(obj['code']) ?? str(obj['messageKey']),
+    code: nonBlankString(obj['code']) ?? nonBlankString(obj['messageKey']),
     message,
-    section: str(obj['sectionName']) ?? str(obj['section']) ?? section,
+    section: nonBlankString(obj['sectionName']) ?? nonBlankString(obj['section']) ?? section,
     configurationId,
     sourcePath,
   };
@@ -401,7 +397,7 @@ function countMessages(messages: LocalMessage[]): {
 
 function requestError(phase: ValidationRequestError['phase'], err: unknown): ValidationRequestError {
   const obj = (typeof err === 'object' && err !== null ? err : {}) as Obj;
-  const userMessage = str(obj['userMessage']);
+  const userMessage = nonBlankString(obj['userMessage']);
   const ordinaryMessage = err instanceof Error ? err.message : undefined;
   const status = typeof obj['status'] === 'number' ? obj['status'] : undefined;
   const retryable = typeof obj['retryable'] === 'boolean' ? obj['retryable'] : undefined;

@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
 import { guard, withToolSupport } from './toolSupport.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 const jsonBytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value, null, 2));
 
@@ -15,12 +15,8 @@ function clipText(value: string, limit: number): { value: string; truncated: boo
     : { value: `${characters.slice(0, limit).join('')}…`, truncated: true };
 }
 
-function object(value: unknown): Obj {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
-}
-
 function messagePreview(value: unknown): Obj {
-  const source = object(value);
+  const source = objectOrEmpty(value);
   const message = typeof source['message'] === 'string' ? source.message : '';
   const clip = (candidate: unknown, limit: number): unknown => {
     if (typeof candidate !== 'string') return candidate;
@@ -58,7 +54,7 @@ export function projectValidationToolResult(full: Obj, options: {
     headroom: { total: headroom.length, inspect: inspect(['projection', 'headroom']) },
   };
   const headroomSummary = headroom.slice(0, 3).map(value => {
-    const entry = object(value);
+    const entry = objectOrEmpty(value);
     return {
       configuration: entry['configuration'],
       productCode: entry['productCode'],
@@ -74,7 +70,7 @@ export function projectValidationToolResult(full: Obj, options: {
     lmc: rawLmc,
     ...base
   } = full;
-  const lmc = object(rawLmc);
+  const lmc = objectOrEmpty(rawLmc);
   const compactLmc: Obj = {};
   const lmcPages: Obj = {};
   for (const key of ['buildEntityNumber', 'uuid', 'lmcURL']) {

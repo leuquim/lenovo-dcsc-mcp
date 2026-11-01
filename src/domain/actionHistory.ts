@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
+import { objectOrUndefined } from '../util/coerce.js';
 
 export const ACTION_HISTORY_SESSION_TIMESTAMP_KEY = 'actionHistorySessionTimestamp';
 
@@ -100,7 +101,7 @@ export function appendActionHistory(
 
 function existingHistoryRows(serverState: Record<string, unknown>): unknown[] | undefined {
   if (Array.isArray(serverState.historyInformation)) return serverState.historyInformation;
-  const messageHistory = asRecord(serverState.messageHistory);
+  const messageHistory = objectOrUndefined(serverState.messageHistory);
   return Array.isArray(messageHistory?.history) ? messageHistory.history : undefined;
 }
 
@@ -117,7 +118,7 @@ function resolveSessionTimestamp(
 
   let latestImport: { timestamp: string; time: number } | undefined;
   for (const value of rows) {
-    const row = asRecord(value);
+    const row = objectOrUndefined(value);
     if (nonemptyString(row?.command)?.toUpperCase() !== 'IMPORT') continue;
     const timestamp = nonemptyString(row?.timestamp);
     const time = timestamp === undefined ? Number.NaN : Date.parse(timestamp);
@@ -172,8 +173,3 @@ function nonemptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : undefined;
-}

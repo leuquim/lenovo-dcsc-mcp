@@ -11,7 +11,7 @@ import { DcscService } from '../src/mcp/service.js';
 import { registerStorageTools } from '../src/mcp/storageTools.js';
 import { registerTools } from '../src/mcp/tools.js';
 import { loadSessions, saveSessions } from '../src/session/persist.js';
-import { SessionPersistenceError } from '../src/session/persistenceError.js';
+import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 
 type Obj = Record<string, unknown>;

@@ -3,6 +3,7 @@ import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 
 import { toToolError } from '../http/errors.js';
 import { logger } from '../http/trace.js';
+import { errorMessage } from '../util/coerce.js';
 
 export type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
@@ -14,7 +15,7 @@ export function ok(value: unknown): ToolResult {
 }
 
 export function fail(err: unknown, context = 'Tool failed'): ToolResult {
-  logger().error({ err: err instanceof Error ? err.message : String(err) }, context);
+  logger().error({ err: errorMessage(err) }, context);
   return {
     content: [{ type: 'text', text: JSON.stringify(toToolError(err), null, 2) }],
     isError: true,

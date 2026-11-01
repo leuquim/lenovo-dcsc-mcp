@@ -215,18 +215,9 @@ import { projectSummary } from '../model/project.js';
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
 import { logger, newCorrId } from '../http/trace.js';
 import type { RawConfiguration } from '../model/types.js';
-import {
-  SessionStore,
-  stageConfiguration,
-  SessionConflictError,
-  type ConfigSession,
-  type CreateSessionInput,
-  type CableLink,
-  type PduSelection,
-  type WorkspaceSession,
-} from '../session/SessionStore.js';
+import { SessionStore, stageConfiguration, SessionConflictError, type CreateSessionInput } from '../session/SessionStore.js';
+import type { ConfigSession, CableLink, PduSelection, WorkspaceSession } from '../model/session.js';
 import { createPersistenceWriter, loadSessions, saveSessions } from '../session/persist.js';
-import { ulid } from 'ulid';
 import {
   addHistoryFactory,
   catalogCodeSet,
@@ -249,6 +240,9 @@ import {
   type RawImportResponse,
   type ScaleOutPlan,
 } from './serviceHelpers.js';
+import { errorMessage } from '../util/coerce.js';
+import { newId } from '../session/ids.js';
+import { autoDerivePath, ctoLaunchPath, exportZipPath, launchPath } from '../domain/endpoints.js';
 
 export type {
   ImportDiagnostics,
@@ -755,16 +749,7 @@ export class DcscService {
 
   async #prepareLaunch(opts: LaunchOptions): Promise<CreateSessionInput> {
     const { productCode, mode, solution, ctx } = opts;
-    const encoded = encodeURIComponent(productCode);
-
-    const path =
-      mode === 'lfo'
-        ? `/lfos/${encoded}/as_lfo_launch`
-        : mode === 'lfo-as-cto'
-          ? `/lfos/${encoded}/as_cto_launch`
-          : mode === 'lfo-add-options'
-            ? `/lfos/${encoded}/add_options_launch`
-            : `/ctos/${encoded}/launch`;
+    const path = launchPath(mode, productCode);
 
     const res = await this.http.send({
       endpoint: `${mode}_launch`,
@@ -836,7 +821,7 @@ export class DcscService {
     } catch (err) {
       if (!(err instanceof SkipPriming)) {
         logger().warn(
-          { productCode, mode, err: err instanceof Error ? err.message : String(err) },
+          { productCode, mode, err: errorMessage(err) },
           'Priming autoDerive failed; session is read-only until it succeeds',
         );
       }
@@ -869,7 +854,8 @@ export class DcscService {
       workspace?: WorkspaceSession;
     },
   ): Promise<RawConfiguration | undefined> {
-    const isLfo = !usesCtoWire(opts.mode);
+    const family = hardwareEndpointFamily(opts.mode);
+    const isLfo = family === 'lfos';
     const lfoHardware = isLfo && !opts.softwareEdit;
     const storageComponent = !!opts.workspace && managedStorageComponentIds(opts.workspace.serverState).has(reduced.id);
     const rackContext = !isLfo && opts.workspace && opts.sourceRaw?.type === 'rack' &&
@@ -893,7 +879,7 @@ export class DcscService {
     const res = await this.http.send({
       endpoint: isLfo ? 'lfo_autoDerive' : 'cto_autoDerive',
       method: 'POST',
-      path: isLfo ? '/lfos/autoDerive' : '/ctos/autoDerive',
+      path: autoDerivePath(family),
       query: { configurationId: reduced.id, ...(storageComponent ? {} : { entranceFlag: 'customize' }),
         ...(lfoHardware ? { isLfo: true, scope: 'HW' }
           : opts.softwareEdit ? { isCustomizeOSSoftware: true, isCustomizeNewSoftwareEngine: true }
@@ -1305,7 +1291,7 @@ export class DcscService {
         resolveLinkedCloneGroup(dependency, ids, value.id).rootId === value.id);
     }
 
-    const response = await this.http.send({ endpoint: 'cto_autoDerive', method: 'POST', path: '/ctos/autoDerive',
+    const response = await this.http.send({ endpoint: 'cto_autoDerive', method: 'POST', path: autoDerivePath('ctos'),
       query: { configurationId: editor.configurationId, ...(!hpcLinked ? { entranceFlag: 'customize' } : {}),
         ...(softwareEdit ? { isCustomizeOSSoftware: true, isCustomizeNewSoftwareEngine: true }
           : { guideMode: initiating.validationMode === 'guided' }) },
@@ -1811,7 +1797,7 @@ export class DcscService {
         resolveLinkedCloneGroup(dependency, ids, c.id).rootId === c.id);
     }
     const derived = await this.http.send({
-      endpoint: 'workspace_autoDerive', method: 'POST', path: '/ctos/autoDerive',
+      endpoint: 'workspace_autoDerive', method: 'POST', path: autoDerivePath('ctos'),
       query: { ...(hasStorageInstances || opts.nestedPhysicalEdit || opts.cloneHpcSwitch ? {} : {
         entranceFlag: opts.cloneMultiple || opts.copyConfigurationId || opts.lockMutation || opts.deletedLinkedRootConfigurations ? 'customize' : 'summary',
       }), guideMode: ws.validationMode === 'guided' },
@@ -2275,7 +2261,7 @@ export class DcscService {
       autoCorrect: [...ws.configurations.values()].every(session => session.autoCorrect) });
     if ([...storagePhysicalTemplateIds(ws)].some(([id, template]) => id !== template)) delete body.customizingIds;
     const response = await this.http.send({ endpoint: 'workspace_autoDerive', method: 'POST',
-      path: '/ctos/autoDerive', query: { guideMode: ws.validationMode === 'guided' },
+      path: autoDerivePath('ctos'), query: { guideMode: ws.validationMode === 'guided' },
       body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
       ctx: { ...ctx, locale: ws.locale, solution: ws.solution } });
     const derived = response.raw as Record<string, unknown>;
@@ -2319,7 +2305,7 @@ export class DcscService {
     for (const requirement of requirements) {
       for (let index = 0; index < requirement.quantity; index += 1) {
         const launched = await this.http.send({ endpoint: 'automatic_switch_launch', method: 'POST',
-          path: `/ctos/${encodeURIComponent(requirement.option)}/launch`,
+          path: ctoLaunchPath(requirement.option),
           query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
           body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
         const raw = launched.raw as RawConfiguration;
@@ -2781,7 +2767,7 @@ export class DcscService {
             configuration.id === replacement.configurationId ? replacement.reducedConfiguration : configuration);
           body.customizingIds = replacement.customizingIds;
           transaction.remoteApplied = true;
-          const response = await this.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: '/ctos/autoDerive',
+          const response = await this.http.send({ endpoint: 'manual_cabling_replacement', method: 'POST', path: autoDerivePath('ctos'),
             query: { ...replacement.query, guideMode: draft.validationMode === 'guided' },
             body: { kind: 'json', value: body }, responseKind: 'json', timeoutClass: 'heavy',
             ctx: { ...edit.ctx, locale: draft.locale, solution: draft.solution } });
@@ -2854,7 +2840,7 @@ export class DcscService {
       if (!ids.has(cable.fromConfigId) || !ids.has(cable.toConfigId)) {
         throw new Error('Both cable endpoints must belong to this workspace. Use configuration IDs from dcsc_session_list.');
       }
-      const link = { ...cable, id: `cable_${ulid().slice(-8).toLowerCase()}` };
+      const link = { ...cable, id: newId('cable') };
       workspace.cables.push(link);
       return link;
     });
@@ -2877,7 +2863,7 @@ export class DcscService {
     return this.sessions.transact(this.#workspaceId(sessionHandle), { expectedRevision,
       actionHistory: floorMoveHistoryFactory(rackId) }, (workspace) => {
       const result = placeRackOnFloor({ rackArea: workspace.rackArea, rackId, x, y,
-        existing: workspace.floorItems, newId: `floor_${ulid().slice(-6).toLowerCase()}` });
+        existing: workspace.floorItems, newId: newId('floor') });
       workspace.floorItems = workspace.floorItems.filter((item) => item.rackId !== rackId).concat(result.item);
       const info = (workspace.serverState.floorInformation ?? {}) as Record<string, unknown>;
       const grid = Array.isArray(info.floorGrid) ? info.floorGrid as Record<string, unknown>[] : [];
@@ -3037,7 +3023,7 @@ export class DcscService {
       const copy = (template: ConfigSession, index: number): ConfigSession => {
         const clone = structuredClone(template);
         const configurationId = newConfigurationId(template.locale.country);
-        clone.id = `sess_${template.product.code}_${ulid().slice(-6).toLowerCase()}`;
+        clone.id = newId('sess', template.product.code);
         clone.configurationId = configurationId;
         clone.raw = cloneConfigurationRaw(template.raw, template.configurationId, configurationId);
         clone.revision = 1;
@@ -3899,7 +3885,7 @@ export class DcscService {
     }
     const context = { ...opts.ctx, locale: draft.locale, solution: draft.solution };
     const launched = await this.http.send({ endpoint: component === 'controller' ? 'storage_controller_launch' : 'storage_switch_launch', method: 'POST',
-      path: `/ctos/${encodeURIComponent(option)}/launch`,
+      path: ctoLaunchPath(option),
       query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
       body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
     transaction.remoteApplied = true;
@@ -4300,9 +4286,10 @@ export class DcscService {
 
     const solution = workspace?.solution ?? session!.solution;
     const validationMode = workspace?.validationMode ?? session!.validationMode;
-    const isLfo = scope === 'workspace'
-      ? workspaceHardwareMode(workspace!.configurations.values()) === 'lfo'
-      : !usesCtoWire(session!.mode);
+    const family = hardwareEndpointFamily(
+      scope === 'workspace' ? workspaceHardwareMode(workspace!.configurations.values()) : session!.mode,
+    );
+    const isLfo = family === 'lfos';
 
     const hasRacks = (workspace?.rackArea.length ?? 0) > 0;
     const includeRacks = hasRacks;
@@ -4351,7 +4338,7 @@ export class DcscService {
     const res = await this.http.send({
       endpoint: isLfo ? 'lfo_export_zip' : 'cto_export_zip',
       method: 'POST',
-      path: isLfo ? '/lfos/export_zip' : '/ctos/export_zip',
+      path: exportZipPath(family),
       query: { fileName: opts.fileName },
       requiresSolution: false,
       body: { kind: 'form', fields: form },

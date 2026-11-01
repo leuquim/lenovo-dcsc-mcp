@@ -1,7 +1,7 @@
 import type { RawConfiguration } from '../model/types.js';
 import { storagePhysicalTemplateIds } from './storagePreferences.js';
+import type { Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 export interface StoragePhysicalWorkspace {
   serverState?: Obj;
   rackArea?: Obj[];

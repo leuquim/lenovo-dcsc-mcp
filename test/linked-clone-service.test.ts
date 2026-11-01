@@ -10,7 +10,7 @@ import { reduceConfiguration } from '../src/domain/reduce.js';
 import type { SendInput } from '../src/http/request.js';
 import { DcscService } from '../src/mcp/service.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import type { ConfigSession } from '../src/session/SessionStore.js';
+import type { ConfigSession } from '../src/model/session.js';
 
 type Obj = Record<string, unknown>;
 const services: DcscService[] = [];

@@ -1,11 +1,11 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
-import type { CableLink } from '../session/SessionStore.js';
+import type { CableLink } from '../model/session.js';
 import { DEFAULT_FLOOR_PREFERENCE } from './floor.js';
 import type { NetworkDevice, NetworkType } from './fabric.js';
 import type { RackObject } from './rack.js';
+import { nonEmptyStringOrNumberText, type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface ConnectionSummary {
   id: string;
@@ -24,20 +24,20 @@ export type AutoConnectSettingsPatch = Pick<AutoConnectSettings, 'autoAddPDU' | 
 
 /** Import/export stores these toggles in customizingFlags; live requests use settings. */
 export function readAutoConnectSettings(state: Obj): AutoConnectSettings {
-  const flags = object(state['customizingFlags']);
+  const flags = objectOrEmpty(state['customizingFlags']);
   const imported = Object.fromEntries(['autoAddPDU', 'autoAddSwitch', 'p2pCabling']
     .filter(key => typeof flags[key] === 'boolean').map(key => [key, flags[key]]));
   return structuredClone({ ...imported,
-    ...object(object(state['networkingInformation'])['autoConnectSettings']),
-    ...object(object(state['autoConnectState'])['autoConnectSettings']),
+    ...object(objectOrEmpty(state['networkingInformation'])['autoConnectSettings']),
+    ...object(objectOrEmpty(state['autoConnectState'])['autoConnectSettings']),
     ...object(state['autoConnectSettings']),
   });
 }
 
 /** Canonical live graph takes precedence, including an authoritative empty array. */
 export function readConnectionGraph(state: Obj): unknown[] {
-  const networking = object(state['networkingInformation']);
-  for (const value of [state['connections'], object(state['autoConnectState'])['connections'],
+  const networking = objectOrEmpty(state['networkingInformation']);
+  for (const value of [state['connections'], objectOrEmpty(state['autoConnectState'])['connections'],
     state['autoConnectResults'], networking['autoConnectResults'], networking['connections']]) {
     if (Array.isArray(value)) return structuredClone(value);
   }
@@ -56,8 +56,8 @@ export function assertCurrentConnectionGraph(state: Obj): void {
 }
 
 export function readSwitchMap(state: Obj): unknown[] {
-  for (const value of [state['switchMap'], object(state['autoConnectState'])['switchMap'],
-    object(state['networkingInformation'])['switchMap']]) {
+  for (const value of [state['switchMap'], objectOrEmpty(state['autoConnectState'])['switchMap'],
+    objectOrEmpty(state['networkingInformation'])['switchMap']]) {
     if (Array.isArray(value)) return structuredClone(value);
   }
   return [];
@@ -67,14 +67,14 @@ export function readSwitchMap(state: Obj): unknown[] {
 export function buildCableGroups(connections: readonly unknown[], includePower: boolean): Obj[] {
   const groups = new Map<string, { code: string; description?: string; quantity: number }>();
   for (const value of connections) {
-    const connection = object(value);
+    const connection = objectOrEmpty(value);
     if (!includePower && connection['network'] === 'Power') continue;
-    const code = str(connection['cablePart']);
+    const code = nonEmptyStringOrNumberText(connection['cablePart']);
     if (!code) throw new Error('Cannot export a connection without its selected cable part. Re-run auto-connect.');
     const existing = groups.get(code);
     if (existing) existing.quantity += 1;
     else {
-      const description = str(connection['cableType']);
+      const description = nonEmptyStringOrNumberText(connection['cableType']);
       groups.set(code, { code, ...(description === undefined ? {} : { description }), quantity: 1 });
     }
   }
@@ -91,7 +91,7 @@ export function mergeAutoConnectSettings(current: unknown, patch: AutoConnectSet
       throw new Error(`Invalid auto-connect setting ${key}; use boolean autoAddPDU, autoAddSwitch or p2pCabling.`);
     }
   }
-  return { ...structuredClone(object(current)), ...patch };
+  return { ...structuredClone(objectOrEmpty(current)), ...patch };
 }
 /** Full SPA request state. Unknown/new DCSC keys pass through unchanged. */
 export interface AutoConnectPayload extends Obj {
@@ -134,17 +134,10 @@ export function projectConnectionGraph(rawConnections: readonly unknown[]): {
   return { connections, cables: connections.map(toCableLink) };
 }
 
-function str(v: unknown): string | undefined {
-  if (typeof v === 'string' && v !== '') return v;
-  return typeof v === 'number' && Number.isFinite(v) ? String(v) : undefined;
-}
-function object(v: unknown): Obj {
-  return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Obj) : {};
-}
 function makeCloneDependency(configurations: RawConfiguration[]): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   for (const configuration of configurations) {
-    const id = str(configuration['id']) ?? str((configuration as Obj)['configurationId']);
+    const id = nonEmptyStringOrNumberText(configuration['id']) ?? nonEmptyStringOrNumberText((configuration as Obj)['configurationId']);
     if (id) result[id] = [id];
   }
   return result;
@@ -160,7 +153,7 @@ export function buildClusterPreferences(
   return networkTypes.map((network) => {
     const main = find(network['defaultMainSwitch'], network['defaultMainSwitchOption']);
     const leaf = find(network['defaultLeafSwitch'], network['defaultLeafSwitchOption']);
-    const topology = str(network['defaultNetworkTechnology']) ?? '';
+    const topology = nonEmptyStringOrNumberText(network['defaultNetworkTechnology']) ?? '';
     const base: Obj = {
       cableColor: network['defaultCableColor'], cableType: network['defaultCableType'],
       mainSwitch: main ? { feature: main.feature, option: main.option, topologyConnectors: main.topologyConnectors } : {},
@@ -219,7 +212,7 @@ export async function autoConnect(
   if (seedConnections !== undefined) requestState.connections = structuredClone([...seedConnections]);
   const res = await http.send({ endpoint: 'auto_connect', method: 'POST', path: '/auto_connect', query,
     body: { kind: 'json', value: requestState }, responseKind: 'json', timeoutClass: 'heavy', ctx });
-  const rawState = object(res.raw);
+  const rawState = objectOrEmpty(res.raw);
   const rawConnections = Array.isArray(rawState['connections']) ? rawState['connections'] : [];
   const { connections, cables } = projectConnectionGraph(rawConnections);
   const rackArea = Array.isArray(rawState['rackArea']) ? rawState['rackArea'] as RackObject[] : payload.rackArea;
@@ -232,16 +225,16 @@ export async function autoConnect(
 }
 
 function summariseConnection(value: unknown): ConnectionSummary {
-  const raw = object(value);
-  const fromId = str(raw['sourceId']); const toId = str(raw['destinationId']);
-  const sourcePortName = str(raw['sourcePortName']); const sourcePortNumber = str(raw['sourcePortNumber']);
-  const destinationPortName = str(raw['destinationPortName']);
-  const destinationPortNumber = str(raw['destinationPortNumber']);
-  const cableCode = str(raw['cablePart']); const description = str(raw['cableType']);
-  const network = str(raw['network']); const topology = str(raw['topology']);
+  const raw = objectOrEmpty(value);
+  const fromId = nonEmptyStringOrNumberText(raw['sourceId']); const toId = nonEmptyStringOrNumberText(raw['destinationId']);
+  const sourcePortName = nonEmptyStringOrNumberText(raw['sourcePortName']); const sourcePortNumber = nonEmptyStringOrNumberText(raw['sourcePortNumber']);
+  const destinationPortName = nonEmptyStringOrNumberText(raw['destinationPortName']);
+  const destinationPortNumber = nonEmptyStringOrNumberText(raw['destinationPortNumber']);
+  const cableCode = nonEmptyStringOrNumberText(raw['cablePart']); const description = nonEmptyStringOrNumberText(raw['cableType']);
+  const network = nonEmptyStringOrNumberText(raw['network']); const topology = nonEmptyStringOrNumberText(raw['topology']);
   const key = [cableCode, sourcePortName, sourcePortNumber, fromId,
     destinationPortName, destinationPortNumber, toId].filter(Boolean).join(':');
-  return { id: str(raw['id']) ?? (key || 'connection'), fromId, toId,
+  return { id: nonEmptyStringOrNumberText(raw['id']) ?? (key || 'connection'), fromId, toId,
     fromPort: [sourcePortName, sourcePortNumber].filter(Boolean).join(' - ') || undefined,
     toPort: [destinationPortName, destinationPortNumber].filter(Boolean).join(' - ') || undefined,
     sourcePortName, sourcePortNumber, destinationPortName, destinationPortNumber,
@@ -258,8 +251,8 @@ function extractAutoConnectMessages(rackArea: RackObject[]): Array<{ rackId: str
   for (const rack of rackArea) {
     const errors = rack['errors'];
     if (!Array.isArray(errors)) continue;
-    const messages = errors.filter((error) => String(object(error)['code'] ?? '') === '102')
-      .map((error) => String(object(error)['message'] ?? '')).filter(Boolean);
+    const messages = errors.filter((error) => String(objectOrEmpty(error)['code'] ?? '') === '102')
+      .map((error) => String(objectOrEmpty(error)['message'] ?? '')).filter(Boolean);
     if (messages.length > 0) out.push({ rackId: String(rack['id'] ?? ''), messages });
   }
   return out;

@@ -11,7 +11,7 @@ import {
 } from '../src/model/workspaceProjection.js';
 import { buildIndex } from '../src/model/index.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import type { ConfigSession, WorkspaceSession } from '../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 
 function configuration(index: number): ConfigSession {
   const raw: RawConfiguration = {

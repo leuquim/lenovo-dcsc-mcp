@@ -1,6 +1,6 @@
 import type { RawConfiguration, RawPrice, RawTab } from '../model/types.js';
+import { isObject, type Obj } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 /**
  * The new software engine returns a partial configuration response rather
@@ -18,10 +18,6 @@ export interface SoftwareDerivePatch {
   rewardPriceDisplay?: unknown;
   showPrice?: boolean;
   [key: string]: unknown;
-}
-
-function isObject(value: unknown): value is Obj {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isPrice(value: unknown): value is RawPrice {

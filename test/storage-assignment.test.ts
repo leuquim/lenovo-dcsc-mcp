@@ -9,7 +9,7 @@ import {
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { buildIndex } from '../src/model/index.js';
 import type { RawConfiguration } from '../src/model/types.js';
-import type { ConfigSession, WorkspaceSession } from '../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 
 const fixture = JSON.parse(readFileSync(
   new URL('./fixtures/parity/storage-controller-customization.json', import.meta.url),

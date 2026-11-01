@@ -1,5 +1,4 @@
 import { isDeepStrictEqual } from 'node:util';
-import { ulid } from 'ulid';
 
 import type { ConfigMode } from '../config/constants.js';
 import {
@@ -20,12 +19,21 @@ import {
   type ValidationJob,
 } from '../domain/validationJobs.js';
 import { hasUnrepairedRecoveryData } from '../domain/workspaceIntegrity.js';
-import { buildIndex, type ConfigIndex } from '../model/index.js';
+import { buildIndex } from '../model/index.js';
+import type {
+  CableLink,
+  ConfigIntent,
+  ConfigSession,
+  FloorItem,
+  PduSelection,
+  RackPlacement,
+  WorkspaceSession,
+} from '../model/session.js';
 import type { RawConfiguration } from '../model/types.js';
 import {
   asSessionPersistenceError,
   type PersistenceFailureContext,
-} from './persistenceError.js';
+} from '../http/persistenceError.js';
 import {
   applyWorkspaceState,
   arrayOrEmpty,
@@ -59,125 +67,10 @@ import {
   validateKnownReferences,
   WORKSPACE_HISTORY_BYTE_BUDGET,
 } from './sessionSnapshots.js';
+import { errorMessage } from '../util/coerce.js';
+import { newId } from './ids.js';
 
 export { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET };
-
-export interface ConfigIntent {
-  at: number;
-  changes: Array<{ section: string; code: string; quantity: number }>;
-}
-
-export interface ConfigSession {
-  id: string;
-  workspaceId: string;
-  label?: string | undefined;
-  locale: Locale;
-  solution: SolutionContext;
-  product: { code: string; description: string; type: string };
-  mode: ConfigMode;
-  validationMode: 'guided' | 'expert';
-  /** Independent from guided/expert mode, matching the website checkbox. */
-  autoCorrect: boolean;
-
-  raw: RawConfiguration;
-  configurationId: string;
-  reduced: ReducedConfiguration;
-  primed: boolean;
-  /** False for preconfigured models: the tree has no sections to change. */
-  configurable: boolean;
-  index: ConfigIndex;
-  revision: number;
-  intents: ConfigIntent[];
-  snapshots: Array<{ revision: number; raw: RawConfiguration; reduced: ReducedConfiguration }>;
-  createdAt: number;
-  lastAccessAt: number;
-  pricedAt: number;
-}
-
-/**
- * Kept for the export payload's benefit only.
- *
- * The authoritative rack state is `WorkspaceSession.rackArea`, which holds the
- * objects DCSC itself returned — see domain/rack.ts for why the layout cannot
- * be modelled locally.
- */
-export interface RackPlacement {
-  id: string;
-  code: string;
-  description: string;
-  uheight: number;
-  position: number;
-  items: Array<{
-    configId: string;
-    code: string;
-    position: number;
-    height: number;
-  }>;
-}
-
-export interface CableLink {
-  id: string;
-  fromConfigId: string;
-  fromPort: string;
-  toConfigId: string;
-  toPort: string;
-  cableCode?: string;
-  description?: string;
-}
-
-export interface FloorItem {
-  id: string;
-  rackId: string;
-  x: number;
-  y: number;
-}
-
-export interface PduSelection {
-  rackId: string;
-  pduCode?: string | undefined;
-  cordCode?: string | undefined;
-  voltage?: string | undefined;
-}
-
-export interface WorkspaceHistoryEntry {
-  revision: number;
-  /** JSON-safe canonical workspace state; derived configuration views are omitted. */
-  state: Record<string, unknown>;
-}
-
-export interface WorkspaceHistory {
-  undo: WorkspaceHistoryEntry[];
-  redo: WorkspaceHistoryEntry[];
-}
-
-export interface WorkspaceSession {
-  id: string;
-  label?: string | undefined;
-  locale: Locale;
-  solution: SolutionContext;
-  validationMode: 'guided' | 'expert';
-  configurations: Map<string, ConfigSession>;
-  racks: Map<string, RackPlacement>;
-  /** DCSC's own rackArea objects, re-posted verbatim on every mutation. */
-  rackArea: RackObject[];
-  /** DCSC objects currently outside a physical rack. */
-  nonRackArea: RackObject[];
-  /** Lossless original import/export envelope and client-held workspace metadata. */
-  serverState: Record<string, unknown>;
-  /** Reduced view of the last layout DCSC validated. */
-  rackSummaries: RackSummary[];
-  cables: CableLink[];
-  floorItems: FloorItem[];
-  powerSelections: PduSelection[];
-  integrity: 'verified' | 'legacy-unverified' | 'damaged';
-  integrityWarnings: string[];
-  recoveryData?: unknown[] | undefined;
-  history?: WorkspaceHistory | undefined;
-  revision: number;
-  createdAt: number;
-  lastAccessAt: number;
-  pricedAt: number;
-}
 
 /** Serialises work per session/workspace; concurrent mutations would silently lose one. */
 class Mutex {
@@ -386,7 +279,7 @@ export class SessionStore {
       reducedMode(input.mode),
       input.solution.solutionMode,
     );
-    const configId = `sess_${code}_${ulid().slice(-6).toLowerCase()}`;
+    const configId = newId('sess', code);
     const now = Date.now();
 
     let workspace: WorkspaceSession;
@@ -410,7 +303,7 @@ export class SessionStore {
           `Session capacity ${this.maxSessions} reached; use createAtomic for durable eviction`,
         );
       }
-      const wsId = input.workspaceId ?? `ws_${ulid().slice(-8).toLowerCase()}`;
+      const wsId = input.workspaceId ?? newId('ws');
       workspace = {
         id: wsId,
         ...(input.label !== undefined ? { label: input.label } : {}),
@@ -997,7 +890,7 @@ export class SessionStore {
   ): RackPlacement {
     const ws = this.getWorkspace(workspaceId);
     if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
-    const rackId = `rack_${ulid().slice(-6).toLowerCase()}`;
+    const rackId = newId('rack');
     const rack: RackPlacement = {
       id: rackId,
       code: rackCode,
@@ -1050,7 +943,7 @@ export class SessionStore {
     const ws = this.getWorkspace(workspaceId);
     if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
     const link: CableLink = {
-      id: `cable_${ulid().slice(-6).toLowerCase()}`,
+      id: newId('cable'),
       ...cable,
     };
     ws.cables.push(link);
@@ -1070,7 +963,7 @@ export class SessionStore {
   /** @deprecated Prefer service.placeOnFloor, which validates the rack exists. */
   placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem {
     return this.setFloorItem(workspaceId, {
-      id: `floor_${ulid().slice(-6).toLowerCase()}`,
+      id: newId('floor'),
       rackId,
       x,
       y,
@@ -1461,7 +1354,7 @@ export class SessionStore {
           );
         }
       } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
+        const detail = errorMessage(error);
         const warning =
           `Clone ownership could not be restored safely: ${detail} ` +
           'Re-import the complete source CFXML before making changes.';

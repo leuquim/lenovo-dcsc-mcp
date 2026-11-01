@@ -22,14 +22,10 @@ import { basename, dirname, join } from 'node:path';
 import type { Config } from '../config/schema.js';
 import { loadValidationJobs, VALIDATION_JOBS_STATE_KEY } from '../domain/validationJobs.js';
 import { logger } from '../http/trace.js';
-import type {
-  ConfigSession,
-  PersistenceWriter,
-  RestoreRecoveryArchive,
-  SessionStore,
-  WorkspaceSession,
-} from './SessionStore.js';
-import { asSessionPersistenceError } from './persistenceError.js';
+import type { PersistenceWriter, RestoreRecoveryArchive, SessionStore } from './SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
+import { asSessionPersistenceError } from '../http/persistenceError.js';
+import { errorMessage } from '../util/coerce.js';
 
 /** Current on-disk envelope. Derived reduced/index data is deliberately absent. */
 export const SNAPSHOT_VERSION = 2;
@@ -80,7 +76,7 @@ export function listSessionRecoveryArchives(config: Config): RestoreRecoveryArch
       });
     } catch (error) {
       logger().warn(
-        { archiveId: `recovery_${hash}`, err: error instanceof Error ? error.message : String(error) },
+        { archiveId: `recovery_${hash}`, err: errorMessage(error) },
         'Could not inspect a session recovery archive',
       );
     }
@@ -487,7 +483,7 @@ function writeRecoveryMetadata(
       // A missing metadata sidecar is safe; the immutable archive remains discoverable.
     }
     logger().warn(
-      { archiveId: metadata.id, err: error instanceof Error ? error.message : String(error) },
+      { archiveId: metadata.id, err: errorMessage(error) },
       'Could not write session recovery metadata; archive bytes remain available',
     );
   }

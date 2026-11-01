@@ -1,12 +1,13 @@
 import type { RawConfiguration } from '../model/types.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import { usesCtoWire } from './modeFamily.js';
 import { buildAutoDeriveRequest } from './reduce.js';
+import { autoDerivePath, type AutoDerivePath } from './endpoints.js';
 
 export interface RackRecustomizePlan {
   endpoint: 'rack_recustomize';
   method: 'POST';
-  path: '/ctos/autoDerive';
+  path: AutoDerivePath;
   query: {
     configurationId: string;
     entranceFlag: 'customize';
@@ -53,7 +54,7 @@ export function buildRackRecustomizePlan(
   return {
     endpoint: 'rack_recustomize',
     method: 'POST',
-    path: '/ctos/autoDerive',
+    path: autoDerivePath('ctos'),
     query: {
       configurationId: rackConfigurationId,
       entranceFlag: 'customize',

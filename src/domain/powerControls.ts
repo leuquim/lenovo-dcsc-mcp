@@ -1,10 +1,8 @@
 import type { RawConfiguration } from '../model/types.js';
 import { extractPowerReport, powerLoadFactor } from './power.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
-const objects = (value: unknown): Obj[] => Array.isArray(value) ? value.map(object) : [];
+const objects = (value: unknown): Obj[] => Array.isArray(value) ? value.map(objectOrEmpty) : [];
 
 export interface PowerControlChanges {
   voltage?: string | undefined;
@@ -20,7 +18,7 @@ export function inspectPowerControls(raw: RawConfiguration) {
   const policies = objects(raw.powerPolicies).filter(value =>
     typeof value['value'] === 'number' || typeof value['value'] === 'string')
     .map(value => ({ value: value['value'], description: value['description'], key: value['key'] }));
-  const voltage = object(raw.voltage);
+  const voltage = objectOrEmpty(raw.voltage);
   return {
     available: extractPowerReport(raw) !== undefined,
     current: {
@@ -56,7 +54,7 @@ export function stagePowerControls(raw: RawConfiguration, changes: PowerControlC
   }
   const loadFactor = changes.loadFactor ?? powerLoadFactor(raw);
   draft.loadFactor = loadFactor;
-  const container = object(draft.powerReportResponse);
+  const container = objectOrEmpty(draft.powerReportResponse);
   container['powerReport'] = { ...object(container['powerReport']), loadFactor };
   draft.powerReportResponse = container;
   return draft;
@@ -83,8 +81,8 @@ export function buildPowerCalculationRequest(raw: RawConfiguration): Obj[] {
 
 /** Native Save updates both retained unselectable shapes; never synthesizes a selection. */
 export function acceptPowerCalculation(draft: RawConfiguration, response: unknown): RawConfiguration {
-  const accepted = object(response);
-  const report = object(accepted['powerReport']);
+  const accepted = objectOrEmpty(response);
+  const report = objectOrEmpty(accepted['powerReport']);
   const errors = accepted['errorMsg'];
   if (errors !== undefined && errors !== null && !(Array.isArray(errors) && errors.length === 0) && errors !== '') {
     throw new Error('DCSC rejected the requested power settings. No power changes were saved.');
@@ -92,14 +90,14 @@ export function acceptPowerCalculation(draft: RawConfiguration, response: unknow
   const result = structuredClone(draft);
   result.powerReportResponse = structuredClone(accepted);
   if (!extractPowerReport(result)) throw new Error('DCSC returned no complete numeric power calculation. No power changes were saved.');
-  const voltage = object(draft.voltage);
+  const voltage = objectOrEmpty(draft.voltage);
   const expectedVoltage = `${voltage['displayValue']}-${voltage['type']}`;
   if (report['loadFactor'] !== powerLoadFactor(draft) || report['operatingVoltage'] !== expectedVoltage ||
-      object(report['powerPolicy'])['value'] !== draft.currentPowerPolicy) {
+      objectOrEmpty(report['powerPolicy'])['value'] !== draft.currentPowerPolicy) {
     throw new Error('DCSC did not retain the requested power settings. No power changes were saved.');
   }
   result.loadFactor = report['loadFactor'];
-  result.currentPowerPolicy = object(report['powerPolicy'])['value'];
+  result.currentPowerPolicy = objectOrEmpty(report['powerPolicy'])['value'];
   for (const [name, code] of [['VOLTAGE_MI', report['voltageMI']], ['POWER_POLICY_MI', accepted['powerPolicyMI']]]) {
     for (const shape of ['unSelectableCharacters', 'unSelectableCharacterResults']) {
       const section = objects(result[shape]).find(section => (section['name'] ?? section['characterName']) === name);

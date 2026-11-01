@@ -1,4 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import type { Obj } from '../util/coerce.js';
 
 /**
  * Anonymous services catalogue from /service/portal/categories.
@@ -16,7 +17,6 @@ export interface ServiceCategory {
   children: ServiceCategory[];
 }
 
-type Obj = Record<string, unknown>;
 
 function walk(node: Obj): ServiceCategory | undefined {
   const id = node['id'];

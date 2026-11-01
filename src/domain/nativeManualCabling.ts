@@ -3,16 +3,15 @@ export { countNativePhysicalCables } from './cableQuantity.js';
 import { discoverManualPorts, type ManualCablingInput, type ManualConnectionEndpointPatch } from './manualCabling.js';
 import type { CableOption } from './fabric.js';
 import { resolveLinkedCloneGroup } from './linkedCloneEdit.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
 
 /** Distance results include other speeds and breakout cables; intersect with the fabric catalog. */
 export function filterNativeManualCableChoices(distance: unknown, topology: string, catalog: readonly CableOption[], connectionType: 'point-to-point' | 'breakout-4' = 'point-to-point'): Obj {
-  const result = structuredClone(object(distance));
+  const result = structuredClone(objectOrEmpty(distance));
   const pointToPointCategories = new Set(['ACC', 'AOC', 'CAT5E', 'CAT6', 'DAC']);
   result['compatibleCables'] = (Array.isArray(result['compatibleCables']) ? result['compatibleCables'] : []).filter(value => {
-    const cable = object(value);
+    const cable = objectOrEmpty(value);
     const matches = catalog.filter(option => option.featureCode === cable['featureCode'] &&
       (!cable['optionCode'] || option['option'] === cable['optionCode']));
     return matches.length > 0 && matches.every(option => option.topologies.includes(topology) &&
@@ -25,15 +24,15 @@ export function filterNativeManualCableChoices(distance: unknown, topology: stri
 
 /** The SPA preserves manual source ports in selectedTopologies before derivation. */
 export function selectNativeManualSourcePort(configuration: Obj, row: Obj): Obj {
-  const topologies = structuredClone(object(configuration['selectedTopologies']));
+  const topologies = structuredClone(objectOrEmpty(configuration['selectedTopologies']));
   const network = String(row['network']);
-  const selected = object(topologies[network]);
+  const selected = objectOrEmpty(topologies[network]);
   if (selected['networkTechnology'] !== row['topology']) throw new Error('Manual source network assignment is missing.');
-  const matches = (Array.isArray(configuration['connectors']) ? configuration['connectors'] : []).map(object)
+  const matches = (Array.isArray(configuration['connectors']) ? configuration['connectors'] : []).map(objectOrEmpty)
     .filter(connector => connector['port'] === row['sourcePortName'] && connector['portNumber'] === row['sourcePortNumber'] &&
       Array.isArray(connector['topologies']) && connector['topologies'].includes(row['topology']));
   if (matches.length !== 1) throw new Error('Manual source connector is missing or ambiguous.');
-  const connectors = Array.isArray(selected['selectedConnectors']) ? selected['selectedConnectors'].map(object) : [];
+  const connectors = Array.isArray(selected['selectedConnectors']) ? selected['selectedConnectors'].map(objectOrEmpty) : [];
   if (!connectors.some(connector => connector['port'] === row['sourcePortName'] && connector['portNumber'] === row['sourcePortNumber'])) {
     topologies[network] = { ...selected, selectedConnectors: [...connectors, structuredClone(matches[0]!)] };
   }
@@ -73,7 +72,7 @@ export interface NativeManualConnectionRequest {
 export function seedNativeManualRoutes(connections: readonly unknown[], pin: boolean) {
   let pinnedConnectionCount = 0;
   const rows = connections.map(value => {
-    const row = structuredClone(object(value));
+    const row = structuredClone(objectOrEmpty(value));
     if (pin && row['type'] === 'AUTO' && row['subType'] === 'NETWORK') {
       row['type'] = 'MANUAL'; pinnedConnectionCount++;
     }
@@ -87,12 +86,12 @@ export function assertNativeConnectionsRetained(requested: readonly unknown[], a
   const fields = ['network', 'topology', 'sourceId', 'sourcePortName', 'sourcePortNumber',
     'destinationId', 'destinationPortName', 'destinationPortNumber', 'cablePart', 'type',
     'subType', 'category', 'divider'];
-  const key = (value: unknown) => JSON.stringify(fields.map(field => object(value)[field]));
-  const remaining = accepted.map(object);
+  const key = (value: unknown) => JSON.stringify(fields.map(field => objectOrEmpty(value)[field]));
+  const remaining = accepted.map(objectOrEmpty);
   for (const row of requested) {
     const index = remaining.findIndex(candidate => key(candidate) === key(row));
     if (index < 0) {
-      const expected = object(row);
+      const expected = objectOrEmpty(row);
       const endpoints = ['sourceId', 'sourcePortName', 'sourcePortNumber',
         'destinationId', 'destinationPortName', 'destinationPortNumber'];
       const candidates = remaining.filter(candidate => endpoints.every(field => candidate[field] === expected[field]));
@@ -112,7 +111,7 @@ export function planNativeManualCableSelection(input: ManualCablingInput, row: O
   const physicalDestinationId = row['destinationId']; const code = row['cablePart'];
   const configurationId = typeof physicalDestinationId === 'string'
     ? nativeManualSourceConfigurationId(physicalDestinationId, input.physicalTemplateIds) : physicalDestinationId;
-  const feature = object(row['cableFeature']);
+  const feature = objectOrEmpty(row['cableFeature']);
   const groups = feature['selectionGroups'];
   if (typeof configurationId !== 'string' || typeof code !== 'string' || !code ||
       feature['featureCode'] !== code || !Array.isArray(groups) || groups.length > 1 || (groups.length === 1 && typeof groups[0] !== 'string')) {
@@ -150,7 +149,7 @@ export function planNativeManualCableSelection(input: ManualCablingInput, row: O
   });
   if (new Set(previousQuantities).size !== 1) throw new Error('Linked destinations have divergent cable quantities.');
   const previousQuantity = previousQuantities[0]!;
-  const usage = input.connections.map(object).filter(connection =>
+  const usage = input.connections.map(objectOrEmpty).filter(connection =>
     physicalDestinationIds.includes(String(connection['destinationId'])) && connection['cablePart'] === code);
   if (!usage.length) throw new Error('Manual cable quantity requires an accepted graph.');
   if (!sections[0]!.name) throw new Error('Manual cable selection group has no native name.');
@@ -166,12 +165,12 @@ export function importedManualCableSelections(input: ManualCablingInput) {
   // Native CFXML omits category on point-to-point rows but retains divider=1.
   // Normalize only the planning copy; the accepted native graph stays untouched.
   const imported = { ...input, connections: input.connections.map(value => {
-    const row = object(value);
+    const row = objectOrEmpty(value);
     return row['category'] == null && row['divider'] === 1 ? { ...row, category: 'P2P' } : row;
   }) };
   const plans = new Map<string, ReturnType<typeof planNativeManualCableSelection>>();
   for (const value of imported.connections) {
-    const row = object(value);
+    const row = objectOrEmpty(value);
     if (row['type'] !== 'MANUAL' || row['subType'] !== 'NETWORK' || row['category'] !== 'P2P') continue;
     if (typeof row['destinationId'] !== 'string') continue;
     const id = nativeManualSourceConfigurationId(row['destinationId'], input.physicalTemplateIds);
@@ -201,16 +200,16 @@ export function stageNativeManualCableQuantity(input: ManualCablingInput,
   for (const id of plan.physicalDestinationIds ?? plan.configurationIds ?? [plan.configurationId]) {
     const matches: Obj[] = [];
     const visit = (value: unknown): void => {
-      const item = object(value);
+      const item = objectOrEmpty(value);
       if (item['id'] === id) matches.push(item);
       for (const field of ['rackItems', 'nodes']) if (Array.isArray(item[field])) item[field].forEach(visit);
     };
     [...layout.rackArea, ...layout.nonRackArea].forEach(visit);
     if (matches.length !== 1) throw new Error('Manual cable destination placement is missing or ambiguous; linked members must be placed.');
-    const sections = (Array.isArray(matches[0]!['features']) ? matches[0]!['features'] : []).map(object)
+    const sections = (Array.isArray(matches[0]!['features']) ? matches[0]!['features'] : []).map(objectOrEmpty)
       .filter(section => section['name'] === plan.section);
     if (sections.length > 1) throw new Error('Manual cable physical section is ambiguous.');
-    const results = (Array.isArray(sections[0]?.['results']) ? sections[0]!['results'] : []).map(object)
+    const results = (Array.isArray(sections[0]?.['results']) ? sections[0]!['results'] : []).map(objectOrEmpty)
       .filter(result => result['code'] === plan.code);
     if (results.length > 1) throw new Error('Manual cable physical quantity is ambiguous.');
     if (results[0]) {
@@ -221,21 +220,21 @@ export function stageNativeManualCableQuantity(input: ManualCablingInput,
       // Restore only the exact pre-call physical record of an explicit selection.
       const originals: Obj[] = [];
       const collect = (value: unknown): void => {
-        const item = object(value);
+        const item = objectOrEmpty(value);
         if (item['id'] === id) originals.push(item);
         for (const key of ['rackItems', 'nodes']) if (Array.isArray(item[key])) item[key].forEach(collect);
       };
       [...fallback.rackArea, ...fallback.nonRackArea ?? []].forEach(collect);
-      const originalSections = originals.flatMap(item => Array.isArray(item['features']) ? item['features'].map(object) : [])
+      const originalSections = originals.flatMap(item => Array.isArray(item['features']) ? item['features'].map(objectOrEmpty) : [])
         .filter(section => section['name'] === plan.section);
-      const originalResults = originalSections.flatMap(section => Array.isArray(section['results']) ? section['results'].map(object) : [])
+      const originalResults = originalSections.flatMap(section => Array.isArray(section['results']) ? section['results'].map(objectOrEmpty) : [])
         .filter(result => result['code'] === plan.code);
       if (originals.length !== 1 || originalSections.length !== 1 || originalResults.length !== 1) {
         throw new Error('Explicit spare cable has no unambiguous pre-connect physical record.');
       }
       const restored = { ...structuredClone(originalResults[0]!), quantity: plan.quantity,
         forAutoConnect: input.connections.some(value => {
-          const row = object(value); return row['destinationId'] === id && row['cablePart'] === plan.code;
+          const row = objectOrEmpty(value); return row['destinationId'] === id && row['cablePart'] === plan.code;
         }) };
       if (!sections[0]) {
         const features = Array.isArray(matches[0]!['features']) ? matches[0]!['features'] : [];
@@ -266,7 +265,7 @@ export function stageNativeManualConnection(input: ManualCablingInput, request: 
   }
   const shared: Obj[] = [];
   for (const raw of input.connections) {
-    const row = object(raw);
+    const row = objectOrEmpty(raw);
     for (const port of [source, destination]) for (const side of ['source', 'destination']) {
       if (row[`${side}Id`] === port.configurationId && row[`${side}PortName`] === port.name && row[`${side}PortNumber`] === port.number) {
         if (breakout && port === destination && side === 'destination' && row['category'] === 'BREAKOUT' &&
@@ -277,12 +276,12 @@ export function stageNativeManualConnection(input: ManualCablingInput, request: 
     }
   }
   if (shared.length >= 4) throw new Error('Breakout destination has no free branches.');
-  const distance = object(request.distance);
-  if (object(distance['from'])['itemId'] !== source.configurationId || object(distance['to'])['itemId'] !== destination.configurationId ||
+  const distance = objectOrEmpty(request.distance);
+  if (objectOrEmpty(distance['from'])['itemId'] !== source.configurationId || objectOrEmpty(distance['to'])['itemId'] !== destination.configurationId ||
       typeof distance['totalDistance'] !== 'number' || !Number.isFinite(distance['totalDistance']) || distance['totalDistance'] < 0) {
     throw new Error('Native distance response does not match the requested endpoints.');
   }
-  const choices = (Array.isArray(distance['compatibleCables']) ? distance['compatibleCables'] : []).map(object)
+  const choices = (Array.isArray(distance['compatibleCables']) ? distance['compatibleCables'] : []).map(objectOrEmpty)
     .filter(cable => cable['featureCode'] === request.cablePart);
   if (choices.length !== 1) throw new Error('Cable part is not one compatible choice for this topology and point-to-point connection.');
   const cable = choices[0]!;

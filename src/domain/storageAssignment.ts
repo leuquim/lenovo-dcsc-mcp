@@ -1,13 +1,14 @@
 import type { RawConfiguration } from '../model/types.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 import { usesCtoWire } from './modeFamily.js';
 import { buildAutoDeriveRequest } from './reduce.js';
 import { readStorageConnectionNetworks } from './storagePreferences.js';
+import { autoDerivePath, type AutoDerivePath } from './endpoints.js';
 
 export interface StorageAssignmentRequest {
   endpoint: 'storage_assignment';
   method: 'POST';
-  path: '/ctos/autoDerive';
+  path: AutoDerivePath;
   query: {
     configurationId: string;
     guideMode: boolean;
@@ -76,7 +77,7 @@ export function buildStorageAssignmentRequest(
   return {
     endpoint: 'storage_assignment',
     method: 'POST',
-    path: '/ctos/autoDerive',
+    path: autoDerivePath('ctos'),
     query: {
       configurationId: targetConfigurationId,
       guideMode: workspace.validationMode === 'guided',

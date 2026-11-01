@@ -13,7 +13,7 @@ import { reduceConfiguration } from '../../src/domain/reduce.js';
 import type { RawConfiguration } from '../../src/model/types.js';
 import { DcscService } from '../../src/mcp/service.js';
 import { registerStandaloneTools } from '../../src/mcp/standaloneTools.js';
-import type { ConfigSession, WorkspaceSession } from '../../src/session/SessionStore.js';
+import type { ConfigSession, WorkspaceSession } from '../../src/model/session.js';
 
 type Scenario =
   | 'quantity'

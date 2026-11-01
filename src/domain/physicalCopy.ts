@@ -1,7 +1,7 @@
 import { stageRackedCloneMultiple, type RackedClonePlacement,
   type StageRackedCloneMultipleOptions } from './physicalClone.js';
+import { nonBlankString, type Obj, objectOrUndefined } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
 
 export interface StageRackedCopyOptions extends Omit<StageRackedCloneMultipleOptions, 'cloneIds'> {
   copyId: string;
@@ -17,18 +17,8 @@ export interface StagedRackedCopy {
   copyName: string;
 }
 
-function object(value: unknown): Obj | undefined {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Obj
-    : undefined;
-}
-
-function nonempty(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
 function sourceDependency(value: unknown, sourceId: string): { root: string; members: string[] } | undefined {
-  const dependency = object(value);
+  const dependency = objectOrUndefined(value);
   if (!dependency) return undefined;
   const matches: Array<{ root: string; members: string[] }> = [];
   for (const [root, rawMembers] of Object.entries(dependency)) {
@@ -46,8 +36,8 @@ function sourceDependency(value: unknown, sourceId: string): { root: string; mem
  * Multiple it does not remain commercially linked to its source.
  */
 export function stageRackedCopy(options: StageRackedCopyOptions): StagedRackedCopy {
-  const sourceId = nonempty(options.sourceId);
-  const copyId = nonempty(options.copyId);
+  const sourceId = nonBlankString(options.sourceId);
+  const copyId = nonBlankString(options.copyId);
   if (!sourceId) throw new Error('Racked copy sourceId is required.');
   if (!copyId) throw new Error('Racked copy copyId is required.');
 
@@ -68,7 +58,7 @@ export function stageRackedCopy(options: StageRackedCopyOptions): StagedRackedCo
   const items = Array.isArray(rack?.['rackItems']) ? rack['rackItems'] as Obj[] : [];
   const source = items.find(item => item['id'] === sourceId || item['configurationId'] === sourceId);
   const copy = items.find(item => item['id'] === copyId || item['configurationId'] === copyId);
-  const sourceName = nonempty(options.sourceName) ?? nonempty(source?.['name']);
+  const sourceName = nonBlankString(options.sourceName) ?? nonBlankString(source?.['name']);
   if (!sourceName) {
     throw new Error(`Racked copy source ${sourceId} has no configuration name; fallback hardware-label naming is not captured.`);
   }
@@ -84,12 +74,12 @@ export function stageRackedCopy(options: StageRackedCopyOptions): StagedRackedCo
   const sourceNodes = Array.isArray(source?.['nodes']) ? source['nodes'] as Obj[] : [];
   const copiedNodes = Array.isArray(copy['nodes']) ? copy['nodes'] as Obj[] : [];
   for (const node of sourceNodes) {
-    const nodeId = nonempty(node['id']) ?? nonempty(node['configurationId']);
+    const nodeId = nonBlankString(node['id']) ?? nonBlankString(node['configurationId']);
     if (!nodeId) throw new Error('Copy source node has no identity.');
     const group = sourceDependency(options.cloneDependency, nodeId);
     const childId = options.childCloneIds?.[copyId]?.[nodeId];
     const child = copiedNodes.find(n => n['id'] === childId || n['configurationId'] === childId);
-    const name = nonempty(node['name']);
+    const name = nonBlankString(node['name']);
     if (!childId || !child || !name) throw new Error(`Copy source node ${nodeId} requires a mapped identity and configuration name.`);
     child['name'] = `Copy_${name}`;
     staged.cloneDependency[group?.root ?? nodeId] = group ? [...group.members] : [nodeId];

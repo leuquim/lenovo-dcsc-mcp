@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { configurationListPrice } from '../domain/pricing.js';
 import type { DcscService } from './service.js';
-import type { ConfigSession } from '../session/SessionStore.js';
+import type { ConfigSession } from '../model/session.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
 export function registerUnconfiguredTools(rawServer: McpServer, service: DcscService): void {

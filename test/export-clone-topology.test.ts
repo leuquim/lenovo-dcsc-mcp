@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
-import { SessionStore, type WorkspaceSession } from '../src/session/SessionStore.js';
+import { SessionStore } from '../src/session/SessionStore.js';
+import type { WorkspaceSession } from '../src/model/session.js';
 import { cloneConfigurationRaw } from '../src/domain/configurationIdentity.js';
 
 const locale = { country: 'US', geo: 'NA', language: 'en', currency: 'USD' };

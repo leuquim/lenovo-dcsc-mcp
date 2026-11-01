@@ -1,17 +1,15 @@
 import type { RawConfiguration } from '../model/types.js';
 import { readAutoConnectSettings, readConnectionGraph } from './cabling.js';
+import { type Obj, objectOrEmpty } from '../util/coerce.js';
 
-type Obj = Record<string, unknown>;
-const object = (value: unknown): Obj =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Obj : {};
 
 /** Observations, not a completeness verdict: one row cannot prove all ports are connected. */
 export function cablingDiagnostics(configurations: readonly RawConfiguration[], state: Obj) {
   const requested = new Set<string>();
   const storage = new Set<string>();
   for (const configuration of configurations) {
-    for (const [name, value] of Object.entries(object(configuration.selectedTopologies))) {
-      const connectors = object(value)['selectedConnectors'];
+    for (const [name, value] of Object.entries(objectOrEmpty(configuration.selectedTopologies))) {
+      const connectors = objectOrEmpty(value)['selectedConnectors'];
       // Explicit deselection is not a request for missing routes. Older records
       // without connector detail remain conservatively classified as requested.
       if (!Array.isArray(connectors) || connectors.length > 0) requested.add(name);
@@ -26,7 +24,7 @@ export function cablingDiagnostics(configurations: readonly RawConfiguration[], 
   let unclassifiedConnections = 0;
   const graph = readConnectionGraph(state);
   for (const row of graph) {
-    const name = object(row)['network'];
+    const name = objectOrEmpty(row)['network'];
     if (typeof name !== 'string' || name === '') unclassifiedConnections++;
     else counts.set(name, (counts.get(name) ?? 0) + 1);
   }
