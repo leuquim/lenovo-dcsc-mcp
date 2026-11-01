@@ -376,7 +376,7 @@ function hydrateWorkspace(store: SessionStore, config: Config, id: string): void
   if (report.restored === 0) {
     discardWorkspaceFile(config, path);
   } else if (!report.normalizationRequired && report.canonicalRewriteReasons.length > 0) {
-    const workspace = store.getWorkspace(id);
+    const workspace = store.peekWorkspace(id);
     try {
       if (workspace) {
         writeFileAtomic(path, serializeWorkspaces([workspace]));

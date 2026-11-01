@@ -589,6 +589,11 @@ export class SessionStore {
     return undefined;
   }
 
+  /** Reads a loaded workspace without counting as access, so eviction order is kept. */
+  peekWorkspace(id: string): WorkspaceSession | undefined {
+    return this.#workspaces.get(id);
+  }
+
   getWorkspace(id: string): WorkspaceSession | undefined {
     const ws = this.#findWorkspace(id);
     if (ws) {
