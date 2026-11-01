@@ -132,7 +132,7 @@ Additional contracts from the same anonymous/headless audit:
 - `xml/storage-managed-controller.xml` is the byte-for-byte website export used
   as that differential's oracle. It is an anonymous AI/HPC rack, server and
   configured DM3200F controller export; its embedded checksum is intentionally
-  preserved. `scripts/parity-storage-reimport.ts` uses it by default and needs
+  preserved. `npm run parity -- storage-lifecycle` uses it by default and needs
   only `--mcp-xml` plus an optional output directory.
 - `storage-controller-customization.json` includes the selected DB710S SAN
   switch lifecycle. Editing launches `7DHNCTO1WW`, retains selected base feature
@@ -219,7 +219,7 @@ Additional contracts from the same anonymous/headless audit:
   is not evidence of populated FC cabling or MCP graph parity.
 - `xml/storage-fc-zero-graph.xml` is the byte-for-byte anonymous website export
   from that same settled run. Its embedded checksum is intentionally preserved.
-  `scripts/parity-storage-fc.ts` uses it by default, changes only the named
+  `npm run parity -- storage-fc` uses it by default, changes only the named
   definition to Direct Attached, and exits 2 when the native HTTP-200 response
   still has no storage row. Pass `--out`; `--xml` is available for another
   captured producer without making ignored artifacts a release prerequisite.

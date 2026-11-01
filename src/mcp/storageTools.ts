@@ -10,50 +10,43 @@ import { guard } from './toolSupport.js';
 const storageName = z.string().trim().min(1).max(200);
 
 const definitionFields = {
-  controllerId: z.string().optional().describe('Controller ID from dcsc_network_get; defaults to the first catalog controller.'),
+  controllerId: z.string().optional().describe('From dcsc_network_get; defaults to the first catalog controller.'),
   expansionId: z.string().optional(),
   expansionQuantity: z.number().int().min(0).optional(),
   switchId: z.string().optional().describe('SAN switch ID from dcsc_network_get, or direct-attached for none.'),
   type: z.enum(STORAGE_TYPES).optional(),
   layout: z.enum(STORAGE_LAYOUTS).optional(),
 };
+const named = { name: storageName };
+const autoConnect = z.boolean().optional().describe('Run Auto-Connect afterwards.');
 
 const storageChangeSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('add'), name: storageName, ...definitionFields }),
+  z.object({ action: z.literal('add'), ...named, ...definitionFields }),
   z.object({
-    action: z.literal('update'),
-    name: storageName,
-    changes: z.object({ ...definitionFields }).strict()
-      .describe('The controller locks after customize, and the storage type locks while racked.'),
-    autoConnect: z.boolean().optional().describe('Run Auto-Connect after the update.'),
+    action: z.literal('update'), ...named, autoConnect,
+    changes: z.object({ ...definitionFields }).strict().describe('The controller locks after customize; the type locks while racked.'),
   }),
-  z.object({ action: z.literal('rename'), name: storageName, newName: storageName }),
+  z.object({ action: z.literal('rename'), ...named, newName: storageName }),
   z.object({
-    action: z.literal('remove'),
-    name: storageName,
-    clearAssignments: z.boolean().optional().describe('Required when configurations are assigned to this storage network.'),
+    action: z.literal('remove'), ...named,
+    clearAssignments: z.boolean().optional().describe('Required when configurations are assigned.'),
   }),
   z.object({
-    action: z.literal('assign'),
-    networkName: storageName.nullable().describe('Storage network to assign to the configuration; null clears the assignment.'),
-    autoConnect: z.boolean().optional().describe('Run Auto-Connect after the assignment.'),
+    action: z.literal('assign'), autoConnect,
+    networkName: storageName.nullable().describe('Storage network for the configuration; null clears it.'),
   }),
-  z.object({ action: z.literal('place'), name: storageName, rackId: z.string().trim().min(1).describe('Target rack ID.') }),
-  z.object({
-    action: z.literal('customize'),
-    name: storageName,
-    component: z.enum(['controller', 'switch']).describe('Opens the controller or SAN switch template for configuring.'),
-  }),
+  z.object({ action: z.literal('place'), ...named, rackId: z.string().trim().min(1) }),
+  z.object({ action: z.literal('customize'), ...named, component: z.enum(['controller', 'switch']) }),
 ]);
 
 export function registerStorageTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_storage_get', {
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: 'Storage networks',
-    description: 'Reads the workspace storage network definitions, which configurations are assigned to them, and storage hardware left detached by edits.',
+    description: 'Reads the storage network definitions, their assigned configurations and detached storage hardware.',
     inputSchema: {
       session: z.string().describe('Workspace handle.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; continuations carry it.'),
+      expectedRevision: z.number().int().min(1).optional().describe('Workspace revision.'),
       path: z.array(z.string()).default([]),
       offset: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(100).default(20),
@@ -69,9 +62,9 @@ export function registerStorageTools(server: McpServer, service: DcscService): v
   server.registerTool('dcsc_storage_set', {
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     title: 'Edit storage networks',
-    description: 'Adds, updates, renames or removes a storage network definition, assigns one to a server configuration, places it in a rack, or opens its controller or SAN switch for customizing.',
+    description: 'Adds, updates, renames, removes, assigns, places or customizes (controller or SAN switch) a storage network.',
     inputSchema: {
-      session: z.string().describe('Workspace handle; a configuration handle for assign.'),
+      session: z.string().describe('Workspace handle; configuration handle for assign.'),
       expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; required for update.'),
       change: storageChangeSchema,
     },

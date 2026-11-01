@@ -130,7 +130,7 @@ export async function setPciWizard(rt: Runtime, handle: string, change: PciWizar
     const members = linkedMembers(workspace, group);
     const staged = members.map(session => ({ session, ...stagePciWizardChange(session.raw, change) }));
     const requestCtx = { ...ctx, locale: workspace.locale, solution: workspace.solution };
-    for (const item of staged) {
+    await Promise.all(staged.map(async item => {
       let option = item.option;
       if (item.operate) {
         const response = await rt.http.send({ endpoint: 'pci_wizard_validate_slot', method: 'POST',
@@ -144,7 +144,7 @@ export async function setPciWizard(rt: Runtime, handle: string, change: PciWizar
       }
       item.session.raw = withPciWizardOption(item.session.raw, item.options, option);
       rebuildDerived(item.session, workspace);
-    }
+    }));
     await configureDraft(rt, members.find(s => s.configurationId === id)!, [], requestCtx, workspace);
     for (const member of members) {
       const active = pciWizardOptions(member.raw).filter(option => option['activate'] === true);

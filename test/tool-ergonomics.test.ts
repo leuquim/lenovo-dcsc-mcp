@@ -36,13 +36,13 @@ const EXPECTED_TOOLS = [
   'dcsc_rack_add', 'dcsc_rack_edit', 'dcsc_rack_get', 'dcsc_rack_position_rule', 'dcsc_reconcile_workspace',
   'dcsc_recovery_export', 'dcsc_reference_solutions', 'dcsc_search', 'dcsc_session_close', 'dcsc_session_list',
   'dcsc_settings_get', 'dcsc_settings_set', 'dcsc_storage_get', 'dcsc_storage_set', 'dcsc_undo', 'dcsc_validate',
-  'dcsc_virtual_container_get', 'dcsc_vlh_get', 'dcsc_wizard_get', 'dcsc_wizard_set', 'dcsc_workspace_get',
+  'dcsc_virtual_container_get', 'dcsc_vlh_get', 'dcsc_vlh_set', 'dcsc_wizard_get', 'dcsc_wizard_set', 'dcsc_workspace_get',
 ];
 const MUTATING_TOOLS = [
   'dcsc_auto_connect', 'dcsc_auto_fix', 'dcsc_basket_set', 'dcsc_cabling_set', 'dcsc_configure', 'dcsc_export', 'dcsc_floor_set',
   'dcsc_import', 'dcsc_launch', 'dcsc_network_set', 'dcsc_pdu_set', 'dcsc_power_set', 'dcsc_rack_add', 'dcsc_rack_edit',
   'dcsc_reconcile_workspace', 'dcsc_recovery_export', 'dcsc_session_close', 'dcsc_settings_set', 'dcsc_storage_set', 'dcsc_undo',
-  'dcsc_validate', 'dcsc_wizard_set',
+  'dcsc_validate', 'dcsc_vlh_set', 'dcsc_wizard_set',
 ];
 const TOOL_DEFINITION_BYTE_BUDGET = 5_000;
 const TOTAL_DEFINITION_BYTE_BUDGET = 64_000;
@@ -74,7 +74,7 @@ describe('MCP tool annotations, definition budget, workflow resource, handles an
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
-    expect(tools).toHaveLength(40);
+    expect(tools).toHaveLength(41);
 
     let totalBytes = 0;
     for (const tool of tools) {

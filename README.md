@@ -97,7 +97,7 @@ npx tsx scripts/mcp-smoke.ts
 
 For development, `npm run check` runs typecheck, lint, unit tests, offline contracts, build and the isolated stdio smoke check. [Contributing](CONTRIBUTING.md) explains live/headless verification and package checks.
 
-## Tools (40 Registered Tools)
+## Tools (41 Registered Tools)
 
 | Tool | Purpose |
 |---|---|
@@ -130,11 +130,12 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_network_get` | Network catalog (topologies, devices, cables, controllers, switches) and the connectors of a topology. |
 | `dcsc_network_set` | Select a topology and connectors, set a node role or save network preferences. |
 | `dcsc_auto_connect` | Run Auto-Connect to generate the workspace cabling. |
-| `dcsc_cabling_get` | Connection graph with stable row IDs, port choices and compatible cables. |
+| `dcsc_cabling_get` | Connection graph with stable row IDs, port choices, compatible cables and the distance between two endpoints. |
 | `dcsc_cabling_set` | Create manual connections or edit endpoints and cable parts. |
 | `dcsc_storage_get` | Storage network definitions, assignments and detached storage hardware. |
 | `dcsc_storage_set` | Add, update, rename, remove, assign, place or customize storage networks. |
 | `dcsc_vlh_get` | VLH wizard info and the dimensions and connectors of a product. |
+| `dcsc_vlh_set` | Creates VLH items and exports them to a `.vlh` file. |
 | `dcsc_virtual_container_get` | Compatible inner products and rule results of virtual containers. |
 | **Power** | |
 | `dcsc_power_get` | Engineering Power Report, and the voltage, load factor and policy choices of a configuration. |
@@ -601,8 +602,15 @@ npm run parity:headless          # isolated Chromium; reports pass/fail/blocked 
 npm run parity -- software-embedded # fresh headless browser/MCP OS & Software differential
 npm run parity:recovery          # real MCP stdio recovery, SIGKILL/restart and live legacy validation
 npm run parity -- projections # real MCP stdio large-workspace paging and exact detail reconstruction
-npm run parity:storage           # live MCP controller edit/assignment and immediate SIGKILL/restart
-npm run parity:storage-reimport -- --mcp-xml /path/to/managed-controller.xml
+npm run parity -- network-switch  # populated Management graph against the browser oracle and a fresh website import
+npm run parity -- network-leaf    # Distributed main/leaf graph, restart, export and website import
+npm run parity -- storage-lifecycle # managed controller and SAN switch lifecycle, restart, export and website re-import
+npm run parity -- storage-placement # managed storage physical placement, derive, export and website re-import
+npm run parity -- storage-fc      # website Direct Attached FC Auto-Connect against the MCP
+npm run parity -- manual-cabling  # every manual cabling mode (create, replace, breakout, storage, shared, collision)
+npm run parity -- manual-source-swap # atomic source-port swap, history, restart and website import
+npm run parity -- rack-power      # website two-rack PDU/cord flow against the MCP, history, restart and re-import
+npm run parity -- rack-power-multi # second power code and non-unit PDU/cord quantities
 npm run parity:rack-clone -- --action=clone --fresh # headless physical-clone browser oracle
 npm run parity:nested-vlh       # native supported chassis/node workflow and export handoff
 npm run parity:nested-stdio     # real MCP nested edit/history/crash/import/export lifecycle
@@ -613,15 +621,11 @@ npm run parity -- controls-locale # headless DE/EUR conflicting-control differen
 npm run parity -- catalogs # exhaustive bounded catalog/fabric/software continuations
 npm run parity:validation        # strict authoritative verdict, payload/hash and stale-job gate
 npm run parity -- services # base service + add-on selection, removal, export and reimport
-npm run parity:network           # populated Management graph and fresh-browser handoff
-npm run parity:network-leaf      # Distributed main/leaf graph, restart, export and browser handoff
-npm run parity:rack-power        # captured two-rack PDU/cord handoff, history and restart
 npm run parity:storage-wizard    # linked storage options/components, recovery, intent and native XML handoff
 npm run parity:storage-wizard -- --clear # whole-option clearing, drive guard and native XML handoff
 npm run parity:storage-wizard -- --raid # RAID-mode clearing, linked recovery and native XML handoff
 npm run parity:storage-wizard -- --raid-reverse # return to non-configured RAID and verify the empty choice
 npm run parity:storage-wizard -- --sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
-npm run parity:manual-source-swap # atomic source-port swap, history, restart and website handoff
 npm run parity:pci-wizard        # native PCI slots, crash/history, derive, XML and browser handoff
 npm run parity:power-controls    # native power controls, crash/history, derive, XML and browser handoff
 npm run parity:chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
@@ -635,25 +639,8 @@ npm run parity -- workbook-import # Excel import over stdio, crash/restart, expo
 npm run parity -- reference-unconfigured # Unconfigured quantity edit, restart and browser XML handoff
 npm run parity:reference-download # original-template bytes versus native Export, import and restart
 npm run parity -- reference-solutions # native template catalog/customize, crash/restart and browser handoff
-npm run parity:storage-placement # managed storage physical placement, derive and export
-npm run parity:storage-placement-reimport -- --mcp-report /path/to/storage-placement/report.json --out /path/to/reimport-report
-npm run parity:storage-fc -- --out /path/to/report # post-import Direct Attached FC control; currently exits 2 on HTTP 200/zero storage rows
-npm run parity:manual-create     # create on a populated graph, pin routes, SIGKILL/restart and browser import
-npm run parity:manual-replace:breakout # replace a shared physical cable, then verify MCP recovery and website handoff
-npm run parity:manual-create:breakout # two manual branches share a QSFP28 port; verify quantities, restart and browser import
-npm run parity:manual-create:100g # add a second 100 GbE DAC connection and verify quantity, restart and browser import
-npm run parity:manual-create:managed-source # managed DB710S source, crash/reimport and browser handoff
-npm run parity:manual-create:managed-destination # imported DE2000H destination, public ports/create and browser handoff
-npm run parity:manual-create:storage-prepare # explicit optical-to-DAC hardware preparation before creation
-npm run parity:manual-create:fresh-storage # fresh managed template, hardware setup, placement, cabling and browser import
-npm run parity:manual-create:shared-storage # two managed physical instances, separate routes and spare preservation
-npm run parity:manual-create:linked-source # shared source ports, sibling route/BOM, restart and browser import
 npm run parity:switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
 npm run parity:switch-edit       # linked HPC switch cable edit and native handoff
-npm run parity:manual-create:linked-destination # create on both linked switches; verify per-member quantities
-npm run parity:manual-cabling    # existing-row cable derive, SIGKILL recovery and export
-npm run parity:manual-cabling:shared    # preserve a shared cable quantity while splitting one row
-npm run parity:manual-cabling:collision # atomically swap an occupied destination port and restart
 ```
 
 Parity runners exit `1` for a failed assertion and `2` when every executed

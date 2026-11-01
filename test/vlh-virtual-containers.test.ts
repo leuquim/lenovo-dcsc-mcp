@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { Readable } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -6,13 +10,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerVlhTools } from '../src/mcp/vlhTools.js';
-import { fetchVlhAttributes, fetchVlhWizardInfo, type VlhAttributes, type VlhWizardInfo } from '../src/domain/vlh.js';
+import { buildVlhExportForm, fetchVlhAttributes, fetchVlhWizardInfo, type VlhAttributes, type VlhWizardInfo } from '../src/domain/vlh.js';
 import {
   checkVirtualContainerRules,
   fetchVirtualContainerCompatibleProducts,
   type VirtualContainerCompatibleCategory,
 } from '../src/domain/virtualContainers.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
+import { buildVlhItem } from '../src/app/vlh.js';
 
 const mockWizardInfo: VlhWizardInfo = {
   networkTopologyConnectorsMap: {
@@ -275,6 +280,32 @@ describe('VLH and Virtual Containers domain & MCP tools', () => {
       const parsed = JSON.parse(textContent(res));
       expect(parsed.type).toBe('server');
       expect(parsed.attributes.PRODUCT_TYPE).toBe('SERVER');
+    });
+
+    it('builds the captured Export Items form for a default basic item', () => {
+      const item = buildVlhItem({ vlhType: 'basic', description: 'New Item', vlhId: 'e90a62ab-670c-4e0d-b297-eaa2157679f9' });
+      expect(new URLSearchParams(buildVlhExportForm([item])).toString()).toBe(
+        'data=%5B%7B%22commonInfo%22%3A%7B%22description%22%3A%22New+Item%22%2C%22listPrice%22%3A0%2C%22productType%22%3A%22VLH%22%7D%2C' +
+        '%22vlhId%22%3A%22e90a62ab-670c-4e0d-b297-eaa2157679f9%22%2C%22vlhType%22%3A%22basic%22%2C%22connectors%22%3A%5B%5D%2C' +
+        '%22attributes%22%3A%5B%5D%2C%22bundledParts%22%3A%5B%7B%7D%5D%7D%5D&crnId=&userGeneratedConfigId=&lfoCode=&cancelDownload=false' +
+        '&multipleProductData=&excelData=&groups=&integrationParams=&image=&user=&dcsc-isFromIntegration=false&serviceAndorRequest=&uuid=');
+    });
+
+    it('dcsc_vlh_set posts the form to /vlh/export/xml and returns the stored .vlh path', async () => {
+      const artifactDir = mkdtempSync(path.join(tmpdir(), 'dcsc-vlh-'));
+      const service = new DcscService(ConfigSchema.parse({ files: { persistSessions: false, artifactDir }, logLevel: 'silent' }));
+      services.push(service);
+      const xml = '<?xml version="1.0" encoding="UTF-8"?><VLHData><VLH><VLHID>x</VLHID></VLH></VLHData>';
+      const send = vi.spyOn(service.http, 'send').mockResolvedValueOnce({ status: 200, headers: {}, stream: Readable.from([Buffer.from(xml)]) } as never);
+      const { client } = await createConnectedVlhHarness(service);
+
+      const res = await client.callTool({ name: 'dcsc_vlh_set', arguments: { items: [{ description: 'New Item' }], fileName: 'items' } });
+
+      expect(res.isError).toBeFalsy();
+      const stored = JSON.parse(textContent(res)) as { path: string };
+      expect(stored.path.endsWith('items.vlh')).toBe(true);
+      expect(readFileSync(stored.path, 'utf8')).toBe(xml);
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', path: '/vlh/export/xml', responseKind: 'stream' }));
     });
 
     it('dcsc_virtual_container_get executes compatibleProducts', async () => {

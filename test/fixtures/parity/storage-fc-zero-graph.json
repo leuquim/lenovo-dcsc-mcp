@@ -112,7 +112,7 @@
     "errors": []
   },
   "directAttachedIsolation": {
-    "runner": "scripts/parity-storage-fc.ts",
+    "runner": "npm run parity -- storage-fc",
     "status": "blocked",
     "importStatus": 200,
     "importRoute": "#/rack-summary/rack-cto",

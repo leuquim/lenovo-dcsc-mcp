@@ -12,7 +12,8 @@ function commercial(raw: Obj) {
     .sort((a, b) => key(a).localeCompare(key(b)));
   return { code: raw['code'], totalPrice: raw['totalPrice'], selections };
 }
-export function assertGroupedCommercialParity(native: Obj, saved: Obj): void {
+/** The commercial rows (parts, quantities, prices) per physical instance, as the website imported them and as the MCP saved them. */
+export function groupedCommercial(native: Obj, saved: Obj): { native: unknown[]; mcp: unknown[] } {
   const workspace = object(native['workspace']);
   const descend = (items: Obj[], parentCount = 1): Array<{ item: Obj; count: number }> => items.flatMap(item => {
     const count = Array.isArray(item['originalIds']) ? item['originalIds'].length : 1;
@@ -33,6 +34,10 @@ export function assertGroupedCommercialParity(native: Obj, saved: Obj): void {
     const instances = storagePhysicalConfigurations(physicalWorkspace, String(c['configurationId']), raw as RawConfiguration);
     return instances.length ? instances.map(instance => commercial(instance.raw)) : [commercial(raw)];
   });
-  assert.deepEqual(actual.sort((a, b) => key(a).localeCompare(key(b))), expected.sort((a, b) => key(a).localeCompare(key(b))),
-    'Native/MCP physical product counts, selected parts or prices differ');
+  return { native: expected.sort((a, b) => key(a).localeCompare(key(b))), mcp: actual.sort((a, b) => key(a).localeCompare(key(b))) };
+}
+
+export function assertGroupedCommercialParity(native: Obj, saved: Obj): void {
+  const { native: expected, mcp } = groupedCommercial(native, saved);
+  assert.deepEqual(mcp, expected, 'Native/MCP physical product counts, selected parts or prices differ');
 }

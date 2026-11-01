@@ -318,6 +318,21 @@ describe('manual cabling service transaction', () => {
     expect(write).toHaveBeenCalledTimes(1);
   });
 
+  it('reads the Distance calculator over the same wire without changing the workspace', async () => {
+    const value = setup();
+    const send = vi.spyOn(value.service.http, 'send').mockResolvedValue({ raw: fixture.distanceResponse } as never);
+    const before = state(value);
+    const topology = String(fixture.beforeConnection['topology']);
+    const result = await value.service.inspectCabling(value.workspace.id, { ctx: value.ctx,
+      distance: { from: String(fixture.beforeConnection['sourceId']), to: fixture.edit.destination.configurationId, topology } });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![0]).toMatchObject({ path: '/calculateDistance', method: 'POST', body: { kind: 'json', value: {
+      from: fixture.beforeConnection['sourceId'], to: fixture.edit.destination.configurationId, network: topology,
+      floorPreference: fixture.floorPreference } } });
+    expect(result.report).toMatchObject({ totalDistance: fixture.distanceResponse['totalDistance'] });
+    expect(state(value)).toEqual(before);
+  });
+
   it('changes only a port without distance HTTP and supports undo and redo', async () => {
     const value = setup(); const send = vi.spyOn(value.service.http, 'send');
     const beforeRevision = value.workspace.revision;

@@ -5,6 +5,7 @@ import { browseNetwork, NETWORK_COLLECTIONS, setNetwork } from '../app/network.j
 import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 import type { AutoConnectResult } from '../domain/cabling.js';
 import { cablingDiagnostics } from '../domain/cablingDiagnostics.js';
+import { EXISTING_CUSTOMER_SWITCH_ID } from '../domain/networkPreferences.js';
 import type { WorkspaceSession } from '../model/session.js';
 import { jsonBytes } from '../util/jsonBytes.js';
 import type { DcscService } from './service.js';
@@ -113,34 +114,34 @@ export function projectAutoConnectToolResult(
   return compact;
 }
 
+const catalogDevice = `Catalog device ID, or ${EXISTING_CUSTOMER_SWITCH_ID} to clear it.`;
+const clearable = 'Empty string clears it.';
+
 const networkSelectionSchema = z.object({
   networkTypeId: z.string(), topology: z.string().optional(),
   layout: z.enum(['Centralized', 'Distributed']).optional(),
-  mainDeviceId: z.string().optional().describe('Catalog device ID, or existing-customer-switch to clear the managed main switch.'),
-  leafDeviceId: z.string().optional().describe('Catalog device ID, or existing-customer-switch to clear the managed leaf switch.'),
-  mainTrunks: z.number().int().min(0).optional().describe('Trunk count, bounded by the switch topology capacity.'),
+  mainDeviceId: z.string().optional().describe(catalogDevice),
+  leafDeviceId: z.string().optional().describe(catalogDevice),
+  mainTrunks: z.number().int().min(0).optional().describe('Bounded by the switch topology capacity.'),
   leafTrunks: z.number().int().min(0).optional(),
-  leafCabling: z.string().optional().describe('Exact description from the leafNodeCabling collection.'),
-  vlanNetworkTypeIds: z.array(z.string()).optional().describe('Peer networks sharing the main switch; empty array clears VLAN joins.'),
-  customCableId: z.string().optional().describe('Custom cable ID with an existing customer main switch; manual-cable clears the fixed cable part.'),
+  leafCabling: z.string().optional().describe('Description from the leafNodeCabling collection.'),
+  vlanNetworkTypeIds: z.array(z.string()).optional().describe('Peer networks sharing the main switch; [] clears the joins.'),
+  customCableId: z.string().optional().describe('With an existing customer main switch; manual-cable clears the fixed cable.'),
   cableId: z.string().optional(), leafCableId: z.string().optional(),
-  cableColor: z.string().optional().describe('Catalog cable color; empty string clears the preference.'),
-  leafCableColor: z.string().optional().describe('Leaf cable color; empty string clears the preference.'),
+  cableColor: z.string().optional().describe(clearable),
+  leafCableColor: z.string().optional().describe(clearable),
 });
 
 const networkChangeSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('topology'),
-    topology: z.string().describe('Topology shortName from the topologies collection, e.g. "IB_XDR".'),
-    networkName: z.string().optional().describe('Network name or ID; required when the topology does not identify one network.'),
-    connectorIds: z.array(z.string()).optional().describe('Connector IDs to select; [] clears this network\'s ports.'),
+    topology: z.string().describe('Topology shortName, e.g. "IB_XDR".'),
+    networkName: z.string().optional().describe('Network name or ID; required when the topology does not identify one.'),
+    connectorIds: z.array(z.string()).optional().describe('[] clears this network\'s ports.'),
     ports: z.array(z.string()).optional().describe('Exact port selectors; [] clears this network\'s ports.'),
-    autoConnect: z.boolean().optional().default(true).describe('Run Auto-Connect afterwards when the workspace has racks.'),
+    autoConnect: z.boolean().optional().default(true).describe('Run Auto-Connect afterwards when racks exist.'),
   }),
-  z.object({
-    kind: z.literal('nodeRole'),
-    role: z.string().describe('Role from the nodeRoles collection, e.g. "Compute".'),
-  }),
+  z.object({ kind: z.literal('nodeRole'), role: z.string().describe('From the nodeRoles collection, e.g. "Compute".') }),
   z.object({
     kind: z.literal('preferences'),
     selections: z.array(networkSelectionSchema).min(1),
@@ -171,18 +172,18 @@ export function registerFabricPowerTools(server: McpServer, service: DcscService
   server.registerTool('dcsc_network_get', {
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Network tab',
-    description: 'Browses the network catalog: topologies, devices, network types, cables, node roles, storage controllers and switches, and the connectors of a topology on a configuration.',
+    description: 'Browses the network catalog (topologies, devices, network types, cables, node roles, storage controllers and switches) and the connectors of a topology.',
     inputSchema: {
-      session: z.string().optional().describe('Use the locale, solution and selections of this workspace or configuration.'),
+      session: z.string().optional().describe('Workspace or configuration whose locale and solution apply.'),
       solutionMode: z.string().optional(),
       collection: z.enum(NETWORK_COLLECTIONS).default('topologies'),
-      topology: z.string().optional().describe('Topology shortName; required for the connectors collection, which also needs a configuration session.'),
+      topology: z.string().optional().describe('shortName; required for connectors, which needs a configuration session.'),
       optionId: z.string().optional(),
-      fields: z.array(z.string()).optional().describe('Return these top-level fields, plus id.'),
+      fields: z.array(z.string()).optional().describe('Top-level fields to return, plus id.'),
       offset: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(100).default(20),
-      path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
-      expectedCatalogFingerprint: z.string().optional().describe('Fingerprint from a returned continuation.'),
+      path: z.array(z.string()).optional().describe('From a continuation.'),
+      expectedCatalogFingerprint: z.string().optional().describe('From a continuation.'),
     },
   }, async args => guard(() => browseNetwork(service, {
     ...args, collection: args.collection ?? 'topologies', offset: args.offset ?? 0, limit: args.limit ?? 20,
@@ -191,9 +192,9 @@ export function registerFabricPowerTools(server: McpServer, service: DcscService
   server.registerTool('dcsc_network_set', {
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Set network topology, node role or preferences',
-    description: 'Changes the Network tab: selects a topology and connectors on a configuration, sets its node role, or saves the workspace network preferences (switches, trunks, VLAN joins, cables).',
+    description: 'Selects a topology and connectors, sets the node role (configuration handle), or saves network preferences (workspace handle).',
     inputSchema: {
-      session: z.string().describe('Configuration handle for topology and nodeRole; workspace handle for preferences.'),
+      session: z.string().describe('Configuration handle (topology, nodeRole) or workspace handle (preferences).'),
       expectedRevision: z.number().int().min(1).optional().describe('Workspace revision.'),
       change: networkChangeSchema,
     },

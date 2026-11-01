@@ -9,8 +9,9 @@ const casesDir = path.join(import.meta.dirname, 'cases');
 
 async function discoverCases(): Promise<ParityCase[]> {
   const files = (await readdir(casesDir)).filter(file => file.endsWith('.ts')).sort();
-  return Promise.all(files.map(async file =>
-    (await import(pathToFileURL(path.join(casesDir, file)).href) as { default: ParityCase }).default));
+  const loaded = await Promise.all(files.map(async file =>
+    (await import(pathToFileURL(path.join(casesDir, file)).href) as { default: ParityCase | ParityCase[] }).default));
+  return loaded.flat();
 }
 
 const selector = process.argv[2];

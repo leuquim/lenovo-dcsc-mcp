@@ -1,13 +1,7 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 
-export type VlhType =
-  | 'basic'
-  | 'switch'
-  | 'networking-adapter'
-  | 'networking-cable'
-  | 'server'
-  | 'rack'
-  | 'chassis';
+export const VLH_TYPES = ['basic', 'switch', 'networking-adapter', 'networking-cable', 'server', 'rack', 'chassis'] as const;
+export type VlhType = typeof VLH_TYPES[number];
 
 export interface VlhConnectorOption {
   shortName: string;
@@ -91,4 +85,40 @@ export async function fetchVlhAttributes(
     ctx,
   });
   return res.raw as VlhAttributes;
+}
+
+export const VLH_PRODUCT_TYPE = 'VLH';
+
+/** One VLH Item Editor entry as the SPA posts it to the export. */
+export interface VlhItem {
+  vlhId: string;
+  vlhType: VlhType;
+  commonInfo: { description: string; listPrice: number; productType: string; [key: string]: unknown };
+  connectors: VlhConnectorRecord[];
+  attributes: Array<Record<string, unknown>>;
+  bundledParts: Array<Record<string, unknown>>;
+}
+
+/** The 14-field export form of the captured POST /vlh/export/xml; only `data` carries content. */
+export function buildVlhExportForm(items: readonly VlhItem[]): Record<string, string> {
+  return {
+    data: JSON.stringify(items), crnId: '', userGeneratedConfigId: '', lfoCode: '', cancelDownload: 'false',
+    multipleProductData: '', excelData: '', groups: '', integrationParams: '', image: '', user: '',
+    'dcsc-isFromIntegration': 'false', serviceAndorRequest: '', uuid: '',
+  };
+}
+
+/** Export Items: the VLH item definitions as a .vlh (VLHData XML) download stream. */
+export async function exportVlhItems(http: DcscHttpClient, items: readonly VlhItem[], ctx: RequestCtx) {
+  if (items.length === 0) throw new Error('At least one VLH item is required.');
+  return http.send({
+    endpoint: 'vlh.export',
+    method: 'POST',
+    path: '/vlh/export/xml',
+    body: { kind: 'form', fields: buildVlhExportForm(items) },
+    requiresSolution: false,
+    responseKind: 'stream',
+    timeoutClass: 'export',
+    ctx,
+  });
 }

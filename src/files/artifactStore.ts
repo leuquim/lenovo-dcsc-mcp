@@ -365,11 +365,35 @@ export async function writeSpreadsheetArtifact(
   });
 }
 
+/** Streams a DCSC VLH item export (XML) into the artifact store, rejecting bodies that are not a VLHData document. */
+export async function writeVlhArtifact(
+  stream: NodeJS.ReadableStream,
+  fileName: string,
+  config: Config,
+): Promise<SpreadsheetArtifact> {
+  return publishSingleFile(stream, {
+    fileName: fileName.replace(/\.vlh$/i, ''),
+    extension: 'vlh',
+    kind: 'export-vlh',
+    subject: 'VLH export',
+    config,
+    assertHead: (preview) => {
+      if (!preview.toString('utf8').includes('<VLHData>')) {
+        throw new Error(
+          `DCSC returned HTTP 200 but the body is not a VLHData document (starts with ${JSON.stringify(
+            preview.toString('utf8').slice(0, 80),
+          )}). This is an error response disguised as a download.`,
+        );
+      }
+    },
+  });
+}
+
 async function publishSingleFile(
   source: NodeJS.ReadableStream,
   opts: {
     fileName: string;
-    extension: 'json' | 'bin' | 'xml' | 'xlsx';
+    extension: 'json' | 'bin' | 'xml' | 'xlsx' | 'vlh';
     kind: string;
     subject: string;
     config: Config;
