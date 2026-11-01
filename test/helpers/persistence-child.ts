@@ -100,8 +100,8 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     assert(!launched.isError, `software launch failed: ${launched.content[0]?.text ?? ''}`);
     if (selected === 'software-launch') return;
     const workspace = String((JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>)['session']);
-    const selectedReply = await handlers.get('dcsc_software_select')!({
-      session: workspace, code: '7S1S002WWW', quantity: 2,
+    const selectedReply = await handlers.get('dcsc_basket_set')!({
+      basket: 'software', action: 'select', session: workspace, code: '7S1S002WWW', quantity: 2,
     });
     assert(!selectedReply.isError, `software selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'software-refresh' || selected === 'software-replace') {
@@ -112,8 +112,8 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
       return;
     }
     const mutation = selected === 'software-set-quantity'
-      ? await handlers.get('dcsc_software_set_quantity')!({ session: workspace, code: '7S1S002WWW', quantity: 5 })
-      : await handlers.get('dcsc_software_remove')!({ session: workspace, code: '7S1S002WWW' });
+      ? await handlers.get('dcsc_basket_set')!({ basket: 'software', action: 'setQuantity', session: workspace, code: '7S1S002WWW', quantity: 5 })
+      : await handlers.get('dcsc_basket_set')!({ basket: 'software', action: 'remove', session: workspace, code: '7S1S002WWW' });
     assert(!mutation.isError, `software mutation failed: ${mutation.content[0]?.text ?? ''}`);
     return;
   }
@@ -127,8 +127,8 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     assert(!launched.isError, `service basket launch failed: ${launched.content[0]?.text ?? ''}`);
     const launchedBody = JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>;
     const workspace = String(launchedBody['session']);
-    const selectedReply = await handlers.get('dcsc_services_select')!({
-      session: workspace, serviceCode: '5WS7B99623', quantity: 2,
+    const selectedReply = await handlers.get('dcsc_basket_set')!({
+      basket: 'services', action: 'select', session: workspace, code: '5WS7B99623', quantity: 2,
     });
     assert(!selectedReply.isError, `service basket selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'service-refresh' || selected === 'service-replace') {
@@ -139,13 +139,13 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
       });
       assert(!reply.isError, `service ${selected} failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-set-quantity') {
-      const reply = await handlers.get('dcsc_services_set_quantity')!({ session: workspace, quantity: 4 });
+      const reply = await handlers.get('dcsc_basket_set')!({ basket: 'services', action: 'setQuantity', session: workspace, quantity: 4 });
       assert(!reply.isError, `service quantity failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-set-product-quantity') {
-      const reply = await handlers.get('dcsc_services_set_product_quantity')!({ session: workspace, quantity: 3 });
+      const reply = await handlers.get('dcsc_basket_set')!({ basket: 'services', action: 'setProductQuantity', session: workspace, quantity: 3 });
       assert(!reply.isError, `service product quantity failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-remove') {
-      const reply = await handlers.get('dcsc_services_remove')!({ session: workspace });
+      const reply = await handlers.get('dcsc_basket_set')!({ basket: 'services', action: 'remove', session: workspace });
       assert(!reply.isError, `service removal failed: ${reply.content[0]?.text ?? ''}`);
     }
     return;
@@ -473,17 +473,10 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   }
   if (selected === 'floor-cabling') {
     await target.placeOnFloor(workspace.id, 'rack-physical', 2, 3, workspace.revision);
-    await target.addManualCabling(
-      workspace.id,
-      {
-        fromConfigId: first.configurationId,
-        fromPort: 'eth0',
-        toConfigId: second.configurationId,
-        toPort: 'eth1',
-        cableCode: '3760',
-      },
-      workspace.revision,
-    );
+    await target.sessions.transact(workspace.id, { expectedRevision: workspace.revision }, draft => {
+      draft.cables.push({ id: 'cable-fixture', fromConfigId: first.configurationId, fromPort: 'eth0',
+        toConfigId: second.configurationId, toPort: 'eth1', cableCode: '3760' });
+    });
     return;
   }
   if (selected === 'undo-redo') {

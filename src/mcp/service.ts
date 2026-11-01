@@ -1,10 +1,10 @@
-import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, retrieveConfigId, customizeSid, importConfig, exportZip, summaryInsights, exportWorkspace, shareUrlFields } from '../app/importExport.js';
+import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, retrieveConfigId, customizeSid, importConfig, exportZip, summaryInsights, exportPowerReport, shareUrlFields } from '../app/importExport.js';
 import { generateConfigId, modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
 import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
-import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, addManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
+import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
 
 type AppArgs<F> = F extends (rt: Runtime, ...args: infer A) => unknown ? A : never;
@@ -43,8 +43,8 @@ export class DcscService extends Runtime {
     return summaryInsights(this, ...args);
   }
 
-  exportWorkspace(...args: AppArgs<typeof exportWorkspace>): ReturnType<typeof exportWorkspace> {
-    return exportWorkspace(this, ...args);
+  exportPowerReport(...args: AppArgs<typeof exportPowerReport>): ReturnType<typeof exportPowerReport> {
+    return exportPowerReport(this, ...args);
   }
 
   shareUrlFields(...args: AppArgs<typeof shareUrlFields>): ReturnType<typeof shareUrlFields> {
@@ -241,10 +241,6 @@ export class DcscService extends Runtime {
 
   editManualCabling(...args: AppArgs<typeof editManualCabling>): ReturnType<typeof editManualCabling> {
     return editManualCabling(this, ...args);
-  }
-
-  addManualCabling(...args: AppArgs<typeof addManualCabling>): ReturnType<typeof addManualCabling> {
-    return addManualCabling(this, ...args);
   }
 
   inspectCabling(...args: AppArgs<typeof inspectCabling>): ReturnType<typeof inspectCabling> {

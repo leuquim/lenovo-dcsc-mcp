@@ -41,7 +41,7 @@ import { workspaceHardwareMode } from '../domain/workspaceWire.js';
 import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { SessionConflictError } from '../session/SessionStore.js';
-import type { CableLink, ConfigSession, WorkspaceSession } from '../model/session.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import {
   updateHistoryFactory,
   assertWorkspaceRevision,
@@ -51,7 +51,6 @@ import { autoDerivePath } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
 import { workspaceId } from './runtime.js';
 import { acceptDerivedWorkspaceConfigurations, autoConnectDraft, manualCablingInput, workspaceNetworkState } from './workspaceRefresh.js';
-import { newId } from '../session/ids.js';
 import { configureDraft } from './launch.js';
 import { errorMessage } from '../util/coerce.js';
 
@@ -445,19 +444,6 @@ export async function applyCablingChanges(rt: Runtime, handle: string, changes: 
 function omitAction<T extends { action: string }>(change: T): Omit<T, 'action'> {
   const { action: _action, ...rest } = change;
   return rest;
-}
-
-/** Local planning annotation; excluded from the authoritative export connection graph. */
-export async function addManualCabling(rt: Runtime, sessionHandle: string, cable: Omit<CableLink, 'id'>, expectedRevision?: number): Promise<CableLink> {
-  return rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
-    const ids = new Set([...workspace.configurations.values()].map((session) => session.configurationId));
-    if (!ids.has(cable.fromConfigId) || !ids.has(cable.toConfigId)) {
-      throw new Error('Both cable endpoints must belong to this workspace. Use configuration IDs from dcsc_session_list.');
-    }
-    const link = { ...cable, id: newId('cable') };
-    workspace.cables.push(link);
-    return link;
-  });
 }
 
 /**

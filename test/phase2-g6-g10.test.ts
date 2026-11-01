@@ -398,7 +398,7 @@ describe('Phase 2 Part B: G10 — Discovery Helpers', () => {
 
     const handler = handlers.get('dcsc_category')!;
     const reply = await handler({
-      kind: 'topChoiceCountry',
+      category: { kind: 'topChoiceCountry' },
     });
     expect(parse(reply)).toBe(true);
   });
@@ -406,7 +406,7 @@ describe('Phase 2 Part B: G10 — Discovery Helpers', () => {
   it('dcsc_category detail rejects a missing categoryId', async () => {
     const { handlers } = await setupTestEnvironment();
     const handler = handlers.get('dcsc_category')!;
-    const reply = await handler({ kind: 'detail' });
+    const reply = await handler({ category: { kind: 'detail' } });
     expect(reply.isError).toBe(true);
     expect(reply.content[0]?.text).toContain('categoryId is required');
   });

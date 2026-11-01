@@ -360,15 +360,6 @@ async function groupCabling(service: DcscService): Promise<void> {
   const ws = service.sessions.getWorkspace(node.id);
   check((ws?.cables.length ?? -1) === result.cables.length, 'workspace cable list replaced by DCSC result');
   check((ws?.rackArea.length ?? 0) > 0, 'auto_connect left a rackArea in place');
-
-  // Manual path must not invent server validation.
-  const manual = await service.addManualCabling(node.id, {
-    fromConfigId: node.configurationId,
-    fromPort: 'eth0',
-    toConfigId: node.configurationId,
-    toPort: 'eth1',
-  });
-  check(!!manual.id, 'manual cable can still be recorded for planning', manual.id);
 }
 
 async function groupPdu(service: DcscService): Promise<void> {

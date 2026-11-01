@@ -334,8 +334,9 @@ describe('Specialty Catalogs (R3: LVR Refurbished, Converged Systems, Promotions
     });
 
     const handlers = getToolHandlers(service);
-    const specialtyTool = handlers.get('dcsc_search')!;
-    expect(specialtyTool).toBeDefined();
+    const searchHandler = handlers.get('dcsc_search')!;
+    expect(searchHandler).toBeDefined();
+    const specialtyTool = (search: Record<string, unknown>) => searchHandler({ search });
 
     // 1. Browse LVR catalog with pagination and query
     const lvrRes = await specialtyTool({

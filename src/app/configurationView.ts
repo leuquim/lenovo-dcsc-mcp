@@ -1,13 +1,6 @@
 import { diffConfigurations } from '../model/diff.js';
 import { buildIndex } from '../model/index.js';
 import type { ConfigSession } from '../model/session.js';
-import { fetchUpstreamFeatureDetails, summarizeFeatureSpec } from '../domain/featureDetails.js';
-import {
-  fetchSmartLfoRecommendation,
-  fetchSubTabRecommendations,
-  fetchSummaryRecommendations,
-  type SummaryRecommendationPayload,
-} from '../domain/recommendations.js';
 import { fetchRuleVersionsInfo } from '../domain/ruleVersions.js';
 import type { Runtime } from './runtime.js';
 
@@ -59,49 +52,6 @@ export function explainConfiguration(session: ConfigSession, sinceRevision?: num
       'Entries flagged "auto" were chosen by DCSC, not requested. Rule messages are the engine\'s ' +
       'own words for the constraint it applied.',
   };
-}
-
-function productCodeOf(session: ConfigSession): string {
-  const code = session.raw.code;
-  return typeof code === 'string' && code ? code : session.product.code;
-}
-
-export type RecommendationKind = 'subtab' | 'summary' | 'smart-lfo';
-
-export async function configurationRecommendations(rt: Runtime, session: ConfigSession, kind: RecommendationKind, country?: string) {
-  const ctx = rt.newCtx({ locale: session.locale, solution: session.solution });
-  const code = productCodeOf(session);
-  if (kind === 'subtab') {
-    const recommendations = await fetchSubTabRecommendations(rt.http, ctx, 'CTO', code);
-    return { kind, productCode: code, count: recommendations.length, recommendations };
-  }
-  if (kind === 'smart-lfo') {
-    const resolvedCountry = (country ?? ctx.locale.country ?? 'US').toUpperCase();
-    const result = await fetchSmartLfoRecommendation(rt.http, ctx, resolvedCountry, code);
-    return { kind, country: resolvedCountry, ctoCode: code, result };
-  }
-  const features: Array<{ code: string; quantity?: number }> = [];
-  for (const tab of session.raw.tabs ?? []) {
-    for (const subTab of tab.subTabs ?? []) {
-      for (const sec of subTab.sections ?? []) {
-        for (const res of sec.results ?? []) {
-          if (res.code) features.push({ code: res.code, quantity: res.quantity ?? 1 });
-        }
-      }
-    }
-  }
-  const payload: SummaryRecommendationPayload = {
-    selectedProductDataLists: [[{ code, id: session.id, quantity: session.raw.quantity ?? 1, features }]],
-  };
-  const result = await fetchSummaryRecommendations(rt.http, ctx, payload);
-  return { kind, ctoCode: code, result };
-}
-
-/** Upstream feature specs: lead times, lifecycle dates, top-choice flags and price breakdown. */
-export async function upstreamFeatureSpecs(rt: Runtime, session: ConfigSession, codes: string[]) {
-  const ctx = rt.newCtx({ locale: session.locale, solution: session.solution });
-  const raw = await fetchUpstreamFeatureDetails(rt.http, ctx, productCodeOf(session), session.id, codes);
-  return raw.map(summarizeFeatureSpec);
 }
 
 export async function configurationRuleVersions(rt: Runtime, ctoCode: string, tableCode?: string) {

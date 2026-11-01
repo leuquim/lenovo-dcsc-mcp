@@ -275,11 +275,11 @@ describe('Phase 2 Part A: Tool Surface Extensions', () => {
     const findPartsHandler = handlers.get('dcsc_search');
     expect(findPartsHandler).toBeDefined();
 
-    const reply = await findPartsHandler!({
+    const reply = await findPartsHandler!({ search: {
       kind: 'parts',
       query: '4X77A08621',
       includeSupplyStatus: true,
-    });
+    } });
 
     const parsed = parse(reply);
     expect(parsed.supplyStatus).toBeDefined();

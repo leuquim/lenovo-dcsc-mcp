@@ -12,6 +12,7 @@ import {
 } from '../src/domain/configId.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerImportExportTools } from '../src/mcp/importExportTools.js';
+import { registerCatalogTools } from '../src/mcp/catalogTools.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import type { RawConfiguration } from '../src/model/types.js';
 
@@ -42,6 +43,7 @@ function createService() {
 async function createMcpClient(service: DcscService) {
   const server = new McpServer({ name: 'test-lenovo-dcsc', version: '0.1.0' });
   registerImportExportTools(server, service);
+  registerCatalogTools(server, service);
   const client = new Client({ name: 'test-client', version: '1.0.0' });
   clients.push(client);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -321,7 +323,7 @@ describe('MCP Tools: Config ID & SIDs', () => {
 
     const res = await client.callTool({
       name: 'dcsc_search',
-      arguments: { kind: 'sids', categoryId: 'servers', offset: 0, limit: 10 },
+      arguments: { search: { kind: 'sids', categoryId: 'servers', offset: 0, limit: 10 } },
     });
 
     expect(res.isError).toBeFalsy();

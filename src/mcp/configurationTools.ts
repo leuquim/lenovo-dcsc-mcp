@@ -2,11 +2,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import {
-  configurationRecommendations,
   configurationRuleVersions,
   explainConfiguration,
-  upstreamFeatureSpecs,
 } from '../app/configurationView.js';
+import { featureSpecs, smartRecommendations, subTabRecommendations } from '../app/catalog.js';
 import { applySelections } from '../app/launch.js';
 import { assertWorkspaceRevision, linkedGroup } from '../app/serviceHelpers.js';
 import { PAGE_BYTE_BUDGET } from '../config/constants.js';
@@ -142,13 +141,15 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
               currency: session.locale.currency,
               features: found,
               notFound: found.filter((f) => f.detail === null).map((f) => f.code),
-              ...(args.upstream ? { upstream: await upstreamFeatureSpecs(service, session, args.codes) } : {}),
+              ...(args.upstream ? { upstream: (await featureSpecs(service, { session: session.id, codes: args.codes })).features } : {}),
             };
           }
           case 'explain':
             return { ...header, ...explainConfiguration(session, args.sinceRevision) };
           case 'recommendations':
-            return { ...header, ...(await configurationRecommendations(service, session, args.recommendation, args.country)) };
+            return { ...header, kind: args.recommendation, ...(args.recommendation === 'subtab'
+              ? await subTabRecommendations(service, { session: session.id })
+              : await smartRecommendations(service, { type: args.recommendation, session: session.id, country: args.country })) };
           default:
             return { ...header, ...(await configurationRuleVersions(service, args.ctoCode ?? session.product.code, args.ruleTableCode)) };
         }
@@ -189,7 +190,7 @@ export function registerConfigurationTools(server: McpServer, service: DcscServi
         const workspace = service.sessions.getWorkspace(session.workspaceId)!;
         assertWorkspaceRevision(workspace, args.expectedRevision);
         const ctx = service.newCtx({ locale: session.locale, solution: session.solution });
-        const extendedPrice = (target: { raw: Parameters<typeof configurationListPrice>[0] & { quantity?: number } }): number | null => {
+        const extendedPrice = (target: { raw: Parameters<typeof configurationListPrice>[0] }): number | null => {
           const unit = configurationListPrice(target.raw);
           return unit === null ? null : Math.round(unit * (target.raw.quantity ?? 1) * 100) / 100;
         };

@@ -1,4 +1,3 @@
-import { standaloneHardwareTotal } from '../domain/standaloneHardware.js';
 import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import { projectSummary } from '../model/project.js';
 import {
@@ -9,7 +8,7 @@ import {
 } from '../model/workspaceProjection.js';
 import { unplacedManagedStorageComponentIds } from '../domain/storagePreferences.js';
 import { assertWorkspaceRevision } from './serviceHelpers.js';
-import { hardwareState, serviceState, softwareState } from './standalone.js';
+import { basketView, presentBaskets, type Basket } from './standalone.js';
 import type { Runtime } from './runtime.js';
 
 const TOOL = 'dcsc_workspace_get';
@@ -154,56 +153,21 @@ export function inspectHistory(rt: Runtime, handle: string): Record<string, unkn
   };
 }
 
-interface BasketRow {
-  basket: 'software' | 'hardware' | 'services';
-  code: string;
-  description?: string | undefined;
-  quantity: number;
-  unitPrice?: number | undefined;
-  totalPrice?: number | undefined;
-}
-
-const roundPrice = (value: number): number => Math.round(value * 100) / 100;
-
-/** The standalone software, hardware and services baskets of a workspace, as one paged list of lines. */
-export function inspectBaskets(rt: Runtime, request: { session: string; offset: number; limit: number }): Record<string, unknown> {
+/** The standalone baskets of a workspace: the single present basket in full, or a pointer to each of several. */
+export function inspectBaskets(rt: Runtime, request: { session: string; basket?: Basket | undefined; offset: number; limit: number }): Record<string, unknown> {
   const workspace = requireWorkspaceOf(rt, request.session);
-  const software = softwareState(workspace, false);
-  const hardware = hardwareState(workspace, false);
-  const services = serviceState(workspace, false);
-  const rows: BasketRow[] = [
-    ...(software?.selections ?? []).map((selection): BasketRow => ({
-      basket: 'software', code: selection.code, description: selection.feature.description,
-      quantity: selection.quantity, unitPrice: selection.unitPrice, totalPrice: selection.totalPrice,
-    })),
-    ...(hardware?.selections ?? []).map((selection): BasketRow => ({
-      basket: 'hardware', code: selection.code, description: selection.description, quantity: selection.quantity,
-      unitPrice: selection.unitPrice,
-      totalPrice: selection.unitPrice !== undefined ? roundPrice(selection.unitPrice * selection.quantity) : undefined,
-    })),
-    ...(services?.selections ?? []).map((selection): BasketRow => ({
-      basket: 'services', code: selection.code, description: selection.description, quantity: selection.quantity,
-    })),
-  ];
-  const page = rows.slice(request.offset, request.offset + request.limit);
+  const present = presentBaskets(workspace);
+  const selected = request.basket ?? (present.length === 1 ? present[0] : undefined);
+  if (selected !== undefined) {
+    if (!present.includes(selected)) throw new Error(`The workspace has no ${selected} basket.`);
+    return { basket: selected, ...basketView(workspace, selected, { offset: request.offset, limit: request.limit }) };
+  }
   return {
-    session: request.session,
+    session: workspace.id,
     revision: workspace.revision,
-    currency: workspace.locale.currency,
-    priceType: 'LIST',
-    baskets: {
-      ...(software ? { software: { catalogItems: software.features.length,
-        totalListPrice: roundPrice(software.selections.reduce((total, selection) => total + (selection.totalPrice ?? 0), 0)) } } : {}),
-      ...(hardware ? { hardware: { totalListPrice: standaloneHardwareTotal(hardware) ?? null } } : {}),
-      ...(services ? { services: { product: services.product, subCategory: services.subCategory } } : {}),
-    },
-    total: rows.length,
-    offset: request.offset,
-    returned: page.length,
-    lines: page,
-    ...(request.offset + page.length < rows.length
-      ? { next: { tool: TOOL, arguments: { session: request.session, view: 'baskets', offset: request.offset + page.length, limit: request.limit } } }
-      : {}),
+    baskets: present.map((basket) => ({
+      basket, next: { tool: TOOL, arguments: { session: workspace.id, view: 'baskets', basket } },
+    })),
   };
 }
 

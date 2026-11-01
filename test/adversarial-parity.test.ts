@@ -408,7 +408,7 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       });
       expect(skewRes.isError).toBe(true);
       expect(((skewRes.content as Array<{ text: string }>)[0]?.text) ?? '').toMatch(
-        /Revision conflict for configuration: expected 999, current 1/i,
+        /Revision conflict for workspace: expected 999, current 1/i,
       );
 
       // Verify session was NOT mutated
@@ -872,14 +872,14 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       // 2. Invalid category call
       const resCat = await client.callTool({
         name: 'dcsc_category',
-        arguments: { kind: 'detail' },
+        arguments: { category: { kind: 'detail' } },
       });
       expect(resCat.isError).toBe(true);
 
       // 3. Invalid search call
       const resSearch = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'products' },
+        arguments: { search: { kind: 'products' } },
       });
       expect(resSearch.isError).toBe(true);
 

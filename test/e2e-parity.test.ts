@@ -21,8 +21,8 @@ import { featureSpecs, subTabRecommendations } from '../src/app/catalog.js';
 async function appResult(run: () => Promise<unknown>) {
   try {
     return { content: [{ type: 'text', text: JSON.stringify(await run()) }] };
-  } catch {
-    return { isError: true, content: [{ type: 'text', text: 'error' }] };
+  } catch (err) {
+    return { isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : 'error' }] };
   }
 }
 
@@ -581,7 +581,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       const toolRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 },
+        arguments: { search: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 } },
       });
       const data = parseResult(toolRes);
 
@@ -634,7 +634,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // 1. LVR Refurbished
       const lvrRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'lvr' },
+        arguments: { search: { kind: 'specialty', catalog: 'lvr' } },
       });
       const lvrData = parseResult(lvrRes);
       expect(lvrData['catalog']).toBe('lvr');
@@ -644,7 +644,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // 2. Converged MultiProd
       const convRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'converged' },
+        arguments: { search: { kind: 'specialty', catalog: 'converged' } },
       });
       const convData = parseResult(convRes);
       expect(convData['catalog']).toBe('converged');
@@ -654,10 +654,10 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // 3. Converged Detail
       const detailRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty',
+        arguments: { search: { kind: 'specialty',
           catalog: 'converged',
           categoryId: 'STG@Software Defined Infrastructure@ThinkAgile FX Series',
-        },
+        } },
       });
       const detailData = parseResult(detailRes);
       expect((detailData['detail'] as Obj)['title']).toBe('ThinkAgile FX Series');
@@ -665,7 +665,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // 4. Promotions
       const promoRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'promotion', subType: 'sid' },
+        arguments: { search: { kind: 'specialty', catalog: 'promotion', subType: 'sid' } },
       });
       const promoData = parseResult(promoRes);
       expect(promoData['catalog']).toBe('promotion');
@@ -793,7 +793,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       const toolRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 980, limit: 10 },
+        arguments: { search: { kind: 'sids', categoryId: 'STG@Servers', offset: 980, limit: 10 } },
       });
       const data = parseResult(toolRes);
 
@@ -899,7 +899,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
 
       const toolRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'lvr', query: 'NON_EXISTENT_PRODUCT_XYZ' },
+        arguments: { search: { kind: 'specialty', catalog: 'lvr', query: 'NON_EXISTENT_PRODUCT_XYZ' } },
       });
       const data = parseResult(toolRes);
 
@@ -1050,7 +1050,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // 1. Browse LVR catalog to find model
       const catRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'lvr', query: 'SR650' },
+        arguments: { search: { kind: 'specialty', catalog: 'lvr', query: 'SR650' } },
       });
       const catData = parseResult(catRes);
       const entries = catData['entries'] as Array<{ code: string }>;
@@ -1166,7 +1166,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // Step 1: Discover Certified Refurbished server in LVR specialty catalog
       const catRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'specialty', catalog: 'lvr', query: 'SR650' },
+        arguments: { search: { kind: 'specialty', catalog: 'lvr', query: 'SR650' } },
       });
       const catData = parseResult(catRes);
       const chosenModel = (catData['entries'] as Array<{ code: string }>)[0]?.code ?? '7Y51CTO1WW';
@@ -1240,7 +1240,7 @@ describe('DCSC Parity Gap E2E Suite: 4-Tier Architecture (R1 - R6)', () => {
       // Step 1: Query preconfigured SID templates for Servers
       const sidRes = await client.callTool({
         name: 'dcsc_search',
-        arguments: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 },
+        arguments: { search: { kind: 'sids', categoryId: 'STG@Servers', offset: 0, limit: 10 } },
       });
       const sidList = parseResult(sidRes)['content'] as Array<{ sidNumber: string; sidPrice: number }>;
       const chosenSid = sidList[0]?.sidNumber ?? 'SID123456';

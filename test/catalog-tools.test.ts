@@ -176,7 +176,7 @@ describe('bounded discovery tool projections', () => {
     const defaults = { kind: 'tree', categoryOffset: 0, offset: 0, limit: 50,
       includeWithdrawn: false, solutionMode: 'General Purpose' };
 
-    const root = await enumerateBrowse(browse, { ...defaults, categoryPath: [] });
+    const root = await enumerateBrowse(browse, { search: { ...defaults, categoryPath: [] } });
     expect(root.categories.map(item => item['id'])).toEqual(current.tree.map(node => node.id));
     expect(root.products).toEqual([]);
     expect(new Set(root.categories.map(item => item['id'])).size).toBe(current.tree.length);
@@ -188,13 +188,13 @@ describe('bounded discovery tool projections', () => {
       compactCategory['detail'] as { arguments: Record<string, unknown> }, 'name');
     expect(longName).toBe(current.tree[0]!.name);
 
-    const nested = await enumerateBrowse(browse, { ...defaults, categoryPath: ['Servers'] });
+    const nested = await enumerateBrowse(browse, { search: { ...defaults, categoryPath: ['Servers'] } });
     const serverChildren = current.tree[1]!.children!;
     expect(nested.first['path']).toEqual(['Servers']);
     expect(nested.categories.map(item => item['id'])).toEqual(serverChildren.map(node => node.id));
     expect(nested.products).toEqual([]);
 
-    const leaf = await enumerateBrowse(browse, { ...defaults, categoryPath: ['Servers', 'Rack Servers'] });
+    const leaf = await enumerateBrowse(browse, { search: { ...defaults, categoryPath: ['Servers', 'Rack Servers'] } });
     expect(leaf.first['path']).toEqual(['Servers', 'Rack Servers']);
     expect(leaf.categories).toEqual([]);
     expect(leaf.products.map(item => item['code'])).toEqual(current.entries.map(entry => entry.code));
@@ -206,7 +206,7 @@ describe('bounded discovery tool projections', () => {
     expect(description).toBe(current.entries[0]!.description);
 
     const continuation = nested.first['next'] as { arguments: Record<string, unknown> };
-    expect(continuation.arguments).toMatchObject({ categoryPath: ['Servers'],
+    expect(continuation.arguments['search']).toMatchObject({ categoryPath: ['Servers'],
       categoryOffset: (nested.first['categoryPage'] as { returned: number }).returned,
       offset: 0, limit: 50, expectedCatalogFingerprint: expect.any(String) });
     current = { ...current, tree: current.tree.map(node => node.id === 'servers'
@@ -216,7 +216,7 @@ describe('bounded discovery tool projections', () => {
     expect(stale.content[0]!.text).toContain('catalog or query context changed');
 
     current = browseFixture();
-    const live = parse(await browse({ ...defaults, categoryPath: ['Servers'] }));
+    const live = parse(await browse({ search: { ...defaults, categoryPath: ['Servers'] } }));
     service.setLocale({ country: 'DE', geo: 'EMEA', language: 'en', currency: 'EUR' });
     const staleContext = await browse((live['next'] as { arguments: Record<string, unknown> }).arguments);
     expect(staleContext.isError).toBe(true);
@@ -231,7 +231,7 @@ describe('bounded discovery tool projections', () => {
     const find = handler(handlers, 'dcsc_search');
     const initial = { kind: 'products', query: 'catalog', type: 'CTO', includeWithdrawn: false,
       solutionMode: 'General Purpose', offset: 0, limit: 50 };
-    const result = await enumerate(find, initial, 'products');
+    const result = await enumerate(find, { search: initial }, 'products');
     expect(result.values.map(item => item['code'])).toEqual(entries.map(entry => entry.code));
     expect(new Set(result.values.map(item => item['code'])).size).toBe(entries.length);
     const compact = result.values[0]!;
@@ -240,8 +240,8 @@ describe('bounded discovery tool projections', () => {
       compact['detail'] as { arguments: Record<string, unknown> }, 'description');
     expect(description).toBe(entries[0]!.description);
     const continuation = result.first['next'] as { arguments: Record<string, unknown> };
-    expect(continuation.arguments).toMatchObject({ query: 'catalog', type: 'CTO', offset: 1, limit: 50 });
-    expect(continuation.arguments['expectedCatalogFingerprint']).toEqual(expect.any(String));
+    expect(continuation.arguments['search']).toMatchObject({ query: 'catalog', type: 'CTO', offset: 1, limit: 50 });
+    expect((continuation.arguments['search'] as Record<string, unknown>)['expectedCatalogFingerprint']).toEqual(expect.any(String));
 
     entries = entries.map((entry, index) => index === 2 ? { ...entry, description: `${entry.description} changed` } : entry);
     const staleData = await find(continuation.arguments);
@@ -249,7 +249,7 @@ describe('bounded discovery tool projections', () => {
     expect(staleData.content[0]!.text).toContain('catalog or query context changed');
 
     entries = catalogEntries();
-    const current = parse(await find(initial));
+    const current = parse(await find({ search: initial }));
     service.setLocale({ country: 'DE', geo: 'EMEA', language: 'en', currency: 'EUR' });
     const staleContext = await find((current['next'] as { arguments: Record<string, unknown> }).arguments);
     expect(staleContext.isError).toBe(true);
@@ -331,5 +331,40 @@ describe('bounded discovery tool projections', () => {
     const stale = await browse(next.arguments);
     expect(stale.isError).toBe(true);
     expect(stale.content[0]!.text).toContain('catalog or query context changed');
+  });
+  it('pages raw upstream search and category results within the response budget', async () => {
+    const { service, handlers } = setup();
+    const sidRows = Array.from({ length: 10 }, (_, index) => ({
+      sidShortDesc: `SID ${index} ${'x'.repeat(900)}`, sidNumber: `SID${index}`, cpu: [], ram: [], storage: [], gpu: [],
+      network: [], ctoCount: 1, sidPrice: 1,
+    }));
+    const send = vi.spyOn(service.http, 'send').mockResolvedValue({
+      raw: { content: sidRows, totalElements: 10, number: 1 },
+    } as never);
+    const search = handler(handlers, 'dcsc_search');
+    const seen: string[] = [];
+    let args: Record<string, unknown> | undefined = { search: { kind: 'sids', categoryId: 'servers', offset: 0, limit: 10 } };
+    while (args) {
+      const reply = await search(args);
+      expect(reply.isError).not.toBe(true);
+      expect(textBytes(reply)).toBeLessThanOrEqual(8_000);
+      const page = parse(reply);
+      seen.push(...(page['content'] as Array<{ sidNumber: string }>).map(row => row.sidNumber));
+      args = (page['next'] as { arguments?: Record<string, unknown> } | undefined)?.arguments;
+    }
+    expect(seen).toEqual(sidRows.map(row => row.sidNumber));
+    expect(send).toHaveBeenCalled();
+
+    send.mockResolvedValue({ raw: { items: Array.from({ length: 40 }, (_, index) => ({ id: index, text: 'y'.repeat(500) })) } } as never);
+    const category = handler(handlers, 'dcsc_category');
+    const first = await category({ category: { kind: 'topChoiceCountry' } });
+    expect(first.isError).not.toBe(true);
+    expect(textBytes(first)).toBeLessThanOrEqual(8_000);
+    const next = (parse(first)['items'] as Array<{ next: { tool: string; arguments: { category: Json } } }>)[0]!.next;
+    expect(next.tool).toBe('dcsc_category');
+    expect(next.arguments.category).toMatchObject({ kind: 'topChoiceCountry', path: ['items'] });
+    const detail = await category(next.arguments);
+    expect(detail.isError).not.toBe(true);
+    expect(textBytes(detail)).toBeLessThanOrEqual(8_000);
   });
 });

@@ -632,7 +632,7 @@ function buildConfigurationReportForm(
 
 const DEFAULT_LOAD_FACTOR_PERCENT = 70;
 
-export async function exportWorkspace(rt: Runtime, sessionHandle: string,
+export async function exportPowerReport(rt: Runtime, sessionHandle: string,
   opts: {
     fileTypes?: ExportFileType[] | undefined;
     fileName?: string | undefined;
@@ -720,7 +720,7 @@ export async function exportArtifact(rt: Runtime, args: ExportArgs): Promise<Rec
     case 'reports': return { ...await exportReports(rt, args), ...workspaceRevision(rt, args.session) };
     case 'power': {
       const session = requireSession(args);
-      return { ...await exportWorkspace(rt, session, {
+      return { ...await exportPowerReport(rt, session, {
         ...(args.fileTypes ? { fileTypes: args.fileTypes } : {}),
         ...(args.fileName !== undefined ? { fileName: args.fileName } : {}),
         ...(args.scope !== undefined ? { scope: args.scope } : {}),

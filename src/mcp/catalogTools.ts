@@ -2,8 +2,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import {
-  CATEGORY_KINDS,
-  SEARCH_KINDS,
   categoryInfo,
   searchCatalog,
   settingsGet,
@@ -13,6 +11,94 @@ import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const;
+
+const solutionMode = z.string().optional();
+const fingerprint = z.string().optional().describe('From a continuation.');
+const pageOffset = z.number().int().min(0).optional();
+const rowLimit = z.number().int().min(1).max(50).optional();
+const detailPath = z.array(z.string()).optional().describe('From a continuation.');
+/** Offset, limit and path that page a large raw result; continuations carry them. */
+const rawPaging = { offset: pageOffset, limit: z.number().int().min(1).max(50).optional(), path: detailPath };
+
+const searchSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('products'),
+    query: z.string().min(1).describe('Name, model or part number.'),
+    type: z.enum(['CTO', 'LFO']).optional().describe('Configure-to-order or preconfigured only.'),
+    includeWithdrawn: z.boolean().optional(),
+    solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+  }),
+  z.object({
+    kind: z.literal('tree'),
+    categoryPath: z.array(z.string()).optional().describe('Breadcrumb, e.g. ["Servers", "Rack Server"]; omit for the top level.'),
+    includeWithdrawn: z.boolean().optional(),
+    categoryOffset: pageOffset.describe('Category cursor from a continuation.'),
+    detailPath,
+    solutionMode, offset: pageOffset, limit: rowLimit, expectedCatalogFingerprint: fingerprint,
+  }),
+  z.object({
+    kind: z.literal('parts'),
+    query: z.string().min(1).describe('Part number or keyword.'),
+    types: z.array(z.enum(['SOFTWARE', 'SERVICE', 'HARDWARE'])).min(1).optional().describe('Restrict part types.'),
+    mode: z.enum(['CTO', 'LFO']).optional().describe('Lookup mode, default CTO.'),
+    includeSupplyStatus: z.boolean().optional().describe('Add shipping lead times for the first match.'),
+    supplyStatusType: z.string().optional().describe('Option (default), CTO or LFO.'),
+    solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+  }),
+  z.object({ kind: z.literal('preconfigured'), offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint }),
+  z.object({
+    kind: z.literal('sids'),
+    categoryId: z.string().min(1).describe('SID category id.'),
+    query: z.string().optional().describe('SID number.'),
+    tceFlag: z.boolean().optional(),
+    offset: pageOffset, limit: z.number().int().min(1).max(25).optional().describe('Rows per page (default 10).'),
+  }),
+  z.object({
+    kind: z.literal('specialty'),
+    catalog: z.enum(['lvr', 'converged', 'promotion']).optional().describe('Default lvr.'),
+    categoryId: z.string().optional().describe('converged: category detail. promotion: filter.'),
+    subType: z.enum(['hierarchies', 'sid', 'lfo', 'option']).optional().describe('promotion only.'),
+    query: z.string().optional().describe('Text filter for lvr and converged lists.'),
+    solutionMode, ...rawPaging,
+  }),
+]);
+
+const categoryId = z.string().min(1).describe('e.g. "STG@Servers@Rack Server".');
+const ctoCode = z.string().min(1).describe('Product code.');
+
+const categorySchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('detail'), categoryId,
+    isTruScale: z.boolean().optional().describe('Use TruScale reference solution routing.'),
+    offset: pageOffset, limit: z.number().int().min(1).max(50).optional().describe('Maximum children, products or categories to return.'), path: detailPath,
+  }),
+  z.object({ kind: z.literal('services'), solutionMode, ...rawPaging }),
+  z.object({ kind: z.literal('caseStudies'), caseStudyId: z.string().optional().describe('Default all.'), ...rawPaging }),
+  z.object({ kind: z.literal('conditions'), categoryId, ...rawPaging }),
+  z.object({
+    kind: z.literal('products'), categoryId,
+    conditions: z.string().optional().describe('Filter conditions as the JSON string from kind conditions.'),
+    pageNumber: z.number().int().min(1).optional().describe('1-based upstream page.'),
+    pageSize: z.number().int().min(1).max(50).optional().describe('Upstream page size.'),
+    topChoice: z.boolean().optional().describe('Top choices only.'),
+    ...rawPaging,
+  }),
+  z.object({ kind: z.literal('topChoiceCountry'), ...rawPaging }),
+  z.object({ kind: z.literal('productFunctions'), ctoCode, ...rawPaging }),
+  z.object({ kind: z.literal('displayOrders'), ctoCode, ...rawPaging }),
+  z.object({ kind: z.literal('staticFeatures'), ctoCode, tab: z.string().min(1).describe('Tab name.'), ...rawPaging }),
+]);
+
+/** Continuations built by the app functions carry flat arguments; the tools take them under one property. */
+function nestContinuations(value: unknown, tool: string, property: string): unknown {
+  if (Array.isArray(value)) return value.map((entry) => nestContinuations(entry, tool, property));
+  if (value === null || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  if (record['tool'] === tool && typeof record['arguments'] === 'object' && record['arguments'] !== null) {
+    return { ...record, arguments: { [property]: record['arguments'] } };
+  }
+  return Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, nestContinuations(entry, tool, property)]));
+}
 
 export function registerCatalogTools(server: McpServer, service: DcscService): void {
 
@@ -52,31 +138,10 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Search the DCSC catalog',
       description:
-        'Finds products, parts, preconfigured codes, SIDs and specialty catalog entries. Pick kind: products (configurable systems by name or code), tree (category browsing), parts (hardware, software and services part numbers), preconfigured (CTO/LFO codes), sids (preconfigured solutions in a category), specialty (LVR, converged, promotion). Follow returned continuations unchanged.',
-      inputSchema: {
-        kind: z.enum(SEARCH_KINDS),
-        query: z.string().optional().describe('products/parts: name, model or part number (required). sids: SID number. specialty: text filter.'),
-        type: z.enum(['CTO', 'LFO']).optional().describe('products: configure-to-order or preconfigured only.'),
-        includeWithdrawn: z.boolean().optional().describe('products/tree: include withdrawn entries.'),
-        categoryPath: z.array(z.string()).optional().describe('tree: breadcrumb, e.g. ["Servers", "Rack Server"]; omit for the top level.'),
-        categoryOffset: z.number().int().min(0).optional().describe('tree: category cursor from a continuation.'),
-        detailPath: z.array(z.string()).optional().describe('tree: detail path from a continuation.'),
-        types: z.array(z.enum(['SOFTWARE', 'SERVICE', 'HARDWARE'])).min(1).optional().describe('parts: restrict part types.'),
-        mode: z.enum(['CTO', 'LFO']).optional().describe('parts: lookup mode, default CTO.'),
-        includeSupplyStatus: z.boolean().optional().describe('parts: add shipping lead times for the first match.'),
-        supplyStatusType: z.string().optional().describe('parts: supply status type (Option, CTO, LFO); default Option.'),
-        categoryId: z.string().optional().describe('sids: category id (required). specialty: converged category or promotion filter.'),
-        tceFlag: z.boolean().optional().describe('sids: TCE filter.'),
-        catalog: z.enum(['lvr', 'converged', 'promotion']).optional().describe('specialty: catalog, default lvr.'),
-        subType: z.enum(['hierarchies', 'sid', 'lfo', 'option']).optional().describe('specialty promotion: sub-type.'),
-        offset: z.number().int().min(0).optional(),
-        limit: z.number().int().min(1).max(1000).optional().describe('Rows per page (capped at 50), or characters on a detail page.'),
-        path: z.array(z.string()).optional().describe('Detail path from a continuation.'),
-        expectedCatalogFingerprint: z.string().optional().describe('Fingerprint from a continuation; rejects changed catalogs.'),
-        solutionMode: z.string().optional(),
-      },
+        'Finds products, parts, preconfigured codes, SIDs and specialty catalog entries. Pick the kind: products (configurable systems), tree (category browsing), parts, preconfigured (CTO/LFO codes), sids (preconfigured solutions in a category), specialty (LVR, converged, promotion). Follow returned continuations unchanged.',
+      inputSchema: { search: searchSchema },
     },
-    async (args) => guard(() => searchCatalog(service, args), 'dcsc_search failed'),
+    async (args) => guard(async () => nestContinuations(await searchCatalog(service, args.search), 'dcsc_search', 'search'), 'dcsc_search failed'),
   );
 
   server.registerTool(
@@ -85,22 +150,9 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Open a DCSC category page',
       description:
-        'Reads a category page. kind: detail (sub-categories and products of a category), services (Services portal categories), conditions (sub-category filters), products (filtered product list), caseStudies, topChoiceCountry, productFunctions, displayOrders, staticFeatures.',
-      inputSchema: {
-        kind: z.enum(CATEGORY_KINDS),
-        categoryId: z.string().optional().describe('e.g. "STG@Servers@Rack Server". Required for detail; used by conditions and products.'),
-        isTruScale: z.boolean().optional().describe('detail: use TruScale reference solution routing.'),
-        limit: z.number().int().min(1).max(50).optional().describe('detail: maximum children to return.'),
-        ctoCode: z.string().optional().describe('productFunctions, displayOrders, staticFeatures: product code.'),
-        caseStudyId: z.string().optional().describe('caseStudies: case study id; default all.'),
-        tab: z.string().optional().describe('staticFeatures: tab name.'),
-        conditions: z.string().optional().describe('products: filter conditions as the JSON string from conditions.'),
-        pageNumber: z.number().int().min(1).optional().describe('products: 1-based page.'),
-        pageSize: z.number().int().min(1).max(50).optional().describe('products: page size.'),
-        topChoice: z.boolean().optional().describe('products: top choices only.'),
-        solutionMode: z.string().optional(),
-      },
+        'Reads a category page. Pick the kind: detail (sub-categories and products of a category), services (Services portal categories), conditions (sub-category filters), products (filtered product list), caseStudies, topChoiceCountry, productFunctions, displayOrders, staticFeatures. Follow returned continuations unchanged.',
+      inputSchema: { category: categorySchema },
     },
-    async (args) => guard(() => categoryInfo(service, args), 'dcsc_category failed'),
+    async (args) => guard(async () => nestContinuations(await categoryInfo(service, args.category), 'dcsc_category', 'category'), 'dcsc_category failed'),
   );
 }
