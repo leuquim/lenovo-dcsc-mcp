@@ -27,7 +27,7 @@ import { reconcileImportedSoftwareCatalog } from '../src/domain/importStandalone
 import { configureLogger } from '../src/http/trace.js';
 import { writeExportBundle } from '../src/files/artifactStore.js';
 import { DcscService } from '../src/mcp/service.js';
-import { exportStandaloneSoftwareArtifact } from '../src/mcp/standaloneTools.js';
+import { exportStandaloneSoftwareArtifact } from '../src/app/standalone.js';
 
 export type Json = Record<string, unknown>;
 export type ExportCapture = { path: string; fields: Record<string, string> };

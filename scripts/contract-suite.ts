@@ -32,7 +32,7 @@ import {
 import {
   exportProductServiceArtifact,
   exportStandaloneSoftwareArtifact,
-} from '../src/mcp/standaloneTools.js';
+} from '../src/app/standalone.js';
 import { writeExportBundle } from '../src/files/artifactStore.js';
 import { stateFile } from '../src/session/persist.js';
 import { isolateRuntime, readStream } from './lib/isolated-runtime.js';

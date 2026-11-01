@@ -11,7 +11,7 @@ import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import type { DcscService } from './service.js';
 import { exportConfigurationTree, type ExportConfigurationTreeInput } from '../domain/exportConfigurationTree.js';
-import { exportProductServiceArtifact, exportStandaloneSoftwareArtifact } from './standaloneTools.js';
+import { exportProductServiceArtifact, exportStandaloneSoftwareArtifact } from '../app/standalone.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
 export function registerImportExportTools(rawServer: McpServer, service: DcscService): void {
