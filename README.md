@@ -135,7 +135,7 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_storage_get` | Storage network definitions, assignments and detached storage hardware. |
 | `dcsc_storage_set` | Add, update, rename, remove, assign, place or customize storage networks. |
 | `dcsc_vlh_get` | VLH wizard info and the dimensions and connectors of a product. |
-| `dcsc_vlh_set` | Create VLH items and export them to a `.vlh` file. |
+| `dcsc_vlh_set` | Create VLH items and export them to a `.vlh` file, or import a `.vlh` file (upstream currently returns HTTP 500). |
 | `dcsc_virtual_container_get` | Compatible inner products and rule results of virtual containers. |
 | **Power** | |
 | `dcsc_power_get` | Engineering Power Report, and the voltage, load factor and policy choices of a configuration. |
