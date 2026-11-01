@@ -149,7 +149,9 @@ export class DcscHttpClient {
   }
 
   async send(input: SendInput & { responseKind: 'json' }): Promise<JsonResponse>;
+  async send(input: SendInput & { responseKind: 'text' }): Promise<JsonResponse>;
   async send(input: SendInput & { responseKind: 'stream' }): Promise<StreamResponse>;
+  async send(input: SendInput): Promise<JsonResponse | StreamResponse>;
   async send(input: SendInput): Promise<JsonResponse | StreamResponse> {
     if (!this.config.enabled) {
       throw new DcscError('unsupported', {

@@ -547,7 +547,7 @@ async function main(): Promise<void> {
         mcpForms.push({ path: request.path, fields: structuredClone(request.body.fields) });
       }
       if (request.responseKind === 'json') {
-        const result = await originalSend(request);
+        const result = await originalSend(request as typeof request & { responseKind: 'json' });
         if (request.path === '/lfos/autoDerive') mcpHardwareResponse = structuredClone(result.raw) as Json;
         return result;
       }

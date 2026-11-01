@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { PAGE_BYTE_BUDGET } from '../src/config/constants.js';
+import { jsonBytes } from '../src/util/jsonBytes.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import {
   projectWorkspaceLayout,
@@ -83,8 +85,8 @@ describe('bounded workspace projections', () => {
     const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
     const layout = projectWorkspaceLayout(ws, projectionOptions);
 
-    expect(Buffer.byteLength(JSON.stringify(summary, null, 2))).toBeLessThan(7_500);
-    expect(Buffer.byteLength(JSON.stringify(layout, null, 2))).toBeLessThan(7_500);
+    expect(jsonBytes(summary)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
+    expect(jsonBytes(layout)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
     expect(summary['totals']).toEqual({
       configurations: 120, racks: 70, rackItems: 140, rackErrors: 6,
       unracked: 50, cables: 240, floorItems: 70, powerSelections: 70, storageNetworks: 0,
@@ -195,7 +197,7 @@ describe('bounded workspace projections', () => {
         const page = projectWorkspacePage(ws, {
           ...projectionOptions, path: [path], offset, limit: 17,
         }) as { items: Array<{ key: string; value?: unknown }>; next?: { arguments: { offset: number } } };
-        expect(Buffer.byteLength(JSON.stringify(page, null, 2))).toBeLessThan(7_500);
+        expect(jsonBytes(page)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
         keys.push(...page.items.map(item => item.key));
         for (const item of page.items) values[item.key] = item.value;
         if (!page.next) break;
@@ -251,7 +253,7 @@ describe('bounded workspace projections', () => {
       const page = projectWorkspacePage(ws, {
         ...projectionOptions, path: ['cables', '0', 'description'], offset, limit: 1_000,
       }) as { text: string; next?: { arguments: { offset: number } } };
-      expect(Buffer.byteLength(JSON.stringify(page, null, 2))).toBeLessThan(7_500);
+      expect(jsonBytes(page)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
       restored += page.text;
       if (!page.next) break;
       offset = page.next.arguments.offset;
@@ -260,8 +262,8 @@ describe('bounded workspace projections', () => {
 
     const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
     const layout = projectWorkspaceLayout(ws, projectionOptions);
-    expect(Buffer.byteLength(JSON.stringify(summary, null, 2))).toBeLessThan(7_500);
-    expect(Buffer.byteLength(JSON.stringify(layout, null, 2))).toBeLessThan(7_500);
+    expect(jsonBytes(summary)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
+    expect(jsonBytes(layout)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
     expect(JSON.stringify(layout)).not.toContain('futureServerDetail');
     expect((layout['totals'] as Record<string, number>)['rawConnections']).toBe(1);
     const cablePreview = (summary['cables'] as Array<Record<string, unknown>>)[0]!;
@@ -281,7 +283,7 @@ describe('bounded workspace projections', () => {
     const integrity = projectWorkspaceIntegrity(ws, {
       ...projectionOptions, tool: 'dcsc_session_info',
     });
-    expect(Buffer.byteLength(JSON.stringify(integrity, null, 2))).toBeLessThan(7_500);
+    expect(jsonBytes(integrity)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
     expect(integrity).toMatchObject({ integrityWarningCount: 100 });
     expect((integrity['integrityWarningsPage'] as { inspect: ContinuationForTest }).inspect.arguments.path)
       .toEqual(['integrityWarnings']);

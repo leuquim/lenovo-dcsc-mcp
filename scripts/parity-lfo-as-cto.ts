@@ -195,7 +195,7 @@ async function main(): Promise<void> {
     service.http.send = (async request => {
       if (request.path === '/ctos/autoDerive' && request.body?.kind === 'json') mcpDerive = { query: structuredClone(request.query ?? {}), body: structuredClone(request.body.value) as Json };
       if (request.path.endsWith('/export_zip') && request.body?.kind === 'form') forms.push({ path: request.path, fields: structuredClone(request.body.fields) });
-      if (request.responseKind === 'json') { const response = await originalSend(request); if (request.path === '/ctos/autoDerive' && mcpDerive) mcpDerive.response = structuredClone(response.raw) as Json; return response; }
+      if (request.responseKind === 'json') { const response = await originalSend(request as typeof request & { responseKind: 'json' }); if (request.path === '/ctos/autoDerive' && mcpDerive) mcpDerive.response = structuredClone(response.raw) as Json; return response; }
       return originalSend(request);
     }) as typeof service.http.send;
 
