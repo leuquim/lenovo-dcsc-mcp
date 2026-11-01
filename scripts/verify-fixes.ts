@@ -70,7 +70,7 @@ function registeredHandlers(service: DcscService): Map<string, ToolHandler> {
 function parseToolReply(reply: ToolReply): Record<string, unknown> {
   const text = reply.content.find((item) => item.type === 'text')?.text ?? '{}';
   const parsed = JSON.parse(text) as Record<string, unknown>;
-  if (reply.isError) throw new Error(`dcsc_scale_out failed: ${text.slice(0, 240)}`);
+  if (reply.isError) throw new Error(`dcsc_compare failed: ${text.slice(0, 240)}`);
   return parsed;
 }
 
@@ -388,9 +388,10 @@ async function main() {
   console.log('\n[6] GB300 tray sized against the 48U MGX rack');
   try {
     const { session: tray } = await launchCurrentCto(service, '7DLZCTO2WW', 'verify GB300');
-    const scaleOut = handlers.get('dcsc_scale_out');
-    if (!scaleOut) throw new Error('dcsc_scale_out is not registered.');
+    const scaleOut = handlers.get('dcsc_compare');
+    if (!scaleOut) throw new Error('dcsc_compare is not registered.');
     const plan = parseToolReply(await scaleOut({
+      analysis: 'scale-out',
       session: tray.id,
       nodes: 18,
       rackCode: '7DJVCTO2WW',

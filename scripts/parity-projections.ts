@@ -143,7 +143,7 @@ async function main(): Promise<void> {
 
   try {
     await client.connect(transport);
-    const summary = (await call('dcsc_session_info', { session: seeded.workspace })).json;
+    const summary = (await call('dcsc_workspace_get', { session: seeded.workspace })).json;
     assert.equal(object(summary['totals'])['configurations'], 80);
     assert.equal(object(summary['totals'])['cables'], 240);
     assert.equal(object(summary['totals'])['rawConnections'], 1);
@@ -196,14 +196,14 @@ async function main(): Promise<void> {
     }
     assert.equal(reconstructedWarning, seeded.longWarning);
 
-    const layout = (await call('dcsc_workspace_layout', { session: seeded.workspace })).json;
+    const layout = (await call('dcsc_workspace_get', { session: seeded.workspace, view: 'layout' })).json;
     const rack = object(array(layout['racks'])[0]);
     assert.equal(array(rack['items']).length, 1);
     assert.equal(array(rack['errors']).length, 1);
 
-    const configInfo = (await call('dcsc_session_info', { session: seeded.firstSession })).json;
-    await call('dcsc_set_quantity', {
-      session: seeded.firstSession, quantity: 2, expectedRevision: configInfo['revision'],
+    const configInfo = (await call('dcsc_workspace_get', { session: seeded.firstSession })).json;
+    await call('dcsc_configure', {
+      session: seeded.firstSession, salesQuantity: 2, expectedRevision: configInfo['revision'],
     });
     const stale = await call(rawCollectionLink.tool, rawCollectionLink.arguments, true);
     assert.match(JSON.stringify(stale.json), /changed from revision/);

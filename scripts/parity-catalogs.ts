@@ -101,10 +101,10 @@ async function main(): Promise<void> {
   const browseLevel = async (breadcrumb: string[]) => {
     const categories: Json[] = [];
     const productCodes: string[] = [];
-    let link: Continuation | undefined = { tool: 'dcsc_browse_catalog', arguments: {
-      path: breadcrumb, categoryOffset: 0, offset: 0, limit: 50,
+    let link: Continuation | undefined = { tool: 'dcsc_search', arguments: { search: {
+      kind: 'tree', categoryPath: breadcrumb, categoryOffset: 0, offset: 0, limit: 50,
       includeWithdrawn: false, solutionMode: 'General Purpose',
-    } };
+    } } };
     let pages = 0;
     let categoryTotal: number | undefined;
     let productTotal: number | undefined;
@@ -127,8 +127,8 @@ async function main(): Promise<void> {
             if (field['value'] !== undefined) item[String(field['key'])] = field['value'];
           }
         }
-        assert.equal(typeof item['id'], 'string', 'dcsc_browse_catalog category omitted id.');
-        assert.equal(typeof item['name'], 'string', 'dcsc_browse_catalog category omitted name.');
+        assert.equal(typeof item['id'], 'string', 'dcsc_search tree category omitted id.');
+        assert.equal(typeof item['name'], 'string', 'dcsc_search tree category omitted name.');
         categories.push(item);
       }
       for (const raw of array(page['products'])) {
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
           assert(detail);
           code = await detailField(detail, 'code');
         }
-        assert.equal(typeof code, 'string', 'dcsc_browse_catalog product omitted code.');
+        assert.equal(typeof code, 'string', 'dcsc_search tree product omitted code.');
         productCodes.push(String(code));
       }
       link = next(page['next']);
@@ -178,23 +178,23 @@ async function main(): Promise<void> {
     }
     assert(browseLeaf.productCodes.length > 0, `Catalog path ${leafPath.join(' > ')} returned no products.`);
 
-    const products = await enumerate('dcsc_find_products', {
-      query: 'ThinkSystem', type: 'CTO', includeWithdrawn: false,
+    const products = await enumerate('dcsc_search', { search: {
+      kind: 'products', query: 'ThinkSystem', type: 'CTO', includeWithdrawn: false,
       solutionMode: 'General Purpose', offset: 0, limit: 50,
-    }, 'products', 'code');
-    const exactProduct = await call('dcsc_find_products', {
-      query: products.ids[0], type: 'CTO', includeWithdrawn: false,
+    } }, 'products', 'code');
+    const exactProduct = await call('dcsc_search', { search: {
+      kind: 'products', query: products.ids[0], type: 'CTO', includeWithdrawn: false,
       solutionMode: 'General Purpose', offset: 0, limit: 10,
-    });
+    } });
     assert(array(exactProduct['products']).map(object).some(item => item['code'] === products.ids[0]));
 
     // /findpart has no upstream cursor or total. Exercise a deliberately broad
     // service query to prove its large single response is projected safely and
     // that the returned continuation remains local to that response snapshot.
-    const partsFirst = await call('dcsc_find_parts', {
-      keyword: 'Premier', types: ['SERVICE'], mode: 'CTO',
+    const partsFirst = await call('dcsc_search', { search: {
+      kind: 'parts', query: 'Premier', types: ['SERVICE'], mode: 'CTO',
       solutionMode: 'General Purpose', offset: 0, limit: 50,
-    });
+    } });
     const partsPage = object(partsFirst['page']);
     assert.equal(partsPage['source'], 'GET /api/findpart');
     assert.equal(partsPage['upstreamCompleteness'], 'unknown');
@@ -213,10 +213,10 @@ async function main(): Promise<void> {
       firstPartCodes.length + secondPartCodes.length,
       'Adjacent local part pages overlap.');
 
-    const racks = await enumerate('dcsc_list_racks', {
+    const racks = await enumerate('dcsc_rack_get', {
       solutionMode: 'General Purpose', offset: 0, limit: 50,
     }, 'racks', 'code');
-    const compatibleRacks = await call('dcsc_list_racks', {
+    const compatibleRacks = await call('dcsc_rack_get', {
       solutionMode: 'General Purpose', productCode: products.ids[0], offset: 0, limit: 20,
     });
     assert.equal(compatibleRacks['compatibleWith'], products.ids[0]);
@@ -227,17 +227,17 @@ async function main(): Promise<void> {
     ];
     const fabric: Record<string, unknown> = {};
     for (const collection of fabricCollections) {
-      const first = await call('dcsc_fabric_options', {
+      const first = await call('dcsc_network_get', {
         solutionMode: 'General Purpose', collection, offset: 0, limit: 50,
       });
       if (Number(first['total'] ?? 0) === 0) {
         fabric[collection] = { count: 0, pages: 1, fingerprint: first['catalogFingerprint'] };
         continue;
       }
-      const enumerated = await enumerate('dcsc_fabric_options', {
+      const enumerated = await enumerate('dcsc_network_get', {
         solutionMode: 'General Purpose', collection, offset: 0, limit: 50,
       }, 'items', 'id');
-      const byId = await call('dcsc_fabric_options', {
+      const byId = await call('dcsc_network_get', {
         solutionMode: 'General Purpose', collection, optionId: enumerated.ids[0], offset: 0, limit: 20,
       });
       const item = object(array(byId['items'])[0]);
@@ -249,16 +249,16 @@ async function main(): Promise<void> {
         fingerprint: enumerated.fingerprint, firstId: enumerated.ids[0] };
     }
 
-    const launched = await call('dcsc_software_launch', { replace: false, refresh: false });
-    const workspace = String(launched['workspace']);
-    const software = await enumerate('dcsc_software_browse', {
-      session: workspace, offset: 0, limit: 50,
+    const launched = await call('dcsc_launch', { mode: 'software', replace: false, refresh: false });
+    const workspace = String(launched['session']);
+    const software = await enumerate('dcsc_basket_browse', {
+      basket: 'software', session: workspace, offset: 0, limit: 50,
     }, 'software', 'code');
-    const selected = await call('dcsc_software_select', {
-      session: workspace, code: software.ids[0], quantity: 1,
+    const selected = await call('dcsc_basket_set', {
+      basket: 'software', action: 'select', session: workspace, code: software.ids[0], quantity: 1,
     });
     assert(array(selected['selections']).map(object).some(item => item['code'] === software.ids[0]));
-    const removed = await call('dcsc_software_remove', { session: workspace, code: software.ids[0] });
+    const removed = await call('dcsc_basket_set', { basket: 'software', action: 'remove', session: workspace, code: software.ids[0] });
     assert(!array(removed['selections']).map(object).some(item => item['code'] === software.ids[0]));
     await call('dcsc_session_close', { session: workspace });
 

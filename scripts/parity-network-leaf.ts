@@ -90,7 +90,7 @@ function workspaceSnapshot(payload: Obj): Obj {
 }
 
 function revision(result: Obj): number {
-  const value = Number(result['workspaceRevision'] ?? result['revision']);
+  const value = Number(result['revision']);
   assert(Number.isInteger(value) && value > 0, 'Tool response contains no workspace revision.');
   return value;
 }
@@ -155,8 +155,8 @@ async function main(): Promise<void> {
     client = new Client({ name: 'network-leaf-parity', version: '1.0.0' });
     await client.connect(transport);
     const listed = await client.listTools();
-    for (const name of ['dcsc_import', 'dcsc_fabric_options', 'dcsc_set_network_preferences',
-      'dcsc_add_cabling', 'dcsc_workspace_layout', 'dcsc_export']) {
+    for (const name of ['dcsc_import', 'dcsc_network_get', 'dcsc_network_set',
+      'dcsc_auto_connect', 'dcsc_workspace_get', 'dcsc_export']) {
       assert(listed.tools.some(tool => tool.name === name), `${name} is not registered.`);
     }
   };
@@ -177,7 +177,7 @@ async function main(): Promise<void> {
     const items: Obj[] = [];
     let next: Obj | undefined = args;
     while (next) {
-      const page = await call('dcsc_fabric_options', next);
+      const page = await call('dcsc_network_get', next);
       const returned = rows(page['items']);
       assert(returned.length > 0 || Number(page['total']) === 0,
         `Fabric continuation for ${String(args['collection'])} made no progress.`);
@@ -193,7 +193,7 @@ async function main(): Promise<void> {
     await start();
     stage = 'import-native-seed';
     const imported = await call('dcsc_import', { filePath: SOURCE_XML, solutionMode: 'HPC and AI - Systems' });
-    const workspaceId = string(imported['workspace']);
+    const workspaceId = string(imported['session']);
     assert(workspaceId, 'Import returned no workspace.');
     let state = workspaceSnapshot(await persisted());
     let expectedRevision = Number(state['revision']);
@@ -218,11 +218,10 @@ async function main(): Promise<void> {
       'Current fabric lacks the captured Management/BPC7/Cat5E/leaf policy choices.');
 
     stage = 'preference-close';
-    const changed = await call('dcsc_set_network_preferences', { session: workspaceId,
-      expectedRevision, autoConnect: false, selections: [{ networkTypeId: management['id'],
+    const changed = await call('dcsc_network_set', { session: workspaceId, expectedRevision, change: { kind: 'preferences', autoConnect: false, selections: [{ networkTypeId: management['id'],
         layout: 'Distributed', mainDeviceId: bpc7['id'], leafDeviceId: bpc7['id'],
         cableId: cat5e['id'], cableColor: '', leafCableColor: '',
-        mainTrunks: 1, leafTrunks: 1, leafCabling: balanced['description'] }] });
+        mainTrunks: 1, leafTrunks: 1, leafCabling: balanced['description'] }] } });
     expectedRevision = revision(changed);
     assert.equal(changed['connectionGraphStale'], true);
     assert.equal(changed['autoConnectRequired'], true);
@@ -254,8 +253,7 @@ async function main(): Promise<void> {
     }, oracle['preference']);
 
     stage = 'p2p-auto-connect';
-    const connected = await call('dcsc_add_cabling', { session: workspaceId, mode: 'auto', expectedRevision,
-      settings: object(oracle['settings'])['final'] });
+    const connected = await call('dcsc_auto_connect', { session: workspaceId, expectedRevision, settings: object(oracle['settings'])['final'] });
     expectedRevision = revision(connected);
     state = workspaceSnapshot(await persisted());
     const serverState = object(state['serverState']);
@@ -275,7 +273,7 @@ async function main(): Promise<void> {
     transport = undefined;
     await start();
     assert.deepEqual(await persisted(), accepted, 'Leaf preferences or graph changed across immediate SIGKILL/restart.');
-    const restartedLayout = await call('dcsc_workspace_layout', { session: workspaceId });
+    const restartedLayout = await call('dcsc_workspace_get', { view: 'layout', session: workspaceId });
     assert.equal(object(restartedLayout['totals'])['rawConnections'], expectedConnections.length,
       'Restarted workspace projection did not retain the accepted connection count.');
     assert.notEqual(restartedLayout['connectionGraphStale'], true,
@@ -288,7 +286,7 @@ async function main(): Promise<void> {
       'Restarted MCP layout projection changed the accepted Distributed leaf graph.');
 
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspaceId, fileName: 'network-leaf-parity',
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspaceId, fileName: 'network-leaf-parity',
       fileTypes: ['XML', 'QUOTE', 'FLOOR'] });
     const xmlPath = string(exported['xml']);
     assert(xmlPath && (await readFile(xmlPath)).length > 0, 'Leaf export returned no XML.');

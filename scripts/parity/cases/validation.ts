@@ -39,8 +39,9 @@ const number = (value: unknown): number => {
 
 function continuation(value: unknown, session: string, jobId: string, expectedPath: string[]) {
   const link = object(value);
-  assert.equal(link['tool'], 'dcsc_validation_jobs');
+  assert.equal(link['tool'], 'dcsc_workspace_get');
   const args = object(link['arguments']);
+  assert.equal(args['view'], 'validation');
   assert.equal(args['session'], session);
   assert.equal(args['jobId'], jobId);
   assert.deepEqual(args['path'], expectedPath);
@@ -52,7 +53,7 @@ function continuation(value: unknown, session: string, jobId: string, expectedPa
 async function inspectJob(h: Harness, session: string, jobId: string, directReport?: Json): Promise<Json> {
   const initial = directReport?.['compacted'] === true
     ? continuation(object(object(directReport['pages'])['savedJob'])['inspect'], session, jobId, [])
-    : { tool: 'dcsc_validation_jobs', arguments: { session, jobId, path: [], offset: 0, limit: 50 } };
+    : { tool: 'dcsc_workspace_get', arguments: { session, view: 'validation', jobId, path: [], offset: 0, limit: 50 } };
   return object(await readJsonProjection((name, args) => h.mcp.call(name, args), initial, 'object'));
 }
 
@@ -127,7 +128,7 @@ const validate = (h: Harness, workspace: string) =>
   h.mcp.call('dcsc_validate', { session: workspace, deadlineMs: VALIDATION_DEADLINE_MS }, { timeoutMs: VALIDATION_DEADLINE_MS + 30_000 });
 
 async function validateCase(h: Harness, name: string, expected: Verdict, workspace: string): Promise<Json> {
-  const exported = await h.mcp.call('dcsc_export', { session: workspace, scope: 'workspace', fileName: name, fileTypes: ['XML'] });
+  const exported = await h.mcp.call('dcsc_export', { kind: 'reports', session: workspace, scope: 'workspace', fileName: name, fileTypes: ['XML'] });
   assert.equal(exported['configurationsExported'], 2);
   const xmlPath = string(exported['xml']);
   const xml = readFileSync(xmlPath, 'utf8').replaceAll('-', '');
@@ -175,19 +176,19 @@ export default {
     const { mcp, step, compare } = h;
     const { workspace, server } = await step('import', async () => {
       const imported = await mcp.call('dcsc_import', { filePath: SOURCE_XML, mode: 'cto' });
-      const sessions = array(imported['sessions']).map(object);
+      const sessions = array(imported['configurations']).map(object);
       const server = sessions.find(session => session['productCode'] === '7D73CTO1WW');
       assert(server, 'Imported validation fixture did not contain its SR630 V3 server.');
       assert.equal(sessions.length, 2);
-      return { workspace: string(imported['workspace']), server };
+      return { workspace: string(imported['session']), server };
     });
 
     const valid = await step('validate-current-valid-candidate', () =>
       validateCase(h, 'current-valid-candidate', 'valid', workspace));
 
     await step('edit-removes-processor', async () => {
-      const controls = await mcp.call('dcsc_set_configuration_controls', {
-        session: workspace, validationMode: 'expert', autoCorrect: false, expectedRevision: number(valid['validatedRevision']),
+      const controls = await mcp.call('dcsc_configure', {
+        session: string(server['id']), validationMode: 'expert', autoCorrect: false, expectedRevision: number(valid['validatedRevision']),
       });
       const changed = await mcp.call('dcsc_configure', {
         session: string(server['id']), changes: [{ section: 'processors.processor', code: 'BYW3', quantity: 0 }],
@@ -199,7 +200,7 @@ export default {
       compare('edit-stales-prior-job', { stale: true, isValid: false, currentStatus: 'unavailable', freshValidationRequired: true },
         { stale: staleJob['stale'], isValid: staleJob['isValid'], currentStatus: staleJob['currentStatus'],
           freshValidationRequired: staleJob['freshValidationRequired'] });
-      const current = await mcp.call('dcsc_session_info', { session: string(server['id']) });
+      const current = await mcp.call('dcsc_workspace_get', { session: string(server['id']) });
       compare('edit-advances-revision', true, number(current['revision']) > number(valid['validatedRevision']));
     });
 

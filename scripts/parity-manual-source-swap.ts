@@ -23,12 +23,12 @@ const call=async(name:string,args:Obj,error=false)=>{const r=await client!.callT
 const snapshot=async()=>object(JSON.parse(await readFile(sessionFile,'utf8')));
 try{
  await start();stage='import';
- const imported=await call('dcsc_import',{filePath:path.resolve('test/fixtures/parity/xml/manual-cabling-source-swap.xml'),solutionMode:'HPC and AI - Systems'});const workspace=String(imported['workspace']);
+ const imported=await call('dcsc_import',{filePath:path.resolve('test/fixtures/parity/xml/manual-cabling-source-swap.xml'),solutionMode:'HPC and AI - Systems'});const workspace=String(imported['session']);
  const saved=async()=>rows((await snapshot())['workspaces']).find(w=>w['id']===workspace)!;
  const graph=async()=>rows(object((await saved())['serverState'])['connections']);
  const before=await graph();const editedIndex=before.findIndex(r=>r['topology']==='100GbE_Copper'&&r['sourcePortNumber']==='1');assert(editedIndex>=0);
  const edited=before[editedIndex]!;const other=before.find(r=>r['sourceId']===edited['sourceId']&&r['sourcePortName']===edited['sourcePortName']&&r['sourcePortNumber']==='2');assert(other);
- const details=await call('dcsc_cabling_connections',{session:workspace,expectedRevision:(await saved())['revision'],path:['connections',String(editedIndex)],limit:50});
+ const details=await call('dcsc_cabling_get', { session:workspace,expectedRevision:(await saved())['revision'],path:['connections',String(editedIndex)],limit:50 });
  const detail=Object.fromEntries(rows(details['items']).map(r=>[String(r['key']),r['value']]));assert(detail['id']);
  const revision=(await saved())['revision'];
  const args={session:workspace,expectedRevision:revision,connectionId:detail['id'],source:{configurationId:other['sourceId'],portName:other['sourcePortName'],portNumber:other['sourcePortNumber']}};
@@ -36,13 +36,13 @@ try{
  for(const k of ['sourcePortName','sourcePortNumber','sourceLocation'])[a[k],b[k]]=[b[k],a[k]];a['type']='MANUAL';b['type']='MANUAL';
  const check=async(wanted:Obj[])=>{const actual=await graph();assert.equal(actual.length,wanted.length);assertNativeConnectionsRetained(wanted,actual);};
  const configurations=rows((await saved())['configurations']).map(c=>c['raw']);
- stage='swap';const changed=await call('dcsc_edit_cabling_connection',args);assert.equal(rows(changed['swappedConnections']).length,1);await check(expected);
+ stage='swap';const swapArgs={session:args.session,expectedRevision:args.expectedRevision,changes:[{action:'edit',connectionId:args.connectionId,source:args.source}]};const changed=object(rows((await call('dcsc_cabling_set',swapArgs))['results'])[0]);assert.equal(rows(changed['swappedConnections']).length,1);await check(expected);
  assert.deepEqual(rows((await saved())['configurations']).map(c=>c['raw']),configurations,'Port swap changed commercial selections');
- stage='stale';const persisted=await readFile(sessionFile,'utf8');await call('dcsc_edit_cabling_connection',args,true);assert.equal(await readFile(sessionFile,'utf8'),persisted);
- stage='history';await call('dcsc_workspace_history',{session:workspace,action:'undo'});await check(before);await call('dcsc_workspace_history',{session:workspace,action:'redo'});await check(expected);
- stage='restart';assert(transport!.pid);process.kill(transport!.pid!,'SIGKILL');await client!.close();client=undefined;transport=undefined;await start();await call('dcsc_cabling_connections',{session:workspace});await check(expected);
- stage='export';const exported=await call('dcsc_export',{session:workspace,fileName:'source-swap',fileTypes:['XML','QUOTE']});const xml=String(exported['xml']);
- stage='mcp-import';const reimported=await call('dcsc_import',{filePath:xml,solutionMode:'HPC and AI - Systems'});const recovered=rows((await snapshot())['workspaces']).find(w=>w['id']===reimported['workspace'])!;assertNativeConnectionsRetained(expected,rows(object(recovered['serverState'])['connections']));
+ stage='stale';const persisted=await readFile(sessionFile,'utf8');await call('dcsc_cabling_set',swapArgs,true);assert.equal(await readFile(sessionFile,'utf8'),persisted);
+ stage='history';await call('dcsc_undo', { session:workspace,action:'undo' });await check(before);await call('dcsc_undo', { session:workspace,action:'redo' });await check(expected);
+ stage='restart';assert(transport!.pid);process.kill(transport!.pid!,'SIGKILL');await client!.close();client=undefined;transport=undefined;await start();await call('dcsc_cabling_get', { session:workspace });await check(expected);
+ stage='export';const exported=await call('dcsc_export',{kind:'reports',session:workspace,fileName:'source-swap',fileTypes:['XML','QUOTE']});const xml=String(exported['xml']);
+ stage='mcp-import';const reimported=await call('dcsc_import',{filePath:xml,solutionMode:'HPC and AI - Systems'});const recovered=rows((await snapshot())['workspaces']).find(w=>w['id']===reimported['session'])!;assertNativeConnectionsRetained(expected,rows(object(recovered['serverState'])['connections']));
  stage='browser-import';const browser=await chromium.launch({headless:true});
  try{const page=await browser.newPage();const layouts:Obj[]=[];const pending:Promise<void>[]=[];page.on('response',r=>{if(r.url().includes('/ctos/racks/customize?'))pending.push(r.json().then(v=>{layouts.push(object(v));}));});
  await page.goto('https://dcsc.lenovo.com/',{waitUntil:'domcontentloaded'});await selectBrowserSolutionMode(page,'AI & HPC – ThinkSystem Hardware',{diagnosticsDir:out});

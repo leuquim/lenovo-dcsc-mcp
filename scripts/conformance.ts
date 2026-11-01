@@ -88,8 +88,9 @@ async function main(): Promise<void> {
   const followContinuation = async (
     sourceTool: string,
     outcome: Outcome,
+    key: 'next' | 'inspect' = 'next',
   ): Promise<Outcome | undefined> => {
-    const next = (outcome.json as { next?: unknown }).next;
+    const next = (outcome.json as Record<string, unknown>)[key];
     const valid =
       typeof next === 'object' &&
       next !== null &&
@@ -111,13 +112,14 @@ async function main(): Promise<void> {
     return track(typed.tool, typed.arguments);
   };
 
+
   const checkManagedStorageSwitch = async (
     workspace: string,
     controllerId?: string,
   ): Promise<void> => {
     let resolvedControllerId = controllerId;
     if (!resolvedControllerId) {
-      const controllerCatalog = await track('dcsc_fabric_options', { session: workspace,
+      const controllerCatalog = await track('dcsc_network_get', { session: workspace,
         collection: 'storageControllers', limit: 100, fields: ['option', 'featureCode'] });
       resolvedControllerId = (controllerCatalog.json as {
         items?: Array<{ id: string; option: string; featureCode?: string }>;
@@ -126,7 +128,7 @@ async function main(): Promise<void> {
         JSON.stringify(controllerCatalog.json).slice(0, 180));
     }
 
-    const switchCatalog = await track('dcsc_fabric_options', { session: workspace,
+    const switchCatalog = await track('dcsc_network_get', { session: workspace,
       collection: 'storageSwitches', limit: 100, fields: ['option', 'featureCode'] });
     const storageSwitch = (switchCatalog.json as {
       items?: Array<{ id: string; option: string; featureCode?: string }>;
@@ -136,50 +138,51 @@ async function main(): Promise<void> {
     if (!resolvedControllerId || !storageSwitch) return;
 
     const name = 'Managed SAN Switch';
-    const definition = await track('dcsc_add_storage_network', { session: workspace, name,
-      controllerId: resolvedControllerId, switchId: storageSwitch.id, expansionQuantity: 0 });
+    const definition = await track('dcsc_storage_set', { session: workspace, change: {
+      action: 'add', name, controllerId: resolvedControllerId, switchId: storageSwitch.id, expansionQuantity: 0 } });
     check('managed SAN definition created', !definition.isError,
       JSON.stringify(definition.json).slice(0, 180));
     if (definition.isError) return;
 
-    const opened = await track('dcsc_customize_storage_switch', { session: workspace, name });
+    const customizeSwitch = { action: 'customize', name, component: 'switch' } as const;
+    const opened = await track('dcsc_storage_set', { session: workspace, change: customizeSwitch });
     const switchResult = opened.json as {
-      session?: string; switchId?: string; revision?: number; created?: boolean;
+      configuration?: string; switchId?: string; revision?: number; created?: boolean;
     };
-    check('dcsc_customize_storage_switch returns a managed configuration handle', !opened.isError &&
-      switchResult.created === true && !!switchResult.session && !!switchResult.switchId,
+    check('dcsc_storage_set customize returns a managed configuration handle', !opened.isError &&
+      switchResult.created === true && !!switchResult.configuration && !!switchResult.switchId,
     JSON.stringify(opened.json).slice(0, 180));
-    if (opened.isError || !switchResult.session || !switchResult.switchId) return;
+    if (opened.isError || !switchResult.configuration || !switchResult.switchId) return;
 
-    await followContinuation('dcsc_customize_storage_switch', opened);
-    const reopened = await track('dcsc_customize_storage_switch', { session: workspace, name,
+    await followContinuation('dcsc_storage_set', opened, 'inspect');
+    const reopened = await track('dcsc_storage_set', { session: workspace, change: customizeSwitch,
       expectedRevision: switchResult.revision });
     check('storage switch reopen preserves identity and revision', !reopened.isError &&
-      (reopened.json as typeof switchResult).session === switchResult.session &&
+      (reopened.json as typeof switchResult).configuration === switchResult.configuration &&
       (reopened.json as typeof switchResult).switchId === switchResult.switchId &&
       (reopened.json as typeof switchResult).revision === switchResult.revision &&
       (reopened.json as typeof switchResult).created === false,
     JSON.stringify(reopened.json).slice(0, 180));
 
-    const summaryResult = await track('dcsc_session_info', { session: workspace });
+    const summaryResult = await track('dcsc_workspace_get', { session: workspace });
     const summaryJson = summaryResult.json as {
       configurations?: Array<{ id?: string; productCode?: string; quantity?: number;
         configurationQuantity?: number; managedStorageTemplate?: boolean }>;
     };
     const projectedSwitch = summaryJson.configurations?.find(item =>
-      item.id === switchResult.session || item.productCode === '7DHNCTO1WW');
+      item.id === switchResult.configuration || item.productCode === '7DHNCTO1WW');
     check('managed SAN switch has zero commercial quantity while unplaced', !summaryResult.isError &&
       projectedSwitch?.managedStorageTemplate === true && projectedSwitch.quantity === 0 &&
       projectedSwitch.configurationQuantity === 1,
     JSON.stringify(projectedSwitch ?? summaryResult.json).slice(0, 220));
 
-    const layoutResult = await track('dcsc_workspace_layout', { session: workspace });
+    const layoutResult = await track('dcsc_workspace_get', { session: workspace, view: 'layout' });
     const layoutJson = layoutResult.json as {
       unracked?: Array<{ session?: string; code?: string }>;
       totals?: { rawNonRackArea?: number; configurations?: number };
     };
     check('managed SAN switch is absent from physical layout rows', !layoutResult.isError &&
-      !(layoutJson.unracked ?? []).some(item => item.session === switchResult.session || item.code === '7DHNCTO1WW'),
+      !(layoutJson.unracked ?? []).some(item => item.session === switchResult.configuration || item.code === '7DHNCTO1WW'),
     JSON.stringify({ unracked: layoutJson.unracked, totals: layoutJson.totals }).slice(0, 220));
 
     const recovery = await track('dcsc_recovery_export', { session: workspace });
@@ -199,7 +202,7 @@ async function main(): Promise<void> {
     JSON.stringify({ physicalContainsSwitch: physical.includes(switchResult.switchId),
       switchMapContainsSwitch: switchMap.includes(switchResult.switchId) }));
 
-    const exported = await track('dcsc_export', { session: workspace,
+    const exported = await track('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'conformance-managed-san-switch', fileTypes: ['XML'] });
     const xmlPath = (exported.json as { xml?: string }).xml;
     const xml = !exported.isError && xmlPath ? readFileSync(xmlPath, 'utf8') : '';
@@ -207,12 +210,11 @@ async function main(): Promise<void> {
       !/7DHN-?CTO1WW/i.test(xml),
     JSON.stringify({ export: exported.json, containsSwitchCode: /7DHN-?CTO1WW/i.test(xml) }).slice(0, 220));
 
-    const removed = await track('dcsc_edit_storage_network', { session: workspace,
-      action: 'remove', name });
+    const removed = await track('dcsc_storage_set', { session: workspace, change: { action: 'remove', name } });
     check('removing the SAN definition closes its managed switch configuration', !removed.isError &&
       (removed.json as { removedConfigurations?: number }).removedConfigurations === 1,
     JSON.stringify(removed.json).slice(0, 180));
-    const afterRemoval = await track('dcsc_session_info', { session: switchResult.session });
+    const afterRemoval = await track('dcsc_workspace_get', { session: switchResult.configuration });
     check('removed managed SAN switch handle is no longer usable', afterRemoval.isError,
       JSON.stringify(afterRemoval.json).slice(0, 180));
   };
@@ -224,7 +226,7 @@ async function main(): Promise<void> {
     check('storage-only lifecycle launches its supported context', !launched.isError && !!target.workspace,
       JSON.stringify(launched.json).slice(0, 180));
     if (target.workspace) {
-      const rack = await track('dcsc_add_rack', { session: target.workspace, rackCode: '7D6DCTO1WW' });
+      const rack = await track('dcsc_rack_add', { session: target.workspace, rackCode: '7D6DCTO1WW' });
       check('storage-only lifecycle rack setup', !rack.isError, JSON.stringify(rack.json).slice(0, 180));
       await checkManagedStorageSwitch(target.workspace);
       await track('dcsc_session_close', { session: target.workspace });
@@ -237,56 +239,57 @@ async function main(): Promise<void> {
   }
 
   // --- discovery -----------------------------------------------------------
-  const modes = await track('dcsc_solution_modes', {});
-  const modeList = (modes.json as { modes?: Array<{ mode: string; masterSlices: string[] }> }).modes;
+  const settings = await track('dcsc_settings_get', {});
+  const modeList = (settings.json as { solutionModes?: Array<{ mode: string; masterSlices: string[] }> }).solutionModes;
   check(
-    'dcsc_solution_modes returns modes with slices',
+    'dcsc_settings_get returns solution modes with slices',
     Array.isArray(modeList) && modeList.length > 0 && (modeList[0]?.masterSlices?.length ?? 0) > 0,
-    JSON.stringify(modes.json).slice(0, 120),
+    JSON.stringify(settings.json).slice(0, 120),
   );
 
-  const browse = await track('dcsc_browse_catalog', {});
+  const browse = await track('dcsc_search', { search: { kind: 'tree' } });
   const browseTop = browse.json as { categories?: Array<{ name: string }> };
   check(
-    'dcsc_browse_catalog lists root categories',
+    'dcsc_search tree lists root categories',
     (browseTop.categories?.length ?? 0) > 0,
     JSON.stringify(browse.json).slice(0, 120),
   );
 
-  const browseDeep = await track('dcsc_browse_catalog', { path: ['Servers'] });
+  const browseDeep = await track('dcsc_search', { search: { kind: 'tree', categoryPath: ['Servers'] } });
   const deep = browseDeep.json as { path?: string[]; categories?: unknown[] };
   check(
-    'dcsc_browse_catalog descends a level',
+    'dcsc_search tree descends a level',
     deep.path?.[0] === 'Servers' && (deep.categories?.length ?? 0) > 0,
     JSON.stringify(deep).slice(0, 150),
   );
 
-  const broadCto = await track('dcsc_find_products', { query: 'ThinkSystem', type: 'CTO', limit: 1 });
+  const broadCto = await track('dcsc_search', { search: { kind: 'products', query: 'ThinkSystem', type: 'CTO', limit: 1 } });
   const broadCtoHits = (broadCto.json as { products: Array<{ code: string }> }).products;
-  check('dcsc_find_products finds CTO', broadCtoHits.length > 0, 'no hits');
-  const ctoNext = await followContinuation('dcsc_find_products', broadCto);
+  check('dcsc_search products finds CTO', broadCtoHits.length > 0, 'no hits');
+  const ctoNext = await followContinuation('dcsc_search', broadCto);
   if (ctoNext) {
     const nextHits = (ctoNext.json as { products?: Array<{ code: string }> }).products ?? [];
     check(
-      'dcsc_find_products continuation advances without duplicates',
+      'dcsc_search products continuation advances without duplicates',
       nextHits.length > 0 && !broadCtoHits.some((a) => nextHits.some((b) => a.code === b.code)),
       `first=${broadCtoHits.map((p) => p.code).join(',')} next=${nextHits.map((p) => p.code).join(',')}`,
     );
   }
-  const cto = await track('dcsc_find_products', { query: 'SR630 V3', type: 'CTO', limit: 3 });
+  const cto = await track('dcsc_search', { search: { kind: 'products', query: 'SR630 V3', type: 'CTO', limit: 3 } });
   const ctoHits = (cto.json as { products: Array<{ code: string }> }).products;
-  check('dcsc_find_products finds the rack-server fixture', ctoHits.length > 0, 'no SR630 V3 hit');
+  check('dcsc_search products finds the rack-server fixture', ctoHits.length > 0, 'no SR630 V3 hit');
 
   // LFO is an entirely separate endpoint family and had never been exercised.
-  const lfo = await track('dcsc_find_products', { query: 'ThinkSystem', type: 'LFO', limit: 5 });
+  const lfo = await track('dcsc_search', { search: { kind: 'products', query: 'ThinkSystem', type: 'LFO', limit: 5 } });
   const lfoHits = (lfo.json as { products: Array<{ code: string; description: string }> }).products;
-  check('dcsc_find_products finds LFO', lfoHits.length > 0, 'no LFO products in catalog');
+  check('dcsc_search products finds LFO', lfoHits.length > 0, 'no LFO products in catalog');
 
   // --- CTO session ---------------------------------------------------------
   const ctoCode = ctoHits[0]?.code as string;
   const launched = await track('dcsc_launch', { productCode: ctoCode, label: 'conformance-cto' });
   const summary = launched.json as {
     session: string;
+    workspace: string;
     revision: number;
     totalPrice: number;
     constraints: unknown[];
@@ -297,24 +300,26 @@ async function main(): Promise<void> {
   check('dcsc_launch stamps priceType LIST', summary.priceType === 'LIST', String(summary.priceType));
   check('dcsc_launch reports constraints', summary.constraints.length > 0, 'no constraints');
 
-  const info = await track('dcsc_session_info', { session });
+  const info = await track('dcsc_workspace_get', { session });
   check(
-    'dcsc_session_info matches launch',
+    'dcsc_workspace_get matches launch',
     (info.json as { totalPrice: number }).totalPrice === summary.totalPrice,
     'price mismatch',
   );
-  const controls = await track('dcsc_set_configuration_controls', {
+  const controls = await track('dcsc_configure', {
     session,
     validationMode: 'expert',
     autoCorrect: false,
   });
   check(
-    'dcsc_set_configuration_controls applies expert mode without auto-correct',
+    'dcsc_configure applies expert mode without auto-correct',
     !controls.isError &&
       (controls.json as { validationMode?: string }).validationMode === 'expert' &&
       (controls.json as { autoCorrect?: boolean }).autoCorrect === false,
     JSON.stringify(controls.json).slice(0, 160),
   );
+  // The controls write moved the workspace revision; later stale-write checks use this one.
+  const launchRevision = (controls.json as { revision?: number }).revision ?? summary.revision;
 
   const list = await track('dcsc_session_list', {});
   const listJson = list.json as {
@@ -335,8 +340,9 @@ async function main(): Promise<void> {
   );
 
   // --- options: pagination and filters -------------------------------------
-  const page1 = await track('dcsc_list_options', {
+  const page1 = await track('dcsc_configuration_get', {
     session,
+    view: 'options',
     section: 'processors.processor',
     limit: 3,
     offset: 0,
@@ -346,33 +352,33 @@ async function main(): Promise<void> {
     options: Array<{ code: string }>;
     next?: { tool: string; arguments: Record<string, unknown> };
   };
-  const page2 = await followContinuation('dcsc_list_options', page1);
+  const page2 = await followContinuation('dcsc_configuration_get', page1);
   const p2 = (page2?.json ?? {}) as { options?: Array<{ code: string }> };
   check(
-    'dcsc_list_options paginates without repeating',
+    'dcsc_configuration_get options paginate without repeating',
     p1.options.length > 0 &&
       (p2.options?.length ?? 0) > 0 &&
       !p1.options.some((a) => p2.options?.some((b) => a.code === b.code)),
     `p1=${p1.options.map((o) => o.code).join(',')} p2=${p2.options?.map((o) => o.code).join(',')}`,
   );
   check(
-    'dcsc_list_options offers a structured next call',
-    p1.next?.tool === 'dcsc_list_options' && typeof p1.next.arguments === 'object',
+    'dcsc_configuration_get options offer a structured next call',
+    p1.next?.tool === 'dcsc_configuration_get' && typeof p1.next.arguments === 'object',
     JSON.stringify(p1.next),
   );
 
-  const selectedOnly = await track('dcsc_list_options', { session, filter: 'selected', limit: 50 });
+  const selectedOnly = await track('dcsc_configuration_get', { session, view: 'options', filter: 'selected', limit: 50 });
   const sel = selectedOnly.json as { options: Array<{ sel?: number }> };
   check(
-    'dcsc_list_options filter=selected returns only selected',
+    'dcsc_configuration_get filter=selected returns only selected',
     sel.options.length > 0 && sel.options.every((o) => (o.sel ?? 0) > 0),
     `${sel.options.length} options, some unselected`,
   );
 
-  await track('dcsc_get_feature', { session, codes: [p1.options[0]?.code ?? 'BYVW'] });
+  await track('dcsc_configuration_get', { session, view: 'features', codes: [p1.options[0]?.code ?? 'BYVW'] });
 
   // --- mutation: batch, removal, concurrency -------------------------------
-  const memHits = await track('dcsc_list_options', { session, query: 'RDIMM', limit: 10 });
+  const memHits = await track('dcsc_configuration_get', { session, view: 'options', query: 'RDIMM', limit: 10 });
   const memOpt = (memHits.json as { options: Array<{ code: string; sel?: number }> }).options.find(
     (o) => !o.sel,
   );
@@ -399,15 +405,15 @@ async function main(): Promise<void> {
   );
   check(
     'dcsc_configure bumps the revision',
-    batchDiff.revision > summary.revision,
-    `${summary.revision} -> ${batchDiff.revision}`,
+    batchDiff.revision > launchRevision,
+    `${launchRevision} -> ${batchDiff.revision}`,
   );
 
   // Stale revision must be rejected, not silently applied.
   const stale = await track('dcsc_configure', {
     session,
     changes: [{ section: 'PROCESSOR', code: cpuOpt?.code ?? 'BYVW', quantity: 1 }],
-    expectedRevision: summary.revision,
+    expectedRevision: launchRevision,
   });
   check(
     'dcsc_configure rejects a stale expectedRevision',
@@ -416,18 +422,19 @@ async function main(): Promise<void> {
   );
 
   // --- undo ----------------------------------------------------------------
-  const preUndo = await track('dcsc_session_info', { session });
+  const preUndo = await track('dcsc_configuration_get', { session });
   const preUndoPrice = (preUndo.json as { totalPrice: number }).totalPrice;
-  const undone = await track('dcsc_undo', { session });
-  const undonePrice = (undone.json as { totalPrice: number }).totalPrice;
+  const undone = await track('dcsc_undo', { session, scope: 'configuration' });
+  const postUndo = await track('dcsc_configuration_get', { session });
+  const undonePrice = (postUndo.json as { totalPrice: number }).totalPrice;
   check(
     'dcsc_undo restores the previous price',
-    !undone.isError && undonePrice !== preUndoPrice,
+    !undone.isError && (undone.json as { changed?: boolean }).changed === true && undonePrice !== preUndoPrice,
     `${preUndoPrice} -> ${undonePrice}`,
   );
   // Undo must restore the model we post back too, not just what we display —
   // otherwise the next export silently describes the undone state.
-  const afterUndoBom = await track('dcsc_get_configuration', { session });
+  const afterUndoBom = await track('dcsc_configuration_get', { session, view: 'selections' });
   const bomTotal = (afterUndoBom.json as { totalPrice: number }).totalPrice;
   check(
     'dcsc_undo leaves display and posted state consistent',
@@ -449,20 +456,21 @@ async function main(): Promise<void> {
   // A summary that says 8 while the exported CFXML says 1 is a quote short by
   // a factor of 8 — the worst failure mode this server has.
   const QTY = 3;
-  const qty = await track('dcsc_set_quantity', { session, quantity: QTY });
+  const qty = await track('dcsc_configure', { session, salesQuantity: QTY });
   const qtyJson = qty.json as {
     quantity: number;
     totalPrice: number;
     extendedPrice: number;
   };
   check(
-    'dcsc_set_quantity extends the price',
+    'dcsc_configure salesQuantity extends the price',
     qtyJson.quantity === QTY &&
       Math.abs(qtyJson.extendedPrice - qtyJson.totalPrice * QTY) < 0.01,
     `unit=${qtyJson.totalPrice} extended=${qtyJson.extendedPrice}`,
   );
 
   const qtyExport = await track('dcsc_export', {
+    kind: 'reports',
     session,
     fileName: 'conformance-qty',
     fileTypes: ['XML'],
@@ -482,10 +490,11 @@ async function main(): Promise<void> {
     check('exported CFXML carries the configured quantity', false, 'no XML produced');
   }
 
-  await track('dcsc_set_quantity', { session, quantity: 1 });
+  await track('dcsc_configure', { session, salesQuantity: 1 });
 
   // --- export with explicit formats ----------------------------------------
   const exported = await track('dcsc_export', {
+    kind: 'reports',
     session,
     fileName: 'conformance',
     fileTypes: ['XML', 'QUOTE'],
@@ -506,9 +515,9 @@ async function main(): Promise<void> {
     (bundle.warnings ?? []).join('; '),
   );
 
-  const recoveryInspection = await track('dcsc_recovery_inspect', { path: [], offset: 0, limit: 20 });
+  const recoveryInspection = await track('dcsc_session_list', { view: 'recovery', path: [], offset: 0, limit: 20 });
   const restoreReport = recoveryInspection.json as { items?: Array<{ key: string }> };
-  check('dcsc_recovery_inspect exposes restore diagnostics and archives',
+  check('dcsc_session_list recovery exposes restore diagnostics and archives',
     !recoveryInspection.isError && ['warnings', 'quarantined', 'recoveryArchives'].every(
       key => restoreReport.items?.some(item => item.key === key)),
     JSON.stringify(restoreReport).slice(0, 180));
@@ -542,183 +551,158 @@ async function main(): Promise<void> {
   );
 
   // --- rack & cabling ------------------------------------------------------
-  const racks = await track('dcsc_list_racks', {});
+  const racks = await track('dcsc_rack_get', {});
   check(
-    'dcsc_list_racks lists cabinets',
+    'dcsc_rack_get lists cabinets',
     ((racks.json as { racks?: unknown[] }).racks?.length ?? 0) > 0,
     JSON.stringify(racks.json).slice(0, 120),
   );
 
-  const addedRack = await track('dcsc_add_rack', { session, rackCode: '7D6DCTO1WW' });
+  const addedRack = await track('dcsc_rack_add', { session, rackCode: '7D6DCTO1WW' });
   // The response is a LayoutResult ({racks: [{rackId, ...}]}), not {rack:{id}}.
   // Reading the stale shape made this block silently skip for four tools.
   const rackInfo = addedRack.json as { racks?: Array<{ rackId: string; sizeU: number }> };
   const rackId = rackInfo.racks?.[0]?.rackId;
   check(
-    'dcsc_add_rack returns a validated layout',
+    'dcsc_rack_add returns a validated layout',
     !addedRack.isError && typeof rackId === 'string' && (rackInfo.racks?.[0]?.sizeU ?? 0) > 0,
     JSON.stringify(addedRack.json).slice(0, 150),
   );
 
   if (rackId) {
-    const placed = await track('dcsc_place_in_rack', {
+    const placed = await track('dcsc_rack_edit', {
       session,
+      action: 'place',
       rackId,
       configuration: session,
     });
-    check('dcsc_place_in_rack places config in rack', !placed.isError, JSON.stringify(placed.json).slice(0, 120));
+    check('dcsc_rack_edit place puts config in rack', !placed.isError, JSON.stringify(placed.json).slice(0, 120));
 
     const placedJson = placed.json as { racks?: Array<{ items?: Array<{ id?: string }> }> };
     const physicalItemId = placedJson.racks?.flatMap(rack => rack.items ?? [])[0]?.id;
     check('placed rack item exposes its physical identity', typeof physicalItemId === 'string',
       JSON.stringify(placed.json).slice(0, 180));
     if (physicalItemId) {
-      const locked = await track('dcsc_set_rack_lock', {
-        session, target: { itemId: physicalItemId }, locked: true,
-      });
-      check('dcsc_set_rack_lock locks a physical item', !locked.isError &&
+      const locked = await track('dcsc_rack_edit', { session, action: 'lock', itemId: physicalItemId });
+      check('dcsc_rack_edit lock locks a physical item', !locked.isError &&
         (locked.json as { locked?: boolean; position?: number }).locked === true &&
         ((locked.json as { position?: number }).position ?? 0) > 0,
       JSON.stringify(locked.json).slice(0, 180));
-      const unlocked = await track('dcsc_set_rack_lock', {
-        session, target: { itemId: physicalItemId }, locked: false,
-      });
-      check('dcsc_set_rack_lock unlocks the same physical item', !unlocked.isError &&
+      const unlocked = await track('dcsc_rack_edit', { session, action: 'unlock', itemId: physicalItemId });
+      check('dcsc_rack_edit unlock unlocks the same physical item', !unlocked.isError &&
         (unlocked.json as { locked?: boolean }).locked === false,
       JSON.stringify(unlocked.json).slice(0, 180));
     }
 
-    const copied = await track('dcsc_copy_rack_item', { session });
+    const copied = await track('dcsc_rack_edit', { session, action: 'copy' });
     const copyJson = copied.json as {
-      session?: string; workspace?: string; workspaceRevision?: number;
+      copy?: { session?: string };
       source?: { session?: string }; placement?: { configurationId?: string; rackId?: string; position?: number };
-      inspect?: { tool?: string; arguments?: Record<string, unknown> };
-      next?: { tool?: string; arguments?: Record<string, unknown> };
     };
-    check('dcsc_copy_rack_item creates an independently placed configuration', !copied.isError &&
-      typeof copyJson.session === 'string' && copyJson.source?.session === session &&
-      copyJson.placement?.rackId === rackId && (copyJson.placement.position ?? 0) > 0 &&
-      copyJson.inspect?.tool === 'dcsc_workspace_layout' && copyJson.next?.tool === 'dcsc_list_options',
+    check('dcsc_rack_edit copy creates an independently placed configuration', !copied.isError &&
+      typeof copyJson.copy?.session === 'string' && copyJson.source?.session === session &&
+      copyJson.placement?.rackId === rackId && (copyJson.placement.position ?? 0) > 0,
     JSON.stringify(copied.json).slice(0, 260));
-    if (copyJson.session) await track('dcsc_session_close', { session: copyJson.session });
+    if (copyJson.copy?.session) await track('dcsc_session_close', { session: copyJson.copy.session });
 
-    const unplaced = await track('dcsc_edit_layout', {
+    const unplaced = await track('dcsc_rack_edit', {
       session,
       action: 'unplace',
       configuration: session,
     });
-    check('dcsc_edit_layout unplaces a configuration', !unplaced.isError, JSON.stringify(unplaced.json).slice(0, 140));
-    const layoutUndo = await track('dcsc_workspace_history', { session, action: 'undo' });
+    check('dcsc_rack_edit unplaces a configuration', !unplaced.isError, JSON.stringify(unplaced.json).slice(0, 140));
+    const layoutUndo = await track('dcsc_undo', { session, action: 'undo' });
     check(
-      'dcsc_workspace_history undoes a complete layout edit',
+      'dcsc_undo undoes a complete layout edit',
       !layoutUndo.isError && (layoutUndo.json as { changed?: boolean }).changed === true,
       JSON.stringify(layoutUndo.json).slice(0, 140),
     );
-    const layoutRedo = await track('dcsc_workspace_history', { session, action: 'redo' });
+    const layoutRedo = await track('dcsc_undo', { session, action: 'redo' });
     check(
-      'dcsc_workspace_history redoes a complete layout edit',
+      'dcsc_undo redoes a complete layout edit',
       !layoutRedo.isError && (layoutRedo.json as { changed?: boolean }).changed === true,
       JSON.stringify(layoutRedo.json).slice(0, 140),
     );
-    await track('dcsc_workspace_history', { session, action: 'undo' });
+    await track('dcsc_undo', { session, action: 'undo' });
 
-    const floor = await track('dcsc_place_on_floor', { session, rackId, x: 2, y: 3 });
-    check('dcsc_place_on_floor positions rack on grid', !floor.isError, JSON.stringify(floor.json).slice(0, 120));
+    const floor = await track('dcsc_floor_set', { session, rackId, x: 2, y: 3 });
+    check('dcsc_floor_set positions rack on grid', !floor.isError, JSON.stringify(floor.json).slice(0, 120));
 
-    const pdu = await track('dcsc_configure_pdu', { session, rackId });
+    const pdu = await track('dcsc_rack_get', { session, rackId });
     const pduJson = pdu.json as {
-      lineCordOptions?: unknown[];
-      counts?: { lineCord?: { total: number } };
+      lineCordOptions?: { total?: number };
     };
-    check('dcsc_configure_pdu lists power options', !pdu.isError, JSON.stringify(pdu.json).slice(0, 120));
+    check('dcsc_rack_get lists power options for a rack', !pdu.isError, JSON.stringify(pdu.json).slice(0, 120));
     // Regression: line cords used to be truncated out of a flat cord list.
     check(
-      'dcsc_configure_pdu surfaces line cords separately from jumpers',
-      Array.isArray(pduJson.lineCordOptions) && (pduJson.counts?.lineCord?.total ?? 0) > 0,
-      `lineCord total=${pduJson.counts?.lineCord?.total}`,
+      'dcsc_rack_get surfaces line cords separately from jumpers',
+      (pduJson.lineCordOptions?.total ?? 0) > 0,
+      `lineCord total=${pduJson.lineCordOptions?.total}`,
     );
+    const pduSet = await track('dcsc_pdu_set', { session, rackId,
+      pduCode: (pdu.json as { pduOptions?: { options?: Array<{ code: string }> } }).pduOptions?.options?.[0]?.code ?? 'C0CS' });
+    check('dcsc_pdu_set accepts a PDU selection from the listed options', !pduSet.isError,
+      JSON.stringify(pduSet.json).slice(0, 180));
 
-    const pciChoices = await track('dcsc_pci_wizard', { session });
-    const pciPage = pciChoices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
-    check('dcsc_pci_wizard reports native availability', !pciChoices.isError &&
+    const pciChoices = await track('dcsc_wizard_get', { session, wizard: 'pci' });
+    const pciPage = pciChoices.json as { revision?: number; items?: Array<{ key: string; value?: unknown }> };
+    check('dcsc_wizard_get reports native PCI availability', !pciChoices.isError &&
       typeof pciPage.items?.find(item => item.key === 'available')?.value === 'boolean', JSON.stringify(pciChoices.json).slice(0, 180));
-    const invalidPci = await track('dcsc_set_pci_wizard', { session,
-      expectedRevision: pciPage.workspaceRevision, optionId: '__invalid_pci_option__' });
-    check('dcsc_set_pci_wizard rejects unavailable option IDs', invalidPci.isError === true, JSON.stringify(invalidPci.json).slice(0, 180));
+    const invalidPci = await track('dcsc_wizard_set', { session, wizard: 'pci',
+      expectedRevision: pciPage.revision, optionId: '__invalid_pci_option__' });
+    check('dcsc_wizard_set rejects unavailable PCI option IDs', invalidPci.isError === true, JSON.stringify(invalidPci.json).slice(0, 180));
 
-    const power = await track('dcsc_power', { session });
-    const powerChoices = await track('dcsc_power_controls', { session });
-    const powerChoicePage = powerChoices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
+    const power = await track('dcsc_power_get', { session });
+    const powerChoices = await track('dcsc_power_get', { session, section: 'controls' });
+    const powerChoicePage = powerChoices.json as { revision?: number; items?: Array<{ key: string; value?: unknown }> };
     const powerChoiceValues = Object.fromEntries((powerChoicePage.items ?? []).map(item => [item.key, item.value]));
-    check('dcsc_power_controls discovers native voltage and load-factor controls', !powerChoices.isError &&
+    check('dcsc_power_get controls discovers native voltage and load-factor controls', !powerChoices.isError &&
       powerChoiceValues['available'] === true, JSON.stringify(powerChoices.json).slice(0, 180));
     const previousPower = powerChoiceValues['current'] as { loadFactor?: number } | undefined;
-    const savedPower = await track('dcsc_set_power_controls', { session,
-      expectedRevision: powerChoicePage.workspaceRevision, loadFactor: 30 });
-    check('dcsc_set_power_controls retains the accepted load factor', !savedPower.isError &&
+    const savedPower = await track('dcsc_power_set', { session,
+      expectedRevision: powerChoicePage.revision, loadFactor: 30 });
+    check('dcsc_power_set retains the accepted load factor', !savedPower.isError &&
       (savedPower.json as { current?: { loadFactor?: number } }).current?.loadFactor === 30,
     JSON.stringify(savedPower.json).slice(0, 180));
     if (!savedPower.isError && previousPower?.loadFactor !== undefined) {
-      await track('dcsc_set_power_controls', { session,
-        expectedRevision: (savedPower.json as { workspaceRevision: number }).workspaceRevision,
+      await track('dcsc_power_set', { session,
+        expectedRevision: (savedPower.json as { revision: number }).revision,
         loadFactor: previousPower.loadFactor });
     }
     check(
-      'dcsc_power aggregates the workspace',
+      'dcsc_power_get aggregates the workspace',
       !power.isError && (power.json as { total?: unknown }).total !== undefined,
       JSON.stringify(power.json).slice(0, 120),
     );
 
     // The layout is only readable here — export cannot carry rack data.
-    const layout = await track('dcsc_workspace_layout', { session });
-    const layoutJson = layout.json as { rackCount?: number; racks?: unknown[] };
+    const layout = await track('dcsc_workspace_get', { session, view: 'layout' });
+    const layoutJson = layout.json as { rackCount?: number; racks?: unknown };
     check(
-      'dcsc_workspace_layout reads back the placed racks',
-      !layout.isError && Array.isArray(layoutJson.racks),
+      'dcsc_workspace_get layout reads back the placed racks',
+      !layout.isError && layoutJson.racks !== undefined,
       JSON.stringify(layout.json).slice(0, 150),
     );
   }
 
-  const cable = await track('dcsc_add_cabling', {
-    session,
-    fromConfigId: listJson.sessions.find(s => s.session === session)?.configurationId,
-    mode: 'manual',
-    fromPort: 'RJ45-1',
-    toConfigId: listJson.sessions.find(s => s.session === session)?.configurationId,
-    toPort: 'RJ45-mgmt',
-    cableCode: '6400',
-    description: 'Management Jumper',
-  });
-  check('dcsc_add_cabling links ports', !cable.isError, JSON.stringify(cable.json).slice(0, 120));
-
   const val = await track('dcsc_validate', { session });
   check('dcsc_validate returns validation report', !val.isError, JSON.stringify(val.json).slice(0, 120));
-  const validation = val.json as {
-    jobId?: string;
-    inspect?: { tool?: string; arguments?: Record<string, unknown> };
-  };
+  const validation = val.json as { jobId?: string };
+  const inspectedValidation = await track('dcsc_workspace_get', {
+    session, view: 'validation', jobId: validation.jobId });
   check(
-    'dcsc_validate returns executable validation inspection arguments',
-    validation.inspect?.tool === 'dcsc_validation_jobs' &&
-      typeof validation.inspect.arguments === 'object',
-    JSON.stringify(validation.inspect),
+    'dcsc_workspace_get validation inspects the saved validation result without rerunning it',
+    !inspectedValidation.isError && JSON.stringify(inspectedValidation.json).includes(validation.jobId ?? '__missing__'),
+    JSON.stringify(inspectedValidation.json).slice(0, 180),
   );
-  if (validation.inspect?.tool === 'dcsc_validation_jobs' && validation.inspect.arguments) {
-    const inspectedValidation = await track(validation.inspect.tool, validation.inspect.arguments);
-    check(
-      'dcsc_validation_jobs inspects the saved validation result without rerunning it',
-      !inspectedValidation.isError && JSON.stringify(inspectedValidation.json).includes(validation.jobId ?? '__missing__'),
-      JSON.stringify(inspectedValidation.json).slice(0, 180),
-    );
-    check(
-      'dcsc_validation_jobs inspection respects the tool output budget',
-      inspectedValidation.bytes <= MAX_TOOL_BYTES,
-      `${inspectedValidation.bytes}B`,
-    );
-  }
-  const validationJobs = await track('dcsc_validation_jobs', { session });
   check(
-    'dcsc_validation_jobs lists the just-completed job',
+    'dcsc_workspace_get validation inspection respects the tool output budget',
+    inspectedValidation.bytes <= MAX_TOOL_BYTES,
+    `${inspectedValidation.bytes}B`,
+  );
+  const validationJobs = await track('dcsc_workspace_get', { session, view: 'validation' });
+  check(
+    'dcsc_workspace_get validation lists the just-completed job',
     !validationJobs.isError && JSON.stringify(validationJobs.json).includes(validation.jobId ?? '__missing__'),
     JSON.stringify(validationJobs.json).slice(0, 180),
   );
@@ -732,13 +716,14 @@ async function main(): Promise<void> {
     check('dcsc_import re-hydrates CFXML', !imported.isError, JSON.stringify(imported.json).slice(0, 150));
 
     if (!imported.isError) {
-      const impSession = ((imported.json as { sessions: Array<{ id: string }> }).sessions[0])?.id;
+      const impSession = ((imported.json as { configurations: Array<{ id: string }> }).configurations[0])?.id;
       if (impSession) {
-        const diff = await track('dcsc_diff_sessions', {
+        const diff = await track('dcsc_compare', {
+          analysis: 'parts',
           sessionA: session,
           sessionB: impSession,
         });
-        check('dcsc_diff_sessions compares configurations', !diff.isError, JSON.stringify(diff.json).slice(0, 150));
+        check('dcsc_compare parts compares configurations', !diff.isError, JSON.stringify(diff.json).slice(0, 150));
         await track('dcsc_session_close', { session: impSession });
       }
     }
@@ -753,19 +738,19 @@ async function main(): Promise<void> {
     filePath: manualSeed,
     solutionMode: 'HPC and AI - Systems',
   });
-  const manualWorkspace = (manualImported.json as { workspace?: string }).workspace;
+  const manualWorkspace = (manualImported.json as { session?: string }).session;
   check('manual cabling fixture imports a populated graph', !manualImported.isError && !!manualWorkspace,
     JSON.stringify(manualImported.json).slice(0, 180));
   if (manualWorkspace) {
-    const manualRoot = await track('dcsc_cabling_connections', {
+    const manualRoot = await track('dcsc_cabling_get', {
       session: manualWorkspace, path: [], offset: 0, limit: 20,
     });
-    const manualRevision = (manualRoot.json as { workspaceRevision?: number }).workspaceRevision;
-    check('dcsc_cabling_connections exposes revision-bound graph navigation', !manualRoot.isError &&
+    const manualRevision = (manualRoot.json as { revision?: number }).revision;
+    check('dcsc_cabling_get exposes revision-bound graph navigation', !manualRoot.isError &&
       Number.isInteger(manualRevision) && JSON.stringify(manualRoot.json).includes('connections'),
     JSON.stringify(manualRoot.json).slice(0, 220));
     if (manualRevision !== undefined) {
-      const rowPage = await track('dcsc_cabling_connections', {
+      const rowPage = await track('dcsc_cabling_get', {
         session: manualWorkspace, expectedRevision: manualRevision,
         path: ['connections', '0'], offset: 0, limit: 50,
       });
@@ -777,7 +762,7 @@ async function main(): Promise<void> {
         !!connectionId && typeof (rowValues['cable'] as { part?: unknown } | undefined)?.part === 'string',
       JSON.stringify(rowPage.json).slice(0, 220));
 
-      const cablePage = await track('dcsc_cabling_connections', {
+      const cablePage = await track('dcsc_cabling_get', {
         session: manualWorkspace, expectedRevision: manualRevision,
         path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50,
       });
@@ -789,18 +774,20 @@ async function main(): Promise<void> {
         cableChoices.some(choice => choice.part === '3802'), JSON.stringify(cablePage.json).slice(0, 220));
 
       if (connectionId && cableChoices.some(choice => choice.part === '3802')) {
-        const manualEdited = await track('dcsc_edit_cabling_connection', {
-          session: manualWorkspace, connectionId, cablePart: '3802', expectedRevision: manualRevision,
+        const manualEdited = await track('dcsc_cabling_set', {
+          session: manualWorkspace, expectedRevision: manualRevision,
+          changes: [{ action: 'edit', connectionId, cablePart: '3802' }],
         });
         const edited = manualEdited.json as {
-          workspaceRevision?: number;
-          connection?: { cable?: { part?: string } };
-          configurationChange?: { priceScope?: string; session?: string };
+          revision?: number;
+          results?: Array<{ connection?: { cable?: { part?: string } };
+            configurationChange?: { priceScope?: string; session?: string } }>;
         };
-        check('dcsc_edit_cabling_connection commits the accepted cable derive', !manualEdited.isError &&
-          edited.workspaceRevision === manualRevision + 1 && edited.connection?.cable?.part === '3802' &&
-          edited.configurationChange?.priceScope === 'editable-configuration' &&
-          typeof edited.configurationChange.session === 'string',
+        const editedRow = edited.results?.[0];
+        check('dcsc_cabling_set edit commits the accepted cable derive', !manualEdited.isError &&
+          edited.revision === manualRevision + 1 && editedRow?.connection?.cable?.part === '3802' &&
+          editedRow.configurationChange?.priceScope === 'editable-configuration' &&
+          typeof editedRow.configurationChange.session === 'string',
         JSON.stringify(manualEdited.json).slice(0, 260));
       }
     }
@@ -812,23 +799,26 @@ async function main(): Promise<void> {
     filePath: new URL('../test/fixtures/parity/xml/manual-cabling-shared-network.xml', import.meta.url).pathname,
     solutionMode: 'HPC and AI - Systems',
   });
-  const createWorkspace = (createImported.json as { workspace?: string }).workspace;
+  const createWorkspace = (createImported.json as { session?: string }).session;
   check('native creation fixture imports', !createImported.isError && !!createWorkspace, JSON.stringify(createImported.json).slice(0, 200));
   if (createWorkspace) {
-    const root = await track('dcsc_cabling_connections', { session: createWorkspace });
-    const revision = (root.json as { workspaceRevision?: number }).workspaceRevision;
+    const root = await track('dcsc_cabling_get', { session: createWorkspace });
+    const revision = (root.json as { revision?: number }).revision;
     const example = JSON.parse(readFileSync(new URL('../test/fixtures/parity/manual-row-seeding.json', import.meta.url), 'utf8')).requestedManualRow;
-    const args = { session: createWorkspace, expectedRevision: revision, network: example.network, topology: example.topology,
+    const candidate = { network: example.network, topology: example.topology,
       source: { configurationId: example.sourceId, portName: 'RJ45', portNumber: '1' },
       destination: { configurationId: example.destinationId, portName: 'RJ45', portNumber: '20' } };
-    const options = await track('dcsc_manual_cabling_options', { ...args, path: ['choices'], offset: 0, limit: 50 });
+    const options = await track('dcsc_cabling_get', { session: createWorkspace, expectedRevision: revision,
+      candidate, path: ['choices'], offset: 0, limit: 50 });
     check('native manual discovery offers a compatible cable', !options.isError && JSON.stringify(options.json).includes('3791'), JSON.stringify(options.json).slice(0, 200));
-    const created = await track('dcsc_create_cabling_connection', { ...args, cablePart: '3791', pinExistingRoutes: true });
-    const accepted = created.json as { workspaceRevision?: number; pinnedConnectionCount?: number;
-      connection?: { type?: string; source?: { portName?: string }; cable?: { part?: string } } };
+    const created = await track('dcsc_cabling_set', { session: createWorkspace, expectedRevision: revision,
+      changes: [{ action: 'create', ...candidate, cablePart: '3791', pinExistingRoutes: true }] });
+    const accepted = created.json as { revision?: number; results?: Array<{ pinnedConnectionCount?: number;
+      connection?: { type?: string; source?: { portName?: string }; cable?: { part?: string } } }> };
+    const createdRow = accepted.results?.[0];
     check('native manual creation pins prior routes and accepts requested cable', !created.isError &&
-      accepted.workspaceRevision === Number(revision) + 1 && Number(accepted.pinnedConnectionCount) > 0 &&
-      accepted.connection?.type === 'MANUAL' && accepted.connection.source?.portName === 'RJ45' && accepted.connection.cable?.part === '3791', JSON.stringify(created.json).slice(0, 250));
+      accepted.revision === Number(revision) + 1 && Number(createdRow?.pinnedConnectionCount) > 0 &&
+      createdRow?.connection?.type === 'MANUAL' && createdRow.connection.source?.portName === 'RJ45' && createdRow.connection.cable?.part === '3791', JSON.stringify(created.json).slice(0, 250));
     await track('dcsc_session_close', { session: createWorkspace });
   }
 
@@ -847,7 +837,7 @@ async function main(): Promise<void> {
     );
     if (lfoOk) {
       const lfoSession = (lfoLaunch.json as { session: string }).session;
-      const lfoInfo = await track('dcsc_session_info', { session: lfoSession });
+      const lfoInfo = await track('dcsc_workspace_get', { session: lfoSession });
       // A preconfigured model has no sections, so priming is skipped by
       // design rather than failed. What must hold is that we say which it is,
       // and that we did not burn a guaranteed-400 request finding out.
@@ -874,7 +864,7 @@ async function main(): Promise<void> {
       });
       const asCtoSession = (asCto.json as { session?: string }).session;
       if (asCtoSession) {
-        const asCtoInfo = await track('dcsc_session_info', { session: asCtoSession });
+        const asCtoInfo = await track('dcsc_workspace_get', { session: asCtoSession });
         check(
           'lfo-as-cto primes where plain lfo cannot',
           (asCtoInfo.json as { primed?: boolean }).primed === true,
@@ -883,7 +873,7 @@ async function main(): Promise<void> {
         await track('dcsc_session_close', { session: asCtoSession });
       }
 
-      const lfoBom = await track('dcsc_get_configuration', { session: lfoSession });
+      const lfoBom = await track('dcsc_configuration_get', { session: lfoSession, view: 'selections' });
       check(
         'LFO configuration has selections',
         ((lfoBom.json as { selections?: unknown[] }).selections?.length ?? 0) > 0,
@@ -891,8 +881,9 @@ async function main(): Promise<void> {
       );
       // LFO has its own endpoint family for mutation AND export; routing an
       // LFO session to the /ctos/* routes fails, so both must be exercised.
-      const lfoOpts = await track('dcsc_list_options', {
+      const lfoOpts = await track('dcsc_configuration_get', {
         session: lfoSession,
+        view: 'options',
         filter: 'selected',
         limit: 5,
       });
@@ -900,6 +891,7 @@ async function main(): Promise<void> {
       check('LFO session lists options', lfoSel.length > 0, 'no options');
 
       const lfoExport = await track('dcsc_export', {
+        kind: 'reports',
         session: lfoSession,
         fileName: 'conformance-lfo',
         fileTypes: ['XML'],
@@ -916,29 +908,30 @@ async function main(): Promise<void> {
   }
 
   // --- standalone software and product-bound services ---------------------
-  const parts = await track('dcsc_find_parts', {
-    keyword: 'ThinkSystem',
+  const parts = await track('dcsc_search', { search: {
+    kind: 'parts',
+    query: 'ThinkSystem',
     types: ['HARDWARE', 'SOFTWARE', 'SERVICE'],
     limit: 50,
-  });
+  } });
   const partRows = (parts.json as { parts?: Array<{ code: string }> }).parts ?? [];
-  check('dcsc_find_parts returns a bounded fifty-row page', partRows.length > 0 && partRows.length <= 50,
+  check('dcsc_search parts returns a bounded fifty-row page', partRows.length > 0 && partRows.length <= 50,
     JSON.stringify(parts.json).slice(0, 160));
   if ((parts.json as { next?: unknown }).next !== undefined) {
-    const nextParts = await followContinuation('dcsc_find_parts', parts);
+    const nextParts = await followContinuation('dcsc_search', parts);
     if (nextParts) {
       const nextRows = (nextParts.json as { parts?: Array<{ code: string }> }).parts ?? [];
       check(
-        'dcsc_find_parts continuation advances without duplicates',
+        'dcsc_search parts continuation advances without duplicates',
         nextRows.length > 0 && !partRows.some((a) => nextRows.some((b) => a.code === b.code)),
         `first=${partRows.map((p) => p.code).join(',')} next=${nextRows.map((p) => p.code).join(',')}`,
       );
     }
   }
 
-  const softwareLaunch = await track('dcsc_software_launch', { label: 'conformance-software' });
-  const softwareWorkspace = (softwareLaunch.json as { workspace?: string }).workspace;
-  check('dcsc_software_launch creates a workspace', typeof softwareWorkspace === 'string', JSON.stringify(softwareLaunch.json).slice(0, 160));
+  const softwareLaunch = await track('dcsc_launch', { mode: 'software', label: 'conformance-software' });
+  const softwareWorkspace = (softwareLaunch.json as { session?: string }).session;
+  check('dcsc_launch software creates a workspace', typeof softwareWorkspace === 'string', JSON.stringify(softwareLaunch.json).slice(0, 160));
   if (softwareWorkspace) {
     let sessionPage = await track('dcsc_session_list', { offset: 0, limit: 1 });
     let foundStandalone = false;
@@ -961,65 +954,76 @@ async function main(): Promise<void> {
       foundStandalone,
       `workspace=${softwareWorkspace}`,
     );
-    const softwarePage = await track('dcsc_software_browse', {
+    const softwarePage = await track('dcsc_basket_browse', {
       session: softwareWorkspace,
+      basket: 'software',
       limit: 50,
     });
     const softwareRows = (softwarePage.json as { software?: Array<{ code: string }> }).software ?? [];
-    check('dcsc_software_browse returns a bounded fifty-row page', softwareRows.length > 0 && softwareRows.length <= 50,
+    check('dcsc_basket_browse software returns a bounded fifty-row page', softwareRows.length > 0 && softwareRows.length <= 50,
       JSON.stringify(softwarePage.json).slice(0, 160));
-    const nextSoftware = await followContinuation('dcsc_software_browse', softwarePage);
+    const nextSoftware = await followContinuation('dcsc_basket_browse', softwarePage);
     if (nextSoftware) {
       const nextRows = (nextSoftware.json as { software?: Array<{ code: string }> }).software ?? [];
       check(
-        'dcsc_software_browse continuation advances without duplicates',
+        'dcsc_basket_browse software continuation advances without duplicates',
         nextRows.length > 0 && !softwareRows.some((first) => nextRows.some((next) => next.code === first.code)),
         `first=${softwareRows.map(row => row.code).join(',')} next=${nextRows.map(row => row.code).join(',')}`,
       );
     }
     const softwareCode = softwareRows[0]?.code;
     if (softwareCode) {
-      const selectedSoftware = await track('dcsc_software_select', {
+      const selectedSoftware = await track('dcsc_basket_set', {
         session: softwareWorkspace,
+        basket: 'software',
+        action: 'select',
         code: softwareCode,
         quantity: 2,
       });
-      check('dcsc_software_select adds a priced basket line', !selectedSoftware.isError, JSON.stringify(selectedSoftware.json).slice(0, 160));
-      const softwareQuantity = await track('dcsc_software_set_quantity', {
+      check('dcsc_basket_set software select adds a priced basket line', !selectedSoftware.isError, JSON.stringify(selectedSoftware.json).slice(0, 160));
+      const softwareQuantity = await track('dcsc_basket_set', {
         session: softwareWorkspace,
+        basket: 'software',
+        action: 'setQuantity',
         code: softwareCode,
         quantity: 3,
       });
       check(
-        'dcsc_software_set_quantity updates the selected line',
+        'dcsc_basket_set software setQuantity updates the selected line',
         !softwareQuantity.isError &&
           (softwareQuantity.json as { selections?: Array<{ quantity: number }> }).selections?.[0]?.quantity === 3,
         JSON.stringify(softwareQuantity.json).slice(0, 160),
       );
-      const refreshedSoftware = await track('dcsc_software_launch', {
+      const refreshedSoftware = await track('dcsc_launch', {
+        mode: 'software',
         session: softwareWorkspace,
         refresh: true,
       });
+      const afterSoftwareRefresh = await track('dcsc_workspace_get', {
+        session: softwareWorkspace, view: 'baskets', basket: 'software' });
       check(
-        'dcsc_software_launch refreshes the catalog without clearing the basket',
-        !refreshedSoftware.isError &&
-          (refreshedSoftware.json as { selections?: number }).selections === 1,
-        JSON.stringify(refreshedSoftware.json).slice(0, 180),
+        'dcsc_launch software refresh keeps the catalog without clearing the basket',
+        !refreshedSoftware.isError && !afterSoftwareRefresh.isError &&
+          (afterSoftwareRefresh.json as { selections?: unknown[] }).selections?.length === 1,
+        JSON.stringify(afterSoftwareRefresh.json).slice(0, 180),
       );
-      const softwareInspect = await track('dcsc_software_inspect', { session: softwareWorkspace });
-      check('dcsc_software_inspect reads the basket', !softwareInspect.isError, JSON.stringify(softwareInspect.json).slice(0, 160));
-      const softwareExport = await track('dcsc_software_export', {
+      const softwareInspect = await track('dcsc_workspace_get', { session: softwareWorkspace, view: 'baskets' });
+      check('dcsc_workspace_get baskets reads the basket', !softwareInspect.isError, JSON.stringify(softwareInspect.json).slice(0, 160));
+      const softwareExport = await track('dcsc_export', {
+        kind: 'reports',
         session: softwareWorkspace,
         fileName: 'conformance-software',
         fileTypes: ['XML'],
       });
-      check('dcsc_software_export writes a non-empty artifact', !softwareExport.isError, JSON.stringify(softwareExport.json).slice(0, 180));
-      const removedSoftware = await track('dcsc_software_remove', {
+      check('dcsc_export writes a non-empty software artifact', !softwareExport.isError, JSON.stringify(softwareExport.json).slice(0, 180));
+      const removedSoftware = await track('dcsc_basket_set', {
         session: softwareWorkspace,
+        basket: 'software',
+        action: 'remove',
         code: softwareCode,
       });
       check(
-        'dcsc_software_remove empties the selected basket',
+        'dcsc_basket_set software remove empties the selected basket',
         !removedSoftware.isError &&
           ((removedSoftware.json as { selections?: unknown[] }).selections?.length ?? -1) === 0,
         JSON.stringify(removedSoftware.json).slice(0, 160),
@@ -1028,65 +1032,73 @@ async function main(): Promise<void> {
     await track('dcsc_session_close', { session: softwareWorkspace });
   }
 
-  const serviceLaunch = await track('dcsc_services_launch', {
+  const serviceLaunch = await track('dcsc_launch', {
+    mode: 'services',
     productCode: ctoCode,
     productQuantity: 1,
     label: 'conformance-services',
   });
-  const serviceWorkspace = (serviceLaunch.json as { workspace?: string }).workspace;
-  check('dcsc_services_launch creates a workspace', typeof serviceWorkspace === 'string', JSON.stringify(serviceLaunch.json).slice(0, 180));
+  const serviceWorkspace = (serviceLaunch.json as { session?: string }).session;
+  check('dcsc_launch services creates a workspace', typeof serviceWorkspace === 'string', JSON.stringify(serviceLaunch.json).slice(0, 180));
   if (serviceWorkspace) {
-    const servicePage = await track('dcsc_services_inspect', {
+    const servicePage = await track('dcsc_basket_browse', {
       session: serviceWorkspace,
+      basket: 'services',
       limit: 1,
     });
     const serviceRows = (servicePage.json as { options?: Array<{ code: string }> }).options ?? [];
-    check('dcsc_services_inspect returns options', serviceRows.length === 1, JSON.stringify(servicePage.json).slice(0, 180));
-    const nextServices = await followContinuation('dcsc_services_inspect', servicePage);
+    check('dcsc_basket_browse services returns options', serviceRows.length === 1, JSON.stringify(servicePage.json).slice(0, 180));
+    const nextServices = await followContinuation('dcsc_basket_browse', servicePage);
     if (nextServices) {
       const nextRows = (nextServices.json as { options?: Array<{ code: string }> }).options ?? [];
       check(
-        'dcsc_services_inspect continuation advances without duplicates',
+        'dcsc_basket_browse services continuation advances without duplicates',
         nextRows.length === 1 && nextRows[0]?.code !== serviceRows[0]?.code,
         `first=${serviceRows[0]?.code} next=${nextRows[0]?.code}`,
       );
     }
     const serviceCode = serviceRows[0]?.code;
     if (serviceCode) {
-      const selectedService = await track('dcsc_services_select', {
+      const selectedService = await track('dcsc_basket_set', {
         session: serviceWorkspace,
-        serviceCode,
+        basket: 'services',
+        action: 'select',
+        code: serviceCode,
         quantity: 1,
       });
-      check('dcsc_services_select obtains authoritative summary pricing', !selectedService.isError, JSON.stringify(selectedService.json).slice(0, 180));
+      check('dcsc_basket_set services select obtains authoritative summary pricing', !selectedService.isError, JSON.stringify(selectedService.json).slice(0, 180));
       type ServiceProjection = {
         revision?: number;
         product?: { quantity?: number };
         selections?: Array<{ code: string; quantity: number }>;
         summary?: unknown;
       };
-      const retainedQuantity = await track('dcsc_services_set_quantity', {
+      const retainedQuantity = await track('dcsc_basket_set', {
         session: serviceWorkspace,
-        serviceCode,
+        basket: 'services',
+        action: 'setQuantity',
+        code: serviceCode,
         quantity: 1,
       });
       const retained = retainedQuantity.json as ServiceProjection;
-      check('dcsc_services_set_quantity retains an accepted selection and refreshes pricing',
+      check('dcsc_basket_set services setQuantity retains an accepted selection and refreshes pricing',
         !retainedQuantity.isError &&
           retained.selections?.find(row => row.code === serviceCode)?.quantity === 1 &&
           retained.summary !== undefined,
         JSON.stringify(retainedQuantity.json).slice(0, 180));
-      const serviceQuantity = await track('dcsc_services_set_quantity', {
+      const serviceQuantity = await track('dcsc_basket_set', {
         session: serviceWorkspace,
-        serviceCode,
+        basket: 'services',
+        action: 'setQuantity',
+        code: serviceCode,
         quantity: 2,
         expectedRevision: retained.revision,
       });
-      const afterQuantity = await track('dcsc_services_inspect', { session: serviceWorkspace });
+      const afterQuantity = await track('dcsc_basket_browse', { session: serviceWorkspace, basket: 'services' });
       const savedQuantity = afterQuantity.json as ServiceProjection;
       if (serviceQuantity.isError) {
         const rejected = serviceQuantity.json as { kind?: string; error?: string };
-        check('dcsc_services_set_quantity rejects normalized quantities without changing saved state',
+        check('dcsc_basket_set services setQuantity rejects normalized quantities without changing saved state',
           rejected.kind === 'invalid_request' &&
             /requestedQuantity=2, acceptedQuantity=1/.test(rejected.error ?? '') &&
             !afterQuantity.isError && savedQuantity.revision === retained.revision &&
@@ -1095,39 +1107,44 @@ async function main(): Promise<void> {
             isDeepStrictEqual(savedQuantity.summary, retained.summary),
           JSON.stringify(serviceQuantity.json).slice(0, 300));
       } else {
-        check('dcsc_services_set_quantity saves only the exact requested quantity',
+        check('dcsc_basket_set services setQuantity saves only the exact requested quantity',
           !afterQuantity.isError &&
             savedQuantity.selections?.find(row => row.code === serviceCode)?.quantity === 2 &&
             savedQuantity.summary !== undefined,
           JSON.stringify(afterQuantity.json).slice(0, 180));
       }
-      const productQuantity = await track('dcsc_services_set_product_quantity', {
+      const productQuantity = await track('dcsc_basket_set', {
         session: serviceWorkspace,
+        basket: 'services',
+        action: 'setProductQuantity',
         quantity: 3,
       });
       check(
-        'dcsc_services_set_product_quantity preserves service quantities and reprices covered products',
+        'dcsc_basket_set services setProductQuantity preserves service quantities and reprices covered products',
         !productQuantity.isError &&
           (productQuantity.json as ServiceProjection).product?.quantity === 3 &&
           isDeepStrictEqual((productQuantity.json as ServiceProjection).selections, savedQuantity.selections),
         JSON.stringify(productQuantity.json).slice(0, 180),
       );
-      const refreshedServices = await track('dcsc_services_launch', { session: serviceWorkspace, refresh: true });
+      const refreshedServices = await track('dcsc_launch', { mode: 'services', session: serviceWorkspace, refresh: true });
+      const afterServiceRefresh = await track('dcsc_basket_browse', { session: serviceWorkspace, basket: 'services' });
       const beforeRefresh = productQuantity.json as { selections?: unknown; summary?: unknown; product?: unknown };
-      const afterRefresh = refreshedServices.json as typeof beforeRefresh;
-      check('dcsc_services_launch refresh preserves saved selections and pricing',
-        !refreshedServices.isError && JSON.stringify(beforeRefresh.selections) === JSON.stringify(afterRefresh.selections) &&
+      const afterRefresh = afterServiceRefresh.json as typeof beforeRefresh;
+      check('dcsc_launch services refresh preserves saved selections and pricing',
+        !refreshedServices.isError && !afterServiceRefresh.isError &&
+        JSON.stringify(beforeRefresh.selections) === JSON.stringify(afterRefresh.selections) &&
         JSON.stringify(beforeRefresh.summary) === JSON.stringify(afterRefresh.summary) &&
         JSON.stringify(beforeRefresh.product) === JSON.stringify(afterRefresh.product),
-        JSON.stringify(refreshedServices.json).slice(0, 180));
-      const serviceExport = await track('dcsc_services_export', {
+        JSON.stringify(afterServiceRefresh.json).slice(0, 180));
+      const serviceExport = await track('dcsc_export', {
+        kind: 'reports',
         session: serviceWorkspace,
         fileName: 'conformance-services',
       });
-      check('dcsc_services_export writes a non-empty artifact', !serviceExport.isError, JSON.stringify(serviceExport.json).slice(0, 180));
-      const removedService = await track('dcsc_services_remove', { session: serviceWorkspace });
+      check('dcsc_export writes a non-empty services artifact', !serviceExport.isError, JSON.stringify(serviceExport.json).slice(0, 180));
+      const removedService = await track('dcsc_basket_set', { session: serviceWorkspace, basket: 'services', action: 'remove' });
       check(
-        'dcsc_services_remove clears the selection',
+        'dcsc_basket_set services remove clears the selection',
         !removedService.isError &&
           ((removedService.json as { selections?: unknown[] }).selections?.length ?? -1) === 0,
         JSON.stringify(removedService.json).slice(0, 180),
@@ -1137,7 +1154,7 @@ async function main(): Promise<void> {
   }
 
   // --- error surface -------------------------------------------------------
-  const badSession = await track('dcsc_session_info', { session: 'sess_nope_000000' });
+  const badSession = await track('dcsc_workspace_get', { session: 'sess_nope_000000' });
   check('unknown session returns a tool error', badSession.isError, 'no error raised');
   check(
     'unknown session error names the recovery path',
@@ -1158,79 +1175,79 @@ async function main(): Promise<void> {
   const closed = await track('dcsc_session_close', { session });
   check('dcsc_session_close reports success', (closed.json as { closed: boolean }).closed === true, '');
 
-  const afterClose = await track('dcsc_session_info', { session });
+  const afterClose = await track('dcsc_workspace_get', { session });
   check('closed session is really gone', afterClose.isError, 'session still usable');
 
-  await track('dcsc_health', {});
+  await track('dcsc_session_list', { view: 'health' });
 
   // --- solution design surface ---------------------------------------------
-  const locales = await track('dcsc_list_locales', {});
+  const locales = await track('dcsc_settings_get', { localeQuery: '' });
   check(
-    'dcsc_list_locales returns countries',
-    ((locales.json as { locales?: unknown[] }).locales?.length ?? 0) > 0,
+    'dcsc_settings_get lists countries',
+    ((locales.json as { locales?: { items?: unknown[] } }).locales?.items?.length ?? 0) > 0,
     JSON.stringify(locales.json).slice(0, 120),
   );
-  const setLocale = await track('dcsc_set_locale', { country: 'US' });
-  check('dcsc_set_locale accepts a valid country', !setLocale.isError, JSON.stringify(setLocale.json).slice(0, 120));
+  const setLocale = await track('dcsc_settings_set', { country: 'US' });
+  check('dcsc_settings_set accepts a valid country', !setLocale.isError, JSON.stringify(setLocale.json).slice(0, 120));
 
-  const fabric = await track('dcsc_fabric_options', { collection: 'topologies', limit: 1 });
+  const fabric = await track('dcsc_network_get', { collection: 'topologies', limit: 1 });
   const topologyRows = (fabric.json as {
     items?: Array<{ id: string; shortName: string }>;
     collections?: Record<string, number>;
   }).items ?? [];
   check(
-    'dcsc_fabric_options pages topologies and inventories all collections',
+    'dcsc_network_get pages topologies and inventories all collections',
     topologyRows.length === 1 &&
       Object.values((fabric.json as { collections?: Record<string, number> }).collections ?? {}).some((n) => n > 0),
     JSON.stringify(fabric.json).slice(0, 160),
   );
   if ((fabric.json as { next?: unknown }).next !== undefined) {
-    const nextFabric = await followContinuation('dcsc_fabric_options', fabric);
+    const nextFabric = await followContinuation('dcsc_network_get', fabric);
     if (nextFabric) {
       const nextRows = (nextFabric.json as { items?: Array<{ id: string }> }).items ?? [];
       check(
-        'dcsc_fabric_options continuation advances without duplicates',
+        'dcsc_network_get continuation advances without duplicates',
         nextRows.length > 0 && nextRows[0]?.id !== topologyRows[0]?.id,
         `first=${topologyRows[0]?.id} next=${nextRows[0]?.id}`,
       );
     }
   }
 
-  const networkCatalog = await track('dcsc_fabric_options', {
+  const networkCatalog = await track('dcsc_network_get', {
     collection: 'networkTypes',
     limit: 50,
   });
   const networkTypes = (networkCatalog.json as {
     items?: Array<{ id: string; defaultNetworkTechnology?: string }>;
   }).items ?? [];
-  check('dcsc_fabric_options lists network types', networkTypes.length > 0, JSON.stringify(networkCatalog.json).slice(0, 160));
+  check('dcsc_network_get lists network types', networkTypes.length > 0, JSON.stringify(networkCatalog.json).slice(0, 160));
 
-  const svcCats = await track('dcsc_service_categories', {});
-  check('dcsc_service_categories responds', !svcCats.isError, JSON.stringify(svcCats.json).slice(0, 120));
+  const svcCats = await track('dcsc_category', { category: { kind: 'services' } });
+  check('dcsc_category services responds', !svcCats.isError, JSON.stringify(svcCats.json).slice(0, 120));
 
   const referenceCatalog = await track('dcsc_reference_solutions', { view: 'categories', limit: 5 });
   check('native reference categories are discoverable', !referenceCatalog.isError &&
     Number((referenceCatalog.json as { total?: number }).total) > 0, JSON.stringify(referenceCatalog.json).slice(0, 200));
-  const reference = await track('dcsc_launch_reference_solution', { crnId: 'SID0000978', solutionMode: 'General Purpose' });
-  const originalReference = await track('dcsc_download_reference_solution', { crnId: 'SID0000978', solutionMode: 'General Purpose' });
+  const reference = await track('dcsc_launch', { mode: 'reference-solution', sid: 'SID0000978', solutionMode: 'General Purpose' });
+  const originalReference = await track('dcsc_export', { kind: 'reference', crnId: 'SID0000978', solutionMode: 'General Purpose' });
   check('original reference XML downloads', !originalReference.isError &&
     typeof (originalReference.json as { path?: string }).path === 'string', JSON.stringify(originalReference.json).slice(0, 160));
   check('native reference solution customizes into a workspace', !reference.isError &&
-    typeof (reference.json as { workspace?: string }).workspace === 'string', JSON.stringify(reference.json).slice(0, 200));
-  const referenceWorkspace = (reference.json as { workspace?: string; workspaceRevision?: number });
-  if (referenceWorkspace.workspace) {
-    const members = await track('dcsc_session_list', { session: referenceWorkspace.workspace });
+    typeof (reference.json as { session?: string }).session === 'string', JSON.stringify(reference.json).slice(0, 200));
+  const referenceWorkspace = (reference.json as { session?: string; revision?: number });
+  if (referenceWorkspace.session) {
+    const members = await track('dcsc_session_list', { session: referenceWorkspace.session });
     const member = (members.json as { sessions?: Array<{ session: string; kind: string }> }).sessions?.find(s => s.kind === 'configuration');
     if (member) {
-      const loaded = await track('dcsc_load_unconfigured', { session: member.session, expectedRevision: referenceWorkspace.workspaceRevision });
+      const loaded = await track('dcsc_launch', { mode: 'unconfigured', session: member.session, expectedRevision: referenceWorkspace.revision });
       check('Unconfigured catalog loads', !loaded.isError, JSON.stringify(loaded.json).slice(0, 160));
-      const edited = await track('dcsc_set_unconfigured', { session: member.session,
-        expectedRevision: (loaded.json as { workspaceRevision?: number }).workspaceRevision,
+      const edited = await track('dcsc_configure', { session: member.session,
+        expectedRevision: (loaded.json as { revision?: number }).revision,
         changes: [{ section: 'UNCONFIGURED_COMMVAULT_SOFTWARE', code: '7S1M004HWW', quantity: 4 }] });
       check('Unconfigured selection edit commits', !edited.isError, JSON.stringify(edited.json).slice(0, 160));
-      const pci = await track('dcsc_pci_wizard', { session: member.session });
-      const savedPci = await track('dcsc_set_pci_wizard', { session: member.session,
-        expectedRevision: (pci.json as { workspaceRevision?: number }).workspaceRevision,
+      const pci = await track('dcsc_wizard_get', { session: member.session, wizard: 'pci' });
+      const savedPci = await track('dcsc_wizard_set', { session: member.session, wizard: 'pci',
+        expectedRevision: (pci.json as { revision?: number }).revision,
         optionId: '1P Rear5-a', rowId: '2', enabled: true });
       check('PCI wizard commits a native validated slot change', !savedPci.isError &&
         (savedPci.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 1,
@@ -1238,19 +1255,19 @@ async function main(): Promise<void> {
     }
   }
 
-  const storageReference = await track('dcsc_launch_reference_solution', { crnId: 'SID0001064', solutionMode: 'General Purpose' });
-  const storageReferenceWorkspace = (storageReference.json as { workspace?: string }).workspace;
+  const storageReference = await track('dcsc_launch', { mode: 'reference-solution', sid: 'SID0001064', solutionMode: 'General Purpose' });
+  const storageReferenceWorkspace = (storageReference.json as { session?: string }).session;
   if (storageReferenceWorkspace) {
     const listed = await track('dcsc_session_list', { session: storageReferenceWorkspace });
     const member = (listed.json as { sessions?: Array<{ session: string; product?: string }> }).sessions?.find(s => s.product === '7DJRCTO1WW');
     check('storage wizard reference exposes its server handle', !!member, JSON.stringify(listed.json).slice(0, 160));
     if (member) {
-      const choices = await track('dcsc_storage_wizard', { session: member.session });
-      const page = choices.json as { workspaceRevision?: number; items?: Array<{ key: string; value?: unknown }> };
+      const choices = await track('dcsc_wizard_get', { session: member.session, wizard: 'storage' });
+      const page = choices.json as { revision?: number; items?: Array<{ key: string; value?: unknown }> };
       check('storage wizard discovers native choices', !choices.isError && page.items?.find(i => i.key === 'available')?.value === true,
         JSON.stringify(choices.json).slice(0, 160));
-      const selected = await track('dcsc_set_storage_wizard', { session: member.session,
-        expectedRevision: page.workspaceRevision, optionId: '4-2' });
+      const selected = await track('dcsc_wizard_set', { session: member.session, wizard: 'storage',
+        expectedRevision: page.revision, optionId: '4-2' });
       check('storage wizard commits an explicit linked option', !selected.isError &&
         (selected.json as { affectedConfigurationCount?: number }).affectedConfigurationCount === 4,
         JSON.stringify(selected.json).slice(0, 160));
@@ -1259,9 +1276,10 @@ async function main(): Promise<void> {
 
   const design = await track('dcsc_launch', { productCode: ctoCode, mode: 'cto', label: 'conformance-design' });
   const designSession = (design.json as { session?: string }).session;
+  const designWorkspace = (design.json as { workspace?: string }).workspace;
   const rival = await track('dcsc_launch', { productCode: ctoCode, mode: 'cto', label: 'conformance-rival' });
   const rivalSession = (rival.json as { session?: string }).session;
-  if (designSession && rivalSession) {
+  if (designSession && designWorkspace && rivalSession) {
     const proposed = await track('dcsc_reconcile_workspace', {
       session: rivalSession,
       action: 'propose',
@@ -1292,16 +1310,17 @@ async function main(): Promise<void> {
       );
     }
 
-    const role = await track('dcsc_set_node_role', { session: designSession, role: 'Compute' });
-    check('dcsc_set_node_role tags the configuration', !role.isError, JSON.stringify(role.json).slice(0, 140));
+    const role = await track('dcsc_network_set', { session: designSession, change: { kind: 'nodeRole', role: 'Compute' } });
+    check('dcsc_network_set nodeRole tags the configuration', !role.isError, JSON.stringify(role.json).slice(0, 140));
 
     let topologyChoice:
       | { topology: string; networkName: string; connectorId?: string | undefined }
       | undefined;
     for (const network of networkTypes) {
       if (!network.defaultNetworkTechnology) continue;
-      const connectors = await track('dcsc_network_connectors', {
+      const connectors = await track('dcsc_network_get', {
         session: designSession,
+        collection: 'connectors',
         topology: network.defaultNetworkTechnology,
         limit: 1,
       });
@@ -1311,8 +1330,8 @@ async function main(): Promise<void> {
         next?: unknown;
       };
       if (!connectors.isError && (connectorJson.total ?? 0) > 0) {
-        check('dcsc_network_connectors returns a bounded connector page', connectorJson.items?.length === 1, JSON.stringify(connectors.json).slice(0, 150));
-        if (connectorJson.next !== undefined) await followContinuation('dcsc_network_connectors', connectors);
+        check('dcsc_network_get connectors returns a bounded connector page', connectorJson.items?.length === 1, JSON.stringify(connectors.json).slice(0, 150));
+        if (connectorJson.next !== undefined) await followContinuation('dcsc_network_get', connectors);
         topologyChoice = {
           topology: network.defaultNetworkTechnology,
           networkName: network.id,
@@ -1324,16 +1343,19 @@ async function main(): Promise<void> {
       }
     }
     if (topologyChoice) {
-      const topo = await track('dcsc_set_topology', {
+      const topo = await track('dcsc_network_set', {
         session: designSession,
-        topology: topologyChoice.topology,
-        networkName: topologyChoice.networkName,
-        ...(topologyChoice.connectorId !== undefined
-          ? { connectorIds: [topologyChoice.connectorId] }
-          : {}),
-        autoConnect: false,
+        change: {
+          kind: 'topology',
+          topology: topologyChoice.topology,
+          networkName: topologyChoice.networkName,
+          ...(topologyChoice.connectorId !== undefined
+            ? { connectorIds: [topologyChoice.connectorId] }
+            : {}),
+          autoConnect: false,
+        },
       });
-      check('dcsc_set_topology selects a catalog topology', !topo.isError, JSON.stringify(topo.json).slice(0, 150));
+      check('dcsc_network_set topology selects a catalog topology', !topo.isError, JSON.stringify(topo.json).slice(0, 150));
     } else {
       check('fabric topology setup', false, 'no topology has a compatible connector on this configuration');
     }
@@ -1341,10 +1363,9 @@ async function main(): Promise<void> {
     let preferences: Outcome | undefined;
     let selectedNetwork: string | undefined;
     for (const network of networkTypes) {
-      const candidate = await track('dcsc_set_network_preferences', {
-        session: designSession,
-        selections: [{ networkTypeId: network.id }],
-        autoConnect: false,
+      const candidate = await track('dcsc_network_set', {
+        session: designWorkspace,
+        change: { kind: 'preferences', selections: [{ networkTypeId: network.id }], autoConnect: false },
       });
       if (!candidate.isError) {
         preferences = candidate;
@@ -1353,25 +1374,25 @@ async function main(): Promise<void> {
       }
     }
     check(
-      'dcsc_set_network_preferences accepts a catalog network selection',
+      'dcsc_network_set preferences accepts a catalog network selection',
       preferences !== undefined && !preferences.isError,
       `tried=${networkTypes.map((network) => network.id).join(',')}`,
     );
     if (preferences) {
       check(
-        'dcsc_set_network_preferences returns the selected stable ID',
+        'dcsc_network_set preferences returns the selected stable ID',
         JSON.stringify(preferences.json).includes(selectedNetwork ?? '__missing__'),
         JSON.stringify(preferences.json).slice(0, 180),
       );
     }
 
-    const storageCatalog = await track('dcsc_fabric_options', { collection: 'storageControllers', limit: 1 });
+    const storageCatalog = await track('dcsc_network_get', { collection: 'storageControllers', limit: 1 });
     const controller = (storageCatalog.json as { items?: Array<{ id?: string }> }).items?.[0];
     if (controller?.id) {
-      const storage = await track('dcsc_add_storage_network', {
-        session: designSession, name: 'Conformance Storage', controllerId: controller.id,
+      const storage = await track('dcsc_storage_set', {
+        session: designSession, change: { action: 'add', name: 'Conformance Storage', controllerId: controller.id },
       });
-      check('dcsc_add_storage_network creates a saved unassigned definition', !storage.isError &&
+      check('dcsc_storage_set add creates a saved unassigned definition', !storage.isError &&
         (storage.json as { storageNetworkCount?: number }).storageNetworkCount === 1,
       JSON.stringify(storage.json).slice(0, 200));
       const storageRevision = (storage.json as { revision?: number }).revision;
@@ -1382,12 +1403,13 @@ async function main(): Promise<void> {
           JSON.stringify(detail.json).includes('Conformance Storage'), JSON.stringify(detail.json).slice(0, 200));
       }
       if (storageRevision !== undefined) {
-        const updatedStorage = await track('dcsc_edit_storage_network', {
-          session: designSession, action: 'update', name: 'Conformance Storage',
-          changes: { layout: 'Minimal Cabling', expansionQuantity: 0 },
+        const updatedStorage = await track('dcsc_storage_set', {
+          session: designSession,
+          change: { action: 'update', name: 'Conformance Storage',
+            changes: { layout: 'Minimal Cabling', expansionQuantity: 0 } },
           expectedRevision: storageRevision,
         });
-        check('dcsc_edit_storage_network updates preferences with workspace CAS', !updatedStorage.isError &&
+        check('dcsc_storage_set update changes preferences with workspace CAS', !updatedStorage.isError &&
           (updatedStorage.json as { revision?: number; autoConnectRequired?: boolean }).revision === storageRevision + 1 &&
           (updatedStorage.json as { autoConnectRequired?: boolean }).autoConnectRequired === true,
         JSON.stringify(updatedStorage.json).slice(0, 220));
@@ -1395,15 +1417,15 @@ async function main(): Promise<void> {
         check('storage definition returns a revision for update CAS', false,
           JSON.stringify(storage.json).slice(0, 180));
       }
-      const renameStorage = await track('dcsc_edit_storage_network', {
-        session: designSession, action: 'rename', name: 'Conformance Storage', newName: 'Renamed Storage',
+      const renameStorage = await track('dcsc_storage_set', {
+        session: designSession, change: { action: 'rename', name: 'Conformance Storage', newName: 'Renamed Storage' },
       });
-      check('dcsc_edit_storage_network renames the definition', !renameStorage.isError,
+      check('dcsc_storage_set rename renames the definition', !renameStorage.isError,
         JSON.stringify(renameStorage.json).slice(0, 200));
-      const removeStorage = await track('dcsc_edit_storage_network', {
-        session: designSession, action: 'remove', name: 'Renamed Storage',
+      const removeStorage = await track('dcsc_storage_set', {
+        session: designSession, change: { action: 'remove', name: 'Renamed Storage' },
       });
-      check('dcsc_edit_storage_network removes the unassigned definition', !removeStorage.isError &&
+      check('dcsc_storage_set remove removes the unassigned definition', !removeStorage.isError &&
         (removeStorage.json as { storageNetworkCount?: number }).storageNetworkCount === 0,
       JSON.stringify(removeStorage.json).slice(0, 200));
     } else check('storage definition catalog setup', false, 'No storage controller returned');
@@ -1416,7 +1438,7 @@ async function main(): Promise<void> {
     check('storage lifecycle launches its supported server context', !storageLaunch.isError && !!storageTarget.session,
       JSON.stringify(storageLaunch.json).slice(0, 160));
     if (storageTarget.session && storageTarget.workspace) {
-      const hbaOptions = await track('dcsc_list_options', { session: storageTarget.session, query: 'ATZV' });
+      const hbaOptions = await track('dcsc_configuration_get', { session: storageTarget.session, view: 'options', query: 'ATZV' });
       const hba = (hbaOptions.json as { options?: Array<{ code: string; sectionId: string }> }).options?.find(option => option.code === 'ATZV');
       check('storage HBA has a directly usable discovery target', !!hba?.sectionId, JSON.stringify(hbaOptions.json).slice(0, 160));
       if (hba) {
@@ -1424,53 +1446,53 @@ async function main(): Promise<void> {
           changes: [{ section: hba.sectionId, code: hba.code, quantity: 1 }] });
         check('storage HBA edit succeeds', !selected.isError, JSON.stringify(selected.json).slice(0, 160));
       }
-      const storageRack = await track('dcsc_add_rack', { session: storageTarget.workspace, rackCode: '7D6DCTO1WW' });
+      const storageRack = await track('dcsc_rack_add', { session: storageTarget.workspace, rackCode: '7D6DCTO1WW' });
       const storageRackId = (storageRack.json as { racks?: Array<{ rackId?: string }> }).racks?.[0]?.rackId;
       check('storage lifecycle rack setup', !storageRack.isError, JSON.stringify(storageRack.json).slice(0, 160));
-      const catalog = await track('dcsc_fabric_options', { session: storageTarget.workspace,
+      const catalog = await track('dcsc_network_get', { session: storageTarget.workspace,
         collection: 'storageControllers', limit: 100, fields: ['option', 'featureCode'] });
       const selectedController = (catalog.json as { items?: Array<{ id: string; option: string; featureCode?: string }> })
         .items?.find(item => item.option === '7DJ0CTO1WW' && !item.featureCode);
       check('storage lifecycle discovers its controller', !!selectedController, JSON.stringify(catalog.json).slice(0, 160));
       if (selectedController) {
-        const definition = await track('dcsc_add_storage_network', { session: storageTarget.workspace,
-          name: 'Managed Storage', controllerId: selectedController.id, expansionQuantity: 0 });
+        const definition = await track('dcsc_storage_set', { session: storageTarget.workspace, change: {
+          action: 'add', name: 'Managed Storage', controllerId: selectedController.id, expansionQuantity: 0 } });
         check('managed storage definition created', !definition.isError, JSON.stringify(definition.json).slice(0, 160));
-        const opened = await track('dcsc_customize_storage_controller', { session: storageTarget.workspace, name: 'Managed Storage' });
-        const controllerResult = opened.json as { session?: string; revision?: number; created?: boolean };
-        check('dcsc_customize_storage_controller returns a configuration handle', !opened.isError &&
-          controllerResult.created === true && !!controllerResult.session, JSON.stringify(opened.json).slice(0, 160));
+        const customizeController = { action: 'customize', name: 'Managed Storage', component: 'controller' } as const;
+        const opened = await track('dcsc_storage_set', { session: storageTarget.workspace, change: customizeController });
+        const controllerResult = opened.json as { configuration?: string; revision?: number; created?: boolean };
+        check('dcsc_storage_set customize returns a controller configuration handle', !opened.isError &&
+          controllerResult.created === true && !!controllerResult.configuration, JSON.stringify(opened.json).slice(0, 160));
         if (!opened.isError) {
-          await followContinuation('dcsc_customize_storage_controller', opened);
-          const reopened = await track('dcsc_customize_storage_controller', { session: storageTarget.workspace,
-            name: 'Managed Storage', expectedRevision: controllerResult.revision });
+          await followContinuation('dcsc_storage_set', opened, 'inspect');
+          const reopened = await track('dcsc_storage_set', { session: storageTarget.workspace,
+            change: customizeController, expectedRevision: controllerResult.revision });
           check('storage controller reopen preserves identity and revision', !reopened.isError &&
-            (reopened.json as typeof controllerResult).session === controllerResult.session &&
+            (reopened.json as typeof controllerResult).configuration === controllerResult.configuration &&
             (reopened.json as typeof controllerResult).revision === controllerResult.revision &&
             (reopened.json as typeof controllerResult).created === false, JSON.stringify(reopened.json).slice(0, 160));
         }
-        const assigned = await track('dcsc_assign_storage_network', { session: storageTarget.session,
-          networkName: 'Managed Storage', autoConnect: false });
-        check('dcsc_assign_storage_network accepts the named storage selection', !assigned.isError &&
+        const assigned = await track('dcsc_storage_set', { session: storageTarget.session,
+          change: { action: 'assign', networkName: 'Managed Storage', autoConnect: false } });
+        check('dcsc_storage_set assign accepts the named storage selection', !assigned.isError &&
           (assigned.json as { selectedStorageNetwork?: string }).selectedStorageNetwork === 'Managed Storage',
         JSON.stringify(assigned.json).slice(0, 160));
-        const cablingSettings = await track('dcsc_add_cabling', { session: storageTarget.workspace,
-          mode: 'auto', settings: { autoAddPDU: false, autoAddSwitch: false, p2pCabling: false } });
+        const cablingSettings = await track('dcsc_auto_connect', { session: storageTarget.workspace,
+          settings: { autoAddPDU: false, autoAddSwitch: false, p2pCabling: false } });
         check('storage placement disables automated PDU creation explicitly', !cablingSettings.isError,
           JSON.stringify(cablingSettings.json).slice(0, 180));
-        if (storageRackId && controllerResult.session) {
-          const storagePlacement = await track('dcsc_place_storage_network', {
-            session: storageTarget.workspace, name: 'Managed Storage', rackId: storageRackId,
+        if (storageRackId && controllerResult.configuration) {
+          const storagePlacement = await track('dcsc_storage_set', {
+            session: storageTarget.workspace, change: { action: 'place', name: 'Managed Storage', rackId: storageRackId },
           });
           const placementJson = storagePlacement.json as {
             placements?: Array<{ role?: string; rackId?: string; position?: number }>;
             inspect?: { tool?: string; arguments?: Record<string, unknown> };
-            export?: { tool?: string; arguments?: Record<string, unknown> };
           };
-          check('dcsc_place_storage_network performs the website physical placement', !storagePlacement.isError &&
+          check('dcsc_storage_set place performs the website physical placement', !storagePlacement.isError &&
             (placementJson.placements?.length ?? 0) > 0 &&
             placementJson.placements?.every(item => item.rackId === storageRackId && (item.position ?? 0) > 0) === true &&
-            placementJson.inspect?.tool === 'dcsc_workspace_layout' && placementJson.export?.tool === 'dcsc_export',
+            placementJson.inspect?.tool === 'dcsc_workspace_get',
           JSON.stringify(storagePlacement.json).slice(0, 260));
           if (placementJson.inspect?.tool && placementJson.inspect.arguments) {
             let placementInspection = await track(placementJson.inspect.tool, placementJson.inspect.arguments);
@@ -1494,9 +1516,10 @@ async function main(): Promise<void> {
           }
         } else {
           check('storage placement prerequisites expose rack and controller handles', false,
-            JSON.stringify({ storageRackId, controllerSession: controllerResult.session }));
+            JSON.stringify({ storageRackId, controllerSession: controllerResult.configuration }));
         }
-        const cleared = await track('dcsc_assign_storage_network', { session: storageTarget.session, networkName: null });
+        const cleared = await track('dcsc_storage_set', { session: storageTarget.session,
+          change: { action: 'assign', networkName: null } });
         check('storage assignment can be cleared', !cleared.isError &&
           (cleared.json as { selectedStorageNetwork?: string }).selectedStorageNetwork === '', JSON.stringify(cleared.json).slice(0, 160));
         await checkManagedStorageSwitch(storageTarget.workspace, selectedController.id);
@@ -1504,25 +1527,27 @@ async function main(): Promise<void> {
       await track('dcsc_session_close', { session: storageTarget.workspace });
     }
 
-    const scale = await track('dcsc_scale_out', {
+    const scale = await track('dcsc_compare', {
+      analysis: 'scale-out',
       session: designSession,
       nodes: 4,
       rackCode: '7D6DCTO1WW',
     });
     check(
-      'dcsc_scale_out sizes against DCSC placement rules',
+      'dcsc_compare scale-out sizes against DCSC placement rules',
       !scale.isError && ((scale.json as { nodesPerRack?: number }).nodesPerRack ?? 0) > 0,
       JSON.stringify(scale.json).slice(0, 160),
     );
 
-    const explain = await track('dcsc_explain', { session: designSession });
-    check('dcsc_explain reports DCSC-authored changes', !explain.isError, JSON.stringify(explain.json).slice(0, 150));
+    const explain = await track('dcsc_configuration_get', { session: designSession, view: 'explain' });
+    check('dcsc_configuration_get explain reports DCSC-authored changes', !explain.isError, JSON.stringify(explain.json).slice(0, 150));
 
-    const compare = await track('dcsc_compare_scenarios', {
+    const compare = await track('dcsc_compare', {
+      analysis: 'scenarios',
       sessions: [designSession, rivalSession],
     });
     check(
-      'dcsc_compare_scenarios ranks two catalog-backed designs',
+      'dcsc_compare scenarios ranks two catalog-backed designs',
       !compare.isError &&
         ((compare.json as { scenarios?: unknown[] }).scenarios?.length ?? 0) === 2,
       JSON.stringify(compare.json).slice(0, 160),
@@ -1541,8 +1566,9 @@ async function main(): Promise<void> {
   });
   const cloneSessionId = (cloneSource.json as { session?: string }).session;
   if (cloneSessionId) {
-    const cloned = await track('dcsc_clone_configuration', {
+    const cloned = await track('dcsc_rack_edit', {
       session: cloneSessionId,
+      action: 'clone',
       count: 2,
       labelPrefix: 'conformance node',
     });
@@ -1551,7 +1577,7 @@ async function main(): Promise<void> {
       totalConfigurations?: number;
     };
     check(
-      'dcsc_clone_configuration creates N distinct configurations',
+      'dcsc_rack_edit clone creates N distinct configurations',
       !cloned.isError &&
         cj.created?.length === 2 &&
         new Set(cj.created.map((c) => c.configurationId)).size === 2,
@@ -1564,77 +1590,75 @@ async function main(): Promise<void> {
     );
     await track('dcsc_session_close', { session: cloneSessionId });
   } else {
-    check('dcsc_clone_configuration setup', false, 'could not launch a clone source');
+    check('dcsc_rack_edit clone setup', false, 'could not launch a clone source');
   }
 
-  // --- 2026-10-31 anonymous parity tools coverage --------------------------
-  const hwAdd = await track('dcsc_standalone_hardware_add', { code: '4X77A08621', quantity: 2 });
-  check('dcsc_standalone_hardware_add creates standalone workspace', !hwAdd.isError, JSON.stringify(hwAdd.json).slice(0, 160));
-  const hwWs = (hwAdd.json as { workspace?: string }).workspace;
+  // --- anonymous parity tools coverage -------------------------------------
+  const hwAdd = await track('dcsc_basket_set', { basket: 'hardware', action: 'select', code: '4X77A08621', quantity: 2 });
+  check('dcsc_basket_set hardware select creates standalone workspace', !hwAdd.isError, JSON.stringify(hwAdd.json).slice(0, 160));
+  const hwWs = (hwAdd.json as { session?: string }).session;
   if (hwWs) {
-    const hwInspect = await track('dcsc_standalone_hardware_inspect', { session: hwWs });
-    check('dcsc_standalone_hardware_inspect reports selections', !hwInspect.isError, JSON.stringify(hwInspect.json).slice(0, 160));
-    const hwQty = await track('dcsc_standalone_hardware_set_quantity', { session: hwWs, code: '4X77A08621', quantity: 3 });
-    check('dcsc_standalone_hardware_set_quantity updates total', !hwQty.isError, JSON.stringify(hwQty.json).slice(0, 160));
-    const hwRem = await track('dcsc_standalone_hardware_remove', { session: hwWs, code: '4X77A08621' });
-    check('dcsc_standalone_hardware_remove clears selections', !hwRem.isError, JSON.stringify(hwRem.json).slice(0, 160));
+    const hwInspect = await track('dcsc_workspace_get', { session: hwWs, view: 'baskets', basket: 'hardware' });
+    check('dcsc_workspace_get baskets reports hardware selections', !hwInspect.isError, JSON.stringify(hwInspect.json).slice(0, 160));
+    const hwQty = await track('dcsc_basket_set', { session: hwWs, basket: 'hardware', action: 'setQuantity', code: '4X77A08621', quantity: 3 });
+    check('dcsc_basket_set hardware setQuantity updates total', !hwQty.isError, JSON.stringify(hwQty.json).slice(0, 160));
+    const hwRem = await track('dcsc_basket_set', { session: hwWs, basket: 'hardware', action: 'remove', code: '4X77A08621' });
+    check('dcsc_basket_set hardware remove clears selections', !hwRem.isError, JSON.stringify(hwRem.json).slice(0, 160));
     await track('dcsc_session_close', { session: hwWs });
   }
 
   const parityLaunch = await track('dcsc_launch', { productCode: '7D73CTO1WW', mode: 'cto' });
   const paritySession = (parityLaunch.json as { session?: string }).session;
+  const parityWs = (parityLaunch.json as { workspace?: string }).workspace;
   if (paritySession) {
-    const parityInfo = await track('dcsc_session_info', { session: paritySession });
-    const parityWs = (parityInfo.json as { workspace?: string }).workspace;
-
-    const genCid = await track('dcsc_generate_config_id', { session: paritySession });
+    const genCid = await track('dcsc_export', { kind: 'configId', session: paritySession });
     const configId = (genCid.json as { configId?: string }).configId;
-    check('dcsc_generate_config_id generates 10-char ID', !genCid.isError && typeof configId === 'string' && configId.length === 10, JSON.stringify(genCid.json).slice(0, 160));
+    check('dcsc_export configId generates 10-char ID', !genCid.isError && typeof configId === 'string' && configId.length === 10, JSON.stringify(genCid.json).slice(0, 160));
 
     if (configId) {
-      const impCid = await track('dcsc_import_config_id', { configId });
-      check('dcsc_import_config_id imports online configuration', !impCid.isError, JSON.stringify(impCid.json).slice(0, 160));
-      const impWs = (impCid.json as { workspace?: string }).workspace;
+      const impCid = await track('dcsc_import', { configId });
+      check('dcsc_import configId imports online configuration', !impCid.isError, JSON.stringify(impCid.json).slice(0, 160));
+      const impWs = (impCid.json as { session?: string }).session;
       if (impWs) await track('dcsc_session_close', { session: impWs });
     }
 
-    const qSids = await track('dcsc_query_sids', { categoryId: 'STG@Servers@Rack Server', pageIndex: 1, pageSize: 5 });
-    check('dcsc_query_sids queries category SIDs', !qSids.isError, JSON.stringify(qSids.json).slice(0, 160));
+    const qSids = await track('dcsc_search', { search: { kind: 'sids', categoryId: 'STG@Servers@Rack Server', offset: 0, limit: 5 } });
+    check('dcsc_search sids queries category SIDs', !qSids.isError, JSON.stringify(qSids.json).slice(0, 160));
 
     const autoFix = await track('dcsc_auto_fix', { session: paritySession });
     check('dcsc_auto_fix applies candidate derivations', !autoFix.isError, JSON.stringify(autoFix.json).slice(0, 160));
 
-    const specCat = await track('dcsc_specialty_catalog', { catalog: 'lvr', limit: 2 });
-    check('dcsc_specialty_catalog browses specialty inventory', !specCat.isError, JSON.stringify(specCat.json).slice(0, 160));
+    const specCat = await track('dcsc_search', { search: { kind: 'specialty', catalog: 'lvr', limit: 2 } });
+    check('dcsc_search specialty browses specialty inventory', !specCat.isError, JSON.stringify(specCat.json).slice(0, 160));
 
-    const featDetails = await track('dcsc_feature_details', { session: paritySession, codes: ['CA0Z'] });
-    check('dcsc_feature_details fetches rich specs', !featDetails.isError, JSON.stringify(featDetails.json).slice(0, 160));
+    const featDetails = await track('dcsc_configuration_get', { session: paritySession, view: 'features', codes: ['CA0Z'], upstream: true });
+    check('dcsc_configuration_get features fetches rich specs', !featDetails.isError, JSON.stringify(featDetails.json).slice(0, 160));
 
-    const subtabRec = await track('dcsc_subtab_recommendations', { productCode: '7D73CTO1WW' });
-    check('dcsc_subtab_recommendations returns context recommendations', !subtabRec.isError, JSON.stringify(subtabRec.json).slice(0, 160));
+    const subtabRec = await track('dcsc_configuration_get', { session: paritySession, view: 'recommendations', recommendation: 'subtab' });
+    check('dcsc_configuration_get recommendations returns context recommendations', !subtabRec.isError, JSON.stringify(subtabRec.json).slice(0, 160));
 
-    const smartRec = await track('dcsc_smart_recommendations', { type: 'summary', ctoCode: '7D73CTO1WW' });
-    check('dcsc_smart_recommendations returns smart recommendations', !smartRec.isError, JSON.stringify(smartRec.json).slice(0, 160));
+    const smartRec = await track('dcsc_configuration_get', { session: paritySession, view: 'recommendations', recommendation: 'summary' });
+    check('dcsc_configuration_get recommendations returns smart recommendations', !smartRec.isError, JSON.stringify(smartRec.json).slice(0, 160));
 
-    const vlhW = await track('dcsc_vlh_wizard_info', { section: 'topologies' });
-    check('dcsc_vlh_wizard_info returns wizard data', !vlhW.isError, JSON.stringify(vlhW.json).slice(0, 160));
+    const vlhW = await track('dcsc_vlh_get', { section: 'topologies' });
+    check('dcsc_vlh_get returns wizard data', !vlhW.isError, JSON.stringify(vlhW.json).slice(0, 160));
 
-    const vlhA = await track('dcsc_vlh_attributes', { code: '7D73CTO1WW' });
-    check('dcsc_vlh_attributes returns physical specifications', !vlhA.isError, JSON.stringify(vlhA.json).slice(0, 160));
+    const vlhA = await track('dcsc_vlh_get', { code: '7D73CTO1WW' });
+    check('dcsc_vlh_get returns physical specifications', !vlhA.isError, JSON.stringify(vlhA.json).slice(0, 160));
 
     if (parityWs) {
-      const vcProd = await track('dcsc_virtual_container_compatible_products', { session: parityWs });
-      check('dcsc_virtual_container_compatible_products discovers products', !vcProd.isError, JSON.stringify(vcProd.json).slice(0, 160));
+      const vcProd = await track('dcsc_virtual_container_get', { session: parityWs, check: 'compatibleProducts' });
+      check('dcsc_virtual_container_get discovers products', !vcProd.isError, JSON.stringify(vcProd.json).slice(0, 160));
 
-      const vcRules = await track('dcsc_virtual_container_check_rules', { session: parityWs });
-      check('dcsc_virtual_container_check_rules checks update rules', !vcRules.isError, JSON.stringify(vcRules.json).slice(0, 160));
+      const vcRules = await track('dcsc_virtual_container_get', { session: parityWs, check: 'rules' });
+      check('dcsc_virtual_container_get checks update rules', !vcRules.isError, JSON.stringify(vcRules.json).slice(0, 160));
     }
 
-    const catDetail = await track('dcsc_category_detail', { categoryId: 'STG@Servers@Rack Server', limit: 2 });
-    check('dcsc_category_detail discovers sub-category detail', !catDetail.isError, JSON.stringify(catDetail.json).slice(0, 160));
+    const catDetail = await track('dcsc_category', { category: { kind: 'detail', categoryId: 'STG@Servers@Rack Server', limit: 2 } });
+    check('dcsc_category detail discovers sub-category detail', !catDetail.isError, JSON.stringify(catDetail.json).slice(0, 160));
 
-    const ctoLfoCodes = await track('dcsc_cto_lfo_codes', { limit: 5 });
-    check('dcsc_cto_lfo_codes lists filtered product codes', !ctoLfoCodes.isError, JSON.stringify(ctoLfoCodes.json).slice(0, 160));
+    const ctoLfoCodes = await track('dcsc_search', { search: { kind: 'preconfigured', limit: 5 } });
+    check('dcsc_search preconfigured lists filtered product codes', !ctoLfoCodes.isError, JSON.stringify(ctoLfoCodes.json).slice(0, 160));
 
     const rackRule = await track('dcsc_rack_position_rule', {
       rack: {
@@ -1654,20 +1678,19 @@ async function main(): Promise<void> {
     });
     check('dcsc_rack_position_rule validates U-position bounds', !rackRule.isError, JSON.stringify(rackRule.json).slice(0, 160));
 
-    const mandSw = await track('dcsc_verify_mandatory_software', {
-      mode: 'cto',
-      configuration: { id: paritySession, code: '7D73CTO1WW', sections: [] },
-    });
-    check('dcsc_verify_mandatory_software inspects mandatory tabs', !mandSw.isError, JSON.stringify(mandSw.json).slice(0, 160));
+    const mandSw = await track('dcsc_validate', { session: paritySession, includeMandatorySoftware: true });
+    check('dcsc_validate inspects mandatory software tabs', !mandSw.isError &&
+      (mandSw.json as { mandatorySoftware?: unknown }).mandatorySoftware !== undefined, JSON.stringify(mandSw.json).slice(0, 160));
 
-    const insSave = await track('dcsc_summary_insights', { session: paritySession, type: 'serviceSaving' });
-    check('dcsc_summary_insights extracts service pricing savings', !insSave.isError, JSON.stringify(insSave.json).slice(0, 160));
+    const insSave = await track('dcsc_compare', { analysis: 'insights', session: paritySession, insight: 'serviceSaving' });
+    check('dcsc_compare insights extracts service pricing savings', !insSave.isError, JSON.stringify(insSave.json).slice(0, 160));
 
-    const treeExp = await track('dcsc_export_configuration_tree', {
+    const treeExp = await track('dcsc_export', {
+      kind: 'configurationTree',
       name: 'SR630V3_Tree',
       dataList: [{ typeName: 'Processors', contents: ['Intel Xeon Gold 6430'] }],
     });
-    check('dcsc_export_configuration_tree writes a spreadsheet artifact', !treeExp.isError, JSON.stringify(treeExp.json).slice(0, 160));
+    check('dcsc_export configurationTree writes a spreadsheet artifact', !treeExp.isError, JSON.stringify(treeExp.json).slice(0, 160));
 
     await track('dcsc_session_close', { session: paritySession });
   }

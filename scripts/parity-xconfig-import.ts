@@ -98,7 +98,7 @@ try {
   } finally { await browser.close(); }
   stage = 'mcp-import';
   const imported = await call('dcsc_import', { filePath: fixture });
-  const id = String(imported['workspace']);
+  const id = String(imported['session']);
   const before = await saved(id);
   assert.deepEqual(summary(rows(before['configurations']).map(c => object(c['raw']))), summary(rows(native['configuration'])));
   const placement = (racks: Obj[]) => racks.flatMap(r => rows(r['rackItems']).map(i => ({ rack: r['code'], code: i['code'], position: i['position'], size: i['size'] })));
@@ -116,11 +116,11 @@ try {
   stage = 'restart';
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined); await start();
-  await call('dcsc_session_info', { session: id });
+  await call('dcsc_workspace_get', { session: id });
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) assert.deepEqual(after[key], before[key]);
   stage = 'export-handoff';
-  const exported = await call('dcsc_export', { session: id, fileName: 'xconfig-migrated', fileTypes: ['XML'] });
+  const exported = await call('dcsc_export', { kind: 'reports', session: id, fileName: 'xconfig-migrated', fileTypes: ['XML'] });
   const importerBrowser = await chromium.launch({ headless: true });
   try {
     const page = await importerBrowser.newPage(); await page.goto('https://dcsc.lenovo.com/', { waitUntil: 'domcontentloaded' });

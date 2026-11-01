@@ -226,13 +226,13 @@ async function offlineRecoveryCase(options: RunnerOptions): Promise<CaseResult> 
     first = await StdioMcp.start({
       name: `${name}-first`, outDir: caseDir, timeoutMs: options.timeoutMs, configFile,
     });
-    const health = object((await first.call('dcsc_health', {})).json);
+    const health = object((await first.call('dcsc_session_list', { view: 'health' })).json);
     const recovery = object(health['recovery']);
     assert.equal(recovery['archiveCount'], 1);
-    assert.equal(object(recovery['inspect'])['tool'], 'dcsc_recovery_inspect');
+    assert.equal(object(recovery['inspect'])['tool'], 'dcsc_session_list');
 
-    const inspected = object((await first.call('dcsc_recovery_inspect', {
-      path: ['recoveryArchives'], offset: 0, limit: 1,
+    const inspected = object((await first.call('dcsc_session_list', {
+      view: 'recovery', path: ['recoveryArchives'], offset: 0, limit: 1,
     })).json);
     const archive = object(object(array(inspected['items'])[0])['value']);
     const archiveId = string(archive['id']);
@@ -251,8 +251,8 @@ async function offlineRecoveryCase(options: RunnerOptions): Promise<CaseResult> 
     restarted = await StdioMcp.start({
       name: `${name}-restart`, outDir: caseDir, timeoutMs: options.timeoutMs, configFile,
     });
-    const afterRestart = object((await restarted.call('dcsc_recovery_inspect', {
-      path: ['recoveryArchives'], offset: 0, limit: 10,
+    const afterRestart = object((await restarted.call('dcsc_session_list', {
+      view: 'recovery', path: ['recoveryArchives'], offset: 0, limit: 10,
     })).json);
     const ids = array(afterRestart['items']).map((item) =>
       string(object(object(item)['value'])['id']));
@@ -313,9 +313,9 @@ async function liveLegacyCase(options: RunnerOptions): Promise<CaseResult> {
     assert.equal(workspace, 'ws_legacy_recovery');
     assert.equal(session, 'sess_legacy_recovery');
 
-    const before = object((await first.call('dcsc_session_info', { session: workspace })).json);
+    const before = object((await first.call('dcsc_workspace_get', { session: workspace })).json);
     assert.equal(before['integrity'], 'legacy-unverified');
-    await first.call('dcsc_export', {
+    await first.call('dcsc_export', { kind: 'reports',
       session: workspace, scope: 'workspace', fileName: 'blocked-before-reconciliation', fileTypes: ['XML'],
     }, true);
     await first.call('dcsc_validate', { session: workspace, deadlineMs: 30_000 }, true);
@@ -345,7 +345,7 @@ async function liveLegacyCase(options: RunnerOptions): Promise<CaseResult> {
     const applied = object((await first.call('dcsc_reconcile_workspace', {
       session: workspace, action: 'apply', proposalId,
     })).json);
-    assert.equal(applied['workspace'], workspace);
+    assert.equal(applied['session'], workspace);
     assert.equal(applied['integrity'], 'verified');
     const appliedRevision = number(applied['revision']);
     await first.killAfterAcknowledgement();
@@ -354,7 +354,7 @@ async function liveLegacyCase(options: RunnerOptions): Promise<CaseResult> {
     restarted = await StdioMcp.start({
       name: `${name}-restart`, outDir: caseDir, timeoutMs: options.timeoutMs, configFile,
     });
-    const restored = object((await restarted.call('dcsc_session_info', { session: workspace })).json);
+    const restored = object((await restarted.call('dcsc_workspace_get', { session: workspace })).json);
     assert.equal(restored['integrity'], 'verified');
     const restoredConfigurationRevision = number(restored['revision']);
     assert(
@@ -362,7 +362,7 @@ async function liveLegacyCase(options: RunnerOptions): Promise<CaseResult> {
       'Reconciled configuration revision did not survive restart.',
     );
 
-    const exported = object((await restarted.call('dcsc_export', {
+    const exported = object((await restarted.call('dcsc_export', { kind: 'reports',
       session: workspace,
       scope: 'workspace',
       fileName: 'legacy-reconciled-sr630',
@@ -497,9 +497,9 @@ async function inspectValidationJob(
   jobId: string,
 ): Promise<Json> {
   const fields: Json = {};
-  let args: Json = { session, jobId, path: [], offset: 0, limit: 50 };
+  let args: Json = { session, view: 'validation', jobId, path: [], offset: 0, limit: 50 };
   for (;;) {
-    const page = object((await client.call('dcsc_validation_jobs', args)).json);
+    const page = object((await client.call('dcsc_workspace_get', args)).json);
     for (const item of array(page['items'])) {
       const entry = object(item);
       if (typeof entry['key'] === 'string' && Object.hasOwn(entry, 'value')) {

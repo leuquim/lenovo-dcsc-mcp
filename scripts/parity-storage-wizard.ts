@@ -131,8 +131,8 @@ async function main() {
   try {
     await start();
     stage = 'launch';
-    const launched = await call('dcsc_launch_reference_solution', { crnId: referenceId, solutionMode: 'General Purpose' });
-    const workspace = String(launched['workspace']);
+    const launched = await call('dcsc_launch', { mode: 'reference-solution', sid: referenceId, solutionMode: 'General Purpose' });
+    const workspace = String(launched['session']);
     const saved = async () => {
       const state = object(JSON.parse(await readFile(sessionFile, 'utf8')));
       return rows(state['workspaces']).find(w => w['id'] === workspace)!;
@@ -153,11 +153,11 @@ async function main() {
         if (raid && expectedSelection === expected) assertRaidState(raw);
       }
     };
-    const before = await call('dcsc_storage_wizard', { session });
+    const before = await call('dcsc_wizard_get', { wizard: 'storage', session });
     assert.equal(values(before)['available'], true);
-    await call('dcsc_storage_wizard', { session, expectedRevision: before['workspaceRevision'], path: ['options'] });
+    await call('dcsc_wizard_get', { wizard: 'storage', session, expectedRevision: before['revision'], path: ['options'] });
     stage = 'select-option';
-    const option = await call('dcsc_set_storage_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: targetOption });
+    const option = await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: before['revision'], optionId: targetOption });
     assert.equal(option['affectedConfigurationCount'], 4);
     const optionSelection = { optionId: targetOption, userSelected: true,
       features: [{ code: 'BM50', quantity: 1 }, { code: 'C3RT', quantity: 2 },
@@ -167,27 +167,27 @@ async function main() {
     const snapshot = JSON.parse(await readFile(sessionFile, 'utf8')) as unknown;
     assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
     await client!.close(); client = undefined; transport = undefined; await start();
-    const restarted = await call('dcsc_storage_wizard', { session });
+    const restarted = await call('dcsc_wizard_get', { wizard: 'storage', session });
     assert.deepEqual(JSON.parse(await readFile(sessionFile, 'utf8')), snapshot);
     await checkMembers(optionSelection);
     stage = 'stale-and-history';
-    await call('dcsc_set_storage_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: targetOption }, true);
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo', expectedRevision: restarted['workspaceRevision'] });
+    await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: before['revision'], optionId: targetOption }, true);
+    await call('dcsc_undo', { session: workspace, action: 'undo', expectedRevision: restarted['revision'] });
     assert.deepEqual(selection(await current()), selection(object(configuration['raw'])));
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     await checkMembers(optionSelection);
     stage = 'controller-edit';
-    const added = await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'],
+    const added = await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: (await saved())['revision'],
       optionId: targetOption, feature: { groupIndex: 1, code: 'B8NZ', quantity: 1 } });
     assert(Number(added['storageWizardErrorCount']) > 0, 'Adding a second controller must retain native combination diagnostics');
-    const removed = await call('dcsc_set_storage_wizard', { session, expectedRevision: added['workspaceRevision'],
+    const removed = await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: added['revision'],
       optionId: targetOption, feature: { groupIndex: 1, code: 'BM50', quantity: 0 } });
     assert.equal(removed['storageWizardErrorCount'], 0);
     await checkMembers(configured);
     stage = 'component-crash-restart';
     assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
     await client!.close(); client = undefined; transport = undefined; await start();
-    await call('dcsc_storage_wizard', { session });
+    await call('dcsc_wizard_get', { wizard: 'storage', session });
     await checkMembers(configured);
     stage = 'subsequent-derive';
     const raw = await current();
@@ -200,20 +200,20 @@ async function main() {
     if (clear) {
       stage = 'clear-drive-guard';
       const beforeRejectedClear = await readFile(sessionFile, 'utf8');
-      await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'], optionId: null }, true);
+      await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: (await saved())['revision'], optionId: null }, true);
       assert.equal(await readFile(sessionFile, 'utf8'), beforeRejectedClear);
       stage = 'clear-option';
       await call('dcsc_configure', { session, changes: [{ section: 'NONRAID_HDD', code: 'BYLR', quantity: 0 }] });
-      await call('dcsc_set_storage_wizard', { session, expectedRevision: (await saved())['revision'], optionId: null });
+      await call('dcsc_wizard_set', { wizard: 'storage', session, expectedRevision: (await saved())['revision'], optionId: null });
       await checkMembers(expected);
-      await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+      await call('dcsc_undo', { session: workspace, action: 'undo' });
       await checkMembers(configured);
-      await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+      await call('dcsc_undo', { session: workspace, action: 'redo' });
       await checkMembers(expected);
       stage = 'clear-crash-restart';
       assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
       await client!.close(); client = undefined; transport = undefined; await start();
-      await call('dcsc_storage_wizard', { session });
+      await call('dcsc_wizard_get', { wizard: 'storage', session });
       await checkMembers(expected);
       await call('dcsc_configure', { session, changes: [{ section: 'UEFI_OPERATING_MODES', code: selectedUefi['code'], quantity: 1 }] });
       await checkMembers(expected);
@@ -228,25 +228,25 @@ async function main() {
         await call('dcsc_configure', { session, changes: [{ section: 'RAID_CONFIG', code: '5977', quantity: 1 }] });
       }
       await checkMembers(expected);
-      await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+      await call('dcsc_undo', { session: workspace, action: 'undo' });
       await checkMembers(undoSelection);
-      await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+      await call('dcsc_undo', { session: workspace, action: 'redo' });
       await checkMembers(expected);
       stage = 'raid-crash-restart';
       assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
       await client!.close(); client = undefined; transport = undefined; await start();
-      await call('dcsc_storage_wizard', { session });
+      await call('dcsc_wizard_get', { wizard: 'storage', session });
       await checkMembers(expected);
       await call('dcsc_configure', { session, changes: [{ section: 'UEFI_OPERATING_MODES', code: selectedUefi['code'], quantity: 1 }] });
       await checkMembers(expected);
     }
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace, fileName: 'storage-wizard', fileTypes: ['XML'] });
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'storage-wizard', fileTypes: ['XML'] });
     const xmlPath = String(exported['xml']);
     stage = 'mcp-import';
     const imported = await call('dcsc_import', { filePath: xmlPath });
     const state = object(JSON.parse(await readFile(sessionFile, 'utf8')));
-    const importedWorkspace = rows(state['workspaces']).find(w => w['id'] === imported['workspace'])!;
+    const importedWorkspace = rows(state['workspaces']).find(w => w['id'] === imported['session'])!;
     assert(importedWorkspace);
     const importedMembers = rows(importedWorkspace['configurations']).map(c => object(c['raw'])).filter(r => r['code'] === productCode);
     assert.equal(importedMembers.length, 4);

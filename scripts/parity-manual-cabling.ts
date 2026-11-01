@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     client = new Client({ name: 'manual-cabling-parity', version: '1.0.0' });
     await client.connect(transport);
     const listed = await client.listTools();
-    for (const name of ['dcsc_cabling_connections', 'dcsc_edit_cabling_connection', 'dcsc_export']) {
+    for (const name of ['dcsc_cabling_get', 'dcsc_cabling_set', 'dcsc_export']) {
       assert(listed.tools.some(tool => tool.name === name), `${name} is not registered.`);
     }
   };
@@ -86,19 +86,25 @@ async function main(): Promise<void> {
     assert(Buffer.byteLength(text) <= 8_000, `${name} exceeded the tool response budget.`);
     return result;
   };
+  const cabling = async (action: 'create' | 'edit', args: Obj): Promise<Obj> => {
+    const { session, expectedRevision, ...change } = args;
+    const reply = await call('dcsc_cabling_set', { session, expectedRevision, changes: [{ action, ...change }] });
+    return { ...object(rows(reply['results'])[0]), revision: reply['revision'] };
+  };
   const detail = async (workspace: string, revision: number, index = 0): Promise<Obj> => {
-    const page = await call('dcsc_cabling_connections', { session: workspace,
+    const page = await call('dcsc_cabling_get', { session: workspace,
       expectedRevision: revision, path: ['connections', String(index)], offset: 0, limit: 50 });
     return Object.fromEntries(rows(page['items']).filter(item => 'value' in item)
       .map(item => [String(item['key']), item['value']]));
   };
   const findCableChoice = async (args: Obj, part: string): Promise<Obj> => {
-    let request = { ...args, path: ['choices'], offset: 0, limit: 50 } as Obj;
+    const { session, expectedRevision, ...candidate } = args;
+    let request = { session, expectedRevision, candidate, path: ['choices'], offset: 0, limit: 50 } as Obj;
     for (let page = 0; page < 100; page++) {
-      const result = await call('dcsc_manual_cabling_options', request);
+      const result = await call('dcsc_cabling_get', request);
       if (rows(result['items']).some(item => object(item['value'])['part'] === part)) return result;
       const next = object(result['next']);
-      assert.equal(next['tool'], 'dcsc_manual_cabling_options', `Expected cable ${part} is unavailable.`);
+      assert.equal(next['tool'], 'dcsc_cabling_get', `Expected cable ${part} is unavailable.`);
       request = object(next['arguments']);
     }
     throw new Error('Cable-choice pagination did not terminate.');
@@ -108,17 +114,16 @@ async function main(): Promise<void> {
     await start();
     stage = 'import';
     const imported = await call('dcsc_import', { filePath: seed, solutionMode: 'HPC and AI - Systems' });
-    const workspace = String(imported['workspace']);
+    const workspace = String(imported['session']);
     assert(workspace, 'Import returned no workspace.');
     if (freshStorage) {
       stage = 'fresh-storage-definition';
-      const catalog = await call('dcsc_fabric_options', { session: workspace, collection: 'storageControllers',
+      const catalog = await call('dcsc_network_get', { session: workspace, collection: 'storageControllers',
         limit: 100, fields: ['option', 'featureCode'] });
       const choice = rows(catalog['items']).find(item => item['option'] === '7Y70CTOHWW' && !item['featureCode']);
       assert(choice?.['id'], 'Native DE2000H base controller choice is unavailable.');
-      await call('dcsc_add_storage_network', { session: workspace, name: 'Fresh Manual Storage',
-        controllerId: choice['id'], switchId: 'direct-attached', expansionQuantity: 0 });
-      const opened = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Fresh Manual Storage' });
+      await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: 'Fresh Manual Storage', controllerId: choice['id'], switchId: 'direct-attached', expansionQuantity: 0 } });
+      const opened = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Fresh Manual Storage' } });
       assert.equal(opened['created'], true);
       assert.equal(typeof opened['controllerId'], 'string');
       freshControllerId = String(opened['controllerId']);
@@ -156,16 +161,14 @@ async function main(): Promise<void> {
       const initial = rows((await snapshot())['workspaces'])[0]!;
       const rackId = rows(initial['rackArea'])[0]?.['id'];
       assert(rackId);
-      const placed = await call('dcsc_place_storage_network', { session: workspace,
-        name: 'Fresh Manual Storage', rackId });
+      const placed = await call('dcsc_storage_set', { session: workspace, change: { action: 'place', name: 'Fresh Manual Storage', rackId } });
       const controller = rows(placed['placements']).find(p => p['role'] === 'controller');
       assert(controller);
       assert.equal(typeof controller['physicalId'], 'string');
       freshPhysicalId = String(controller['physicalId']);
       assert(freshPhysicalId && freshPhysicalId !== freshControllerId);
       if (sharedStorage) {
-        const second = await call('dcsc_place_storage_network', { session: workspace,
-          name: 'Fresh Manual Storage', rackId });
+        const second = await call('dcsc_storage_set', { session: workspace, change: { action: 'place', name: 'Fresh Manual Storage', rackId } });
         assert(rows(second['templates']).every(t => t['created'] === false));
         const instance = rows(second['placements']).find(p => p['role'] === 'controller');
         assert.equal(instance?.['templateId'], freshControllerId);
@@ -174,7 +177,7 @@ async function main(): Promise<void> {
         assert(secondStoragePhysicalId !== freshPhysicalId && secondStoragePhysicalId !== freshControllerId);
       }
       const source = rows(initial['configurations']).find(c => object(c['raw'])['code'] === '7D73CTOHWW')!;
-      await call('dcsc_assign_storage_network', { session: source['id'], networkName: 'Fresh Manual Storage', autoConnect: false });
+      await call('dcsc_storage_set', { session: source['id'], change: { action: 'assign', networkName: 'Fresh Manual Storage', autoConnect: false } });
     }
     if (managedDestination) {
       stage = 'storage-topology-setup';
@@ -182,15 +185,14 @@ async function main(): Promise<void> {
       const source = rows(initial['configurations']).find(c => object(c['raw'])['code'] === '7D73CTOHWW')!;
       assert(source);
       assert.deepEqual(object(source['raw'])['selectedTopologies'] ?? {}, {});
-      await call('dcsc_set_topology', { session: source['id'], topology: '10GbE_Copper',
-        networkName: object(source['raw'])['selectedStorageNetwork'], ports: ['SFP28:1'], autoConnect: false });
+      await call('dcsc_network_set', { session: source['id'], change: { kind: 'topology', topology: '10GbE_Copper', networkName: object(source['raw'])['selectedStorageNetwork'], ports: ['SFP28:1'], autoConnect: false } });
     }
     if (linkedDestination) {
       const initial = rows((await snapshot())['workspaces'])[0]!;
       const example = object(object(JSON.parse(await readFile('test/fixtures/parity/manual-row-seeding.json', 'utf8')))['requestedManualRow']);
       const destination = rows(initial['configurations']).find(c => c['configurationId'] === example['destinationId'])!;
       assert(destination);
-      await call('dcsc_clone_configuration', { session: destination['id'], count: 1, placement: 'same-rack' });
+      await call('dcsc_rack_edit', { action: 'clone', session: destination['id'], count: 1, placement: 'same-rack' });
     }
     if (data100) {
       stage = '100g-setup';
@@ -198,18 +200,18 @@ async function main(): Promise<void> {
       const source = rows(initial['configurations']).find(c => object(c['raw'])['code'] === '7D73CTOHWW')!;
       assert(source);
       await call('dcsc_configure', { session: source['id'], changes: [{ section: 'OCPCARD', code: breakout ? 'BPPW' : 'BPPX', quantity: 1 }] });
-      await call('dcsc_set_network_preferences', { session: workspace, autoConnect: false, selections: [{
+      await call('dcsc_network_set', { session: workspace, change: { kind: 'preferences', autoConnect: false, selections: [{
         networkTypeId: 'network-type:10G', topology: '100GbE_Copper',
         mainDeviceId: 'network-device:7D5FCTOKWW:BUZ2:NVIDIA SN3420 25GbE Managed Switch with Cumulus (PSE)',
         ...(breakout ? { cableId: 'cable:AV22:7Z57A03564:1jt0u82' } : {}),
-      }] });
-      await call('dcsc_set_topology', { session: source['id'], topology: '100GbE_Copper', networkName: '10G', ports: [breakout ? 'SFP28:1' : 'QSFP56:1'], autoConnect: false });
-      if (linkedSource) await call('dcsc_clone_configuration', { session: source['id'], count: 1, placement: 'same-rack' });
-      await call('dcsc_add_cabling', { session: workspace, mode: 'auto', settings: { autoAddSwitch: true, autoAddPDU: false } });
+      }] } });
+      await call('dcsc_network_set', { session: source['id'], change: { kind: 'topology', topology: '100GbE_Copper', networkName: '10G', ports: [breakout ? 'SFP28:1' : 'QSFP56:1'], autoConnect: false } });
+      if (linkedSource) await call('dcsc_rack_edit', { action: 'clone', session: source['id'], count: 1, placement: 'same-rack' });
+      await call('dcsc_auto_connect', { session: workspace, settings: { autoAddSwitch: true, autoAddPDU: false } });
     }
     stage = 'inspect';
-    const root = await call('dcsc_cabling_connections', { session: workspace, path: [], offset: 0, limit: 20 });
-    const revision = Number(root['workspaceRevision']);
+    const root = await call('dcsc_cabling_get', { session: workspace, path: [], offset: 0, limit: 20 });
+    const revision = Number(root['revision']);
     assert(Number.isInteger(revision) && revision > 0, 'Inspection returned no workspace revision.');
     if (create) {
       stage = 'native-create-options';
@@ -237,12 +239,12 @@ async function main(): Promise<void> {
           '100 GbE point-to-point discovery offered a wrong-speed or breakout cable.');
       }
       stage = 'native-create';
-      const created = await call('dcsc_create_cabling_connection', { ...args, cablePart: newPart, pinExistingRoutes: true });
+      const created = await cabling('create', { ...args, cablePart: newPart, pinExistingRoutes: true });
       assert.equal(created['additionalConnectionCount'], linkedSource ? 1 : 0);
       assert.equal((created['sourceConfigurationIds'] as string[]).length, linkedSource ? 2 : 1);
       const pinCount = original.filter(row => row['type'] === 'AUTO' && row['subType'] === 'NETWORK').length;
       assert(managedDestination ? pinCount === 0 : pinCount > 0); assert.equal(created['pinnedConnectionCount'], pinCount);
-      let acceptedRevision = Number(created['workspaceRevision']);
+      let acceptedRevision = Number(created['revision']);
       let persisted = await snapshot();
       let accepted = rows(persisted['workspaces'])[0]!;
       let graph = rows(object(accepted['serverState'])['connections']);
@@ -289,9 +291,9 @@ async function main(): Promise<void> {
         const options = await findCableChoice(secondArgs, newPart);
         assert(JSON.stringify(options).includes(newPart));
         const previousGraph = graph;
-        const second = await call('dcsc_create_cabling_connection', { ...secondArgs, cablePart: newPart, pinExistingRoutes: true });
+        const second = await cabling('create', { ...secondArgs, cablePart: newPart, pinExistingRoutes: true });
         assert.deepEqual(new Set(second['destinationConfigurationIds'] as string[]), new Set(group));
-        acceptedRevision = Number(second['workspaceRevision']);
+        acceptedRevision = Number(second['revision']);
         persisted = await snapshot(); accepted = rows(persisted['workspaces'])[0]!;
         graph = rows(object(accepted['serverState'])['connections']);
         assert.equal(graph.length, previousGraph.length + 1);
@@ -308,8 +310,8 @@ async function main(): Promise<void> {
         const secondArgs = { ...args, expectedRevision: acceptedRevision, source: { ...args.source, portNumber: '3' } };
         await findCableChoice(secondArgs, newPart);
         const previousGraph = graph;
-        const second = await call('dcsc_create_cabling_connection', { ...secondArgs, cablePart: newPart, pinExistingRoutes: true });
-        acceptedRevision = Number(second['workspaceRevision']);
+        const second = await cabling('create', { ...secondArgs, cablePart: newPart, pinExistingRoutes: true });
+        acceptedRevision = Number(second['revision']);
         persisted = await snapshot(); accepted = rows(persisted['workspaces'])[0]!;
         graph = rows(object(accepted['serverState'])['connections']);
         assert.equal(graph.length, previousGraph.length + 1);
@@ -327,12 +329,12 @@ async function main(): Promise<void> {
         const rowIndex = graph.findIndex(row => row['sourceId'] === args.source.configurationId && row['sourcePortName'] === 'SFP28' && row['sourcePortNumber'] === '2');
         assert(rowIndex >= 0);
         const connection = await detail(workspace, acceptedRevision, rowIndex);
-        const replacement = await call('dcsc_edit_cabling_connection', { session: workspace, expectedRevision: acceptedRevision,
+        const replacement = await cabling('edit', { session: workspace, expectedRevision: acceptedRevision,
           connectionId: connection['id'], cablePart: 'AV23' });
         assert.equal(rows(replacement['updatedConnections']).length, 1, 'Both branches of the selected physical cable must change.');
         const expected = graph.map(row => row['destinationId'] === args.destination.configurationId && row['destinationPortNumber'] === args.destination.portNumber
           ? { ...row, cablePart: 'AV23', type: 'MANUAL' } : row);
-        acceptedRevision = Number(replacement['workspaceRevision']);
+        acceptedRevision = Number(replacement['revision']);
         persisted = await snapshot(); accepted = rows(persisted['workspaces'])[0]!;
         graph = rows(object(accepted['serverState'])['connections']);
         assert.equal(graph.length, expected.length); assertNativeConnectionsRetained(expected, graph);
@@ -350,9 +352,9 @@ async function main(): Promise<void> {
           destination: { ...args.destination, configurationId: secondStoragePhysicalId } };
         const secondPart = mixedStorage && !replacementStorage ? 'A1PJ' : newPart;
         await findCableChoice(secondArgs, secondPart);
-        const second = await call('dcsc_create_cabling_connection', { ...secondArgs, cablePart: secondPart, pinExistingRoutes: true });
+        const second = await cabling('create', { ...secondArgs, cablePart: secondPart, pinExistingRoutes: true });
         assert.deepEqual(second['destinationConfigurationIds'], [freshControllerId]);
-        acceptedRevision = Number(second['workspaceRevision']);
+        acceptedRevision = Number(second['revision']);
         persisted = await snapshot(); accepted = rows(persisted['workspaces'])[0]!;
         graph = rows(object(accepted['serverState'])['connections']);
         assert.equal(graph.length, previousGraph.length + 1);
@@ -367,9 +369,9 @@ async function main(): Promise<void> {
         stage = 'shared-storage-cable-replacement';
         const row = await detail(workspace, acceptedRevision, 0);
         const untouched = graph.filter(r => r['destinationId'] !== object(row['destination'])['configurationId']);
-        const changed = await call('dcsc_edit_cabling_connection', { session: workspace, connectionId: row['id'],
+        const changed = await cabling('edit', { session: workspace, connectionId: row['id'],
           cablePart: 'A1PJ', cableQuantities: { oldPart: 2, newPart: 2 }, expectedRevision: acceptedRevision });
-        acceptedRevision = Number(changed['workspaceRevision']);
+        acceptedRevision = Number(changed['revision']);
         persisted = await snapshot(); accepted = rows(persisted['workspaces'])[0]!;
         graph = rows(object(accepted['serverState'])['connections']);
         assert.equal(graph.length, 2);
@@ -383,7 +385,7 @@ async function main(): Promise<void> {
       await detail(workspace, acceptedRevision, 0);
       assert.deepEqual(await snapshot(), persisted, 'Creation changed across immediate SIGKILL/restart.');
       stage = 'native-create-export';
-      const exported = await call('dcsc_export', { session: workspace, fileName: 'native-manual-created', fileTypes: ['XML', 'QUOTE'] });
+      const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'native-manual-created', fileTypes: ['XML', 'QUOTE'] });
       const xml = String(exported['xml']); assert((await readFile(xml)).length > 0);
       let browserXml = xml;
       let browserWorkspace = accepted;
@@ -394,7 +396,7 @@ async function main(): Promise<void> {
       if (breakout || managedSource || managedDestination) {
         stage = 'manual-mcp-reimport';
         const recovered = await call('dcsc_import', { filePath: xml, solutionMode: 'HPC and AI - Systems' });
-        const recoveredId = String(recovered['workspace']);
+        const recoveredId = String(recovered['session']);
         let recoverySnapshot = await snapshot();
         let recoveredWorkspace = rows(recoverySnapshot['workspaces']).find(w => w['id'] === recoveredId)!;
         assert(recoveredWorkspace, 'Recovered workspace is missing.');
@@ -406,7 +408,7 @@ async function main(): Promise<void> {
           const index = recoveredGraph.findIndex(row => row['cablePart'] === 'A1PJ');
           assert(index >= 0);
           const existing = await detail(recoveredId, Number(recoveredWorkspace['revision']), index);
-          await call('dcsc_edit_cabling_connection', { session: recoveredId, connectionId: existing['id'],
+          await cabling('edit', { session: recoveredId, connectionId: existing['id'],
             cablePart: 'A1PH', cableQuantities: { oldPart: 2, newPart: 2 }, expectedRevision: Number(recoveredWorkspace['revision']) });
           const expected = recoveredGraph.map((row, i) => i === index ? { ...row, cablePart: 'A1PH', type: 'MANUAL' } : row);
           recoverySnapshot = await snapshot();
@@ -438,13 +440,13 @@ async function main(): Promise<void> {
         const recoveredDetail = await detail(recoveredId, Number(recoveredWorkspace['revision']), 0);
         assert.deepEqual(await snapshot(), recoverySnapshot, 'Recovered connection changed across restart.');
         if (sharedStorage) {
-          const choices = await call('dcsc_cabling_connections', { session: recoveredId,
+          const choices = await call('dcsc_cabling_get', { session: recoveredId,
             expectedRevision: Number(recoveredWorkspace['revision']), refreshConnectionId: recoveredDetail['id'],
             path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50 });
           assert(rows(choices['items']).some(item => object(item['value'])['part'] === 'A1PJ'));
           assert.deepEqual(await snapshot(), recoverySnapshot, 'Fresh cable discovery changed persisted workspace state.');
         }
-        const recoveredExport = await call('dcsc_export', { session: recoveredId, fileName: 'recovered-breakout', fileTypes: ['XML', 'QUOTE'] });
+        const recoveredExport = await call('dcsc_export', { kind: 'reports', session: recoveredId, fileName: 'recovered-breakout', fileTypes: ['XML', 'QUOTE'] });
         assert((await readFile(String(recoveredExport['xml']))).length > 0);
         if (sharedStorage) {
           browserXml = String(recoveredExport['xml']);
@@ -489,8 +491,7 @@ async function main(): Promise<void> {
         stage = 'managed-source-clear-ports';
         const source = rows(accepted['configurations']).find(c => object(c['raw'])['code'] === '7DHNCTO1WW')!;
         assert(source, 'Managed source template is missing.');
-        const cleared = await call('dcsc_set_topology', { session: source['id'], topology: args.topology,
-          networkName: args.network, ports: [], autoConnect: true });
+        const cleared = await call('dcsc_network_set', { session: source['id'], change: { kind: 'topology', topology: args.topology, networkName: args.network, ports: [], autoConnect: true } });
         assert.equal(cleared['connectionGraphStale'], false);
         assert.deepEqual(object(object(cleared['selectedTopologies'])[String(args.network)])['selectedConnectors'], []);
         const clearedSnapshot = await snapshot();
@@ -503,9 +504,9 @@ async function main(): Promise<void> {
         await client!.close(); client = undefined; transport = undefined; await start();
         await detail(workspace, Number(clearedWorkspace['revision']), 0);
         assert.deepEqual(await snapshot(), clearedSnapshot, 'Port deselection changed across crash recovery.');
-        const clearedExport = await call('dcsc_export', { session: workspace, fileName: 'cleared-managed-source', fileTypes: ['XML'] });
+        const clearedExport = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'cleared-managed-source', fileTypes: ['XML'] });
         const clearedImport = await call('dcsc_import', { filePath: clearedExport['xml'], solutionMode: 'HPC and AI - Systems' });
-        const clearedImportedWorkspace = rows((await snapshot())['workspaces']).find(w => w['id'] === clearedImport['workspace'])!;
+        const clearedImportedWorkspace = rows((await snapshot())['workspaces']).find(w => w['id'] === clearedImport['session'])!;
         const importedGraph = rows(object(clearedImportedWorkspace['serverState'])['connections']);
         assert.equal(importedGraph.length, clearedGraph.length);
         assertNativeConnectionsRetained(clearedGraph, importedGraph);
@@ -540,11 +541,11 @@ async function main(): Promise<void> {
       const beforeDistances = [edited['totalDistance'], conflicting['totalDistance']];
 
       stage = 'collision-swap';
-      const swapped = await call('dcsc_edit_cabling_connection', {
+      const swapped = await cabling('edit', {
         session: workspace, connectionId: String(edited['id']), expectedRevision: revision,
         destination: { configurationId: destinationId, portName: 'RJ45', portNumber: '3' },
       });
-      const acceptedRevision = Number(swapped['workspaceRevision']);
+      const acceptedRevision = Number(swapped['revision']);
       assert.equal(object(object(swapped['connection'])['destination'])['portNumber'],
         expectedAfter[0]!['destinationPortNumber']);
       const displaced = rows(swapped['swappedConnections']);
@@ -583,7 +584,7 @@ async function main(): Promise<void> {
         'Occupied-port swap changed across immediate SIGKILL/restart.');
 
       stage = 'collision-export';
-      const exported = await call('dcsc_export', { session: workspace, fileName: 'manual-cable-collision',
+      const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'manual-cable-collision',
         fileTypes: ['XML', 'QUOTE'] });
       const xmlPath = String(exported['xml']);
       assert(xmlPath && (await readFile(xmlPath)).length > 0, 'Collision export returned no XML.');
@@ -636,9 +637,9 @@ async function main(): Promise<void> {
       const currentFirst = current.find(row => row['id'] === first['id']);
       assert(currentFirst && object(currentFirst['cable'])['part'] === 'AVFT',
         'First row identity or shared AVFT state was not preserved.');
-      const split = await call('dcsc_edit_cabling_connection', { session: workspace,
+      const split = await cabling('edit', { session: workspace,
         connectionId: String(currentFirst['id']), cablePart: 'AVFU', expectedRevision: sharedRevision });
-      const acceptedRevision = Number(split['workspaceRevision']);
+      const acceptedRevision = Number(split['revision']);
       const persistedAfter = await snapshot();
       const workspaceAfter = rows(persistedAfter['workspaces'])[0]!;
       const finalConnections = rows(object(workspaceAfter['serverState'])['connections']);
@@ -668,7 +669,7 @@ async function main(): Promise<void> {
       assert.deepEqual(await snapshot(), persistedAfter,
         'Shared manual cable state changed across immediate SIGKILL/restart.');
       stage = 'shared-export';
-      const exported = await call('dcsc_export', { session: workspace, fileName: 'manual-cable-shared',
+      const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'manual-cable-shared',
         fileTypes: ['XML', 'QUOTE'] });
       const xmlPath = String(exported['xml']);
       const xml = await readFile(xmlPath, 'utf8');
@@ -686,7 +687,7 @@ async function main(): Promise<void> {
     assert.equal(object(before['cable'])['part'], 'AVFT', 'Seed current cable is not captured AVFT.');
     const destinationId = String(object(before['destination'])['configurationId']);
     const connectionId = String(before['id']);
-    const choicesPage = await call('dcsc_cabling_connections', { session: workspace,
+    const choicesPage = await call('dcsc_cabling_get', { session: workspace,
       expectedRevision: revision, path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50 });
     const choices = rows(choicesPage['items']).map(item => object(item['value']));
     assert(choices.some(choice => choice['part'] === cablePart), `Captured ${cablePart} compatible cable is unavailable.`);
@@ -696,7 +697,7 @@ async function main(): Promise<void> {
       .find(item => item['configurationId'] === destinationId)!;
     const priceBefore = Number(object(configBefore['raw'])['totalPrice']);
     stage = 'replace';
-    const replaced = await call('dcsc_edit_cabling_connection', { session: workspace, connectionId,
+    const replaced = await cabling('edit', { session: workspace, connectionId,
       cablePart, expectedRevision: revision });
     assert.equal(object(replaced['connection'])['compatibleCables'], undefined,
       'Mutation response leaked the full compatible cable catalog.');
@@ -705,7 +706,7 @@ async function main(): Promise<void> {
     assert.equal(reportedPrice['configurationId'], destinationId);
     assert.equal(reportedPrice['priceScope'], 'editable-configuration');
     assert.equal(reportedPrice['currency'], 'USD');
-    const acceptedRevision = Number(replaced['workspaceRevision']);
+    const acceptedRevision = Number(replaced['revision']);
     const persistedAfter = await snapshot();
     const workspaceAfter = rows(persistedAfter['workspaces'])[0]!;
     const connection = rows(object(workspaceAfter['serverState'])['connections'])[0]!;
@@ -748,7 +749,7 @@ async function main(): Promise<void> {
     assert.equal(object(afterRestart['cable'])['part'], cablePart);
     assert.deepEqual(await snapshot(), persistedAfter, 'Manual cable state changed across immediate SIGKILL/restart.');
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace, fileName: 'manual-cable-replacement',
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'manual-cable-replacement',
       fileTypes: ['XML', 'QUOTE'] });
     const xmlPath = String(exported['xml']);
     const xml = await readFile(xmlPath, 'utf8');

@@ -35,8 +35,8 @@ try {
     cursor = page.nextCursor;
   } while (cursor);
   assert.equal(new Set(names).size, names.length, 'Tool names must be unique');
-  assert(names.includes('dcsc_health') && names.includes('dcsc_find_products'));
-  const response = await client.callTool({ name: 'dcsc_health', arguments: {} });
+  assert(names.includes('dcsc_session_list') && names.includes('dcsc_search'));
+  const response = await client.callTool({ name: 'dcsc_session_list', arguments: { view: 'health' } });
   assert(!response.isError, 'Offline health check failed');
   const content = response.content as Array<{ type: string; text?: string }>;
   const text = content.find(item => item.type === 'text')?.text;

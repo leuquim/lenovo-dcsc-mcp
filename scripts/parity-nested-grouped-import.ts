@@ -87,25 +87,25 @@ try {
   const cloneMode = process.argv.includes('--clone') || copyMode;
   const imported = await call('dcsc_import', { filePath: cloneMode ? path.resolve('test/fixtures/parity/xml/nested-racked-browser.xml') : seed,
     solutionMode: 'HPC and AI - Systems' });
-  const id = String(imported['workspace']); let before = await saved(id);
+  const id = String(imported['session']); let before = await saved(id);
   if (cloneMode) {
     stage = 'mcp-chassis-clone';
     const chassis = rows(before['configurations']).find(c => object(c['raw'])['type'] === 'chassis');
     assert(chassis);
     const result = copyMode
-      ? await call('dcsc_copy_rack_item', { session: chassis['id'], expectedRevision: before['revision'] })
-      : await call('dcsc_clone_configuration', { session: chassis['id'], count: 1,
+      ? await call('dcsc_rack_edit', { action: 'copy', session: chassis['id'], expectedRevision: before['revision'] })
+      : await call('dcsc_rack_edit', { action: 'clone', session: chassis['id'], count: 1,
         placement: 'same-rack', expectedRevision: before['revision'] });
     assert.equal(result['nestedConfigurationsCreated'], 1);
     if (!copyMode) assert.equal(result['totalConfigurations'], 4);
     before = await saved(id);
     stage = 'clone-history';
     const cloned = before;
-    await call('dcsc_workspace_history', { session: id, action: 'undo', expectedRevision: before['revision'] });
+    await call('dcsc_undo', { session: id, action: 'undo', expectedRevision: before['revision'] });
     const undone = await saved(id);
     assert.equal(rows(undone['configurations']).length, 4);
     assert.equal(physical(rows(undone['rackArea'])).length, 1);
-    await call('dcsc_workspace_history', { session: id, action: 'redo', expectedRevision: undone['revision'] });
+    await call('dcsc_undo', { session: id, action: 'redo', expectedRevision: undone['revision'] });
     before = await saved(id);
     assert.deepEqual(physical(rows(before['rackArea'])), physical(rows(cloned['rackArea'])));
   }
@@ -126,19 +126,19 @@ try {
       source = rows(before['configurations']).find(c => c['configurationId'] === memberId);
       assert(source, 'Missing linked chassis member');
     }
-    const copied = await call('dcsc_copy_rack_item', { session: source['id'], expectedRevision: before['revision'] });
+    const copied = await call('dcsc_rack_edit', { action: 'copy', session: source['id'], expectedRevision: before['revision'] });
     assert.equal(copied['nestedConfigurationsCreated'], 1);
     before = await saved(id);
     assert.equal(rows(before['configurations']).length, 8);
     assert.equal(physical(rows(before['rackArea'])).length, 3);
     for (const [root, members] of Object.entries(dependency)) assert.deepEqual(object(object(before['serverState'])['cloneDependency'])[root], members);
     const copiedState = before;
-    await call('dcsc_workspace_history', { session: id, action: 'undo', expectedRevision: before['revision'] });
+    await call('dcsc_undo', { session: id, action: 'undo', expectedRevision: before['revision'] });
     const undone = await saved(id);
     assert.deepEqual(physical(rows(undone['rackArea'])), physical(rows(original['rackArea'])));
     assert.deepEqual(object(undone['serverState'])['cloneDependency'], dependency);
     assert.equal(rows(undone['configurations']).length, 6);
-    await call('dcsc_workspace_history', { session: id, action: 'redo', expectedRevision: undone['revision'] });
+    await call('dcsc_undo', { session: id, action: 'redo', expectedRevision: undone['revision'] });
     before = await saved(id);
     assert.deepEqual(physical(rows(before['rackArea'])), physical(rows(copiedState['rackArea'])));
     assert.deepEqual(object(before['serverState'])['cloneDependency'], object(copiedState['serverState'])['cloneDependency']);
@@ -152,7 +152,7 @@ try {
     const sourceBefore = structuredClone(originalNode['raw']);
     const originalsBefore = configurations.filter(c => c['id'] !== copiedNode['id']).map(c => ({ id: c['id'], raw: structuredClone(c['raw']) }));
     const dependenciesBefore = structuredClone(object(object(before['serverState'])['cloneDependency']));
-    const options = await call('dcsc_list_options', { session: copiedNode['id'], query: 'processor', limit: 20 });
+    const options = await call('dcsc_configuration_get', { session: copiedNode['id'], view: 'options', query: 'processor', limit: 20 });
     const choice = rows(options['options']).find(option => option['selected'] !== true && option['sectionId'] && option['code']);
     assert(choice, 'No alternative processor for independent copied-node edit');
     await call('dcsc_configure', { session: copiedNode['id'],
@@ -200,9 +200,9 @@ try {
     const raws = (state: Obj) => rows(state['configurations']).map(c => ({ id: c['configurationId'], raw: c['raw'] }))
       .sort((a, b) => String(a.id).localeCompare(String(b.id)));
     const edited = before;
-    await call('dcsc_workspace_history', { session: id, action: 'undo', expectedRevision: before['revision'] });
+    await call('dcsc_undo', { session: id, action: 'undo', expectedRevision: before['revision'] });
     const undone = await saved(id); assert.deepEqual(raws(undone), raws(original));
-    await call('dcsc_workspace_history', { session: id, action: 'redo', expectedRevision: undone['revision'] });
+    await call('dcsc_undo', { session: id, action: 'redo', expectedRevision: undone['revision'] });
     before = await saved(id); assert.deepEqual(raws(before), raws(edited));
   }
   if (cloneMode && !copyMode && !parentEdit) {
@@ -217,7 +217,7 @@ try {
     assert(group, 'Nested clones must share a dependency group');
     const target = members.find(c => c['configurationId'] !== group[0]);
     assert(target, 'Edit must originate from the cloned member');
-    const options = await call('dcsc_list_options', { session: target['id'], query: 'processor', limit: 20 });
+    const options = await call('dcsc_configuration_get', { session: target['id'], view: 'options', query: 'processor', limit: 20 });
     const choice = rows(options['options']).find(option => option['selected'] !== true && option['sectionId'] && option['code']);
     assert(choice, 'No alternative processor for linked-node edit');
     const beforeLinkedEdit = before;
@@ -240,10 +240,10 @@ try {
     const edited = before;
     const rawConfigurations = (state: Obj) => rows(state['configurations'])
       .map(c => ({ id: c['configurationId'], raw: c['raw'] })).sort((a, b) => String(a.id).localeCompare(String(b.id)));
-    await call('dcsc_workspace_history', { session: id, action: 'undo', expectedRevision: before['revision'] });
+    await call('dcsc_undo', { session: id, action: 'undo', expectedRevision: before['revision'] });
     const undoneEdit = await saved(id);
     assert.deepEqual(rawConfigurations(undoneEdit), rawConfigurations(beforeLinkedEdit), 'Undo must restore nodes and dependent chassis');
-    await call('dcsc_workspace_history', { session: id, action: 'redo', expectedRevision: undoneEdit['revision'] });
+    await call('dcsc_undo', { session: id, action: 'redo', expectedRevision: undoneEdit['revision'] });
     before = await saved(id);
     assert.deepEqual(rawConfigurations(before), rawConfigurations(edited), 'Redo must restore the entire linked edit');
 
@@ -251,12 +251,12 @@ try {
   stage = 'restart';
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined); await start();
-  const info = await call('dcsc_session_info', { session: id });
+  const info = await call('dcsc_workspace_get', { session: id });
   assert.equal(info['integrity'], 'verified');
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) assert.deepEqual(after[key], before[key]);
   stage = 'export';
-  const exported = await call('dcsc_export', { session: id, fileName: 'nested-grouped', fileTypes: ['XML', 'QUOTE'] });
+  const exported = await call('dcsc_export', { kind: 'reports', session: id, fileName: 'nested-grouped', fileTypes: ['XML', 'QUOTE'] });
   stage = 'browser-reimport';
   const reimport = await nativeImport(String(exported['xml']), 'native-reimport');
   assertNativeFloorHandoff(reimport.native, after);

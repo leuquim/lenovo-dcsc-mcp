@@ -1,4 +1,4 @@
-/** Native reference catalog Export vs dcsc_download_reference_solution, stdio persistence and import handoff. */
+/** Native reference catalog Export vs dcsc_export kind reference, stdio persistence and import handoff. */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -24,7 +24,7 @@ export default {
     };
 
     const artifact = await step('mcp-download', () =>
-      mcp.call('dcsc_download_reference_solution', { crnId: CRN_ID, solutionMode: 'General Purpose' }));
+      mcp.call('dcsc_export', { kind: 'reference', crnId: CRN_ID, solutionMode: 'General Purpose' }));
     const original = await readFile(String(artifact['path']));
 
     const nativePath = path.join(out, 'native-original.xml');
@@ -43,7 +43,7 @@ export default {
 
     const id = await step('mcp-import', async () => {
       const imported = await mcp.call('dcsc_import', { filePath: artifact['path'] });
-      const id = String(imported['workspace']);
+      const id = String(imported['session']);
       const saved = await savedWorkspace(id);
       compare('import-configurations', normalizers.configurations(nativeImport['configuration']),
         normalizers.configurations(rows(saved['configurations']).map(entry => entry['raw'])));
@@ -53,7 +53,7 @@ export default {
     await step('restart', async () => {
       const before = await savedWorkspace(id);
       await mcp.killAndRestart();
-      await mcp.call('dcsc_session_info', { session: id });
+      await mcp.call('dcsc_workspace_get', { session: id });
       const after = await savedWorkspace(id);
       compare('restart-persisted-state', Object.fromEntries(PERSISTED_KEYS.map(key => [key, before[key]])),
         Object.fromEntries(PERSISTED_KEYS.map(key => [key, after[key]])));

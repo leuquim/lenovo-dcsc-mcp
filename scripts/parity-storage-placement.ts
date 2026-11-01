@@ -37,7 +37,7 @@ async function main(): Promise<void> {
     client = new Client({ name: 'storage-placement-parity', version: '1.0.0' });
     await client.connect(transport);
     const tools = await client.listTools();
-    assert(tools.tools.some(tool => tool.name === 'dcsc_place_storage_network'));
+    assert(tools.tools.some(tool => tool.name === 'dcsc_storage_set'));
   };
   const call = async (name: string, args: Obj): Promise<Obj> => {
     const response = await client!.callTool({ name, arguments: args }, undefined, { timeout: 300_000 });
@@ -50,14 +50,14 @@ async function main(): Promise<void> {
     return result;
   };
   const restoredState = async (workspace: string): Promise<Obj> => {
-    const layout = await call('dcsc_workspace_layout', { session: workspace });
+    const layout = await call('dcsc_workspace_get', { view: 'layout', session: workspace });
     const inspection = object(object(object(layout.pages).rawRackArea).inspect);
     const args = object(inspection.arguments);
     assert.equal(typeof args.expectedRevision, 'number', 'Layout omitted its revision-bound continuation.');
     const result: Obj = {};
     for (const field of ['rawRackArea', 'rawNonRackArea', 'floorItems', 'powerSelections',
       'storageNetworks', 'detachedStorageComponents', 'cloneDependency', 'cloneDependencyColor']) {
-      result[field] = await readJsonProjection(call, { tool: 'dcsc_workspace_layout',
+      result[field] = await readJsonProjection(call, { tool: 'dcsc_workspace_get',
         arguments: { ...args, path: [field], offset: 0, limit: 50 } },
       field.startsWith('cloneDependency') ? 'object' : 'array');
     }
@@ -78,35 +78,31 @@ async function main(): Promise<void> {
     await start();
     stage = 'import';
     const imported = await call('dcsc_import', { filePath: seed, solutionMode: 'HPC and AI - Systems' });
-    const workspace = String(imported.workspace);
+    const workspace = String(imported.session);
     stage = 'layout';
-    const layout = await call('dcsc_workspace_layout', { session: workspace, offset: 0, limit: 20 });
+    const layout = await call('dcsc_workspace_get', { view: 'layout', session: workspace, offset: 0, limit: 20 });
     const rack = rows(layout.racks)[0];
     const rackId = String(rack?.rackId ?? rack?.id ?? '');
     assert(rackId, 'Seed import returned no rack identity.');
     stage = 'settings';
-    await call('dcsc_add_cabling', { session: workspace, mode: 'auto',
-      settings: { autoAddPDU: false, autoAddSwitch: false, p2pCabling: false } });
+    await call('dcsc_auto_connect', { session: workspace, settings: { autoAddPDU: false, autoAddSwitch: false, p2pCabling: false } });
     stage = 'catalog';
-    const controllers = await call('dcsc_fabric_options', { session: workspace,
+    const controllers = await call('dcsc_network_get', { session: workspace,
       collection: 'storageControllers', limit: 100, fields: ['option', 'featureCode'] });
-    const switches = await call('dcsc_fabric_options', { session: workspace,
+    const switches = await call('dcsc_network_get', { session: workspace,
       collection: 'storageSwitches', limit: 100, fields: ['option', 'featureCode'] });
     const controller = rows(controllers.items).find(item => item.option === '7DP4CTO1WW' && item.featureCode === 'BF3C');
     const sanSwitch = rows(switches.items).find(item => item.option === '7DHNCTO1WW' && item.featureCode === 'C1FM');
     assert(controller?.id, 'Current catalog has no captured DS3200 BF3C controller.');
     assert(sanSwitch?.id, 'Current catalog has no captured DB710S C1FM SAN switch.');
     stage = 'definition';
-    await call('dcsc_add_storage_network', { session: workspace, name: 'Physical Placement Gate',
-      controllerId: controller.id, switchId: sanSwitch.id, expansionQuantity: 0 });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: 'Physical Placement Gate', controllerId: controller.id, switchId: sanSwitch.id, expansionQuantity: 0 } });
     stage = 'first-placement';
-    const first = await call('dcsc_place_storage_network', { session: workspace,
-      name: 'Physical Placement Gate', rackId });
+    const first = await call('dcsc_storage_set', { session: workspace, change: { action: 'place', name: 'Physical Placement Gate', rackId } });
     assert.equal(rows(first.placements).length, 2);
     assert(rows(first.placements).every(item => !('raw' in item)), 'Tool leaked raw physical state.');
     stage = 'second-placement';
-    const second = await call('dcsc_place_storage_network', { session: workspace,
-      name: 'Physical Placement Gate', rackId, expectedRevision: first.revision });
+    const second = await call('dcsc_storage_set', { session: workspace, expectedRevision: first.revision, change: { action: 'place', name: 'Physical Placement Gate', rackId } });
     assert.equal(rows(second.placements).length, 2);
     assert(rows(second.templates).every(item => item.created === false), 'Repeated placement relaunched a template.');
     stage = 'assign-and-clear-storage';
@@ -118,11 +114,9 @@ async function main(): Promise<void> {
     });
     const serverSession = String(serverConfiguration?.id ?? '');
     assert(serverSession, 'Seed import returned no server configuration handle for assignment testing.');
-    const assigned = await call('dcsc_assign_storage_network', { session: serverSession,
-      networkName: 'Physical Placement Gate' });
+    const assigned = await call('dcsc_storage_set', { session: serverSession, change: { action: 'assign', networkName: 'Physical Placement Gate' } });
     assert.equal(assigned.selectedStorageNetwork, 'Physical Placement Gate');
-    const cleared = await call('dcsc_assign_storage_network', { session: serverSession,
-      networkName: null, expectedRevision: assigned.configurationRevision });
+    const cleared = await call('dcsc_storage_set', { session: serverSession, expectedRevision: assigned.revision, change: { action: 'assign', networkName: null } });
     assert.equal(cleared.selectedStorageNetwork, '');
     stage = 'sigkill-restart';
     const beforeKill = object(JSON.parse(await readFile(sessionFile, 'utf8')));
@@ -179,14 +173,14 @@ async function main(): Promise<void> {
     }, commercial };
     await writeFile(path.join(out, 'pre-export.json'), JSON.stringify(stateProjection, null, 2));
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace,
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-physical-placement', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof exported.xml, 'string');
     stage = 'move-storage-alias';
     const firstControllerAlias = String(rows(first.placements)
       .find(item => item.role === 'controller')?.physicalId ?? '');
     assert(firstControllerAlias, 'First placement returned no controller physical identity.');
-    const moved = await call('dcsc_place_in_rack', { session: workspace, rackId,
+    const moved = await call('dcsc_rack_edit', { action: 'place', session: workspace, rackId,
       configuration: firstControllerAlias, uPosition: 10, expectedRevision: cleared.revision });
     const movedItem = rows(moved.racks).flatMap(rack => rows(rack.items))
       .find(item => item.id === firstControllerAlias);
@@ -221,18 +215,18 @@ async function main(): Promise<void> {
     assert(afterMoveCommercial.some(item => item.id === controllerId && item.code === '7DP4CTO1WW' &&
       item.quantity === 2 && item.price === 425_035.02 && item.unitPrice === 212_517.51),
     'Moved DS3200 commercial row did not use the captured physical rack-derived price.');
-    const movedExport = await call('dcsc_export', { session: workspace,
+    const movedExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-physical-alias-moved', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof movedExport.xml, 'string');
     stage = 'undo-storage-alias-move';
-    const undone = await call('dcsc_workspace_history', { session: workspace,
+    const undone = await call('dcsc_undo', { session: workspace,
       action: 'undo', expectedRevision: moved.revision });
     assert.equal(undone.changed, true);
     stage = 'post-placement-controller-edit';
     const controllerSession = String(rows(second.templates)
       .find(item => item.configurationId === controllerId)?.session ?? '');
     assert(controllerSession, 'Placement did not return the managed controller session handle.');
-    const controllerOptions = await call('dcsc_list_options', { session: controllerSession,
+    const controllerOptions = await call('dcsc_configuration_get', { view: 'options', session: controllerSession,
       query: 'C4A8', limit: 10 });
     const fibreAdapter = rows(controllerOptions.options).find(option => option.code === 'C4A8');
     assert(fibreAdapter?.sectionId, 'Current DS3200 controller has no configurable C4A8 section.');
@@ -259,12 +253,12 @@ async function main(): Promise<void> {
       assert.equal(rows(physicalFeature?.installations).length, 2,
         `Physical controller ${String(item.id)} did not retain C4A8 PCI installations.`);
     }
-    const editedExport = await call('dcsc_export', { session: workspace,
+    const editedExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-post-placement-controller-edited', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof editedExport.xml, 'string');
     stage = 'unplace-storage-template-group';
     const controllerAliases = controllerAliasesFrom(dependency, controllerId);
-    const grouped = await call('dcsc_edit_layout', { session: workspace, action: 'unplace',
+    const grouped = await call('dcsc_rack_edit', { session: workspace, action: 'unplace',
       configuration: controllerId, expectedRevision: Number(afterControllerWorkspace.revision) });
     const unplacedIds = rows(grouped.unplaced).map(item => String(item.id));
     assert(controllerAliases.every(id => unplacedIds.includes(id)),
@@ -289,14 +283,14 @@ async function main(): Promise<void> {
       item.quantity === 2 && item.price === 22_576.02 && item.unitPrice === 11_288.01),
     'Summary derive did not preserve the captured DB710S physical price.');
     stage = 'export-after-group-unplace';
-    const groupedExport = await call('dcsc_export', { session: workspace,
+    const groupedExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-physical-group-unplaced', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof groupedExport.xml, 'string');
     stage = 'post-placement-san-edit';
     const switchSession = String(rows(second.templates)
       .find(item => item.configurationId === switchId)?.session ?? '');
     assert(switchSession, 'Placement did not return the managed SAN switch session handle.');
-    const sanOptions = await call('dcsc_list_options', { session: switchSession, query: 'C1FP', limit: 10 });
+    const sanOptions = await call('dcsc_configuration_get', { view: 'options', session: switchSession, query: 'C1FP', limit: 10 });
     const portLicense = rows(sanOptions.options).find(option => option.code === 'C1FP');
     assert(portLicense?.sectionId, 'Current DB710S has no configurable C1FP port license.');
     const configuredSwitch = await call('dcsc_configure', { session: switchSession,
@@ -316,7 +310,7 @@ async function main(): Promise<void> {
         .flatMap(section => rows(section.results)).find(result => result.code === 'C1FP');
       assert.equal(license?.quantity, 1, `SAN instance ${String(item.id)} lost its port license.`);
     }
-    const switchExport = await call('dcsc_export', { session: workspace,
+    const switchExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-post-placement-san-edited', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof switchExport.xml, 'string');
     assert((await readFile(String(switchExport.xml), 'utf8')).includes('C1FP'),
@@ -329,7 +323,7 @@ async function main(): Promise<void> {
     client = undefined;
     transport = undefined;
     await start();
-    const restartedLayout = await call('dcsc_workspace_layout', { session: workspace, offset: 0, limit: 20 });
+    const restartedLayout = await call('dcsc_workspace_get', { view: 'layout', session: workspace, offset: 0, limit: 20 });
     const restartedState = object(JSON.parse(await readFile(sessionFile, 'utf8')));
     assert.deepEqual(restartedState, afterGroupUnplace,
       'Storage option edits and group unplace changed across immediate SIGKILL and restart.');
@@ -338,17 +332,15 @@ async function main(): Promise<void> {
     assert(controllerAliases.every(id => restartedUnrackedIds.includes(id)),
       'Managed-template unplace aliases were not visible after restart.');
     const unrackedInspect = object(object(object(restartedLayout.pages).unracked).inspect);
-    assert.equal(unrackedInspect.tool, 'dcsc_workspace_layout',
+    assert.equal(unrackedInspect.tool, 'dcsc_workspace_get',
       'Layout did not return its documented unracked inspection continuation.');
     const unrackedPage = await call(String(unrackedInspect.tool), object(unrackedInspect.arguments));
     const projectedUnrackedIds = rows(unrackedPage.items).map(item => object(item.value))
       .map(item => String(item.configurationId ?? item.id));
     assert(controllerAliases.every(id => projectedUnrackedIds.includes(id)),
-      'Managed-template unplace aliases were not visible through dcsc_workspace_layout after restart.');
+      'Managed-template unplace aliases were not visible through dcsc_workspace_get after restart.');
     stage = 'replace-san-with-direct-attached';
-    const detached = await call('dcsc_edit_storage_network', { session: workspace, action: 'update',
-      name: 'Physical Placement Gate', changes: { switchId: 'direct-attached' },
-      expectedRevision: Number(restartedWorkspace.revision), autoConnect: true });
+    const detached = await call('dcsc_storage_set', { session: workspace, expectedRevision: Number(restartedWorkspace.revision), change: { action: 'update', name: 'Physical Placement Gate', changes: { switchId: 'direct-attached' }, autoConnect: true } });
     const retained = rows(detached.retainedComponents);
     assert.deepEqual(retained.map(item => ({ templateId: item.templateId, code: item.code,
       type: item.type, roles: item.roles, physicalCount: item.physicalCount,
@@ -389,7 +381,7 @@ async function main(): Promise<void> {
     'Detached SAN commercial projection counted the editable template in addition to its two physical aliases.');
     assert(!detachedCommercial.some(item => Number(item.quantity) === 3),
       'Detached SAN reproduced the native website template-plus-alias double count.');
-    const detachedExport = await call('dcsc_export', { session: workspace,
+    const detachedExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'storage-san-detached-direct-attached', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof detachedExport.xml, 'string');
     stage = 'restart-after-san-replacement';

@@ -82,9 +82,9 @@ try {
   stage = 'seed-and-export';
   const seed = await call('dcsc_import', { filePath: path.resolve(flag('--seed') ?? 'test/fixtures/parity/xml/sr630-v3-qty4.xml'),
     solutionMode: 'General Purpose' });
-  const original = await saved(String(seed['workspace']));
+  const original = await saved(String(seed['session']));
   const exportedProducts = summary(rows(original['configurations']).map(c => object(c['raw'])));
-  const exported = await call('dcsc_export', { session: seed['workspace'], fileName: 'workbook-source',
+  const exported = await call('dcsc_export', { kind: 'reports', session: seed['session'], fileName: 'workbook-source',
     fileTypes: ['XML', 'QUOTE', 'QUOTE_GROUP', 'SUMMARY', 'POWER_REPORT', 'MESSAGE_HISTORY', 'FLOOR', 'RACK_REPORT', 'RACK_DIAGRAM', 'P2P_REPORT'] });
   const workbook = (exported['workbooks'] as string[])[0];
   assert(workbook, 'Export did not return a workbook');
@@ -94,7 +94,7 @@ try {
   assert.deepEqual(expected, exportedProducts);
   stage = 'workbook-import';
   const imported = await call('dcsc_import', { filePath: workbook, solutionMode: 'General Purpose' });
-  const id = String(imported['workspace']);
+  const id = String(imported['session']);
   const before = await saved(id);
   assert.deepEqual(summary(rows(before['configurations']).map(c => object(c['raw']))), expected);
   assert.equal(rows(before['rackArea']).length, rows(original['rackArea']).length);
@@ -103,13 +103,13 @@ try {
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined);
   await start();
-  await call('dcsc_workspace_layout', { session: id });
+  await call('dcsc_workspace_get', { session: id });
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) {
     assert.deepEqual(after[key], before[key], `Restart changed ${key}`);
   }
   stage = 're-export';
-  const reexported = await call('dcsc_export', { session: id, fileName: 'workbook-roundtrip', fileTypes: ['XML', 'QUOTE', 'RACK_REPORT'] });
+  const reexported = await call('dcsc_export', { kind: 'reports', session: id, fileName: 'workbook-roundtrip', fileTypes: ['XML', 'QUOTE', 'RACK_REPORT'] });
   stage = 'browser-controls';
   const nativeXml = await browserImport(String(reexported['xml']), 'reexported-xml');
   assert.deepEqual(nativeProducts(nativeXml), expected);

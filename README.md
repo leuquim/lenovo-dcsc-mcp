@@ -97,123 +97,58 @@ npx tsx scripts/mcp-smoke.ts
 
 For development, `npm run check` runs typecheck, lint, unit tests, offline contracts, build and the isolated stdio smoke check. [Contributing](CONTRIBUTING.md) explains live/headless verification and package checks.
 
-## Tools (108 Registered Tools)
+## Tools (40 Registered Tools)
 
 | Tool | Purpose |
 |---|---|
-| **Catalog, Discovery & Locales (17 tools)** | |
-| `dcsc_find_products` | Search the catalog. The normal way to get from "SR630 V3" to `7D73CTO1WW`. |
-| `dcsc_browse_catalog` | Walk the category tree. Understand catalog structure and root hierarchies. |
-| `dcsc_solution_modes` | List solution modes and their master slices (General Purpose, HPC and AI - Systems). |
-| `dcsc_reference_solutions` | Browse Lenovo's native Deployment-Ready/TruScale categories, CRNs, details, popular designs. |
-| `dcsc_launch_reference_solution` | Load a native CRN/SID into a new editable workspace through Lenovo's Customize API. |
-| `dcsc_download_reference_solution` | Validate download eligibility and save Lenovo’s original reference-template XML. |
-| `dcsc_list_racks` | Paginated racks (optionally compatible with a product or session). |
-| `dcsc_fabric_options` | Complete fabric and storage switch catalogs with connection preferences. |
-| `dcsc_find_parts` | Global hardware/software/service part lookup; pass `includeSupplyStatus: true` for live shipping lead times and ESD availability. |
-| `dcsc_specialty_catalog` | Browse specialty inventory: LVR (Certified Refurbished), Converged (ThinkAgile multi-product systems), and Promotions (hierarchies, promotional SIDs, promotional LFOs). |
-| `dcsc_category_detail` | Sub-category details and configurable products, or pass `discoveryAction` for 7 anonymous discovery helper routes (`caseStudies`, `subCategoryConditions`, `productListBySubCategory`, `topChoiceCountry`, `productFunctions`, `displayOrders`, `staticFeatures`), with optional `limit`. |
-| `dcsc_cto_lfo_codes` | List filtered CTO and LFO product codes from upstream catalog filter endpoint, with optional `limit`. |
-| `dcsc_service_categories` | Services taxonomy and category hierarchy. |
-| `dcsc_list_locales` | List supported countries, languages, and currencies. |
-| `dcsc_set_locale` | Set active country/currency for the workspace. |
-| **Configuring, Auto-Fix & SIDs (18 tools)** | |
-| `dcsc_launch` | Start a configuration session. Pass `workspace` to add to an existing solution. |
-| `dcsc_list_options` | Search or list options (`query` searches all tabs). |
-| `dcsc_get_feature` | Full detail + attribute map for up to 10 feature codes from local session index. |
-| `dcsc_feature_details` | Rich upstream feature specifications: shipping lead times, lifecycle dates, commercial recommendations, marketing tags, and price breakdown. |
-| `dcsc_subtab_recommendations` | Context-aware recommendations, transition guides, and rule warnings for a model’s configuration sub-tabs. |
-| `dcsc_smart_recommendations` | Summary cross-sell attach recommendations or smart LFO top-choice preconfigured alternatives. |
-| `dcsc_get_configuration` | Paginated selected parts grouped by tab; follow structured `next` continuations. |
-| `dcsc_configure` | Apply batched option changes. Returns only the diff. |
-| `dcsc_set_quantity` | N identical units in one configuration. Places one item in a rack. |
-| `dcsc_clone_configuration` | N configuration copies; optional `placement: "same-rack"` runs captured Clone Multiple staging/derive for direct CTO items. |
-| `dcsc_set_node_role` | Tag Compute/Storage/Management role. |
-| `dcsc_set_topology` | Select fabric network topology, ports, and connector IDs. |
-| `dcsc_undo` | Revert the last configuration edit transactionally. |
-| `dcsc_set_configuration_controls` | Set Guided/Expert mode and Auto-Correct across the workspace. |
-| `dcsc_auto_fix` | Discovers candidates and applies candidate hardware derivations; pass `errorCustomizeConfigurations` for batch auto-derive error repair. |
-| `dcsc_verify_mandatory_software` | Verify mandatory software compliance and required tab selections on CTO configurations. |
-| `dcsc_generate_config_id` | Generate a 10-character online Lenovo DCSC Configuration ID bound to a session or workspace. |
-| `dcsc_query_sids` | Query preconfigured Solution ID (SID) templates by product category with pagination. |
-| **Standalone Hardware, Software & Services (18 tools)** | |
-| `dcsc_standalone_hardware_add` | Add standalone hardware option parts to a dedicated standalone workspace. |
-| `dcsc_standalone_hardware_inspect` | Inspect standalone hardware selections and total list price. |
-| `dcsc_standalone_hardware_set_quantity` | Update quantity for a selected standalone hardware part. |
-| `dcsc_standalone_hardware_remove` | Remove a standalone hardware part from the workspace. |
-| `dcsc_software_launch` | Launch a standalone software configuration workspace. |
-| `dcsc_software_browse` | Browse standalone software categories and products. |
-| `dcsc_software_select` | Select standalone software licenses and subscriptions. |
-| `dcsc_software_set_quantity` | Update quantity for a selected standalone software license. |
-| `dcsc_software_remove` | Remove a standalone software product. |
-| `dcsc_software_inspect` | Inspect active standalone software selections. |
-| `dcsc_software_export` | Export standalone software BOM. |
-| `dcsc_services_launch` | Launch a standalone services workspace. |
-| `dcsc_services_select` | Select standalone Point of Sale warranty services. |
-| `dcsc_services_set_quantity` | Set contract service duration or units. |
-| `dcsc_services_set_product_quantity` | Set covered-product unit count for services. |
-| `dcsc_services_remove` | Remove a service from the basket. |
-| `dcsc_services_inspect` | Inspect active standalone service selections. |
-| `dcsc_services_export` | Export standalone services BOM. |
-| **Physical Racks, Floor & Cabling (17 tools)** | |
-| `dcsc_add_rack` | Add a rack cabinet to the workspace. |
-| `dcsc_place_in_rack` | Place a server, switch, or storage unit into a rack U-slot, validated by DCSC placement rules. |
-| `dcsc_configure_pdu` | Discover and select rack PDUs and matching line cords. |
-| `dcsc_rack_position_rule` | Inspect live EIA U-position rules, lowest/highest slot bounds, and machine-type constraints. |
-| `dcsc_place_on_floor` | Position rack cabinets on the data center floor grid. |
-| `dcsc_set_rack_lock` | Lock/unlock placed items or reserve empty rack slots. |
-| `dcsc_copy_rack_item` | Independent same-rack Copy creating separate configurations and commercial lines. |
-| `dcsc_workspace_layout` | Lossless elevation, cabling, and floor inspection with continuations. |
-| `dcsc_edit_layout` | Move, unplace, detach, or remove items from racks. |
-| `dcsc_workspace_history` | Undo and redo workspace-wide physical layout edits. |
-| `dcsc_network_connectors` | Discover compatible network connector IDs for active devices. |
-| `dcsc_set_network_preferences` | Set automatic switch and transceiver preferences across the fabric. |
-| `dcsc_add_cabling` | Run `/auto_connect` cabling or define local planning links. |
-| `dcsc_manual_cabling_options` | Discover compatible cables for manual connection between placed ports. |
-| `dcsc_create_cabling_connection` | Create a verified native manual cabling connection (supports P2P and 4-way breakout). |
-| `dcsc_cabling_connections` | Inspect native cabling connections, endpoint IDs, and cable choices. |
-| `dcsc_edit_cabling_connection` | Edit or replace existing cable parts on native connection rows. |
-| **Storage Networking & Physical Storage (8 tools)** | |
-| `dcsc_add_storage_network` | Create and define storage networks in the workspace. |
-| `dcsc_edit_storage_network` | Rename, update, or remove storage network definitions. |
-| `dcsc_place_storage_network` | Place storage controllers and switches into rack slots. |
-| `dcsc_assign_storage_network` | Assign a storage network definition to an explicit server configuration. |
-| `dcsc_customize_storage_switch` | Open a managed SAN switch configuration for option discovery/editing. |
-| `dcsc_customize_storage_controller` | Open a managed storage controller configuration for editing. |
-| `dcsc_storage_wizard` | Discover native storage wizard options, backplanes, and RAID controllers. |
-| `dcsc_set_storage_wizard` | Select storage wizard options or edit individual storage components. |
-| **Wizards, Power & VLH / Virtual Containers (9 tools)** | |
-| `dcsc_pci_wizard` | Discover native PCI riser options and slot adapters. |
-| `dcsc_set_pci_wizard` | Select PCI riser options or validate optional riser slots. |
-| `dcsc_power` | Aggregate workspace power and heat output per rack. |
-| `dcsc_power_controls` | Discover native voltage, power policy, and load factor settings. |
-| `dcsc_set_power_controls` | Save voltage, power policy, and load factor with atomic derivation. |
-| `dcsc_vlh_wizard_info` | Inspect VLH Neptune water-cooling network topologies, connector functions, and RPQ placeholders (supports optional `section`). |
-| `dcsc_vlh_attributes` | Inspect physical EIA dimensions, U-capacity, and connector definitions for any product code. |
-| `dcsc_virtual_container_compatible_products` | Fetch compatible inner products and categories for virtual containers. |
-| `dcsc_virtual_container_check_rules` | Check virtual container update rules and constraints. |
-| **Analysis, Summary Insights & AI Configurator (6 tools)** | |
-| `dcsc_scale_out` | Size N nodes into racks with cooling density checks. |
-| `dcsc_compare_scenarios` | Compare price, power, and rack footprints across candidate designs. |
-| `dcsc_explain` | Explain why an option is unavailable or restricted. |
-| `dcsc_diff_sessions` | Diff two configuration sessions showing added, removed, and changed options. |
-| `dcsc_summary_insights` | Extract service pricing savings or selectable special flag summary; supports `session` handle for automatic export snapshot generation. |
-| **Validation, Import/Export & Session Operations (15 tools)** | |
-| `dcsc_validate` | Authoritative manufacturing validation. |
-| `dcsc_validation_jobs` | Page through saved validation reports and diagnostics. |
-| `dcsc_export` | Export CFXML + Excel ZIP; pass `directReport: 'POWER_XLS'` for the Power spreadsheet (written to the artifact store, path returned), or `includeShareUrl: true` for live redirect links. |
-| `dcsc_export_configuration_tree` | Export configuration tree data and category contents as an Excel spreadsheet (.xlsx). |
-| `dcsc_import` | Import CFXML or Excel files through Lenovo's importer. |
-| `dcsc_import_config_id` | Import a saved configuration by its 10-character online Configuration ID (with local session reconstitution fallback). |
-| `dcsc_load_unconfigured` | Load native Unconfigured catalog choices for reference solutions. |
-| `dcsc_set_unconfigured` | Edit Unconfigured selections transactionally. |
-| `dcsc_reconcile_workspace` | Propose, inspect, and accept reconciliation of legacy state. |
-| `dcsc_recovery_inspect` | Inspect restore warnings and preserved archive files. |
-| `dcsc_recovery_export` | Export recovery JSON snapshots or original file archives. |
-| `dcsc_session_info` | Inspect session status, revision, and active mode; pass `includeRuleVersions: true` to inspect rule and table versions. |
-| `dcsc_session_list` | List active sessions and workspaces. |
-| `dcsc_session_close` | Close a configuration or workspace session. |
-| `dcsc_health` | Circuit breaker status, WAF cooldown, and server health. |
+| **Discover** | |
+| `dcsc_settings_get` | Country, language, currency and the available solution modes. |
+| `dcsc_settings_set` | Set the default country and language for later launches and searches. |
+| `dcsc_search` | Find products, parts, preconfigured codes, SIDs and specialty catalog entries (`kind`: products, tree, parts, preconfigured, sids, specialty). |
+| `dcsc_category` | Category pages, sub-category filters, services categories and the discovery routes of a category or product. |
+| `dcsc_reference_solutions` | Browse the Deployment-Ready and TruScale reference solution catalog. |
+| **Launch & import** | |
+| `dcsc_launch` | Open a CTO, LFO, LFO-as-CTO, reference solution, software or services basket, or load Unconfigured options. |
+| `dcsc_import` | Import a CFXML or Excel file, XML text or an online Configuration ID. |
+| **Configure** | |
+| `dcsc_configuration_get` | Read a configuration: tabs, options, selections, feature detail, rule changes, recommendations, rule versions. |
+| `dcsc_configure` | Apply option changes, sales quantity, Guided/Expert mode and Auto-Correct. |
+| `dcsc_wizard_get` | Read the PCI or storage wizard options and current selection. |
+| `dcsc_wizard_set` | Select PCI or storage wizard options. |
+| `dcsc_auto_fix` | Resolve rule validation errors in hardware sections, as the website Auto-fix does. |
+| `dcsc_basket_browse` | Browse the standalone software catalog or loaded services options. |
+| `dcsc_basket_set` | Add, change or remove items in a standalone software, hardware or services basket. |
+| **Workspace, racks & floor** | |
+| `dcsc_workspace_get` | Workspace summary, rack and floor layout, baskets, undo history and saved validation jobs. |
+| `dcsc_rack_get` | Rack cabinets, compatible chassis and nodes, and PDU and cord options of a rack. |
+| `dcsc_rack_add` | Add a rack cabinet to a workspace. |
+| `dcsc_rack_edit` | Place, move, unplace, detach, remove, lock, clone and copy items. |
+| `dcsc_rack_position_rule` | Valid U-positions and placement rules for an item in a rack. |
+| `dcsc_floor_set` | Position a rack on the floor grid. |
+| `dcsc_pdu_set` | Set rack PDUs and line or jumper cords. |
+| **Network, cabling & storage** | |
+| `dcsc_network_get` | Network catalog (topologies, devices, cables, controllers, switches) and the connectors of a topology. |
+| `dcsc_network_set` | Select a topology and connectors, set a node role or save network preferences. |
+| `dcsc_auto_connect` | Run Auto-Connect to generate the workspace cabling. |
+| `dcsc_cabling_get` | Connection graph with stable row IDs, port choices and compatible cables. |
+| `dcsc_cabling_set` | Create manual connections or edit endpoints and cable parts. |
+| `dcsc_storage_get` | Storage network definitions, assignments and detached storage hardware. |
+| `dcsc_storage_set` | Add, update, rename, remove, assign, place or customize storage networks. |
+| `dcsc_vlh_get` | VLH wizard info and the dimensions and connectors of a product. |
+| `dcsc_virtual_container_get` | Compatible inner products and rule results of virtual containers. |
+| **Power** | |
+| `dcsc_power_get` | Engineering Power Report, and the voltage, load factor and policy choices of a configuration. |
+| `dcsc_power_set` | Save voltage, load factor and power policy. |
+| **Validate & export** | |
+| `dcsc_validate` | Manufacturing validation, optionally with the mandatory software check. |
+| `dcsc_export` | Reports ZIP, power report, configuration tree, reference XML or online Configuration ID, returned as file paths. |
+| **Sessions & analysis** | |
+| `dcsc_session_list` | Open sessions and workspaces, client health and restore diagnostics. |
+| `dcsc_session_close` | Discard a configuration or workspace. |
+| `dcsc_undo` | Undo or redo workspace edits, or revert the last configuration change. |
+| `dcsc_compare` | Compare scenarios, size scale-out racks, diff two configurations, fetch service insights. |
+| `dcsc_reconcile_workspace` | Propose, inspect and accept reconciliation of damaged or legacy workspaces. |
+| `dcsc_recovery_export` | Export a recovery JSON snapshot or original archive bytes. |
 
 ### Workflow limits to keep in mind
 

@@ -42,10 +42,10 @@ try {
   await start(); stage = 'import';
   const imported = await call('dcsc_import', { filePath: path.resolve('test/fixtures/parity/xml/manual-cabling-shared-network.xml'),
     solutionMode: 'HPC and AI - Systems' });
-  const id = String(imported['workspace']); const before = workspace(await snapshot());
+  const id = String(imported['session']); const before = workspace(await snapshot());
   const target = rows(before['configurations']).find(c => object(c['raw'])['code'] === '7D5FCTOFWW')!;
   assert(target); stage = 'clone';
-  const cloned = await call('dcsc_clone_configuration', { session: target['id'], count: 1, placement: 'same-rack',
+  const cloned = await call('dcsc_rack_edit', { action: 'clone', session: target['id'], count: 1, placement: 'same-rack',
     expectedRevision: before['revision'] });
   const cloneId = String(rows(cloned['created'])[0]!['configurationId']);
   assert.equal(rows(cloned['placements'])[0]!['position'], 7, 'Native switch clone should use the next free allowed U.');
@@ -54,9 +54,9 @@ try {
   assert.deepEqual(object(object(accepted['serverState'])['cloneDependency'])[String(target['configurationId'])], [target['configurationId'], cloneId]);
   const placed = physical(accepted['rackArea']); assert.equal(placed.length, 5);
   stage = 'history';
-  await call('dcsc_workspace_history', { session: id, action: 'undo', expectedRevision: accepted['revision'] });
+  await call('dcsc_undo', { session: id, action: 'undo', expectedRevision: accepted['revision'] });
   assert.deepEqual(physical(workspace(await snapshot())['rackArea']), physical(before['rackArea']));
-  await call('dcsc_workspace_history', { session: id, action: 'redo', expectedRevision: workspace(await snapshot())['revision'] });
+  await call('dcsc_undo', { session: id, action: 'redo', expectedRevision: workspace(await snapshot())['revision'] });
   let persisted = await snapshot(); assert.deepEqual(physical(workspace(persisted)['rackArea']), placed);
   if (edit) {
     stage = 'linked-switch-edit';
@@ -72,14 +72,14 @@ try {
       }
     };
     assertQuantities(await snapshot());
-    await call('dcsc_add_cabling', { session: id, mode: 'auto', settings: { autoAddSwitch: false, autoAddPDU: false } });
+    await call('dcsc_auto_connect', { session: id, settings: { autoAddSwitch: false, autoAddPDU: false } });
     persisted = await snapshot(); assertQuantities(persisted);
   }
   stage = 'crash-restart'; assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL'); await client!.close();
-  await start(); await call('dcsc_cabling_connections', { session: id });
+  await start(); await call('dcsc_cabling_get', { session: id });
   assert.deepEqual(await snapshot(), persisted);
   stage = 'export';
-  const exported = await call('dcsc_export', { session: id, fileName: 'hpc-switch-clone', fileTypes: ['XML', 'QUOTE'] });
+  const exported = await call('dcsc_export', { kind: 'reports', session: id, fileName: 'hpc-switch-clone', fileTypes: ['XML', 'QUOTE'] });
   const xml = String(exported['xml']); assert((await readFile(xml)).length);
   stage = 'browser-import'; const browser = await chromium.launch({ headless: true });
   try {

@@ -99,18 +99,18 @@ try {
   let expected = summary(rows(native['configuration']));
   assert(expected.length > 0);
   stage = 'mcp-customize';
-  const launched = await call('dcsc_launch_reference_solution', { crnId, solutionMode: 'General Purpose' });
-  const id = String(launched['workspace']);
+  const launched = await call('dcsc_launch', { mode: 'reference-solution', sid: crnId, solutionMode: 'General Purpose' });
+  const id = String(launched['session']);
   let before = await saved(id);
   assert.equal(object(before['serverState'])['crnId'], crnId);
   assert.deepEqual(summary(rows(before['configurations']).map(c => object(c['raw']))), expected);
   if (process.argv.includes('--edit-unconfigured')) {
     stage = 'unconfigured-edit';
     const session = String(rows(before['configurations'])[0]!['id']);
-    const loaded = await call('dcsc_load_unconfigured', { session, expectedRevision: before['revision'] });
+    const loaded = await call('dcsc_launch', { mode: 'unconfigured', session, expectedRevision: before['revision'] });
     const changes = [{ section: 'UNCONFIGURED_COMMVAULT_SOFTWARE', code: '7S1M004HWW', quantity: 4 }];
-    await call('dcsc_set_unconfigured', { session, changes, expectedRevision: loaded['workspaceRevision'] });
-    await call('dcsc_set_unconfigured', { session, changes, expectedRevision: loaded['workspaceRevision'] }, true);
+    await call('dcsc_configure', { session, changes, expectedRevision: loaded['revision'] });
+    await call('dcsc_configure', { session, changes, expectedRevision: loaded['revision'] }, true);
     before = await saved(id);
     const changed = expected[0]!.selections.find(s => s.section === changes[0]!.section && s.code === changes[0]!.code);
     assert(changed); assert.equal(changed.quantity, 8);
@@ -132,12 +132,11 @@ try {
   stage = 'crash-restart';
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined); await start();
-  const diagnostics = object(object(launched['diagnostics'])['inspect']);
-  await call(String(diagnostics['tool']), { ...object(diagnostics['arguments']), expectedRevision: before['revision'] });
+  await call('dcsc_workspace_get', { session: id, expectedRevision: before['revision'] });
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) assert.deepEqual(after[key], before[key]);
   stage = 'export';
-  const exported = await call('dcsc_export', { session: id, fileName: crnId, fileTypes: ['XML', 'QUOTE'] });
+  const exported = await call('dcsc_export', { kind: 'reports', session: id, fileName: crnId, fileTypes: ['XML', 'QUOTE'] });
   stage = 'browser-import';
   const importer = await chromium.launch({ headless: true });
   try {

@@ -112,8 +112,8 @@ async function main(): Promise<void> {
     client = new Client({ name: 'nested-parity', version: '1.0.0' });
     await client.connect(transport);
     const tools = await client.listTools();
-    for (const name of ['dcsc_launch', 'dcsc_add_rack', 'dcsc_place_in_rack', 'dcsc_edit_layout',
-      'dcsc_workspace_history', 'dcsc_export', 'dcsc_import', 'dcsc_session_info']) {
+    for (const name of ['dcsc_launch', 'dcsc_rack_add', 'dcsc_rack_edit',
+      'dcsc_undo', 'dcsc_export', 'dcsc_import', 'dcsc_workspace_get']) {
       assert(tools.tools.some(tool => tool.name === name), `${name} is not registered.`);
     }
   };
@@ -235,11 +235,11 @@ async function main(): Promise<void> {
     cloneDependencyColor: object(saved['serverState'])['cloneDependencyColor'] ?? {},
   });
   const toolProjection = async (workspaceId: string): Promise<Obj> => {
-    const info = await call('dcsc_session_info', { session: workspaceId });
-    const revision = Number(info['workspaceRevision']);
+    const info = await call('dcsc_workspace_get', { session: workspaceId });
+    const revision = Number(info['revision']);
     assert(Number.isInteger(revision), `Workspace ${workspaceId} projection has no revision.`);
     const detail = (path: string[], type: 'object' | 'array') => readJsonProjection(call, {
-      tool: 'dcsc_session_info', arguments: { session: workspaceId,
+      tool: 'dcsc_workspace_get', arguments: { session: workspaceId, view: 'layout',
         expectedRevision: revision, path, offset: 0, limit: 50 },
     }, type);
     return {
@@ -262,7 +262,7 @@ async function main(): Promise<void> {
   const verifyLooseImport = async (label: string, filePath: string): Promise<Obj> => {
     stage = `import-${label}`;
     const imported = await call('dcsc_import', { filePath, solutionMode: 'HPC and AI - Systems' });
-    const importedWorkspace = String(imported['workspace']);
+    const importedWorkspace = String(imported['session']);
     assert(importedWorkspace && importedWorkspace !== 'undefined', `${label} import returned no workspace.`);
     const accepted = await snapshot(importedWorkspace);
     assertImportedHistory(accepted, filePath, `${label} import`);
@@ -283,7 +283,7 @@ async function main(): Promise<void> {
     assertExactHistory(await snapshot(importedWorkspace), historyValues(accepted),
       `${label} import immediate SIGKILL/restart`);
     stage = `export-${label}-import`;
-    const exportedImport = await call('dcsc_export', { session: importedWorkspace,
+    const exportedImport = await call('dcsc_export', { kind: 'reports', session: importedWorkspace,
       fileName: `nested-${label}-imported`, fileTypes: ['XML', 'QUOTE'] });
     assert((await readFile(String(exportedImport['xml']))).length > 0,
       `${label} imported workspace export XML is empty.`);
@@ -293,7 +293,7 @@ async function main(): Promise<void> {
     expected: 'loose' | 'detached', expectedConfigurationCount: number): Promise<Obj> => {
     stage = `import-${label}`;
     const imported = await call('dcsc_import', { filePath, solutionMode: 'HPC and AI - Systems' });
-    const importedWorkspace = String(imported['workspace']);
+    const importedWorkspace = String(imported['session']);
     assert(importedWorkspace && importedWorkspace !== 'undefined', `${label} import returned no workspace.`);
     const accepted = await snapshot(importedWorkspace);
     assertImportedHistory(accepted, filePath, `${label} import`);
@@ -322,7 +322,7 @@ async function main(): Promise<void> {
     assertExactHistory(await snapshot(importedWorkspace), historyValues(accepted),
       `${label} import immediate SIGKILL/restart`);
     stage = `export-${label}-import`;
-    const exportedImport = await call('dcsc_export', { session: importedWorkspace,
+    const exportedImport = await call('dcsc_export', { kind: 'reports', session: importedWorkspace,
       fileName: `nested-${label}-imported`, fileTypes: ['XML', 'QUOTE'] });
     assert((await readFile(String(exportedImport['xml']))).length > 0,
       `${label} imported workspace export XML is empty.`);
@@ -333,7 +333,7 @@ async function main(): Promise<void> {
     stage = `import-${label}`;
     const imported = await call('dcsc_import', { filePath: nativeRackedXml,
       solutionMode: 'HPC and AI - Systems' });
-    const importedWorkspace = String(imported['workspace']);
+    const importedWorkspace = String(imported['session']);
     const before = await snapshot(importedWorkspace);
     assertImportedHistory(before, nativeRackedXml, `${label} import`);
     const rack = rows(before['rackArea'])[0];
@@ -349,7 +349,7 @@ async function main(): Promise<void> {
     const beforeDependencies = object(object(before['serverState'])['cloneDependency']);
     const beforeColors = object(object(before['serverState'])['cloneDependencyColor']);
     stage = label;
-    await call('dcsc_edit_layout', { session: importedWorkspace, action: 'remove',
+    await call('dcsc_rack_edit', { session: importedWorkspace, action: 'remove',
       configuration: chassisId, contents });
     stage = `crash-after-${label}`;
     await crashRestart();
@@ -376,26 +376,26 @@ async function main(): Promise<void> {
     assert.deepEqual(await toolProjection(importedWorkspace), acceptedProjection,
       `${label} public projection changed after immediate SIGKILL/restart.`);
     stage = `undo-${label}`;
-    await call('dcsc_workspace_history', { session: importedWorkspace, action: 'undo' });
+    await call('dcsc_undo', { session: importedWorkspace, action: 'undo' });
     const restored = await snapshot(importedWorkspace);
     assert(physicalIds(restored['rackArea']).includes(chassisId) &&
       physicalIds(restored['rackArea']).includes(childId), `${label} undo did not restore the nested hierarchy.`);
     assertExactHistory(restored, historyValues(before), `${label} undo`);
     stage = `redo-${label}`;
-    await call('dcsc_workspace_history', { session: importedWorkspace, action: 'redo' });
+    await call('dcsc_undo', { session: importedWorkspace, action: 'redo' });
     const redone = await snapshot(importedWorkspace);
     assert.deepEqual(semanticState(redone), semanticState(accepted),
       `${label} redo did not restore the accepted removal state.`);
     assertExactHistory(redone, acceptedHistory, `${label} redo`);
     stage = `export-${label}`;
-    const exported = await call('dcsc_export', { session: importedWorkspace,
+    const exported = await call('dcsc_export', { kind: 'reports', session: importedWorkspace,
       fileName: `nested-${label}`, fileTypes: ['XML', 'QUOTE', 'MESSAGE_HISTORY'] });
     assert((await readFile(String(exported['xml']))).length > 0, `${label} export XML is empty.`);
     const workbook = await assertHistoryWorkbook(exported, historyRows(accepted), label);
     stage = `reimport-${label}`;
     const reimported = await call('dcsc_import', { filePath: String(exported['xml']),
       solutionMode: 'HPC and AI - Systems' });
-    const reimportedWorkspace = String(reimported['workspace']);
+    const reimportedWorkspace = String(reimported['session']);
     const roundTrip = await snapshot(reimportedWorkspace);
     const roundTripIds = rows(roundTrip['configurations']).map(entry => String(entry['configurationId']));
     assert.equal(roundTripIds.length, contents === 'unplace' ? 3 : 2,
@@ -423,26 +423,26 @@ async function main(): Promise<void> {
       { command: 'ADD', type: 'Chassis', code: '7DD0CTOLWW', location: 'Non Rack Area' });
     stage = 'launch-node';
     const node = await call('dcsc_launch', { productCode: '7DD1CTOLWW', mode: 'cto',
-      solutionMode: 'HPC and AI - Systems', workspace });
+      solutionMode: 'HPC and AI - Systems', session: workspace });
     const nodeSession = String(node['session']);
     const afterNodeLaunch = await snapshot(workspace);
     const nodeId = String(configBySession(afterNodeLaunch, nodeSession)['configurationId']);
     assertAppendedHistory('launch-node', afterChassisLaunch, afterNodeLaunch,
       { command: 'ADD', type: 'Node', code: '7DD1CTOLWW', location: 'Non Rack Area' });
     stage = 'add-rack';
-    const added = await call('dcsc_add_rack', { session: workspace, rackCode: '7D6DCTO1WW' });
+    const added = await call('dcsc_rack_add', { session: workspace, rackCode: '7D6DCTO1WW' });
     const rackId = String(rows(added['racks'])[0]?.['rackId']);
-    assert(rackId && rackId !== 'undefined', 'dcsc_add_rack returned no rack identity.');
+    assert(rackId && rackId !== 'undefined', 'dcsc_rack_add returned no rack identity.');
     const beforePlacement = await snapshot(workspace);
     assertAppendedHistory('add-rack', afterNodeLaunch, beforePlacement,
       { command: 'ADD', type: 'Rack', code: '7D6DCTO1WW', location: 'Rack Area' });
     stage = 'place-chassis';
-    await call('dcsc_place_in_rack', { session: workspace, rackId, configuration: chassisSession });
+    await call('dcsc_rack_edit', { action: 'place', session: workspace, rackId, configuration: chassisSession });
     const afterChassisPlacement = await snapshot(workspace);
     assertAppendedHistory('place-chassis', beforePlacement, afterChassisPlacement,
       { command: 'MOVE', type: 'Chassis', code: '7DD0CTOLWW' });
     stage = 'copy-node';
-    const placed = await call('dcsc_place_in_rack', { session: workspace, rackId,
+    const placed = await call('dcsc_rack_edit', { action: 'place', session: workspace, rackId,
       chassisId, configuration: nodeSession });
     const nested = object(placed['nestedPlacement']);
     const copySession = String(nested['session']);
@@ -466,7 +466,7 @@ async function main(): Promise<void> {
       'Acknowledged nested copy public projection changed after SIGKILL/restart.');
 
     stage = 'independent-copy-edit';
-    const options = await call('dcsc_list_options', { session: copySession, query: 'processor', limit: 100 });
+    const options = await call('dcsc_configuration_get', { session: copySession, view: 'options', query: 'processor', limit: 100 });
     const choice = rows(options['options']).find(option => option['selected'] !== true && option['sectionId'] && option['code']);
     assert(choice, 'No alternate processor option was available for the copied node.');
     const beforeEdit = await snapshot(workspace);
@@ -482,7 +482,7 @@ async function main(): Promise<void> {
       { command: 'UPDATE', type: 'Node', code: '7DD1CTOLWW' });
 
     stage = 'unplace-chassis';
-    await call('dcsc_edit_layout', { session: workspace, action: 'unplace', configuration: chassisId });
+    await call('dcsc_rack_edit', { session: workspace, action: 'unplace', configuration: chassisId });
     const unplaced = await snapshot(workspace);
     const looseChassis = rows(unplaced['nonRackArea']).find(item => item['id'] === chassisId);
     assert(looseChassis && rows(looseChassis['nodes']).some(item => item['id'] === copyId),
@@ -491,26 +491,26 @@ async function main(): Promise<void> {
       { command: 'MOVE', type: 'Chassis', code: '7DD0CTOLWW', location: 'Non Rack Area' });
     const unplacedHistory = structuredClone(historyValues(unplaced));
     stage = 'undo-unplace';
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     const restoredPlacement = await snapshot(workspace);
     assert(JSON.stringify(restoredPlacement['rackArea']).includes(copyId), 'Undo did not restore the nested rack placement.');
     assertExactHistory(restoredPlacement, historyValues(afterEdit),
       'Undo unplace-chassis');
     stage = 'redo-unplace';
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     const redoneUnplaced = await snapshot(workspace);
     assert.deepEqual(semanticState(redoneUnplaced), semanticState(unplaced),
       'Redo did not restore the complete unplaced chassis state.');
     assertExactHistory(redoneUnplaced, unplacedHistory, 'Redo unplace-chassis');
     stage = 'export-unplaced-chassis';
-    const unplacedExport = await call('dcsc_export', { session: workspace, fileName: 'nested-stdio-unplaced',
+    const unplacedExport = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'nested-stdio-unplaced',
       fileTypes: ['XML', 'QUOTE', 'MESSAGE_HISTORY'] });
     assert((await readFile(String(unplacedExport['xml']))).length > 0,
       'Unplaced nested chassis export XML is empty.');
     const unplacedWorkbook = await assertHistoryWorkbook(unplacedExport, historyRows(unplaced),
       'Unplaced nested chassis');
     stage = 'replace-chassis';
-    await call('dcsc_edit_layout', { session: workspace, action: 'move', configuration: chassisId, rackId });
+    await call('dcsc_rack_edit', { session: workspace, action: 'move', configuration: chassisId, rackId });
     const replaced = await snapshot(workspace);
     assert(JSON.stringify(replaced['rackArea']).includes(copyId), 'Re-placing the chassis lost its nested node.');
     assertAppendedHistory('replace-chassis', unplaced, replaced,
@@ -518,7 +518,7 @@ async function main(): Promise<void> {
     const replacedHistory = structuredClone(historyValues(replaced));
 
     stage = 'detach-node';
-    await call('dcsc_edit_layout', { session: workspace, action: 'detach', configuration: copyId });
+    await call('dcsc_rack_edit', { session: workspace, action: 'detach', configuration: copyId });
     stage = 'crash-after-detach-node';
     await crashRestart();
     const detached = await snapshot(workspace);
@@ -538,18 +538,18 @@ async function main(): Promise<void> {
     assertExactHistory(await snapshot(workspace), detachedHistory,
       'Detached-node immediate SIGKILL/restart');
     stage = 'undo-detach-node';
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     const undoDetached = await snapshot(workspace);
     assertNodePhysicalState(undoDetached, copyId, 'nested');
     assertExactHistory(undoDetached, replacedHistory, 'Undo detach-node');
     stage = 'redo-detach-node';
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     const redoDetached = await snapshot(workspace);
     assert.deepEqual(semanticState(redoDetached), semanticState(detached),
       'Redo did not restore the complete detached-node state.');
     assertExactHistory(redoDetached, detachedHistory, 'Redo detach-node');
     stage = 'export-detached-node';
-    const detachedExport = await call('dcsc_export', { session: workspace,
+    const detachedExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'nested-stdio-detached-node', fileTypes: ['XML', 'QUOTE', 'MESSAGE_HISTORY'] });
     assert((await readFile(String(detachedExport['xml']))).length > 0,
       'Detached-node export XML is empty.');
@@ -561,19 +561,19 @@ async function main(): Promise<void> {
       'Detached-node export did not return its actionable reimport warning.');
     const detachedImport = await verifyNodeEditImport('detached-node', String(detachedExport['xml']),
       copyId, 'detached', 3);
-    assertHistoryContains(detached, await snapshot(String(detachedImport['workspace'])),
+    assertHistoryContains(detached, await snapshot(String(detachedImport['session'])),
       'Detached-node CFXML reimport');
     const nativeDetachedImport = await verifyNodeEditImport('native-detached-node', nativeDetachedXml,
       'US__-b01d-4208-99bc-55c8cc5464cf1000', 'detached', 3);
 
     stage = 'restore-before-unplace-node';
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     const restoredBeforeUnplaceNode = await snapshot(workspace);
     assertNodePhysicalState(restoredBeforeUnplaceNode, copyId, 'nested');
     assertExactHistory(restoredBeforeUnplaceNode, replacedHistory,
       'Restore before unplace-node');
     stage = 'unplace-node';
-    await call('dcsc_edit_layout', { session: workspace, action: 'unplace', configuration: copyId });
+    await call('dcsc_rack_edit', { session: workspace, action: 'unplace', configuration: copyId });
     stage = 'crash-after-unplace-node';
     await crashRestart();
     const looseNode = await snapshot(workspace);
@@ -593,18 +593,18 @@ async function main(): Promise<void> {
     assertExactHistory(await snapshot(workspace), looseNodeHistory,
       'Loose-node immediate SIGKILL/restart');
     stage = 'undo-unplace-node';
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     const undoLooseNode = await snapshot(workspace);
     assertNodePhysicalState(undoLooseNode, copyId, 'nested');
     assertExactHistory(undoLooseNode, replacedHistory, 'Undo unplace-node');
     stage = 'redo-unplace-node';
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     const redoLooseNode = await snapshot(workspace);
     assert.deepEqual(semanticState(redoLooseNode), semanticState(looseNode),
       'Redo did not restore the complete loose-node state.');
     assertExactHistory(redoLooseNode, looseNodeHistory, 'Redo unplace-node');
     stage = 'export-unplaced-node';
-    const looseNodeExport = await call('dcsc_export', { session: workspace,
+    const looseNodeExport = await call('dcsc_export', { kind: 'reports', session: workspace,
       fileName: 'nested-stdio-unplaced-node', fileTypes: ['XML', 'QUOTE', 'MESSAGE_HISTORY'] });
     assert((await readFile(String(looseNodeExport['xml']))).length > 0,
       'Loose-node export XML is empty.');
@@ -612,17 +612,17 @@ async function main(): Promise<void> {
       'Loose nested node');
     const looseNodeImport = await verifyNodeEditImport('loose-node', String(looseNodeExport['xml']),
       copyId, 'loose', 4);
-    assertHistoryContains(looseNode, await snapshot(String(looseNodeImport['workspace'])),
+    assertHistoryContains(looseNode, await snapshot(String(looseNodeImport['session'])),
       'Loose-node CFXML reimport');
 
     stage = 'restore-final-nested-state';
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     const restoredFinal = await snapshot(workspace);
     assertNodePhysicalState(restoredFinal, copyId, 'nested');
     assertExactHistory(restoredFinal, replacedHistory, 'Final undo branch');
 
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace, fileName: 'nested-stdio',
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'nested-stdio',
       fileTypes: ['XML', 'QUOTE', 'MESSAGE_HISTORY'] });
     assert((await readFile(String(exported['xml']))).length > 0, 'Nested stdio export XML is empty.');
     const finalWorkbook = await assertHistoryWorkbook(exported, historyRows(restoredFinal),
@@ -639,7 +639,7 @@ async function main(): Promise<void> {
       'Final edited nested public projection changed after SIGKILL/restart.');
     const nativeImport = await verifyLooseImport('native-loose', nativeLooseXml);
     const mcpImport = await verifyLooseImport('mcp-loose', String(unplacedExport['xml']));
-    assertHistoryContains(unplaced, await snapshot(String(mcpImport['workspace'])),
+    assertHistoryContains(unplaced, await snapshot(String(mcpImport['session'])),
       'Unplaced-chassis CFXML reimport');
     const parentDelete = await verifyParentRemoval('delete');
     const parentUnplace = await verifyParentRemoval('unplace');

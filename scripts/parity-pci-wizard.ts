@@ -101,8 +101,8 @@ async function main() {
   try {
     await start();
     stage = 'launch';
-    const launched = await call('dcsc_launch_reference_solution', { crnId: 'SID0000978', solutionMode: 'General Purpose' });
-    const workspace = String(launched['workspace']);
+    const launched = await call('dcsc_launch', { mode: 'reference-solution', sid: 'SID0000978', solutionMode: 'General Purpose' });
+    const workspace = String(launched['session']);
     const saved = async () => {
       const state = object(JSON.parse(await readFile(sessionFile, 'utf8')));
       return rows(state['workspaces']).find(w => w['id'] === workspace)!;
@@ -114,10 +114,10 @@ async function main() {
     const linked = process.argv.includes('--linked');
     if (linked) {
       stage = 'linked-setup';
-      await call('dcsc_add_rack', { session: workspace, rackCode: '7D6DCTO1WW' });
+      await call('dcsc_rack_add', { session: workspace, rackCode: '7D6DCTO1WW' });
       const rackId = String(rows((await saved())['rackArea'])[0]!['id']);
-      await call('dcsc_place_in_rack', { session: workspace, rackId, configuration: session, uPosition: 1 });
-      const cloned = await call('dcsc_clone_configuration', { session, count: 1, placement: 'same-rack' });
+      await call('dcsc_rack_edit', { action: 'place', session: workspace, rackId, configuration: session, uPosition: 1 });
+      const cloned = await call('dcsc_rack_edit', { action: 'clone', session, count: 1, placement: 'same-rack' });
       session = String(rows(cloned['created'])[0]!['session']);
       assert(session && session !== 'undefined');
     }
@@ -129,11 +129,11 @@ async function main() {
       assert.equal(members.length, linked ? 2 : 1);
       for (const raw of members) assert.deepEqual(slots(raw), expected);
     };
-    const before = await call('dcsc_pci_wizard', { session });
+    const before = await call('dcsc_wizard_get', { wizard: 'pci', session });
     assert.equal(values(before)['available'], true);
-    await call('dcsc_pci_wizard', { session, expectedRevision: before['workspaceRevision'], path: ['options', '0', 'adapterSlots'] });
+    await call('dcsc_wizard_get', { wizard: 'pci', session, expectedRevision: before['revision'], path: ['options', '0', 'adapterSlots'] });
     stage = 'edit';
-    await call('dcsc_set_pci_wizard', { session, expectedRevision: before['workspaceRevision'],
+    await call('dcsc_wizard_set', { wizard: 'pci', session, expectedRevision: before['revision'],
       optionId: '1P Rear5-a', rowId: '2', enabled: true });
     assert.deepEqual(slots(await current()), expected);
     stage = 'crash-restart';
@@ -142,17 +142,17 @@ async function main() {
     process.kill(transport!.pid!, 'SIGKILL');
     await client!.close(); client = undefined; transport = undefined;
     await start();
-    const restarted = await call('dcsc_pci_wizard', { session });
+    const restarted = await call('dcsc_wizard_get', { wizard: 'pci', session });
     assert.deepEqual(JSON.parse(await readFile(sessionFile, 'utf8')), snapshot);
     assert.deepEqual(slots(await current()), expected);
     stage = 'stale-and-undo';
-    await call('dcsc_set_pci_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: '1P Rear5-a' }, true);
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo', expectedRevision: restarted['workspaceRevision'] });
+    await call('dcsc_wizard_set', { wizard: 'pci', session, expectedRevision: before['revision'], optionId: '1P Rear5-a' }, true);
+    await call('dcsc_undo', { session: workspace, action: 'undo', expectedRevision: restarted['revision'] });
     assert.deepEqual(slots(await current()), slots(object(configuration['raw'])));
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     assert.deepEqual(slots(await current()), expected);
     stage = 'remove-spare';
-    const removal = await call('dcsc_set_pci_wizard', { session, expectedRevision: (await saved())['revision'],
+    const removal = await call('dcsc_wizard_set', { wizard: 'pci', session, expectedRevision: (await saved())['revision'],
       optionId: '1P Rear5-a', rowId: '0', enabled: false });
     assert.equal(removal['affectedConfigurationCount'], linked ? 2 : 1);
     expected = expected.filter(slot => slot.code !== 'C62D');
@@ -162,7 +162,7 @@ async function main() {
     process.kill(transport!.pid!, 'SIGKILL');
     await client!.close(); client = undefined; transport = undefined;
     await start();
-    await call('dcsc_pci_wizard', { session });
+    await call('dcsc_wizard_get', { wizard: 'pci', session });
     await checkMembers();
     stage = 'subsequent-derive';
     const uefi = rows((await current())['tabs']).flatMap(t => rows(t['subTabs'])).flatMap(t => rows(t['sections']))
@@ -173,12 +173,12 @@ async function main() {
     assert.deepEqual(slots(await current()), expected);
     await call('dcsc_configure', { session, changes: [{ section: 'REAR_SLOT1', code: 'C3R9', quantity: 1 }] }, true);
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace, fileName: 'pci-wizard', fileTypes: ['XML'] });
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'pci-wizard', fileTypes: ['XML'] });
     const xmlPath = String(exported['xml']);
     stage = 'mcp-import';
     const imported = await call('dcsc_import', { filePath: xmlPath });
     const state = object(JSON.parse(await readFile(sessionFile, 'utf8')));
-    const importedWorkspace = rows(state['workspaces']).find(w => w['id'] === imported['workspace'])!;
+    const importedWorkspace = rows(state['workspaces']).find(w => w['id'] === imported['session'])!;
     assert(importedWorkspace);
     const importedMembers = rows(importedWorkspace['configurations']).map(c => object(c['raw'])).filter(r => r['code'] === '7DGDCTO1WW');
     assert.equal(importedMembers.length, linked ? 2 : 1);

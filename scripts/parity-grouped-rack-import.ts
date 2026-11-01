@@ -79,8 +79,8 @@ try {
     .flatMap(r => rows(r['items']).map(i => ({ rack: codes.get(r['id']), code: i['code'], position: i['position'], size: i['size'] })));
   assert.equal(expected.length, 29);
   stage = 'mcp-launch';
-  const launched = await call('dcsc_launch_reference_solution', { crnId, solutionMode: 'General Purpose' });
-  const id = String(launched['workspace']);
+  const launched = await call('dcsc_launch', { mode: 'reference-solution', sid: crnId, solutionMode: 'General Purpose' });
+  const id = String(launched['session']);
   const before = await saved(id);
   const actual = rows(before['rackArea']).flatMap(r => rows(r['rackItems']).map(i => ({ rack: r['code'], code: i['code'], position: i['position'], size: i['size'] })));
   const sorted = (list: Obj[]) => list.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -91,12 +91,12 @@ try {
   stage = 'restart';
   assert(transport!.pid); process.kill(transport!.pid!, 'SIGKILL');
   await client!.close().catch(() => undefined); await start();
-  const info = await call('dcsc_session_info', { session: id });
+  const info = await call('dcsc_workspace_get', { session: id });
   assert.notEqual(info['integrity'], 'damaged', 'Restored workspace must remain exportable');
   const after = await saved(id);
   for (const key of ['configurations', 'rackArea', 'nonRackArea', 'serverState', 'revision']) assert.deepEqual(after[key], before[key]);
   stage = 'export';
-  const exported = await call('dcsc_export', { session: id, fileName: crnId, fileTypes: ['XML', 'QUOTE'] });
+  const exported = await call('dcsc_export', { kind: 'reports', session: id, fileName: crnId, fileTypes: ['XML', 'QUOTE'] });
   stage = 'browser-reimport';
   const importer = await chromium.launch({ headless: true });
   try {

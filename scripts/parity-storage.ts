@@ -35,7 +35,7 @@ async function main(): Promise<void> {
     client = new Client({ name: 'storage-parity', version: '1.0.0' });
     await client.connect(transport);
     const listed = await client.listTools();
-    for (const name of ['dcsc_customize_storage_controller', 'dcsc_customize_storage_switch', 'dcsc_assign_storage_network']) {
+    for (const name of ['dcsc_storage_set', 'dcsc_storage_get', 'dcsc_network_get']) {
       assert(listed.tools.some(tool => tool.name === name), `${name} is not registered.`);
     }
   };
@@ -63,21 +63,20 @@ async function main(): Promise<void> {
     const server = String(launched.session);
     const workspace = String(launched.workspace);
     stage = 'hba';
-    const options = await call('dcsc_list_options', { session: server, query: 'ATZV', limit: 10 });
+    const options = await call('dcsc_configuration_get', { view: 'options', session: server, query: 'ATZV', limit: 10 });
     const hba = rows(options.options).find(option => option.code === 'ATZV');
     assert(hba?.sectionId, 'Current server catalog has no ATZV HBA target.');
     await call('dcsc_configure', { session: server, changes: [{ section: hba.sectionId, code: 'ATZV', quantity: 1 }] });
     stage = 'rack';
-    await call('dcsc_add_rack', { session: workspace, rackCode: '7D6DCTO1WW' });
+    await call('dcsc_rack_add', { session: workspace, rackCode: '7D6DCTO1WW' });
     stage = 'storage-definition';
-    const catalog = await call('dcsc_fabric_options', { session: workspace, collection: 'storageControllers',
+    const catalog = await call('dcsc_network_get', { session: workspace, collection: 'storageControllers',
       limit: 100, fields: ['option', 'featureCode'] });
     const choice = rows(catalog.items).find(item => item.option === '7DJ0CTO1WW' && !item.featureCode);
     assert(choice?.id, 'Current catalog has no captured DM3200F controller choice.');
-    await call('dcsc_add_storage_network', { session: workspace, name: 'Live Storage', controllerId: choice.id,
-      expansionQuantity: 0, switchId: 'direct-attached' });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: 'Live Storage', controllerId: choice.id, expansionQuantity: 0, switchId: 'direct-attached' } });
     stage = 'controller-open';
-    const opened = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Live Storage' });
+    const opened = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Live Storage' } });
     assert.equal(opened.created, true);
     const controllerId = String(opened.controllerId);
     const first = await snapshot();
@@ -88,15 +87,15 @@ async function main(): Promise<void> {
     const definitions = rows(object(first.serverState).storageConnectionNetworks);
     assert.equal(object(definitions[0]?.controller).id, controllerId);
     stage = 'controller-reopen';
-    const reopened = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Live Storage', expectedRevision: opened.revision });
+    const reopened = await call('dcsc_storage_set', { session: workspace, expectedRevision: opened.revision, change: { action: 'customize', component: 'controller', name: 'Live Storage' } });
     assert.equal(reopened.created, false);
-    assert.equal(reopened.session, opened.session);
+    assert.equal(reopened.configuration, opened.configuration);
     assert.equal(reopened.revision, opened.revision);
     stage = 'controller-edit';
-    const controllerOptions = await call('dcsc_list_options', { session: opened.session, query: 'AV1W', limit: 10 });
+    const controllerOptions = await call('dcsc_configuration_get', { view: 'options', session: opened.configuration, query: 'AV1W', limit: 10 });
     const controllerCable = rows(controllerOptions.options).find(option => option.code === 'AV1W');
     assert(controllerCable?.sectionId, 'Current controller catalog has no captured AV1W cable option.');
-    await call('dcsc_configure', { session: opened.session,
+    await call('dcsc_configure', { session: opened.configuration,
       changes: [{ section: controllerCable.sectionId, code: 'AV1W', quantity: 4 }] });
     const afterEdit = await snapshot();
     const editedRaw = object(rows(afterEdit.configurations).find(item => item.configurationId === controllerId)?.raw);
@@ -107,8 +106,8 @@ async function main(): Promise<void> {
     assert.equal(cableSelections[0]!.quantity, 4);
     assert(!JSON.stringify([afterEdit.rackArea, afterEdit.nonRackArea]).includes(controllerId));
     stage = 'assignment';
-    await call('dcsc_assign_storage_network', { session: workspace, networkName: 'Live Storage' }, true);
-    const assigned = await call('dcsc_assign_storage_network', { session: server, networkName: 'Live Storage', autoConnect: false });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'assign', networkName: 'Live Storage' } }, true);
+    const assigned = await call('dcsc_storage_set', { session: server, change: { action: 'assign', networkName: 'Live Storage', autoConnect: false } });
     assert.equal(assigned.selectedStorageNetwork, 'Live Storage');
     assert.equal(assigned.autoConnectRequired, true);
     const beforeKill = await snapshot();
@@ -121,15 +120,15 @@ async function main(): Promise<void> {
     await client!.close();
     client = undefined;
     await start();
-    const restored = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Live Storage' });
+    const restored = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Live Storage' } });
     assert.equal(restored.created, false);
-    assert.equal(restored.session, opened.session);
+    assert.equal(restored.configuration, opened.configuration);
     assert.equal(restored.controllerId, controllerId);
     assert.equal(restored.revision, assigned.revision);
     const afterRestart = await snapshot();
     assert.deepEqual(afterRestart, beforeKill);
     stage = 'clear-assignment';
-    const cleared = await call('dcsc_assign_storage_network', { session: server, networkName: null, autoConnect: false });
+    const cleared = await call('dcsc_storage_set', { session: server, change: { action: 'assign', networkName: null, autoConnect: false } });
     assert.equal(cleared.selectedStorageNetwork, '');
     stage = 'managed-commercial-groups';
     const commercial = await snapshot();
@@ -144,17 +143,17 @@ async function main(): Promise<void> {
     const expectedGroups = fixture.configuredControllerLifecycle.configuredExport.groupProducts.map(fields);
     await writeFile(path.join(out, 'managed-groups-comparison.json'), JSON.stringify({ actualGroups, expectedGroups }, null, 2));
     assert.deepEqual(actualGroups, expectedGroups, 'Controller commercial groups differ from the contemporaneous browser capture.');
-    const info = await call('dcsc_session_info', { session: workspace });
+    const info = await call('dcsc_workspace_get', { session: workspace });
     const expectedTotal = rows(commercial.configurations).filter(item => item.configurationId !== controllerId)
       .reduce((total, item) => total + Number(object(item.raw).totalPrice) * Number(object(item.raw).quantity ?? 1), 0);
     assert.equal(info.totalPrice, Math.round(expectedTotal * 100) / 100, 'Workspace total charged an unplaced controller template.');
     stage = 'export';
-    const exported = await call('dcsc_export', { session: workspace, fileName: 'managed-controller', fileTypes: ['XML', 'QUOTE'] });
+    const exported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'managed-controller', fileTypes: ['XML', 'QUOTE'] });
     assert.equal(typeof exported.xml, 'string');
     assert((await readFile(String(exported.xml))).length > 0);
     stage = 'remove-controller';
-    await call('dcsc_session_close', { session: opened.session }, true);
-    const removed = await call('dcsc_edit_storage_network', { session: workspace, action: 'remove', name: 'Live Storage' });
+    await call('dcsc_session_close', { session: opened.configuration }, true);
+    const removed = await call('dcsc_storage_set', { session: workspace, change: { action: 'remove', name: 'Live Storage' } });
     assert.equal(removed.removedConfigurations, 1);
     const afterRemoval = await snapshot();
     assert.equal(rows(afterRemoval.configurations).length, 2);
@@ -165,36 +164,34 @@ async function main(): Promise<void> {
     await client!.close();
     client = undefined;
     await start();
-    await call('dcsc_customize_storage_controller', { session: workspace, name: 'Live Storage' }, true);
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Live Storage' } }, true);
     assert.deepEqual(await snapshot(), afterRemoval);
     stage = 'selected-base-controller';
     const baseController = rows(catalog.items).find(item => item.option === '7D4FCTO6WW' && item.featureCode === 'BCBN');
     assert(baseController?.id, 'Current catalog has no captured BCBN controller choice.');
-    await call('dcsc_add_storage_network', { session: workspace, name: 'Selected Base', controllerId: baseController.id,
-      expansionQuantity: 0, switchId: 'direct-attached' });
-    const selectedBase = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Selected Base' });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: 'Selected Base', controllerId: baseController.id, expansionQuantity: 0, switchId: 'direct-attached' } });
+    const selectedBase = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Selected Base' } });
     const withBase = await snapshot();
     const baseRaw = object(rows(withBase.configurations).find(item => item.configurationId === selectedBase.controllerId)?.raw);
     assert(rows(baseRaw.unSelectableCharacters).flatMap(section => rows(section.results))
       .some(result => result.code === 'BCBN' && Number(result.quantity) > 0), 'BCBN was available but not selected.');
     assert(!JSON.stringify([withBase.rackArea, withBase.nonRackArea]).includes(String(selectedBase.controllerId)));
-    await call('dcsc_edit_storage_network', { session: workspace, action: 'remove', name: 'Selected Base' });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'remove', name: 'Selected Base' } });
     stage = 'san-switch-definition';
     const sanController = rows(catalog.items).find(item => item.option === '7DP4CTO1WW');
     assert(sanController?.id, 'Current catalog has no captured DS3200 controller.');
-    const sanChoices = await call('dcsc_fabric_options', { session: workspace, collection: 'storageSwitches',
+    const sanChoices = await call('dcsc_network_get', { session: workspace, collection: 'storageSwitches',
       limit: 50, fields: ['option', 'featureCode'] });
     const sanChoice = rows(sanChoices.items).find(item => item.option === '7DHNCTO1WW' && item.featureCode === 'C1FM');
     assert(sanChoice?.id, 'Current catalog has no captured DB710S C1FM switch.');
-    await call('dcsc_add_storage_network', { session: workspace, name: 'Live SAN', controllerId: sanController.id,
-      switchId: sanChoice.id, expansionQuantity: 0 });
-    const sanControllerOpened = await call('dcsc_customize_storage_controller', { session: workspace, name: 'Live SAN' });
+    await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: 'Live SAN', controllerId: sanController.id, switchId: sanChoice.id, expansionQuantity: 0 } });
+    const sanControllerOpened = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'controller', name: 'Live SAN' } });
     stage = 'san-switch-open';
-    const sanOpened = await call('dcsc_customize_storage_switch', { session: workspace, name: 'Live SAN' });
+    const sanOpened = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'switch', name: 'Live SAN' } });
     assert.equal(sanOpened.created, true);
-    const sanReopened = await call('dcsc_customize_storage_switch', { session: workspace, name: 'Live SAN', expectedRevision: sanOpened.revision });
+    const sanReopened = await call('dcsc_storage_set', { session: workspace, expectedRevision: sanOpened.revision, change: { action: 'customize', component: 'switch', name: 'Live SAN' } });
     assert.equal(sanReopened.created, false);
-    assert.equal(sanReopened.session, sanOpened.session);
+    assert.equal(sanReopened.configuration, sanOpened.configuration);
     assert.equal(sanReopened.revision, sanOpened.revision);
     const sanSnapshot = await snapshot();
     const sanIds = [String(sanControllerOpened.controllerId), String(sanOpened.switchId)];
@@ -220,21 +217,21 @@ async function main(): Promise<void> {
     process.kill(transport!.pid!, 'SIGKILL');
     await client!.close(); client = undefined;
     await start();
-    const sanRestored = await call('dcsc_customize_storage_switch', { session: workspace, name: 'Live SAN' });
+    const sanRestored = await call('dcsc_storage_set', { session: workspace, change: { action: 'customize', component: 'switch', name: 'Live SAN' } });
     assert.equal(sanRestored.created, false);
-    assert.equal(sanRestored.session, sanOpened.session);
+    assert.equal(sanRestored.configuration, sanOpened.configuration);
     assert.deepEqual(await snapshot(), sanSnapshot);
     stage = 'san-switch-export';
-    const sanExported = await call('dcsc_export', { session: workspace, fileName: 'managed-san-switch', fileTypes: ['XML', 'QUOTE'] });
+    const sanExported = await call('dcsc_export', { kind: 'reports', session: workspace, fileName: 'managed-san-switch', fileTypes: ['XML', 'QUOTE'] });
     assert((await readFile(String(sanExported.xml))).length > 0);
-    await call('dcsc_session_close', { session: sanOpened.session }, true);
+    await call('dcsc_session_close', { session: sanOpened.configuration }, true);
     stage = 'san-switch-remove-history';
-    const sanRemoved = await call('dcsc_edit_storage_network', { session: workspace, name: 'Live SAN', action: 'remove' });
+    const sanRemoved = await call('dcsc_storage_set', { session: workspace, change: { name: 'Live SAN', action: 'remove' } });
     assert.equal(sanRemoved.removedConfigurations, 2);
     assert.equal(rows((await snapshot()).configurations).length, 2);
-    await call('dcsc_workspace_history', { session: workspace, action: 'undo' });
+    await call('dcsc_undo', { session: workspace, action: 'undo' });
     assert.equal(rows((await snapshot()).configurations).length, 4);
-    await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
+    await call('dcsc_undo', { session: workspace, action: 'redo' });
     assert.equal(rows((await snapshot()).configurations).length, 2);
     await writeFile(path.join(out, 'report.json'), JSON.stringify({ status: 'pass', scope: 'live-stdio-storage-lifecycle-and-crash-restart',
       browserGraphParity: 'not-tested', browserReimport: 'not-tested', commercialGroups: 'matched-captured-browser',

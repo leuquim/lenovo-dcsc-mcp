@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   };
 
   // 1. find
-  const find = await call('dcsc_find_products', { query: 'SR630 V3', type: 'CTO', limit: 3 });
+  const find = await call('dcsc_search', { search: { kind: 'products', query: 'SR630 V3', type: 'CTO', limit: 3 } });
   const products = (find.json as { products: Array<{ code: string; description: string }> })
     .products;
   console.log(products.map((p) => `   ${p.code}  ${p.description}`).join('\n'));
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
   console.log(`   constraints: ${summary.constraints.length}`);
 
   // 3. tab view (L1)
-  const tab = await call('dcsc_list_options', { session, tab: 'Processors' });
+  const tab = await call('dcsc_configuration_get', { session, view: 'options', tab: 'Processors' });
   const tabView = tab.json as {
     sections: Array<{ id: string; name: string; options: number; selected: unknown[] }>;
   };
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
   // 4. section view (L2)
   const target = tabView.sections.find((s) => s.options > 3) ?? tabView.sections[0];
   assert(target, 'The selected product exposes no option section.');
-  const opts = await call('dcsc_list_options', { session, section: target.id, limit: 5 });
+  const opts = await call('dcsc_configuration_get', { session, view: 'options', section: target.id, limit: 5 });
   const view = opts.json as {
     priceBasis: string;
     page: { total: number };
@@ -108,13 +108,13 @@ async function main(): Promise<void> {
   // 5. feature detail (L3)
   const first = view.options[0];
   assert(first, `Section ${target.id} returned no options.`);
-  const detail = await call('dcsc_get_feature', { session, codes: [first.code] });
+  const detail = await call('dcsc_configuration_get', { session, view: 'features', codes: [first.code] });
   const d = detail.json as { features: Array<{ detail: { attributes?: unknown } | null }> };
   assert(d.features[0], `Feature detail for ${first.code} is missing.`);
   console.log(`   attributes: ${JSON.stringify(d.features[0].detail?.attributes ?? {})}`);
 
   // 6. cross-tab search
-  const search = await call('dcsc_list_options', { session, query: '64GB', limit: 5 });
+  const search = await call('dcsc_configuration_get', { session, view: 'options', query: '64GB', limit: 5 });
   const found = search.json as {
     page: { total: number };
     options: Array<{ code: string; desc: string }>;
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
   for (const o of found.options.slice(0, 3)) console.log(`   ${o.code}  ${o.desc.slice(0, 60)}`);
 
   // 7. BOM
-  const bom = await call('dcsc_get_configuration', { session });
+  const bom = await call('dcsc_configuration_get', { session, view: 'selections' });
   const b = bom.json as {
     totalPrice: number;
     disclaimer: string;
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
   console.log(`   disclaimer: ${b.disclaimer}`);
 
   // 8. health
-  const health = await call('dcsc_health', {});
+  const health = await call('dcsc_session_list', { view: 'health' });
   const h = health.json as { breaker: string; wafStrikes: number; openSessions: number };
   console.log(`   breaker=${h.breaker} wafStrikes=${h.wafStrikes} sessions=${h.openSessions}`);
 
@@ -142,8 +142,9 @@ async function main(): Promise<void> {
   const beforePrice = (bom.json as { totalPrice: number }).totalPrice;
   const cpuSection = tabView.sections.find((s) => s.name.toLowerCase().includes('processor'));
   assert(cpuSection, 'The selected product exposes no processor section.');
-  const cpuOpts = await call('dcsc_list_options', {
+  const cpuOpts = await call('dcsc_configuration_get', {
     session,
+    view: 'options',
     section: cpuSection.id,
     limit: 3,
   });
