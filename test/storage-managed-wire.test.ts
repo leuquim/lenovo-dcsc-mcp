@@ -326,7 +326,7 @@ it('moves all managed-template instances to non-rack as the native Summary actio
     { configurationId: 'controller-2', templateConfigurationId: 'controller', session: controller.id,
       code: controller.product.code, description: controller.product.description },
   ]));
-  expect(projectWorkspaceLayout(workspace, { tool: 'dcsc_workspace_layout', arguments: { session: workspace.id } }).unracked)
+  expect(projectWorkspaceLayout(workspace, { tool: 'dcsc_workspace_get', arguments: { session: workspace.id } }).unracked)
     .toEqual(expect.arrayContaining([expect.objectContaining({ configurationId: 'controller-1', templateConfigurationId: 'controller' })]));
   expect(workspace.configurations.size).toBe(2);
   expect(controller.raw.totalPrice).toBe(200);

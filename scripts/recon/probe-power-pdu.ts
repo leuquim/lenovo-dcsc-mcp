@@ -1,5 +1,5 @@
 /**
- * Probes the power/PDU endpoints so dcsc_power can be built on real numbers.
+ * Probes the power/PDU endpoints so dcsc_power_get can be built on real numbers.
  */
 import { loadConfig } from '../../src/config/load.js';
 import { DcscHttpClient } from '../../src/http/request.js';

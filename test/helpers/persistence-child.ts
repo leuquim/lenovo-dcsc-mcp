@@ -1022,6 +1022,7 @@ function installFixtureAdapter(target: DcscService): void {
     if (request.path === '/ctos/RACKCTO/launch') {
       return { raw: structuredClone(rackInput('US__fixture_rack', 'fixture').raw) };
     }
+    if (request.path === '/ctos/racks/RACKCTO/launch' || request.path === '/pdu/pduPreference') return { raw: {} };
     if (request.path === '/ctos/racks/customize/non_rack') {
       const requested = request.body?.kind === 'json' && Array.isArray(request.body.value)
         ? request.body.value as Array<Record<string, unknown>> : [];

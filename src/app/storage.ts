@@ -68,7 +68,8 @@ import {
   linkedMembers,
   rebuildDerived,
 } from './serviceHelpers.js';
-import { ctoLaunchPath } from '../domain/endpoints.js';
+import { layoutToggleOverrides } from '../domain/floor.js';
+import { ctoLaunchPath, launchQuery } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
 import { configureDraft } from './launch.js';
 import { acceptDerivedWorkspaceConfigurations, autoConnectDraft, prepareConfigIdsDraft, provisionSwitchesDraft, refreshRackMetadata, refreshStorageLayoutDraft, workspaceCablingPayload, workspaceNetworkState } from './workspaceRefresh.js';
@@ -243,7 +244,7 @@ export async function placeStorageNetwork(rt: Runtime, handle: string, opts: {
     draft.serverState.cloneDependency = staged.cloneDependency;
     transaction.remoteApplied = true;
     const layout = await customizeLayout(rt.http, { ...opts.ctx, locale: draft.locale, solution: draft.solution },
-      workspaceCablingPayload(draft), { autoArrange: true, autoConnect: true, cogValidation: true });
+      workspaceCablingPayload(draft), { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(draft.serverState) });
     const placements = parseStoragePlacementResponse(layout.rawState, staged);
     const errors = layout.rawState.errors;
     if (layout.errors.length > 0 || errors && (!Array.isArray(errors) || errors.length > 0)) {
@@ -318,7 +319,7 @@ async function ensureStorageComponentDraft(rt: Runtime, draft: WorkspaceSession,
   const context = { ...opts.ctx, locale: draft.locale, solution: draft.solution };
   const launched = await rt.http.send({ endpoint: component === 'controller' ? 'storage_controller_launch' : 'storage_switch_launch', method: 'POST',
     path: ctoLaunchPath(option),
-    query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
+    query: launchQuery(draft.solution.solutionMode),
     body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
   transaction.remoteApplied = true;
   const raw = launched.raw as RawConfiguration;
@@ -361,7 +362,7 @@ async function openStorageComponent(rt: Runtime, handle: string, opts: {
     if (!opened.created) return opened;
     const context = { ...opts.ctx, locale: draft.locale, solution: draft.solution };
     const layout = await customizeLayout(rt.http, context, workspaceCablingPayload(draft),
-      { autoArrange: true, autoConnect: true, cogValidation: true });
+      { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(draft.serverState) });
     if (!Array.isArray(layout.rawState.rackArea) || !Array.isArray(layout.rawState.nonRackArea) ||
         !Array.isArray(layout.rawState.connections)) {
       throw new Error(`DCSC returned an incomplete storage ${label} layout. Workspace was not committed.`);

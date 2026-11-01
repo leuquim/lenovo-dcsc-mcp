@@ -34,11 +34,11 @@ export function writeHeader(service: DcscService, handle: string): { session: st
   return { session: handle, ...(workspace.id !== handle ? { workspace: workspace.id } : {}), revision: workspace.revision };
 }
 
-const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
+const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision.');
 
 const pageOffset = z.number().int().min(0).optional().default(0);
 const pageLimit = z.number().int().min(1).max(1000).optional().default(20);
-const detailPath = z.array(z.string()).optional().describe('Detail path from a returned continuation.');
+const detailPath = z.array(z.string()).optional().describe('From a continuation.');
 
 const workspaceViewSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('summary'), path: detailPath, offset: pageOffset, limit: pageLimit }),
@@ -282,11 +282,11 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Inspect a workspace',
       description:
-        'Reads a configuration or workspace: summary, rack and floor layout, standalone baskets, undo history or saved validation jobs. Follow returned continuations for large collections.',
+        'Reads a configuration or workspace: summary, rack and floor layout, standalone baskets, undo history or saved validation jobs. Follow continuations.',
       inputSchema: {
         session: z.string(),
         view: workspaceViewSchema.optional().describe('What to read; default summary.'),
-        expectedRevision: z.number().int().min(1).optional().describe('Revision carried by a continuation; rejects pages from a workspace that moved.'),
+        expectedRevision: z.number().int().min(1).optional().describe('From a continuation.'),
       },
     },
     async (args) =>

@@ -23,7 +23,7 @@ export function registerImportExportTools(server: McpServer, service: DcscServic
         content: z.string().optional().describe('CFXML content string.'),
         mode: z.enum(CONFIG_MODES).optional(),
         session: z.string().optional().describe('Existing workspace to import into; omit to create one.'),
-        expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; fails if the workspace moved on.'),
+        expectedRevision: z.number().int().min(1).optional().describe('Workspace revision.'),
         solutionMode: z.string().optional().describe('Defaults to the workspace mode, else the XML declaration, else General Purpose.'),
       },
     },

@@ -25,7 +25,7 @@ import type { DcscService } from './service.js';
 import { requireSession, writeHeader } from './sessionTools.js';
 import { guard } from './toolSupport.js';
 
-const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
+const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision.');
 
 export function registerConfigurationTools(server: McpServer, service: DcscService): void {
 

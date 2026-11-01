@@ -53,7 +53,7 @@ import {
   summariseRackArea,
   rebuildDerived,
 } from './serviceHelpers.js';
-import { autoDerivePath, ctoLaunchPath } from '../domain/endpoints.js';
+import { autoDerivePath, ctoLaunchPath, launchQuery } from '../domain/endpoints.js';
 import { CATALOG_TTL_MS, type Runtime } from './runtime.js';
 
 /**
@@ -272,7 +272,7 @@ export async function provisionSwitchesDraft(rt: Runtime, ws: WorkspaceSession, 
   const launchTrees = new Map(await Promise.all([...new Set(requirements.map(requirement => requirement.option))].map(async option => {
     const launched = await rt.http.send({ endpoint: 'automatic_switch_launch', method: 'POST',
       path: ctoLaunchPath(option),
-      query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
+      query: launchQuery(ws.solution.solutionMode),
       body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
     const raw = launched.raw as RawConfiguration;
     if (!raw || !Array.isArray(raw.tabs)) throw new Error('DCSC returned no configuration tree for the calculated switch.');

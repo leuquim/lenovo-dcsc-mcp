@@ -19,7 +19,7 @@ import { projectConnectionGraph } from '../domain/cabling.js';
 import { detachPhysicalItem, physicalIds, removeWorkspaceReferences } from '../domain/workspaceReferences.js';
 import { buildFloorState } from '../domain/floorWire.js';
 import { stageRackItemLock, stageRackSpaceLock } from '../domain/rackLocks.js';
-import { applyFloorPreference, colourRackCell, placeRackOnFloor, type FloorPlacementResult, type FloorPreferenceChange } from '../domain/floor.js';
+import { applyFloorPreference, layoutToggleOverrides, colourRackCell, placeRackOnFloor, type FloorPlacementResult, type FloorPreferenceChange } from '../domain/floor.js';
 import {
   listPduCatalog,
   resolvePowerChange,
@@ -370,7 +370,7 @@ async function copyNodeIntoChassis(rt: Runtime, handle: string, opts: {
     const result = await customizeLayout(rt.http, context,
       buildRackCustomizePayload({ ...workspaceNetworkState(workspace), rackArea: staged.rackArea,
         nonRackArea: staged.nonRackArea }, [...workspace.configurations.values()].map(session => session.raw)),
-      { autoArrange: true, autoConnect: true, cogValidation: true, mode: 'cto' });
+      { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(workspace.serverState), mode: 'cto' });
     const acceptedRack = result.rawRackArea.find(item => item.id === opts.rackId);
     const acceptedChassis = (acceptedRack?.rackItems as RackObject[] | undefined)?.find(item => item.id === opts.chassisId);
     const accepted = (acceptedChassis?.nodes as RackObject[] | undefined)?.find(item => item.id === configurationId);

@@ -47,7 +47,7 @@ import {
   type ImportResult,
   type RawImportResponse,
 } from './serviceHelpers.js';
-import { exportZipPath } from '../domain/endpoints.js';
+import { exportZipPath, isExpressModalControl } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
 import { manualCablingInput, prepareConfigIdsDraft, syncLayout } from './workspaceRefresh.js';
 import { configureDraft } from './launch.js';
@@ -160,7 +160,7 @@ export async function importConfig(rt: Runtime, opts: {
     endpoint: 'cfxml_import',
     method: 'POST',
     path: file.source?.isXconfig ? '/cfxml_import' : '/multiple/cfxml_import',
-    query: { entranceFlag: 'homePage', serviceCto: true, controlExpressModal: true },
+    query: { entranceFlag: 'homePage', serviceCto: true, controlExpressModal: isExpressModalControl(solution.solutionMode) },
     body: {
       kind: 'multipart',
       parts: [

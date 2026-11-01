@@ -122,7 +122,7 @@ export default {
       };
       const website = await summarize(WEBSITE_EXPORT, 'website-own');
       const mcpImport = await summarize(exportXml, 'mcp');
-      assert(mcpImport.controllerProducts.some(product => product.quantity === 0 && product.type === 'hardware'), 'MCP export lost the zero-quantity controller row.');
+      assert(mcpImport.controllerProducts.some(product => { const row = product as Record<string, unknown>; return row['quantity'] === 0 && row['type'] === 'hardware'; }), 'MCP export lost the zero-quantity controller row.');
       compare('reimport-configurations', website.codes, mcpImport.codes);
       compare('reimport-controller-commercial-rows', website.controllerProducts, mcpImport.controllerProducts);
       compare('reimport-storage-definition', website.definition, mcpImport.definition);

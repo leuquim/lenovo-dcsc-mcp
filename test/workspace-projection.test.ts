@@ -75,14 +75,14 @@ function workspace(options: { configurations?: number; racks?: number; cables?: 
 }
 
 const projectionOptions = {
-  tool: 'dcsc_workspace_layout',
+  tool: 'dcsc_workspace_get',
   arguments: { session: 'workspace-large' },
 };
 
 describe('bounded workspace projections', () => {
   it('keeps huge summary and layout responses small while reporting exact totals', () => {
     const ws = workspace();
-    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
+    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_workspace_get' });
     const layout = projectWorkspaceLayout(ws, projectionOptions);
 
     expect(jsonBytes(summary)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
@@ -127,7 +127,7 @@ describe('bounded workspace projections', () => {
       expect.objectContaining({ code: 'WARN', message: 'Small warning' }),
     ]);
 
-    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
+    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_workspace_get' });
     const configurationSubtotal = [...ws.configurations.values()]
       .reduce((sum, session) => sum + session.raw.totalPrice! * session.raw.quantity!, 0);
     expect(summary).toMatchObject({
@@ -157,7 +157,7 @@ describe('bounded workspace projections', () => {
         { id: 'non-finite', code: 'SW-3', totalPrice: Number.POSITIVE_INFINITY },
       ],
     };
-    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
+    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_workspace_get' });
     expect(summary).toMatchObject({
       totalPrice: null,
       knownPriceSubtotal: 0,
@@ -170,7 +170,7 @@ describe('bounded workspace projections', () => {
     const ws = workspace({ configurations: 2, racks: 0, cables: 0 });
     ws.id = 'workspace-'.repeat(1_000);
     expect(() => projectWorkspaceSummary(ws, {
-      tool: 'dcsc_session_info',
+      tool: 'dcsc_workspace_get',
       arguments: { session: ws.id, expectedRevision: ws.revision },
     })).toThrow('dcsc_recovery_export');
   });
@@ -260,7 +260,7 @@ describe('bounded workspace projections', () => {
     }
     expect(restored).toBe(description);
 
-    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_session_info' });
+    const summary = projectWorkspaceSummary(ws, { ...projectionOptions, tool: 'dcsc_workspace_get' });
     const layout = projectWorkspaceLayout(ws, projectionOptions);
     expect(jsonBytes(summary)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
     expect(jsonBytes(layout)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
@@ -281,7 +281,7 @@ describe('bounded workspace projections', () => {
     ws.integrityWarnings = Array.from({ length: 100 }, (_, index) =>
       `warning-${index}-` + 'w'.repeat(4_000));
     const integrity = projectWorkspaceIntegrity(ws, {
-      ...projectionOptions, tool: 'dcsc_session_info',
+      ...projectionOptions, tool: 'dcsc_workspace_get',
     });
     expect(jsonBytes(integrity)).toBeLessThanOrEqual(PAGE_BYTE_BUDGET);
     expect(integrity).toMatchObject({ integrityWarningCount: 100 });

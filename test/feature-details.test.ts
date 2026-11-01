@@ -93,9 +93,9 @@ function getToolHandlers(service: DcscService) {
     }
   };
   return new Map<string, (args: Obj) => Promise<Reply>>([
-    ['dcsc_subtab_recommendations', wrap((args) => subTabRecommendations(service, args))],
-    ['dcsc_feature_details', wrap((args) => featureSpecs(service, args as Parameters<typeof featureSpecs>[1]))],
-    ['dcsc_smart_recommendations', wrap((args) => smartRecommendations(service, args))],
+    ['subTabRecommendations', wrap((args) => subTabRecommendations(service, args))],
+    ['featureSpecs', wrap((args) => featureSpecs(service, args as Parameters<typeof featureSpecs>[1]))],
+    ['smartRecommendations', wrap((args) => smartRecommendations(service, args))],
   ]);
 }
 
@@ -298,14 +298,14 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
   });
 
   describe('Recommendation and feature-spec app functions', () => {
-    it('calls dcsc_subtab_recommendations with either productCode or an active session', async () => {
+    it('calls subTabRecommendations with either productCode or an active session', async () => {
       const service = setupService();
       vi.spyOn(service.http, 'send').mockResolvedValue({
         raw: mockSubTabRecommendations,
       } as never);
 
       const handlers = getToolHandlers(service);
-      const subtabTool = handlers.get('dcsc_subtab_recommendations')!;
+      const subtabTool = handlers.get('subTabRecommendations')!;
       expect(subtabTool).toBeDefined();
 
       // 1. With explicit productCode
@@ -349,14 +349,14 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
       expect(resErr.isError).toBe(true);
     });
 
-    it('calls dcsc_feature_details and returns summarized upstream specs', async () => {
+    it('calls featureSpecs and returns summarized upstream specs', async () => {
       const service = setupService();
       vi.spyOn(service.http, 'send').mockResolvedValue({
         raw: [{ id: 'sess-1', ctoCode: '7D73CTO1WW', features: mockUpstreamFeatures }],
       } as never);
 
       const handlers = getToolHandlers(service);
-      const featTool = handlers.get('dcsc_feature_details')!;
+      const featTool = handlers.get('featureSpecs')!;
       expect(featTool).toBeDefined();
 
       const res = await featTool({
@@ -378,7 +378,7 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
       expect(body.features[0]?.commercial.topChoice).toBe(true);
     });
 
-    it('calls dcsc_smart_recommendations for both smart-lfo and summary recommendations', async () => {
+    it('calls smartRecommendations for both smart-lfo and summary recommendations', async () => {
       const service = setupService();
       vi.spyOn(service.http, 'send').mockImplementation(async (req) => {
         if (req.path.startsWith('/smart/recommend/lfo/')) {
@@ -391,7 +391,7 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
       });
 
       const handlers = getToolHandlers(service);
-      const smartTool = handlers.get('dcsc_smart_recommendations')!;
+      const smartTool = handlers.get('smartRecommendations')!;
       expect(smartTool).toBeDefined();
 
       // 1. smart-lfo mode

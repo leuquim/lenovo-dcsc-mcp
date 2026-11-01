@@ -39,9 +39,13 @@ export function launchPath(mode: ConfigMode, productCode: string): string {
 }
 
 /** The website sends controlExpressModal=false in the HPC mode and true otherwise. */
+export function isExpressModalControl(solutionMode: string): boolean {
+  return solutionMode !== HPC_SOLUTION_MODE;
+}
+
 export function launchQuery(solutionMode: string, scope?: 'SW' | 'HW'): Record<string, string | boolean> {
   return {
-    serviceCto: true, serviceType: 'servicecto', controlExpressModal: solutionMode !== HPC_SOLUTION_MODE,
+    serviceCto: true, serviceType: 'servicecto', controlExpressModal: isExpressModalControl(solutionMode),
     ...(scope ? { scope } : {}),
   };
 }
@@ -51,7 +55,7 @@ export function rackLaunchPath(rackCode: string): string {
 }
 
 export function rackLaunchQuery(solutionMode: string): Record<string, string | boolean> {
-  return { controlExpressModal: solutionMode !== HPC_SOLUTION_MODE, serviceCto: true };
+  return { controlExpressModal: isExpressModalControl(solutionMode), serviceCto: true };
 }
 
 /** CTO-family launch for service-only or generated products (no mode involved). */

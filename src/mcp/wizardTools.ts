@@ -11,14 +11,14 @@ export function registerWizardTools(server: McpServer, service: DcscService): vo
   server.registerTool('dcsc_wizard_get', {
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: 'Read the PCI or storage wizard',
-    description: 'Lists the native wizard options, adapter or storage groups and current selections. Follow returned continuations for detail.',
+    description: 'Lists the native wizard options, adapter or storage groups and current selections. Follow continuations.',
     inputSchema: {
       session: z.string(),
       wizard: z.enum(WIZARDS),
       path: z.array(z.string()).default([]),
       offset: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(1000).default(20),
-      expectedRevision: z.number().int().min(1).optional().describe('Revision carried by a continuation.'),
+      expectedRevision: z.number().int().min(1).optional().describe('From a continuation.'),
     },
   }, async args => guard(async () => {
     if (args.path.length > 0 && args.expectedRevision === undefined) {

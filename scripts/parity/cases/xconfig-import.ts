@@ -80,8 +80,8 @@ export default {
         rows(before['floorItems']).map(item => ({ code: actualCodes.get(item['rackId']), x: item['x'], y: item['y'] })));
       const warnings = JSON.stringify(object(object(before['serverState'])['lastImportDiagnostics'])['warnings']);
       compare('absent-native-sections-warned', {
-        cabling: native.body['networkingInformation'] || native.body['connectionData'] ? true : warnings.includes('saved cabling'),
-        floor: native.body['floorInformation'] ? true : warnings.includes('saved floor'),
+        cabling: object(native.body)['networkingInformation'] || object(native.body)['connectionData'] ? true : warnings.includes('saved cabling'),
+        floor: object(native.body)['floorInformation'] ? true : warnings.includes('saved floor'),
       }, { cabling: true, floor: true });
       return { id, before };
     });

@@ -142,7 +142,7 @@ describe('registered bounded workspace readers', () => {
     expect(page.inspect.arguments).toMatchObject({
       session: workspace.id,
       expectedRevision: workspace.revision,
-      path: ['integrityWarnings'],
+      view: { kind: 'summary', path: ['integrityWarnings'] },
     });
     expect(json(await handler(page.inspect.arguments))).toMatchObject({
       path: ['integrityWarnings'], total: 100,

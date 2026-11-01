@@ -149,7 +149,7 @@ describe('dcsc_storage_set customize switch', () => {
       unitPrice: 10759.01, prices: [{ priceTypeId: 1, price: 11483.01, priceNotAvailable: false }],
     })]);
     const summary = projectWorkspaceSummary(workspace, {
-      tool: 'dcsc_session_info', arguments: { session: workspace.id },
+      tool: 'dcsc_workspace_get', arguments: { session: workspace.id },
     });
     expect(summary).toMatchObject({ totalPrice: 100, configurations: expect.arrayContaining([
       expect.objectContaining({ id: result.configuration, quantity: 0, configurationQuantity: 1,

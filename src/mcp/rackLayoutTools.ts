@@ -139,7 +139,7 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
   return compact;
 }
 
-const workspaceRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
+const workspaceRevision = z.number().int().min(1).optional().describe('Workspace revision.');
 
 const floorChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('place'), rackId: z.string().describe('Rack id from dcsc_rack_add.'),
@@ -206,8 +206,8 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
         solutionMode: z.string().optional(), session: z.string().optional(), productCode: z.string().optional(),
         hardwareType: z.enum(['rack', 'chassis', 'node']).optional().default('rack'),
         rackId: z.string().optional().describe('With session: list PDU and power cord options for this rack.'),
-        path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
-        expectedCatalogFingerprint: z.string().optional().describe('Fingerprint from a returned continuation.'),
+        path: z.array(z.string()).optional().describe('From a continuation.'),
+        expectedCatalogFingerprint: z.string().optional().describe('From a continuation.'),
         offset: z.number().int().min(0).optional().default(0), limit: z.number().int().min(1).max(50).optional().default(20),
       },
     },

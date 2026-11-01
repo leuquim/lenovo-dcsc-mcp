@@ -214,7 +214,7 @@ describe('tool power accounting', () => {
     expect(parse(await handlers.get('dcsc_compare')!({ analysis: { kind: 'scenarios', sessions: [ws.id] } }))).toMatchObject({
       scenarios: [{ listPrice: 40000, maxKW: 5 }],
     });
-    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
+    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_workspace_get', arguments: { session: ws.id } }))
       .toMatchObject({ totalPrice: 40000 });
     expect(workspaceDetailSource(ws)).toMatchObject({ configurations: [{ quantity: 2, configurationQuantity: 1,
       managedStorageTemplate: true, extendedPrice: 40000 }], unracked: [], racks: [{ items: [
@@ -246,7 +246,7 @@ describe('tool power accounting', () => {
     expect(controller.raw.totalPrice).toBe(20000);
     delete secondPhysical.totalPrice;
     delete secondPhysical.powerReportResponse;
-    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
+    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_workspace_get', arguments: { session: ws.id } }))
       .toMatchObject({ totalPrice: null, knownPriceSubtotal: 21000 });
     expect(parse(await handlers.get('dcsc_compare')!({ analysis: { kind: 'scenarios', sessions: [ws.id] } }))).toMatchObject({
       scenarios: [{ listPrice: null, priceAvailable: false, knownListPriceSubtotal: 21000,
@@ -297,7 +297,7 @@ describe('tool power accounting', () => {
     expect(parse(await compare({ analysis: { kind: 'scenarios', sessions: [node.id], nodes: 8 } })).scenarios).toEqual([
       expect.objectContaining({ listPrice: 800, maxKW: 8 }),
     ]);
-    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
+    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_workspace_get', arguments: { session: ws.id } }))
       .toMatchObject({ totalPrice: 100 });
     expect(workspaceDetailSource(ws)).toMatchObject({
       configurations: [expect.objectContaining({ quantity: 1 }), expect.objectContaining({
@@ -312,7 +312,7 @@ describe('tool power accounting', () => {
     expect(parse(await compare({ analysis: { kind: 'scenarios', sessions: [ws.id] } })).scenarios).toEqual([
       expect.objectContaining({ listPrice: 20100, maxKW: 3.5 }),
     ]);
-    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
+    expect(projectWorkspaceSummary(ws, { tool: 'dcsc_workspace_get', arguments: { session: ws.id } }))
       .toMatchObject({ totalPrice: 20100 });
   });
 

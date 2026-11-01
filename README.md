@@ -103,16 +103,16 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 |---|---|
 | **Discover** | |
 | `dcsc_settings_get` | Country, language, currency and the available solution modes. |
-| `dcsc_settings_set` | Set the default country and language for later launches and searches. |
-| `dcsc_search` | Find products, parts, preconfigured codes, SIDs and specialty catalog entries (`kind`: products, tree, parts, preconfigured, sids, specialty). |
+| `dcsc_settings_set` | Set the default country and language, and the withdrawn-since date that also lists withdrawn products. |
+| `dcsc_search` | Find products, parts, preconfigured codes, SIDs, specialty catalog entries, service products and the software offered for a product ID (`kind`: products, tree, parts, preconfigured, sids, specialty, serviceProducts, software). |
 | `dcsc_category` | Category pages, sub-category filters, services categories and the discovery routes of a category or product. |
 | `dcsc_reference_solutions` | Browse the Deployment-Ready and TruScale reference solution catalog. |
 | **Launch & import** | |
 | `dcsc_launch` | Open a CTO, LFO, LFO-as-CTO, reference solution, software or services basket, or load Unconfigured options. |
-| `dcsc_import` | Import a CFXML or Excel file, XML text or an online Configuration ID. |
+| `dcsc_import` | Import a CFXML or Excel file or XML text. |
 | **Configure** | |
-| `dcsc_configuration_get` | Read a configuration: tabs, options, selections, feature detail, rule changes, recommendations, rule versions. |
-| `dcsc_configure` | Apply option changes, sales quantity, Guided/Expert mode and Auto-Correct. |
+| `dcsc_configuration_get` | Read a configuration: tabs, options, selections, feature detail, rule errors, slot and bay resources, rule changes, recommendations, rule versions. |
+| `dcsc_configure` | Apply option changes, sales quantity, Guided/Expert mode, Auto-Correct and the AI Express / Full Mode switch. |
 | `dcsc_wizard_get` | Read the PCI or storage wizard options and current selection. |
 | `dcsc_wizard_set` | Select PCI or storage wizard options. |
 | `dcsc_auto_fix` | Resolve rule validation errors in hardware sections, as the website Auto-fix does. |
@@ -124,7 +124,7 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_rack_add` | Add a rack cabinet to a workspace. |
 | `dcsc_rack_edit` | Place, move, unplace, detach, remove, lock, clone and copy items. |
 | `dcsc_rack_position_rule` | Valid U-positions and placement rules for an item in a rack. |
-| `dcsc_floor_set` | Position a rack on the floor grid. |
+| `dcsc_floor_set` | Position and colour racks, edit the Floor Preference, and flip the Auto Arrange and COG Validation controls. |
 | `dcsc_pdu_set` | Set rack PDUs and line or jumper cords. |
 | **Network, cabling & storage** | |
 | `dcsc_network_get` | Network catalog (topologies, devices, cables, controllers, switches) and the connectors of a topology. |
@@ -135,14 +135,14 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_storage_get` | Storage network definitions, assignments and detached storage hardware. |
 | `dcsc_storage_set` | Add, update, rename, remove, assign, place or customize storage networks. |
 | `dcsc_vlh_get` | VLH wizard info and the dimensions and connectors of a product. |
-| `dcsc_vlh_set` | Creates VLH items and exports them to a `.vlh` file. |
+| `dcsc_vlh_set` | Create VLH items and export them to a `.vlh` file. |
 | `dcsc_virtual_container_get` | Compatible inner products and rule results of virtual containers. |
 | **Power** | |
 | `dcsc_power_get` | Engineering Power Report, and the voltage, load factor and policy choices of a configuration. |
 | `dcsc_power_set` | Save voltage, load factor and power policy. |
 | **Validate & export** | |
 | `dcsc_validate` | Manufacturing validation, optionally with the mandatory software check. |
-| `dcsc_export` | Reports ZIP, power report, configuration tree, reference XML or online Configuration ID, returned as file paths. |
+| `dcsc_export` | Reports ZIP (mode-aware default types), power report, configuration tree, reference XML or Services catalog ZIP, returned as file paths. |
 | **Sessions & analysis** | |
 | `dcsc_session_list` | Open sessions and workspaces, client health and restore diagnostics. |
 | `dcsc_session_close` | Discard a configuration or workspace. |
@@ -167,14 +167,14 @@ follow its catalog; numeric GB300 power remains unavailable upstream.
 
 **Grouped chassis imports preserve child ownership.** A native D3 export with
 two linked populated chassis now imports as two chassis with the correct node
-in each. `dcsc_clone_configuration` with `placement: "same-rack"` also clones
+in each. `dcsc_rack_edit` with `placement: "same-rack"` also clones
 populated chassis and their direct node children into separate linked groups.
 The D3 case passes undo/redo, restart and browser export/reimport with prices
 preserved. Simple product/machine-type capacity bounds are supported; deeper containers, VLH and complex placement rules remain unsupported.
 
 **Reference solutions use Lenovo's current catalog.** Imported Unconfigured selections are retained
 across hardware derivation and exported as separate commercial lines. Editing
-those selections uses `dcsc_load_unconfigured` and `dcsc_set_unconfigured`;
+those selections uses `dcsc_launch` and `dcsc_configure`;
 one native quantity-edit/export comparison passes; broader linked/product coverage remains open. Original-template downloads use Lenovo’s validation/download flow; broader
 reference-solution families still need verification.
 
@@ -184,7 +184,7 @@ Use its companion CFXML in that case. Populated cabling recovery through Excel
 remains unverified.
 
 **PCI risers use the native wizard where available.** Discover choices with
-`dcsc_pci_wizard`, then call `dcsc_set_pci_wizard` with the current workspace
+`dcsc_wizard_get`, then call `dcsc_wizard_set` with the current workspace
 revision, option ID and optional row/slot choices. Ordinary riser feature edits
 are rejected on these products because Lenovo can silently discard them.
 SR650 V4 optional-slot addition is verified through crash recovery, undo/redo,
@@ -194,9 +194,9 @@ through a linked copy update both configurations, and both retain the result
 after MCP and website XML import. Other wizard option families remain additional
 coverage targets.
 
-**Storage wizard choices retain explicit intent.** Use `dcsc_storage_wizard` to
+**Storage wizard choices retain explicit intent.** Use `dcsc_wizard_get` to
 inspect option IDs, groups, feature codes and offered quantities, then
-`dcsc_set_storage_wizard` to select an option or edit one of its components.
+`dcsc_wizard_set` to select an option or edit one of its components.
 Pass `optionId: null` to clear the entire option after removing configured drives;
 the MCP enforces the website's drive guard.
 Adding a controller can temporarily create an invalid combination; the response
@@ -211,8 +211,8 @@ website. Submit the mode switch alone, then choose new storage parts. Same-mode
 edits preserve storage intent. LFO mode switching is rejected until its fixed-part
 restoration is verified; other product families remain additional coverage targets.
 
-**Power settings have an XML round-trip limit.** Use `dcsc_power_controls` to
-discover exact voltage IDs and policy values, then `dcsc_set_power_controls`
+**Power settings have an XML round-trip limit.** Use `dcsc_power_get` to
+discover exact voltage IDs and policy values, then `dcsc_power_set`
 with its returned workspace revision. `loadFactor` is the slider percentage;
 the reported power utilization is a calculated output. Saved MCP sessions keep
 the selected load factor across restart and undo/redo. Lenovo's CFXML importer
@@ -224,17 +224,17 @@ factors; inspect and reapply the desired setting after XML import.
 requested networks have no connections and links to per-network diagnostics.
 A working Management network does not establish that an assigned storage network
 has been cabled. Follow `pages.diagnostics`, or inspect
-`dcsc_workspace_layout` with `path: ["cablingDiagnostics"]`. Check P2P settings,
+`dcsc_workspace_get` with `path: ["cablingDiagnostics"]`. Check P2P settings,
 assignments, compatible ports, placement and Lenovo messages before changing
-hardware. Use `dcsc_cabling_connections` followed by
-`dcsc_edit_cabling_connection` to modify existing native rows. To refresh choices for
-one existing row, call `dcsc_cabling_connections` with `refreshConnectionId` and
+hardware. Use `dcsc_cabling_get` followed by
+`dcsc_cabling_set` to modify existing native rows. To refresh choices for
+one existing row, call `dcsc_cabling_get` with `refreshConnectionId` and
 `expectedRevision`; this queries Lenovo without changing the design.
 Replacement recalculates choices when the requested part is absent from saved choices.
 Manual planning
 links are not included in native connection counts or Lenovo exports. For native manual
-creation, choose free ports, call `dcsc_manual_cabling_options`, then pass an offered
-part and the same workspace revision to `dcsc_create_cabling_connection`. If discovery
+creation, choose free ports, call `dcsc_cabling_get`, then pass an offered
+part and the same workspace revision to `dcsc_cabling_set`. If discovery
 reports pinnable routes, use `pinExistingRoutes: true` to retain their exact ports
 and cables by marking them MANUAL. Without pinning, native rerouting is rejected.
 This preserves routes during creation; a later explicit Auto-Connect operation
@@ -262,9 +262,9 @@ configuration id as *that configuration* and a workspace id as *the whole
 solution*. They used to resolve a configuration id up to its parent workspace,
 so asking to export one node in a seven-product solution exported all seven.
 
-**Quantity is not placement.** `dcsc_set_quantity(4)` prices four nodes but is
-still one configuration, so `dcsc_place_in_rack` adds one item to the cabinet.
-For four nodes in a rack, use `dcsc_clone_configuration` and place each. The explicit
+**Quantity is not placement.** `dcsc_configure` with `salesQuantity: 4` prices four nodes but is
+still one configuration, so `dcsc_rack_edit` adds one item to the cabinet.
+For four nodes in a rack, use `dcsc_rack_edit` (action `clone`) and place each. The explicit
 `placement: "same-rack"` option also places clones of a supported racked source; its
 placement, grouped commercial export, browser reimport and restart gates pass.
 Linked edits initiated from the source or a clone update the entire group atomically;
@@ -274,7 +274,7 @@ export/reimport; when an edit updates parent chassis too, use workspace history
 to restore the dependent changes together. Configuration undo
 restores the group only while every member still shares that edit boundary; use
 workspace history after intervening edits. Divergent linked configurations are
-rejected during export. `dcsc_copy_rack_item` implements the website's distinct
+rejected during export. `dcsc_rack_edit` implements the website's distinct
 Copy operation for a supported direct General Purpose CTO item or populated
 HPC chassis with direct node children. It creates independent parent and child
 configurations with their own commercial lines; export, fresh-browser reimport,
@@ -289,7 +289,7 @@ Workspace exports preserve imported Message History records and include current
 diagnostics. Supported HPC edits append native-style action records in the same
 durable commit as the edit. Workspace undo/redo restores those records exactly.
 Configuration-only `dcsc_undo` restores configuration state without rewinding
-the workspace action history; use `dcsc_workspace_history` for that scope.
+the workspace action history; use `dcsc_workspace_get` for that scope.
 
 Workspace summaries and layouts include executable `inspect`, `detail` and
 `next` objects for large collections, raw connection fields and warnings. Pass
@@ -300,7 +300,7 @@ similarly carry a fingerprint and preserve the query and filters. Page offsets
 advance by the number actually returned after response-size trimming.
 
 Auto-connect settings are optional partial edits, for example
-`dcsc_add_cabling(session, settings: {autoAddPDU: false})`. Omitted fields retain
+`dcsc_auto_connect(session, settings: {autoAddPDU: false})`. Omitted fields retain
 their saved value. Settings and the accepted connection result commit together;
 a rejected operation leaves both unchanged. These settings apply to subsequent
 layout and auto-connect requests. A successful empty connection result does not
@@ -320,7 +320,7 @@ L3  feature detail    everything, for a few codes         ~1 KB
 
 Two deliberate choices worth knowing:
 
-- **Search beats browsing.** `dcsc_list_options(session, query: "64GB")` searches
+- **Search beats browsing.** `dcsc_configuration_get(session, query: "64GB")` searches
   every tab at once. Walking eleven tabs to find a feature code is the failure
   mode the design exists to prevent.
 - **Prices are deltas.** Within a section, options are priced relative to the
@@ -334,8 +334,8 @@ PSU change is verified through restart and website reimport.
 ## What it cannot do yet
 
 - Populated Management cabling passes browser/MCP graph and export handoff checks.
-  `dcsc_cabling_connections` exposes stable existing-row IDs, endpoint ports and
-  compatible cable parts; `dcsc_edit_cabling_connection` supports revision-bound
+  `dcsc_cabling_get` exposes stable existing-row IDs, endpoint ports and
+  compatible cable parts; `dcsc_cabling_set` supports revision-bound
   endpoint and cable-part edits with authoritative distance/derive results, atomic
   persistence and crash recovery. Lenovo's UI has not exposed Add/Delete for these
   rows. Lenovo's native shared-part edit preserves the graph row but drops its
@@ -387,12 +387,12 @@ PSU change is verified through restart and website reimport.
   Unsupported imported container shapes are rejected with
   their source data preserved rather than flattened.
 - Standalone service coverage currently supports one serviced product with one
-  base package plus independent add-on families. Use `dcsc_services_launch(workspace, refresh: true)` to restore
+  base package plus independent add-on families. Use `dcsc_launch(workspace, refresh: true)` to restore
   selectable metadata after import before selecting another option. Independent services remain separate from hardware
   and standalone software, matching the website workflow. The website selects one
   of each service per product; its summary counter changes covered-product count.
-  `dcsc_services_set_product_quantity` preserves imported service quantities and
-  refreshes summary pricing. `dcsc_services_set_quantity` is an API extension:
+  `dcsc_basket_set` preserves imported service quantities and
+  refreshes summary pricing. `dcsc_basket_set` is an API extension:
   unsupported quantities fail without saving state and report the requested and
   accepted values. Imported non-unit service quantities remain readable and
   exportable. In the verified non-unit service case, Lenovo displays the correct
@@ -401,7 +401,7 @@ PSU change is verified through restart and website reimport.
   reimports correctly; use the MCP to save further changes in that workflow.
 - Software group selection/removal, multi-select, maintenance and priced CAL
   quantity changes follow captured website contracts. Discover exact section IDs
-  with `dcsc_list_options`; change derived licence quantities separately. The
+  with `dcsc_configuration_get`; change derived licence quantities separately. The
   verified 50-user CAL filter has no None option: remove its User CAL group to
   match the website's Reset while retaining Device CAL. Priced CAL quantity-three exports match the browser in both scopes. Broader licensing remains a verification case.
 - Saved quantity imports from earlier builds have their linked clone ownership
@@ -416,7 +416,7 @@ PSU change is verified through restart and website reimport.
   designs require repair or a complete current CFXML import. Discarded history
   stays recoverable without being confused with missing current design data.
   Restore failures and original-file archives are discoverable through
-  `dcsc_recovery_inspect`; `dcsc_recovery_export(archiveId)` preserves source bytes
+  `dcsc_session_list`; `dcsc_recovery_export(archiveId)` preserves source bytes
   even when JSON parsing failed.
 
 Software-only export defaults to the reports offered by the website, including
@@ -428,11 +428,11 @@ Mixed CTO hardware plus standalone software uses the CTO export endpoint.
 All settings take `DCSC_`-prefixed env vars, or a JSON file at
 `~/.config/lenovo-dcsc/config.json`. Env wins.
 
-`dcsc_set_locale` changes the current process default for subsequent searches and
+`dcsc_settings_set` changes the current process default for subsequent searches and
 launches. It resets to configuration on restart; saved workspaces retain their own
-country/currency. `dcsc_health` reports the active default separately from config.
+country/currency. `dcsc_session_list` reports the active default separately from config.
 
-`dcsc_solution_modes` returns the website labels and function flags for each mode.
+`dcsc_settings_get` returns the website labels and function flags for each mode.
 The captured AI/HPC mode enables Preferences, Auto Connect and Auto Arrange; General
 Purpose disables those UI controls. Build networking solutions in the appropriate
 mode from the start. Importing a General Purpose CFXML can restore its original mode.

@@ -13,10 +13,10 @@ import { guard } from './toolSupport.js';
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const;
 
 const solutionMode = z.string().optional();
-const fingerprint = z.string().optional().describe('From a continuation.');
+const fingerprint = z.string().optional();
 const pageOffset = z.number().int().min(0).optional();
 const rowLimit = z.number().int().min(1).max(50).optional();
-const detailPath = z.array(z.string()).optional().describe('From a continuation.');
+const detailPath = z.array(z.string()).optional();
 /** Offset, limit and path that page a large raw result; continuations carry them. */
 const rawPaging = { offset: pageOffset, limit: z.number().int().min(1).max(50).optional(), path: detailPath };
 
@@ -148,7 +148,7 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Search the DCSC catalog',
       description:
-        'Searches the catalog. kind: products, tree (category browsing), parts, preconfigured (CTO/LFO codes), sids, specialty (LVR, converged, promotion), serviceProducts (products that take service packs), software (software offered for a product ID). Follow continuations unchanged.',
+        'Searches the catalog by kind: tree browses categories, preconfigured lists CTO/LFO codes, serviceProducts lists products that take service packs, software lists software for a product ID. Pass path, offset and expectedCatalogFingerprint from continuations unchanged.',
       inputSchema: { search: searchSchema },
     },
     async (args) => guard(async () => nestContinuations(await searchCatalog(service, args.search), 'dcsc_search', 'search'), 'dcsc_search failed'),
@@ -160,7 +160,7 @@ export function registerCatalogTools(server: McpServer, service: DcscService): v
       annotations: READ_ONLY,
       title: 'Open a DCSC category page',
       description:
-        'Reads a category page. kind: detail, services, conditions, products, caseStudies, topChoiceCountry, productFunctions, displayOrders, staticFeatures. Follow continuations unchanged.',
+        'Reads a category page. Pass path from continuations unchanged.',
       inputSchema: { category: categorySchema },
     },
     async (args) => guard(async () => nestContinuations(await categoryInfo(service, args.category), 'dcsc_category', 'category'), 'dcsc_category failed'),

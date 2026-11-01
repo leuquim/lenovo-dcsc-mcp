@@ -7,7 +7,7 @@ import type { Page } from 'playwright';
 import { zipText } from './archives.js';
 import { visible } from './settingsUi.js';
 
-interface CapturedForm { path: string; fields: Record<string, string> }
+export interface CapturedForm { path: string; fields: Record<string, string> }
 
 /** Init script that records the hidden export forms the SPA submits instead of navigating to them. */
 export const CAPTURE_EXPORT_FORMS = `

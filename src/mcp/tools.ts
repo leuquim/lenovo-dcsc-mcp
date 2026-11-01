@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { registerCatalogTools } from './catalogTools.js';
 import { registerConfigurationTools } from './configurationTools.js';
@@ -38,4 +39,32 @@ export function registerTools(server: McpServer, service: DcscService): void {
   registerImportExportTools(server, service);
   registerVlhTools(server, service);
   registerWizardTools(server, service);
+  compactToolList(server);
+}
+
+type Handler = (request: unknown, extra: unknown) => Promise<{ tools: Record<string, unknown>[] }> | { tools: Record<string, unknown>[] };
+
+/** Drops list-time boilerplate (draft-07 marker, task-support flag, safe-integer bound) that every definition repeats. */
+function stripBoilerplate(node: unknown): void {
+  if (Array.isArray(node)) { node.forEach(stripBoilerplate); return; }
+  if (node === null || typeof node !== 'object') return;
+  const record = node as Record<string, unknown>;
+  if (record['maximum'] === Number.MAX_SAFE_INTEGER) delete record['maximum'];
+  Object.values(record).forEach(stripBoilerplate);
+}
+
+export function compactToolList(server: McpServer): void {
+  const inner = server.server as unknown as { _requestHandlers?: Map<string, Handler> } | undefined;
+  const listTools = inner?._requestHandlers?.get('tools/list');
+  if (!listTools) return;
+  server.server.removeRequestHandler('tools/list');
+  server.server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
+    const result = await listTools(request, extra);
+    for (const tool of result.tools) {
+      delete tool['execution'];
+      delete (tool['inputSchema'] as Record<string, unknown>)['$schema'];
+      stripBoilerplate(tool['inputSchema']);
+    }
+    return result as never;
+  });
 }

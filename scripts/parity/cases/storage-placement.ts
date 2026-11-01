@@ -66,8 +66,8 @@ export default {
       await call('dcsc_auto_connect', { session: workspace, settings: { autoAddPDU: false, autoAddSwitch: false, p2pCabling: false } });
       const [controllers, switches] = await Promise.all(['storageControllers', 'storageSwitches'].map(collection =>
         call('dcsc_network_get', { session: workspace, collection, limit: 100, fields: ['option', 'featureCode'] })));
-      const controller = rows(controllers['items']).find(item => item['option'] === CONTROLLER_OPTION && item['featureCode'] === 'BF3C');
-      const sanSwitch = rows(switches['items']).find(item => item['option'] === SWITCH_OPTION && item['featureCode'] === 'C1FM');
+      const controller = rows(controllers?.['items']).find(item => item['option'] === CONTROLLER_OPTION && item['featureCode'] === 'BF3C');
+      const sanSwitch = rows(switches?.['items']).find(item => item['option'] === SWITCH_OPTION && item['featureCode'] === 'C1FM');
       assert(controller?.['id'], 'Current catalog has no captured DS3200 BF3C controller.');
       assert(sanSwitch?.['id'], 'Current catalog has no captured DB710S C1FM SAN switch.');
       await call('dcsc_storage_set', { session: workspace, change: { action: 'add', name: STORAGE_NAME, controllerId: controller['id'], switchId: sanSwitch['id'], expansionQuantity: 0 } });

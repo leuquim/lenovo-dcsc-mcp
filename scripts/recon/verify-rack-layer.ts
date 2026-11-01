@@ -44,7 +44,7 @@ async function main() {
 
   console.log('=== rack catalog ===');
   const racks = await fetchRackCabinets(service.http, { ...ctx, solution });
-  check(racks.length > 0, `dcsc_list_racks returns cabinets`, `${racks.length} found`);
+  check(racks.length > 0, `rack_get returns cabinets`, `${racks.length} found`);
   console.log('   e.g.', racks.slice(0, 3).map((r) => `${r.code} ${r.description}`).join(' | '));
 
   console.log('\n=== build a workspace ===');
@@ -92,7 +92,7 @@ async function main() {
     'rack layout accepted by the export endpoint',
     exp.rackDataOmitted
       ? 'KNOWN GAP: export rejects the /racks/customize rack shape, so rack diagrams are not generated; ' +
-        'the rack is still in the BOM and the layout is readable via dcsc_session_info'
+        'the rack is still in the BOM and the layout is readable via dcsc_workspace_get'
       : '',
   );
 

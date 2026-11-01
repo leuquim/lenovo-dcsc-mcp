@@ -46,7 +46,7 @@ export function registerStandaloneTools(server: McpServer, service: DcscService)
         quantity: z.number().int().min(1).max(99999).optional().describe('Required except for remove; select defaults to 1.'),
         solutionMode: z.string().optional().describe('hardware select without session: solution mode.'),
         label: z.string().optional().describe('hardware select without session: workspace label.'),
-        expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; fails if the workspace moved on.'),
+        expectedRevision: z.number().int().min(1).optional().describe('Workspace revision.'),
       },
     },
     async (args) => guard(() => basketSet(service, args), 'dcsc_basket_set failed'),

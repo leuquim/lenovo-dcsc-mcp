@@ -29,11 +29,11 @@ function http(send: (input: SendInput) => Promise<{ raw: unknown }>): DcscHttpCl
 
 describe('persisted validation jobs', () => {
   it('hashes the semantic start body deterministically and includes mode', () => {
-    const left = validationPayloadSha256({ z: 1, nested: { b: 2, a: 1 } }, 'cto');
-    const right = validationPayloadSha256({ nested: { a: 1, b: 2 }, z: 1 }, 'cto');
+    const left = validationPayloadSha256({ crnId: 1, configurations: { b: 2, a: 1 } }, 'cto');
+    const right = validationPayloadSha256({ configurations: { a: 1, b: 2 }, crnId: 1 }, 'cto');
     expect(left).toBe(right);
-    expect(validationPayloadSha256({ z: 1, nested: { a: 1, b: 2 } }, 'lfo')).not.toBe(left);
-    expect(validationPayloadSha256({ z: 2, nested: { a: 1, b: 2 } }, 'cto')).not.toBe(left);
+    expect(validationPayloadSha256({ crnId: 1, configurations: { a: 1, b: 2 } }, 'lfo')).not.toBe(left);
+    expect(validationPayloadSha256({ crnId: 2, configurations: { a: 1, b: 2 } }, 'cto')).not.toBe(left);
   });
 
   it('posts exactly the website lmc_validation body keys (p2-lmc-validation capture)', () => {
