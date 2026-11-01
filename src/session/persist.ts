@@ -1,7 +1,6 @@
 import {
   closeSync,
   constants,
-  copyFileSync,
   existsSync,
   fstatSync,
   fsyncSync,
@@ -22,13 +21,22 @@ import { basename, dirname, join } from 'node:path';
 import type { Config } from '../config/schema.js';
 import { loadValidationJobs, VALIDATION_JOBS_STATE_KEY } from '../domain/validationJobs.js';
 import { logger } from '../http/trace.js';
-import type { PersistenceWriter, RestoreRecoveryArchive, SessionStore } from './SessionStore.js';
+import type {
+  PersistenceWriter,
+  RestoreRecoveryArchive,
+  RestoreReport,
+  SessionStore,
+  WorkspaceIndexEntry,
+} from './SessionStore.js';
 import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import { asSessionPersistenceError } from '../http/persistenceError.js';
 import { errorMessage } from '../util/coerce.js';
 
-/** Current on-disk envelope. Derived reduced/index data is deliberately absent. */
+/** Envelope of every workspace file. Derived reduced/index data is deliberately absent. */
 export const SNAPSHOT_VERSION = 2;
+const INDEX_VERSION = 1;
+const WORKSPACE_FILE_SUFFIX = '.json';
+const LEGACY_BACKUP_SUFFIX = '.bak';
 const MAX_SNAPSHOTS_PERSISTED = 3;
 const RECOVERY_ID_PATTERN = /^recovery_([0-9a-f]{64})$/;
 const RECOVERY_REASON_LIMIT = 500;
@@ -122,14 +130,14 @@ export function readSessionRecoveryArchive(config: Config, id: string): Buffer {
 /** Writer suitable for SessionStore.setPersistenceWriter. */
 export function createPersistenceWriter(config: Config): PersistenceWriter | undefined {
   if (!config.files.persistSessions) return undefined;
-  return (workspaces) => saveWorkspaceSnapshot(workspaces, config);
+  return (changed, removedIds, index) => commitChange(config, changed, removedIds, index);
 }
 
-/** Compatibility entry point for callers that persist outside a transaction. */
+/** Writes every loaded workspace through the same path the store's writer uses. */
 export function saveSessions(store: SessionStore, config: Config): void {
   if (!config.files.persistSessions) return;
   try {
-    saveWorkspaceSnapshot(store.listWorkspaces(), config);
+    commitChange(config, store.listWorkspaces(), [], store.workspaceIndex());
   } catch (error) {
     throw asSessionPersistenceError(error, { operation: 'saveSessions' });
   }
@@ -143,222 +151,344 @@ export function serializeWorkspaces(workspaces: readonly WorkspaceSession[]): st
   });
 }
 
-/** Writes and synchronizes a complete candidate before replacing the live file. */
-export function saveWorkspaceSnapshot(
-  workspaces: readonly WorkspaceSession[],
+/** Rewrites only the changed workspace files, then the index that locates them. */
+function commitChange(
   config: Config,
+  changed: readonly WorkspaceSession[],
+  removedIds: readonly string[],
+  index: readonly WorkspaceIndexEntry[],
 ): void {
-  if (!config.files.persistSessions) return;
-  const path = stateFile(config);
-  mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  const rollback = `${tmp}.rollback`;
-  let fd: number | undefined;
-  let replaced = false;
-  const hadPrevious = existsSync(path);
+  const directory = workspacesDirectory(config);
+  mkdirSync(directory, { recursive: true });
+  for (const workspace of changed) {
+    writeFileAtomic(workspaceFile(config, workspace.id), serializeWorkspaces([workspace]));
+  }
+  for (const id of removedIds) removeFileIfPresent(workspaceFile(config, id));
+  syncDirectory(directory);
+  writeFileAtomic(
+    indexFile(config),
+    JSON.stringify({ version: INDEX_VERSION, savedAt: Date.now(), workspaces: index }),
+  );
+  syncDirectory(stateDirectory(config));
+}
+
+/**
+ * Registers the persisted workspaces with the store without reading them; each
+ * is parsed and restored when first accessed. The legacy single-file state is
+ * set aside once and ignored.
+ */
+export function loadSessions(store: SessionStore, config: Config): number {
+  if (!config.files.persistSessions) return 0;
+  retireLegacySessionFile(config);
+  const retained = evictBeyondCapacity(store, config, readWorkspaceIndex(config));
+  recordAvailableRecoveryArchives(store, config);
+  store.registerUnloaded(retained, (id) => hydrateWorkspace(store, config, id));
+  return retained.length;
+}
+
+function retireLegacySessionFile(config: Config): void {
+  const legacy = stateFile(config);
+  if (!existsSync(legacy)) return;
   try {
-    fd = openSync(tmp, 'wx', 0o600);
-    writeFileSync(fd, serializeWorkspaces(workspaces), 'utf8');
-    fsyncSync(fd);
-    closeSync(fd);
-    fd = undefined;
-    if (hadPrevious) {
-      copyFileSync(path, rollback);
-      syncFile(rollback);
-    }
-    renameSync(tmp, path);
-    replaced = true;
-    syncDirectory(dirname(path));
-    if (hadPrevious) {
-      try {
-        unlinkSync(rollback);
-      } catch {
-        // The committed file is durable; stale rollback cleanup is best-effort.
-      }
-    }
+    renameSync(legacy, `${legacy}${LEGACY_BACKUP_SUFFIX}`);
+    syncDirectory(dirname(legacy));
   } catch (error) {
-    if (fd !== undefined) closeSync(fd);
-    let rollbackError: unknown;
-    if (replaced) {
-      try {
-        if (hadPrevious) renameSync(rollback, path);
-        else unlinkSync(path);
-        syncDirectory(dirname(path));
-      } catch (candidate) {
-        rollbackError = candidate;
-      }
+    throw asSessionPersistenceError(error, { operation: 'retire legacy session file' });
+  }
+  logger().info(
+    { path: legacy },
+    'Legacy single-file session state renamed to .bak and ignored; starting without it',
+  );
+}
+
+function readWorkspaceIndex(config: Config): WorkspaceIndexEntry[] {
+  const directory = workspacesDirectory(config);
+  let names: string[];
+  try {
+    names = readdirSync(directory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw asSessionPersistenceError(error, { operation: 'list persisted workspaces' });
+  }
+  const index = readIndexFile(config);
+  const entries: WorkspaceIndexEntry[] = [];
+  for (const name of names) {
+    if (!name.endsWith(WORKSPACE_FILE_SUFFIX)) continue;
+    const id = workspaceIdOfFile(name);
+    if (id === undefined) continue;
+    const path = join(directory, name);
+    const indexed = index?.byId.get(id);
+    // A file newer than the index means a crash between the file and index writes.
+    entries.push(
+      indexed && statSync(path).mtimeMs <= index!.savedAt ? indexed : scanWorkspaceFile(path, id),
+    );
+  }
+  return entries;
+}
+
+function readIndexFile(
+  config: Config,
+): { savedAt: number; byId: Map<string, WorkspaceIndexEntry> } | undefined {
+  try {
+    const parsed = JSON.parse(readFileSync(indexFile(config), 'utf8')) as {
+      version?: unknown;
+      savedAt?: unknown;
+      workspaces?: unknown;
+    };
+    if (
+      parsed.version !== INDEX_VERSION || typeof parsed.savedAt !== 'number' ||
+      !Array.isArray(parsed.workspaces)
+    ) return undefined;
+    const byId = new Map<string, WorkspaceIndexEntry>();
+    for (const value of parsed.workspaces as Array<Partial<WorkspaceIndexEntry>>) {
+      if (
+        typeof value.id !== 'string' || typeof value.lastAccessAt !== 'number' ||
+        !Array.isArray(value.configurationIds) ||
+        !value.configurationIds.every((id) => typeof id === 'string')
+      ) return undefined;
+      byId.set(value.id, {
+        id: value.id,
+        lastAccessAt: value.lastAccessAt,
+        configurationIds: value.configurationIds,
+      });
     }
-    try {
-      unlinkSync(tmp);
-    } catch {
-      // The rename may already have consumed the temporary path.
-    }
-    if (existsSync(rollback)) unlinkSync(rollback);
-    if (rollbackError) {
-      throw new AggregateError(
-        [error, rollbackError],
-        'Session persistence failed and the previous file could not be restored',
-      );
-    }
-    throw error;
+    return { savedAt: parsed.savedAt, byId };
+  } catch {
+    return undefined;
   }
 }
 
-export function loadSessions(store: SessionStore, config: Config): number {
-  if (!config.files.persistSessions) return 0;
-  const path = stateFile(config);
+/** Rebuilds one index entry from a workspace file the index does not cover. */
+function scanWorkspaceFile(path: string, id: string): WorkspaceIndexEntry {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { workspaces?: unknown[] };
+    const workspace = parsed.workspaces?.[0] as
+      { lastAccessAt?: unknown; configurations?: Array<{ id?: unknown }> } | undefined;
+    return {
+      id,
+      lastAccessAt: typeof workspace?.lastAccessAt === 'number' ? workspace.lastAccessAt : 0,
+      configurationIds: (workspace?.configurations ?? [])
+        .map((configuration) => configuration.id)
+        .filter((configId): configId is string => typeof configId === 'string'),
+    };
+  } catch {
+    return { id, lastAccessAt: 0, configurationIds: [] };
+  }
+}
+
+/** Removes the least recently used workspace files over capacity, keeping their bytes archived. */
+function evictBeyondCapacity(
+  store: SessionStore,
+  config: Config,
+  entries: WorkspaceIndexEntry[],
+): WorkspaceIndexEntry[] {
+  const excess = entries.length - store.maxSessions;
+  if (excess <= 0) return entries;
+  const ordered = [...entries].sort(
+    (a, b) => a.lastAccessAt - b.lastAccessAt || a.id.localeCompare(b.id),
+  );
+  const evicted = ordered.slice(0, excess);
+  try {
+    for (const entry of evicted) {
+      const path = workspaceFile(config, entry.id);
+      preserveRecoveryArchive(
+        config,
+        readFileSync(path),
+        `Workspace ${entry.id} retained after eviction to enforce session capacity.`,
+      );
+      unlinkSync(path);
+    }
+    syncDirectory(workspacesDirectory(config));
+  } catch (error) {
+    throw asSessionPersistenceError(error, { operation: 'restore capacity normalization' });
+  }
+  const evictedIds = evicted.map((entry) => entry.id);
+  store.recordRestoreDiagnostics({
+    warnings: [`Evicted ${evictedIds.length} workspace(s) to enforce session capacity`],
+    evictedWorkspaceIds: evictedIds,
+  });
+  const evictedSet = new Set(evictedIds);
+  return entries.filter((entry) => !evictedSet.has(entry.id));
+}
+
+type WorkspaceFileProblem = {
+  warning: string;
+  kind: string;
+  version?: unknown;
+};
+
+/** Restores one persisted workspace on first access; unusable files are archived and removed. */
+function hydrateWorkspace(store: SessionStore, config: Config, id: string): void {
+  const path = workspaceFile(config, id);
   let sourceBytes: Buffer;
   try {
     sourceBytes = readFileSync(path);
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === 'ENOENT') {
-      recordAvailableRecoveryArchives(store, config);
-      return 0;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      store.recordRestoreDiagnostics({
+        warnings: [`Persisted workspace ${id} is missing; it was not restored.`],
+      });
+      return;
     }
-    throw asSessionPersistenceError(error, { operation: 'read persisted sessions' });
+    throw asSessionPersistenceError(error, { operation: 'read persisted workspace' });
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(sourceBytes.toString('utf8')) as unknown;
-  } catch {
-    const warning = 'Persisted session JSON is unreadable; the server started without those sessions.';
-    const archive = preserveRecoveryArchive(config, sourceBytes, warning);
+  const parsed = parseWorkspaceFile(sourceBytes, id);
+  if ('warning' in parsed) {
+    const archive = preserveRecoveryArchive(config, sourceBytes, parsed.warning);
     store.recordRestoreDiagnostics({
-      warnings: [warning],
-      quarantined: [{ kind: 'unreadable-session-snapshot', recoveryArchiveId: archive.id }],
+      warnings: [parsed.warning],
+      quarantined: [{
+        kind: parsed.kind,
+        ...(parsed.version !== undefined ? { version: parsed.version } : {}),
+        recoveryArchiveId: archive.id,
+      }],
       recoveryArchives: mergeRecoveryArchives(config, archive),
     });
+    discardWorkspaceFile(config, path);
     logger().warn(
       { path, archiveId: archive.id },
-      'Could not load persisted sessions; an exact recovery archive was retained',
+      'Could not load a persisted workspace; an exact recovery archive was retained',
     );
-    return 0;
+    return;
   }
 
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    const warning = 'Persisted session snapshot root is not an object; no sessions were restored.';
-    const archive = preserveRecoveryArchive(config, sourceBytes, warning);
-    store.recordRestoreDiagnostics({
-      warnings: [warning],
-      quarantined: [{ kind: 'invalid-session-envelope', recoveryArchiveId: archive.id }],
-      recoveryArchives: mergeRecoveryArchives(config, archive),
-    });
-    logger().warn({ path, archiveId: archive.id }, 'Session snapshot root is invalid; recovery archive retained');
-    return 0;
-  }
-  const payload = parsed as { version?: number; workspaces?: unknown[] };
-
-  if (!Array.isArray(payload.workspaces)) {
-    const warning = 'Persisted session snapshot has no workspace array; no sessions were restored.';
-    const archive = preserveRecoveryArchive(config, sourceBytes, warning);
-    store.recordRestoreDiagnostics({
-      warnings: [warning],
-      quarantined: [{ kind: 'invalid-session-envelope', recoveryArchiveId: archive.id }],
-      recoveryArchives: mergeRecoveryArchives(config, archive),
-    });
-    logger().warn({ path, archiveId: archive.id }, 'Session snapshot has no workspace array; recovery archive retained');
-    return 0;
-  }
-
-  if (payload.version === SNAPSHOT_VERSION) {
-    const restored = store.restore(normalizeValidationJobs(payload.workspaces));
-    const report = store.lastRestoreReport;
-    if (report.normalizationRequired) {
-      const reasons = [
-        ...(report.quarantined.length > 0
-          ? [`${report.quarantined.length} record(s) could not be restored losslessly`]
-          : []),
-        ...(report.evictedWorkspaceIds.length > 0
-          ? [`${report.evictedWorkspaceIds.length} workspace(s) exceeded restore capacity`]
-          : []),
-      ];
-      const sourceArchive = preserveRecoveryArchive(
-        config,
-        sourceBytes,
-        `Original v2 session snapshot retained: ${reasons.join('; ')}.`,
-      );
-      store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
-    } else if (report.canonicalRewriteReasons.length > 0) {
-      const sourceArchive = preserveRecoveryArchive(
-        config,
-        sourceBytes,
-        `Original v2 session snapshot retained before safe canonical rewrite: ${report.canonicalRewriteReasons.join(' ')}`,
-      );
-      store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
-    } else {
-      recordAvailableRecoveryArchives(store, config);
-    }
-    // Restore enforces the configured capacity in memory. Commit the same
-    // bounded set so an evicted workspace cannot reappear after another restart.
-    const finalReport = store.lastRestoreReport;
-    const safeCanonicalRewrite = !finalReport.normalizationRequired &&
-      finalReport.canonicalRewriteReasons.length > 0;
-    const safeCapacityRewrite = finalReport.evictedWorkspaceIds.length > 0;
-    if (safeCanonicalRewrite || safeCapacityRewrite) {
-      try {
-        saveWorkspaceSnapshot(store.listWorkspaces(), config);
-      } catch (error) {
-        throw asSessionPersistenceError(error, {
-          operation: safeCanonicalRewrite
-            ? 'v2 clone ownership canonical migration'
-            : 'restore capacity normalization',
-        });
-      }
-    }
-    logRestoreWarnings(store, path);
-    return restored;
-  }
-
-  if (payload.version === 1) {
-    const backup = `${path}.v1.bak`;
-    if (!existsSync(backup)) {
-      copyFileSync(path, backup);
-      syncFile(backup);
-      syncDirectory(dirname(path));
-    }
+  const report = store.restoreLazily(normalizeValidationJobs(parsed.workspaces));
+  if (report.normalizationRequired) {
+    const reasons = report.quarantined.length > 0
+      ? [`${report.quarantined.length} record(s) could not be restored losslessly`]
+      : [];
     const sourceArchive = preserveRecoveryArchive(
       config,
       sourceBytes,
-      'Original v1 session snapshot retained before migration.',
+      `Original workspace file retained${reasons.length > 0 ? `: ${reasons.join('; ')}` : ''}.`,
     );
-    const restored = store.restore(normalizeValidationJobs(payload.workspaces), {
-      provenance: 'legacy-unverified',
-    });
     store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
-    logRestoreWarnings(store, path);
-    if (restored === 0 && payload.workspaces.length > 0) {
-      logger().warn(
-        { path, backup },
-        'No v1 workspace could be migrated; original and backup were preserved',
-      );
-      return 0;
-    }
-    try {
-      saveWorkspaceSnapshot(store.listWorkspaces(), config);
-    } catch (error) {
-      throw asSessionPersistenceError(error, { operation: 'v1 session migration' });
-    }
-    return restored;
+  } else if (report.canonicalRewriteReasons.length > 0) {
+    const sourceArchive = preserveRecoveryArchive(
+      config,
+      sourceBytes,
+      `Original workspace file retained before safe canonical rewrite: ${report.canonicalRewriteReasons.join(' ')}`,
+    );
+    store.recordRestoreDiagnostics({ recoveryArchives: mergeRecoveryArchives(config, sourceArchive) });
   }
 
-  const warning = `Unsupported session snapshot version ${String(payload.version)}; no sessions were restored.`;
-  const archive = preserveRecoveryArchive(config, sourceBytes, warning);
-  store.recordRestoreDiagnostics({
-    warnings: [warning],
-    quarantined: [{
+  if (report.restored === 0) {
+    discardWorkspaceFile(config, path);
+  } else if (!report.normalizationRequired && report.canonicalRewriteReasons.length > 0) {
+    const workspace = store.getWorkspace(id);
+    try {
+      if (workspace) {
+        writeFileAtomic(path, serializeWorkspaces([workspace]));
+        syncDirectory(workspacesDirectory(config));
+      }
+    } catch (error) {
+      throw asSessionPersistenceError(error, { operation: 'v2 clone ownership canonical migration' });
+    }
+  }
+  logRestoreWarnings(report, path);
+}
+
+function parseWorkspaceFile(
+  bytes: Buffer,
+  id: string,
+): { workspaces: unknown[] } | WorkspaceFileProblem {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    return {
+      kind: 'unreadable-session-snapshot',
+      warning: `Persisted workspace ${id} is unreadable; it was not restored.`,
+    };
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return {
+      kind: 'invalid-session-envelope',
+      warning: `Persisted workspace ${id} root is not an object; it was not restored.`,
+    };
+  }
+  const payload = parsed as { version?: unknown; workspaces?: unknown };
+  if (payload.version !== SNAPSHOT_VERSION) {
+    return {
       kind: 'unsupported-session-snapshot',
       version: payload.version,
-      recoveryArchiveId: archive.id,
-    }],
-    recoveryArchives: mergeRecoveryArchives(config, archive),
-  });
-  logger().warn(
-    { path, version: payload.version, archiveId: archive.id },
-    'Unsupported session snapshot version; recovery archive retained',
-  );
-  return 0;
+      warning: `Unsupported session snapshot version ${String(payload.version)} for workspace ${id}; it was not restored.`,
+    };
+  }
+  const workspace = Array.isArray(payload.workspaces) && payload.workspaces.length === 1
+    ? payload.workspaces[0] as { id?: unknown } | null
+    : undefined;
+  if (typeof workspace?.id !== 'string' || workspace.id.trim() !== id) {
+    return {
+      kind: 'invalid-session-envelope',
+      warning: `Persisted workspace file for ${id} does not hold exactly that workspace; it was not restored.`,
+    };
+  }
+  return { workspaces: payload.workspaces as unknown[] };
+}
+
+function discardWorkspaceFile(config: Config, path: string): void {
+  try {
+    removeFileIfPresent(path);
+    syncDirectory(workspacesDirectory(config));
+  } catch (error) {
+    throw asSessionPersistenceError(error, { operation: 'discard unusable persisted workspace' });
+  }
+}
+
+export function workspacesDirectory(config: Config): string {
+  return join(stateDirectory(config), 'workspaces');
+}
+
+function stateDirectory(config: Config): string {
+  return dirname(stateFile(config));
+}
+
+function indexFile(config: Config): string {
+  return join(stateDirectory(config), 'workspace-index.json');
+}
+
+export function workspaceFile(config: Config, id: string): string {
+  return join(workspacesDirectory(config), `${encodeURIComponent(id)}${WORKSPACE_FILE_SUFFIX}`);
+}
+
+function workspaceIdOfFile(name: string): string | undefined {
+  try {
+    return decodeURIComponent(name.slice(0, -WORKSPACE_FILE_SUFFIX.length));
+  } catch {
+    return undefined;
+  }
+}
+
+function removeFileIfPresent(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+/** Writes a fully synced temporary file and renames it over the target. */
+function writeFileAtomic(path: string, data: string | Buffer): void {
+  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  let fd: number | undefined;
+  try {
+    fd = openSync(tmp, 'wx', 0o600);
+    writeFileSync(fd, data);
+    fsyncSync(fd);
+    closeSync(fd);
+    fd = undefined;
+    renameSync(tmp, path);
+  } catch (error) {
+    if (fd !== undefined) closeSync(fd);
+    try {
+      unlinkSync(tmp);
+    } catch {
+      // The temporary path may not exist or may already have been renamed.
+    }
+    throw error;
+  }
 }
 
 function recordAvailableRecoveryArchives(store: SessionStore, config: Config): void {
@@ -408,23 +538,10 @@ function preserveRecoveryArchive(
       );
     }
   } else {
-    const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
-    let fd: number | undefined;
     try {
-      fd = openSync(tmp, 'wx', 0o600);
-      writeFileSync(fd, bytes);
-      fsyncSync(fd);
-      closeSync(fd);
-      fd = undefined;
-      renameSync(tmp, path);
+      writeFileAtomic(path, bytes);
       syncDirectory(dirname(path));
     } catch (error) {
-      if (fd !== undefined) closeSync(fd);
-      try {
-        unlinkSync(tmp);
-      } catch {
-        // The temporary path may not have been created or may have been renamed.
-      }
       throw asSessionPersistenceError(error, { operation: 'preserve session recovery archive' });
     }
   }
@@ -465,23 +582,10 @@ function writeRecoveryMetadata(
 ): void {
   const path = `${archivePath}.meta.json`;
   if (existsSync(path)) return;
-  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  let fd: number | undefined;
   try {
-    fd = openSync(tmp, 'wx', 0o600);
-    writeFileSync(fd, JSON.stringify({ version: 1, ...metadata }), 'utf8');
-    fsyncSync(fd);
-    closeSync(fd);
-    fd = undefined;
-    renameSync(tmp, path);
+    writeFileAtomic(path, JSON.stringify({ version: 1, ...metadata }));
     syncDirectory(dirname(path));
   } catch (error) {
-    if (fd !== undefined) closeSync(fd);
-    try {
-      unlinkSync(tmp);
-    } catch {
-      // A missing metadata sidecar is safe; the immutable archive remains discoverable.
-    }
     logger().warn(
       { archiveId: metadata.id, err: errorMessage(error) },
       'Could not write session recovery metadata; archive bytes remain available',
@@ -529,22 +633,21 @@ function normalizeValidationJobs(workspaces: unknown[]): unknown[] {
     if (typeof workspace !== 'object' || workspace === null || Array.isArray(workspace)) {
       return workspace;
     }
-    const copy = structuredClone(workspace) as Record<string, unknown>;
-    const serverState = copy['serverState'];
+    const record = workspace as Record<string, unknown>;
+    const serverState = record['serverState'];
     if (
       typeof serverState !== 'object' || serverState === null || Array.isArray(serverState) ||
       !Object.hasOwn(serverState, VALIDATION_JOBS_STATE_KEY)
     ) {
-      return copy;
+      return workspace;
     }
-    copy['serverState'] = {
-      ...serverState,
-      [VALIDATION_JOBS_STATE_KEY]: loadValidationJobs(
-        serverState as Record<string, unknown>,
-        now,
-      ),
+    return {
+      ...record,
+      serverState: {
+        ...serverState,
+        [VALIDATION_JOBS_STATE_KEY]: loadValidationJobs(serverState as Record<string, unknown>, now),
+      },
     };
-    return copy;
   });
 }
 
@@ -598,22 +701,12 @@ function serializeConfiguration(session: ConfigSession): Record<string, unknown>
   };
 }
 
-function logRestoreWarnings(store: SessionStore, path: string): void {
-  const report = store.lastRestoreReport;
+function logRestoreWarnings(report: RestoreReport, path: string): void {
   if (report.warnings.length === 0 && report.quarantined.length === 0) return;
   logger().warn(
     { path, warnings: report.warnings, quarantinedRecords: report.quarantined.length },
-    'Loaded session snapshot with recovery diagnostics',
+    'Loaded workspace with recovery diagnostics',
   );
-}
-
-function syncFile(path: string): void {
-  const fd = openSync(path, 'r');
-  try {
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
 }
 
 function syncDirectory(path: string): void {

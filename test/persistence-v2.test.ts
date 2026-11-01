@@ -13,6 +13,7 @@ import {
   loadSessions,
   saveSessions,
   serializeWorkspaces,
+  workspaceFile,
 } from '../src/session/persist.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 
@@ -131,11 +132,11 @@ describe('session persistence v2', () => {
   });
 
   it('round-trips complete canonical/local state and rebuilds derived projections', () => {
-    const { config, path } = tempConfig();
+    const { config } = tempConfig();
     const source = populatedStore();
     saveSessions(source, config);
 
-    const text = readFileSync(path, 'utf8');
+    const text = readFileSync(workspaceFile(config, source.listWorkspaces()[0]!.id), 'utf8');
     expect(text).not.toContain('"reduced"');
     expect(text).not.toContain('"index"');
 
@@ -154,46 +155,40 @@ describe('session persistence v2', () => {
     expect(session?.index).toBeDefined();
   });
 
-  it('backs up and migrates v1 while retaining hard-loss recovery data', () => {
-    const { config, path } = tempConfig();
+  it('retains hard-loss recovery data and the original bytes when a workspace file holds an unusable record', () => {
+    const { config } = tempConfig();
     const source = populatedStore();
     saveSessions(source, config);
+    const file = workspaceFile(config, source.listWorkspaces()[0]!.id);
     const current = JSON.parse(serializeWorkspaces(source.listWorkspaces())) as {
-      version: number;
       workspaces: Array<{ configurations: unknown[] }>;
     };
-    current.version = 1;
     current.workspaces[0]?.configurations.push({ id: '', raw: null });
-    writeFileSync(path, JSON.stringify(current));
-    const original = readFileSync(path, 'utf8');
+    writeFileSync(file, JSON.stringify(current));
 
     const target = new SessionStore();
     expect(loadSessions(target, config)).toBe(1);
-    expect(readFileSync(`${path}.v1.bak`, 'utf8')).toBe(original);
-    expect(JSON.parse(readFileSync(path, 'utf8')).version).toBe(2);
     const workspace = target.listWorkspaces()[0];
     expect(workspace?.integrity).toBe('damaged');
-    expect(workspace?.integrityWarnings.join(' ')).toMatch(/legacy|migrated|identity/i);
+    expect(workspace?.integrityWarnings.join(' ')).toMatch(/identity/i);
     expect(workspace?.recoveryData).toHaveLength(1);
     expect(target.lastRestoreReport.quarantined).toHaveLength(1);
+    expect(target.lastRestoreReport.recoveryArchives).toHaveLength(1);
+    expect(listSessionRecoveryArchives(config)).toHaveLength(1);
 
-    const migrated = readFileSync(path, 'utf8');
-    const backup = readFileSync(`${path}.v1.bak`, 'utf8');
+    saveSessions(target, config);
     const restarted = new SessionStore();
     expect(loadSessions(restarted, config)).toBe(1);
-    expect(readFileSync(path, 'utf8')).toBe(migrated);
-    expect(readFileSync(`${path}.v1.bak`, 'utf8')).toBe(backup);
-    expect(restarted.listWorkspaces()[0]?.integrityWarnings).toEqual(
-      workspace?.integrityWarnings,
-    );
+    expect(restarted.listWorkspaces()[0]?.integrityWarnings).toEqual(workspace?.integrityWarnings);
   });
 
   it('retains valid history and reports discarded malformed history on restore', async () => {
-    const { config, path } = tempConfig();
+    const { config } = tempConfig();
     const source = populatedStore();
     source.setPersistenceWriter(createPersistenceWriter(config));
     const workspace = source.listWorkspaces()[0];
     if (!workspace) throw new Error('missing workspace');
+    const path = workspaceFile(config, workspace.id);
     await source.transact(workspace.id, {}, (draft) => {
       draft.serverState = { marker: 'changed' };
     });
@@ -228,8 +223,8 @@ describe('session persistence v2', () => {
     saveSessions(restored, config);
     const restarted = new SessionStore();
     expect(loadSessions(restarted, config)).toBe(1);
-    expect(restarted.lastRestoreReport.normalizationRequired).toBe(false);
     expect(restarted.listWorkspaces()[0]?.recoveryData).toEqual(loaded?.recoveryData);
+    expect(restarted.lastRestoreReport.normalizationRequired).toBe(false);
     expect(listSessionRecoveryArchives(config).map((archive) => archive.id)).toEqual(archiveIds);
   });
 

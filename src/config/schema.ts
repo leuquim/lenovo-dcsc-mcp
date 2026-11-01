@@ -99,7 +99,7 @@ const FilesSchema = z.object({
   exportEncoding: z.enum(['urlencoded', 'multipart']).default('urlencoded'),
   /** Sessions survive a restart unless this is turned off. */
   persistSessions: z.boolean().default(true),
-  /** Overrides the default XDG state path for the session snapshot. */
+  /** Overrides the default XDG state path; workspaces persist under a `workspaces` directory beside it. */
   sessionFile: z.string().optional(),
 });
 

@@ -6,6 +6,7 @@ import { buildExportData, reduceConfiguration } from '../../src/domain/reduce.js
 import type { SendInput } from '../../src/http/request.js';
 import type { RawConfiguration } from '../../src/model/types.js';
 import { DcscService } from '../../src/mcp/service.js';
+import { saveSessions } from '../../src/session/persist.js';
 
 type Obj = Record<string, unknown>;
 
@@ -101,7 +102,7 @@ function seedWorkspace() {
   workspace.rackArea = structuredClone(fixture.workspace.rackArea);
   workspace.rackArea[0]!['size'] = 42;
   workspace.serverState = { ...structuredClone(fixture.workspace), connections: [] };
-  service.persist();
+  saveSessions(service.sessions, service.config);
   return workspace;
 }
 

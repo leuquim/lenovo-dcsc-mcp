@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ConfigSchema, type Config } from '../src/config/schema.js';
@@ -21,6 +21,8 @@ import {
   loadSessions,
   readSessionRecoveryArchive,
   serializeWorkspaces,
+  workspaceFile,
+  workspacesDirectory,
 } from '../src/session/persist.js';
 import { SessionPersistenceError } from '../src/http/persistenceError.js';
 import { CLONE_OWNERSHIP_RECOVERY_STATE_KEY, SessionStore } from '../src/session/SessionStore.js';
@@ -31,7 +33,7 @@ const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) {
     try {
-      chmodSync(join(root, 'state'), 0o700);
+      chmodSync(join(root, 'state', 'workspaces'), 0o700);
     } catch {
       // The test may fail before creating its state directory.
     }
@@ -152,6 +154,14 @@ function fixtureBytes(options: { divergeCurrent?: boolean; divergentHistory?: bo
   return Buffer.from(JSON.stringify(envelope), 'utf8');
 }
 
+function installWorkspaceFile(config: Config, bytes: Buffer): string {
+  const envelope = JSON.parse(bytes.toString('utf8')) as { workspaces: Array<{ id: string }> };
+  mkdirSync(workspacesDirectory(config), { recursive: true });
+  const file = workspaceFile(config, envelope.workspaces[0]!.id);
+  writeFileSync(file, bytes);
+  return file;
+}
+
 function archiveId(bytes: Buffer): string {
   return `recovery_${createHash('sha256').update(bytes).digest('hex')}`;
 }
@@ -165,10 +175,9 @@ function expectCanonicalOwnership(workspace: WorkspaceSession): void {
 
 describe('persisted clone ownership canonical migration', () => {
   it('archives and durably rewrites the proven singleton defect, including undo and redo', async () => {
-    const { path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
+    const { config } = setup();
     const original = fixtureBytes();
-    writeFileSync(path, original);
+    const file = installWorkspaceFile(config, original);
 
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
@@ -184,7 +193,7 @@ describe('persisted clone ownership canonical migration', () => {
     const archive = restored.lastRestoreReport.recoveryArchives.find(item => item.id === archiveId(original));
     expect(archive).toBeDefined();
     expect(readSessionRecoveryArchive(config, archive!.id)).toEqual(original);
-    expect(readFileSync(path)).not.toEqual(original);
+    expect(readFileSync(file)).not.toEqual(original);
 
     expect(await restored.undoWorkspace(workspace.id, workspace.revision)).toBe(true);
     expectCanonicalOwnership(workspace);
@@ -208,15 +217,14 @@ describe('persisted clone ownership canonical migration', () => {
 
     const restarted = new SessionStore();
     expect(loadSessions(restarted, config)).toBe(1);
-    expect(restarted.lastRestoreReport.canonicalRewriteReasons).toEqual([]);
     expectCanonicalOwnership(restarted.listWorkspaces()[0]!);
+    expect(restarted.lastRestoreReport.canonicalRewriteReasons).toEqual([]);
   });
 
   it('keeps divergent current ownership readable but blocks every mutation with reimport guidance', async () => {
-    const { path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
+    const { config } = setup();
     const original = fixtureBytes({ divergeCurrent: true });
-    writeFileSync(path, original);
+    const file = installWorkspaceFile(config, original);
 
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
@@ -228,17 +236,16 @@ describe('persisted clone ownership canonical migration', () => {
       draft.label = 'must not commit';
     })).rejects.toThrow(/clone ownership.*re-import.*CFXML/i);
     expect(workspace.label).not.toBe('must not commit');
-    expect(readFileSync(path)).toEqual(original);
+    expect(readFileSync(file)).toEqual(original);
     const archive = restored.lastRestoreReport.recoveryArchives.find(item => item.id === archiveId(original));
     expect(archive).toBeDefined();
     expect(readSessionRecoveryArchive(config, archive!.id)).toEqual(original);
   });
 
   it('discards a divergent history snapshot instead of letting undo resurrect singleton ownership', () => {
-    const { path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
+    const { config } = setup();
     const original = fixtureBytes({ divergentHistory: true });
-    writeFileSync(path, original);
+    const file = installWorkspaceFile(config, original);
 
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
@@ -250,12 +257,11 @@ describe('persisted clone ownership canonical migration', () => {
       expect.objectContaining({ kind: 'discarded-history', warning: expect.stringMatching(/diverged/i) }),
     ]));
     expect(restored.lastRestoreReport.normalizationRequired).toBe(true);
-    expect(readFileSync(path)).toEqual(original);
+    expect(readFileSync(file)).toEqual(original);
   });
 
   it('keeps a stored reconciliation hash stale after canonical ownership changes', () => {
-    const { path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
+    const { config } = setup();
     const source = oldSingletonStore();
     const workspace = source.listWorkspaces()[0]!;
     const oldHash = canonicalWorkspaceHash(workspace);
@@ -270,7 +276,7 @@ describe('persisted clone ownership canonical migration', () => {
       status: 'changes-proposed',
       diffs: [], warnings: [], target: {},
     }];
-    writeFileSync(path, serializeWorkspaces(source.listWorkspaces()));
+    installWorkspaceFile(config, Buffer.from(serializeWorkspaces(source.listWorkspaces()), 'utf8'));
 
     const restored = new SessionStore();
     expect(loadSessions(restored, config)).toBe(1);
@@ -282,31 +288,34 @@ describe('persisted clone ownership canonical migration', () => {
 
   it('does not rewrite when the source archive cannot be created', () => {
     const { path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
     const original = fixtureBytes();
-    writeFileSync(path, original);
+    const file = installWorkspaceFile(config, original);
     const hash = createHash('sha256').update(original).digest('hex');
     mkdirSync(`${path}.recovery-${hash}.bak`);
 
-    expect(() => loadSessions(new SessionStore(), config)).toThrow(SessionPersistenceError);
-    expect(readFileSync(path)).toEqual(original);
+    const store = new SessionStore();
+    expect(loadSessions(store, config)).toBe(1);
+    expect(() => store.listWorkspaces()).toThrow(SessionPersistenceError);
+    expect(readFileSync(file)).toEqual(original);
   });
 
   it('archives first and leaves the source intact when the canonical rewrite fails', () => {
-    const { root, path, config } = setup();
-    mkdirSync(dirname(path), { recursive: true });
+    const { config } = setup();
     const original = fixtureBytes();
-    writeFileSync(path, original);
+    const file = installWorkspaceFile(config, original);
 
     const priming = new SessionStore();
     expect(loadSessions(priming, config)).toBe(1);
+    priming.listWorkspaces();
     const id = archiveId(original);
     expect(readSessionRecoveryArchive(config, id)).toEqual(original);
 
-    writeFileSync(path, original);
-    chmodSync(join(root, 'state'), 0o500);
-    expect(() => loadSessions(new SessionStore(), config)).toThrow(SessionPersistenceError);
-    expect(readFileSync(path)).toEqual(original);
+    writeFileSync(file, original);
+    chmodSync(workspacesDirectory(config), 0o500);
+    const blocked = new SessionStore();
+    expect(loadSessions(blocked, config)).toBe(1);
+    expect(() => blocked.listWorkspaces()).toThrow(SessionPersistenceError);
+    expect(readFileSync(file)).toEqual(original);
     expect(readSessionRecoveryArchive(config, id)).toEqual(original);
   });
 });

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -8,7 +8,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
-import { listSessionRecoveryArchives, saveWorkspaceSnapshot } from '../src/session/persist.js';
+import {
+  listSessionRecoveryArchives,
+  saveSessions,
+  workspaceFile,
+  workspacesDirectory,
+} from '../src/session/persist.js';
 
 type Reply = { isError?: boolean; content: Array<{ text: string }> };
 type Handler = (args: Record<string, unknown>) => Promise<Reply>;
@@ -23,12 +28,14 @@ function setup(bytes: Buffer, maxDownloadBytes = 1024 * 1024) {
   const root = mkdtempSync(join(tmpdir(), 'dcsc-archive-tools-'));
   roots.push(root);
   const sessionFile = join(root, 'sessions.json');
-  writeFileSync(sessionFile, bytes);
   const config = ConfigSchema.parse({ logLevel: 'error', files: {
     persistSessions: true, sessionFile, artifactDir: join(root, 'artifacts'), maxDownloadBytes,
   } });
+  mkdirSync(workspacesDirectory(config), { recursive: true });
+  writeFileSync(workspaceFile(config, 'ws_corrupt'), bytes);
   const service = new DcscService(config);
   services.push(service);
+  service.sessions.listWorkspaces();
   const handlers = new Map<string, Handler>();
   registerTools({ registerTool(name: string, _config: unknown, handler: Handler) {
     handlers.set(name, handler);
@@ -38,13 +45,13 @@ function setup(bytes: Buffer, maxDownloadBytes = 1024 * 1024) {
     const reply = await handlers.get(name)!(args);
     return { ...reply, json: JSON.parse(reply.content[0]!.text) as Record<string, unknown> };
   };
-  return { service, config, sessionFile, call };
+  return { service, config, call };
 }
 
 describe('recovery tools for unreadable session sources', () => {
   it('discovers and exports corrupt source bytes before and after a later valid save', async () => {
     const original = Buffer.concat([Buffer.from('{"version":2,"workspaces":['), Buffer.from([0xff, 0x00])]);
-    const { service, config, sessionFile, call } = setup(original);
+    const { service, config, call } = setup(original);
     expect(service.sessions.listWorkspaces()).toEqual([]);
     const health = await call('dcsc_health');
     expect(health.json.recovery).toMatchObject({ warningCount: expect.any(Number), archiveCount: 1,
@@ -60,10 +67,8 @@ describe('recovery tools for unreadable session sources', () => {
     expect(exported.json).toMatchObject({ format: 'lenovo-dcsc-session-source-bytes', bytes: original.length,
       sha256: createHash('sha256').update(original).digest('hex') });
     expect(readFileSync(String(exported.json.path))).toEqual(original);
-    expect(readFileSync(sessionFile)).toEqual(original);
 
-    saveWorkspaceSnapshot([], config);
-    expect(readFileSync(sessionFile)).not.toEqual(original);
+    saveSessions(service.sessions, config);
     const restarted = new DcscService(config);
     services.push(restarted);
     expect(restarted.sessions.lastRestoreReport.recoveryArchives.map(item => item.id)).toContain(archive.id);

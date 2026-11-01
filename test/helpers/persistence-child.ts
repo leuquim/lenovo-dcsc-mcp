@@ -12,6 +12,7 @@ import { VALIDATION_JOBS_STATE_KEY, type ValidationJob } from '../../src/domain/
 import { reduceConfiguration } from '../../src/domain/reduce.js';
 import type { RawConfiguration } from '../../src/model/types.js';
 import { DcscService } from '../../src/mcp/service.js';
+import { saveSessions } from '../../src/session/persist.js';
 import { registerStandaloneTools } from '../../src/mcp/standaloneTools.js';
 import type { ConfigSession, WorkspaceSession } from '../../src/model/session.js';
 
@@ -229,7 +230,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
       [first.configurationId]: [first.configurationId],
       [rack.configurationId]: [rack.configurationId],
     };
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await target.cloneConfiguration({
       sessionHandle: first.id, count: 1, labelPrefix: 'Durable racked clone', placement: 'same-rack',
       expectedRevision: workspace.revision, ctx: target.newCtx({ solution: workspace.solution }),
@@ -257,7 +258,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
       [first.configurationId]: [first.configurationId],
       [rack.configurationId]: [rack.configurationId],
     };
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await target.copyRackItem(first.id, {
       expectedRevision: workspace.revision,
       ctx: target.newCtx({ solution: workspace.solution }),
@@ -327,7 +328,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     workspace.rackArea = [{
       id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42, rackItems: [],
     }];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await target.configurePdu(workspace.id, rack.configurationId, {
       pduCode: 'PDU1', quantity: 2, expectedRevision: workspace.revision,
       ctx: target.newCtx({ solution: workspace.solution }),
@@ -354,7 +355,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
         rackItems: [physicalNode(first.configurationId, 8)] },
       { id: 'rack-destination', code: 'RACKCTO', type: 'rack', size: 42, rackItems: [] },
     ];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await target.placeInRack(workspace.id, {
       rackId: 'rack-destination', sessionId: first.id, position: 12,
       expectedRevision: workspace.revision, ctx: target.newCtx({ solution: workspace.solution }),
@@ -365,7 +366,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     const rack = target.sessions.create(rackInput('US__durable_rack_remove', workspace.id));
     workspace.rackArea = [{ id: rack.configurationId, code: 'RACKCTO', type: 'rack', size: 42,
       rackItems: [physicalNode(first.configurationId, 8)] }];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await target.editLayout(workspace.id, {
       action: 'remove', configurationId: rack.id,
       contents: selected === 'layout-remove-rack-delete' ? 'delete' : 'unplace',
@@ -376,7 +377,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   if (selected === 'layout-unplace' || selected === 'layout-remove' || selected === 'layout-arrange') {
     workspace.rackArea[0]!.rackItems = [physicalNode(first.configurationId, 8)];
     workspace.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     if (selected === 'layout-unplace') {
       await target.editLayout(workspace.id, {
         action: 'unplace', configurationId: first.id, expectedRevision: workspace.revision,
@@ -404,7 +405,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     }];
     workspace.serverState.connections = [activeConnection(first.configurationId, second.configurationId)];
     workspace.serverState.imports = [{ sourceId: first.configurationId, retained: true }];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     assert(await target.closeSession(first.id, first.revision), 'configuration close returned false');
     return;
   }
@@ -484,7 +485,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     workspace.rackSummaries = [];
     workspace.integrity = 'legacy-unverified';
     workspace.integrityWarnings = ['Fixture requires explicit reconciliation acceptance.'];
-    target.persist();
+    saveSessions(target.sessions, target.config);
     const proposal = await target.proposeReconciliation(
       workspace.id,
       target.newCtx({ solution: workspace.solution }),
@@ -504,7 +505,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   }
   if (selected === 'concurrent-workspaces') {
     const third = target.sessions.create(input('US__concurrent_other'));
-    target.persist();
+    saveSessions(target.sessions, target.config);
     await Promise.all([
       target.setQuantity(first, 8, first.revision),
       target.setQuantity(third, 9, third.revision),
@@ -870,7 +871,7 @@ function baseline(target: DcscService): {
       rackItems: [],
     },
   ];
-  target.persist();
+  saveSessions(target.sessions, target.config);
   return { first, second, workspace };
 }
 

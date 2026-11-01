@@ -2,6 +2,7 @@ import { ConfigSchema } from '../../src/config/schema.js';
 import { reduceConfiguration } from '../../src/domain/reduce.js';
 import type { RawConfiguration } from '../../src/model/types.js';
 import { DcscService } from '../../src/mcp/service.js';
+import { saveSessions } from '../../src/session/persist.js';
 
 const mode = process.argv[2];
 const sessionFile = process.argv[3];
@@ -21,7 +22,7 @@ if (mode === 'mutate') {
   const server = service.sessions.create(input('server-1', '7D73CTO1WW', 'server', 16174.51, rackA1.workspaceId));
   const workspace = service.sessions.getWorkspace(rackA1.workspaceId)!;
   workspace.rackArea = [rack('rack-a1', [server.configurationId]), rack('rack-a2', [])];
-  service.persist();
+  saveSessions(service.sessions, service.config);
 
   await service.sessions.transact(workspace.id, { expectedRevision: workspace.revision }, (draft) => {
     const item = (draft.rackArea[0]!['rackItems'] as Record<string, unknown>[]).shift();
