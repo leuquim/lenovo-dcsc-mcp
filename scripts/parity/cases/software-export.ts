@@ -69,7 +69,7 @@ export default {
       await mcp.call('dcsc_configure', { session, changes: [{ section: await sectionId(PARENT_SECTION, 'T1K3'), code: 'T1K3', quantity: 1 }] });
       const calSection = await sectionId(CAL_SECTION, 'SDDZ');
       await mcp.call('dcsc_configure', { session, changes: [{ section: calSection, code: 'SDDZ', quantity: 1 }] });
-      await mcp.call('dcsc_configure', { session, changes: [{ section: calSection, code: 'SDDZ', quantity: 3 }] });
+      await mcp.call('dcsc_configure', { session, changes: [{ section: await sectionId(PARENT_SECTION, 'SDDZ'), code: 'SDDZ', quantity: 3 }] });
       const workspace = mcp.persistedWorkspaces().find(entry => entry['id'] === launched['workspace']);
       assert(workspace, 'MCP workspace was not persisted.');
       const raw = object(object((workspace['configurations'] as unknown[])[0])['raw']);

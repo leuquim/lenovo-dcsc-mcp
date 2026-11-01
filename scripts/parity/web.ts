@@ -9,14 +9,23 @@ export { openBrowserImportHome, selectBrowserSolutionMode } from './browser.js';
 export const DCSC_HOME = 'https://dcsc.lenovo.com/';
 const CFXML_IMPORT_PATH = '/multiple/cfxml_import';
 
-/** Reads the body inside the response event: the SPA navigates away right after the import, which discards the body. */
+/** Fetches the import itself and fulfils the page with it: the SPA navigates away right after the import, which discards the inspector's copy of the body. */
 function readImportResponse(page: Page): Promise<{ status: number; raw: unknown }> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Browser import response timed out.')), 180_000);
-    page.on('response', response => {
-      if (!response.url().includes(CFXML_IMPORT_PATH) || response.request().method() !== 'POST') return;
-      const status = response.status();
-      (status === 200 ? response.json() : Promise.resolve(undefined)).then(raw => resolve({ status, raw }), reject).finally(() => clearTimeout(timer));
+    void page.route(`**${CFXML_IMPORT_PATH}*`, async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      try {
+        const response = await route.fetch({ timeout: 180_000 });
+        const status = response.status();
+        const raw = status === 200 ? await response.json() : undefined;
+        await route.fulfill({ response });
+        resolve({ status, raw });
+      } catch (error) {
+        reject(error);
+      } finally {
+        clearTimeout(timer);
+      }
     });
   });
 }
