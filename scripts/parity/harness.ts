@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import path from 'node:path';
 
-import { startMcp, type Json } from './mcp.js';
+import { startMcp } from './mcp.js';
 import { createWeb } from './web.js';
 
 export { normalizers, sha256 } from './normalizers.js';
