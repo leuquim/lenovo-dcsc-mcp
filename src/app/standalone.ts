@@ -57,12 +57,12 @@ const SERVICE_SELECTION_REQUIRED = 'serviceCode is required when more than one p
 /** Captured default choices in the standalone software export dialog. */
 export const SOFTWARE_EXPORT_TYPES: ExportFileType[] = ['XML', 'QUOTE', 'QUOTE_SUPPLYINFO', 'QUOTE_GROUP', 'SUMMARY', 'POWER_REPORT', 'QUOTE_CSV', 'EPRICE_CSV'];
 
-export interface PartLookupItem {
+export type PartLookupItem = {
   code: string;
   description: string;
   type: string;
   nextAction: string;
-}
+};
 
 export interface PartLookupArgs {
   keyword: string;

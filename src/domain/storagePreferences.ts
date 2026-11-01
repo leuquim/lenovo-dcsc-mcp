@@ -408,7 +408,3 @@ export function reconfigureStorageConnectionNetwork(
   }
   return existing.map(item => item.name === name ? next : structuredClone(item));
 }
-
-function configurationId(configuration: Obj): string {
-  return stringOrEmpty(configuration['id']) || stringOrEmpty(configuration['configurationId']);
-}

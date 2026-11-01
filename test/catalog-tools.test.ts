@@ -264,7 +264,8 @@ describe('bounded discovery tool projections', () => {
       description: index === 0 ? `Oversized rack ${'rack-detail '.repeat(2_000)}` : `Rack ${index}`,
       machineType: '42U', price: 1000 + index,
     }));
-    vi.spyOn(service, 'rackCabinets').mockImplementation(async () => racks);
+    vi.spyOn(service.http, 'send').mockImplementation(async () =>
+      ({ raw: [{ products: racks.map(rack => ({ ...rack, hardwareType: 'rack' })) }] }) as never);
     const list = handler(handlers, 'dcsc_list_racks');
     const initial = { solutionMode: 'General Purpose', offset: 0, limit: 50 };
     const result = await enumerate(list, initial, 'racks');

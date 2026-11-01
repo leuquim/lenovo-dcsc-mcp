@@ -6,9 +6,7 @@ import {
   summariseValidation,
   type LmcValidationStart,
 } from '../src/domain/validate.js';
-import type { RequestCtx } from '../src/http/request.js';
 
-const successfulResult = ['finish'];
 const invalidResult = [
   [
     'INFO - Slot Adapter Check Start=========================================',
@@ -28,12 +26,6 @@ const descriptors = [
     lmcURL: 'https://example.invalid/lmc/',
   },
 ];
-
-const ctx = {
-  corrId: 'validation-test',
-  locale: { country: 'US', geo: 'NA', language: 'en', currency: 'USD' },
-  solution: { solutionMode: 'General Purpose', masterSlices: ['GP'] },
-} satisfies RequestCtx;
 
 describe('manufacturing validation job', () => {
   it('parses the captured manufacturing report as 21 authoritative errors', () => {

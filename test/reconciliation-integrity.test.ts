@@ -70,6 +70,7 @@ describe('reconciliation preserves recovery trust boundaries', () => {
 
   it('reconciles current configurations without certifying a legacy physical layout', async () => {
     const { service, saved, id, raw } = setup();
+    saved.rackArea = [{ id: 'rack1', type: 'rack', code: 'RACK', size: 42, rackItems: [] }];
     saved.floorItems = [{ id: 'floor1', rackId: 'rack1', x: 1, y: 1 }];
     service.sessions.restore([saved], { provenance: 'legacy-unverified' });
     const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [raw] } } as never);
