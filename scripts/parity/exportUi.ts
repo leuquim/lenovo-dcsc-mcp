@@ -19,7 +19,7 @@ export const CAPTURE_EXPORT_FORMS = `
   };
 `;
 
-const auditForms = (page: Page): Promise<CapturedForm[]> =>
+export const auditForms = (page: Page): Promise<CapturedForm[]> =>
   page.evaluate(() => (globalThis as unknown as { __dcscAuditForms?: CapturedForm[] }).__dcscAuditForms ?? []);
 
 /** Exports XML (or every offered type) through the summary Export dialog and returns the form it posted plus the archive it produced. */

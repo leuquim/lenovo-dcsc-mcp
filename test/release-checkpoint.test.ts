@@ -44,7 +44,7 @@ it.each(['ignored', 'tracked'])('verifies %s review docs and rejects additional 
       repository: { ignoredDocumentation: { count: number } };
     };
     expect(checkpoint.repository.ignoredDocumentation.count).toBe(documentationState === 'ignored' ? 3 : 0);
-    expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity:recovery'))
+    expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity -- recovery-legacy-reconcile'))
       .toMatchObject({ blockedExit: 2 });
     expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity -- manual-cabling'))
       .toMatchObject({ class: 'headless' });

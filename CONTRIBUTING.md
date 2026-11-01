@@ -21,10 +21,10 @@ Run affected gates deliberately; Lenovo's catalog, validation and availability c
 npm run contract:live -- all
 npx tsx scripts/conformance.ts
 npx playwright install chromium
-npm run parity:headless
+npm run parity -- all
 ```
 
-All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `parity:*` scripts for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. The source-bound matrix results and scoped native limitations are recorded in [current context](.docs/context.md).
+All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `npm run parity -- <case>` cases for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. The source-bound matrix results and scoped native limitations are recorded in [current context](.docs/context.md).
 
 `scripts/recon/` contains historical experiments, some dependent on private local captures. It is intentionally excluded from maintained lint/typecheck. Raw `artifacts/` and old `/tmp/` evidence references describe the original development environment; they are not required to run local checks from a fresh clone.
 

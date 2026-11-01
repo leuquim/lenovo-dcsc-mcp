@@ -598,9 +598,10 @@ npx tsx scripts/export-smoke.ts  # launch -> exact CPU derive -> nonempty XML/XL
 npx tsx scripts/mcp-smoke.ts     # bounded stdio responses, mutation and nonempty export
 npx tsx scripts/conformance.ts   # dynamic tool inventory, continuations and response budgets
 npx tsx scripts/verify-fixes.ts  # export regression checks across configuration shapes
-npm run parity:headless          # isolated Chromium; reports pass/fail/blocked per case
+npm run parity -- all            # every case, isolated Chromium; reports pass/fail/blocked per case
+npm run parity -- quantity-handoff-4 # SR630 V3 quantity import, MCP round trip and website re-import
 npm run parity -- software-embedded # fresh headless browser/MCP OS & Software differential
-npm run parity:recovery          # real MCP stdio recovery, SIGKILL/restart and live legacy validation
+npm run parity -- recovery-legacy-reconcile # real MCP stdio recovery, SIGKILL/restart and live legacy validation
 npm run parity -- projections # real MCP stdio large-workspace paging and exact detail reconstruction
 npm run parity -- network-switch  # populated Management graph against the browser oracle and a fresh website import
 npm run parity -- network-leaf    # Distributed main/leaf graph, restart, export and website import
@@ -611,12 +612,15 @@ npm run parity -- manual-cabling  # every manual cabling mode (create, replace, 
 npm run parity -- manual-source-swap # atomic source-port swap, history, restart and website import
 npm run parity -- rack-power      # website two-rack PDU/cord flow against the MCP, history, restart and re-import
 npm run parity -- rack-power-multi # second power code and non-unit PDU/cord quantities
-npm run parity:rack-clone -- --action=clone --fresh # headless physical-clone browser oracle
-npm run parity:nested-vlh       # native supported chassis/node workflow and export handoff
-npm run parity:nested-stdio     # real MCP nested edit/history/crash/import/export lifecycle
-npm run parity:nested-remove-chassis -- --out=/path/to/report # native populated-chassis Delete wire oracle
-npm run parity:nested-detach -- --out=/path/to/report         # native Delete Node wire/export oracle
-npm run parity:nested-unplace -- --out=/path/to/report        # native Move To Non Rack wire/export oracle
+npm run parity -- rack-clone        # headless physical-clone browser oracle (also rack-copy, rack-clone-edit-source, rack-clone-delete-root)
+npm run parity -- rack-lock         # rack item and empty-U Lock against the website
+npm run parity -- rack-lifecycle    # two-rack move/unplace/auto-place lifecycle and workbook
+npm run parity -- lfo-as-cto        # LFO as CTO hardware edit, export and re-import
+npm run parity -- nested-vlh        # native supported chassis/node workflow and export handoff
+npm run parity -- nested-lifecycle  # real MCP nested edit/history/crash/import/export lifecycle
+npm run parity -- nested-remove-chassis # native populated-chassis Delete wire oracle
+npm run parity -- nested-remove-node    # native Delete Node wire/export oracle
+npm run parity -- nested-unplace-node   # native Move To Non Rack wire/export oracle
 npm run parity -- controls-locale # headless DE/EUR conflicting-control differential
 npm run parity -- catalogs # exhaustive bounded catalog/fabric/software continuations
 npm run parity -- validation        # strict authoritative verdict, payload/hash and stale-job gate
@@ -628,11 +632,11 @@ npm run parity -- storage-wizard-raid-reverse # return to non-configured RAID an
 npm run parity -- storage-wizard-sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
 npm run parity -- pci-wizard # native PCI slots, crash/history, derive, XML and browser handoff
 npm run parity -- power-controls    # native power controls, crash/history, derive, XML and browser handoff
-npm run parity:chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
-npm run parity:chassis-copy      # independent populated-chassis Copy and browser handoff
-npm run parity:chassis-linked-copy # preserve linked sources while creating an independent copy
-npm run parity:chassis-member-copy # Copy from a linked member; preserve original parent/child groups
-npm run parity:nested-grouped-import # populated chassis/node groups, restart and native reimport
+npm run parity -- chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
+npm run parity -- chassis-copy      # independent populated-chassis Copy and browser handoff
+npm run parity -- chassis-linked-copy # preserve linked sources while creating an independent copy
+npm run parity -- chassis-member-copy # Copy from a linked member; preserve original parent/child groups
+npm run parity -- nested-grouped-import # populated chassis/node groups, restart and native reimport
 npm run parity -- grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
 npm run parity -- xconfig-import    # native x-config import/layout, restart and export handoff
 npm run parity -- workbook-import   # Excel import over stdio, crash/restart, export and native browser controls

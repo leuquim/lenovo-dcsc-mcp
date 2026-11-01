@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import path from 'node:path';
 
-import { startMcp } from './mcp.js';
+import { startMcp, type McpMode, type WireRequest } from './mcp.js';
 import { createWeb } from './web.js';
 
 export { normalizers, sha256 } from './normalizers.js';
@@ -14,6 +14,9 @@ export type Normalizer = (value: unknown) => unknown;
 
 export interface Diff { path: string; web: unknown; mcp: unknown }
 export interface ExpectedDifference extends Diff { doc: string }
+
+/** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
+export interface CapturedRequest { method: string; path: string; query?: Record<string, unknown>; body?: unknown }
 
 interface StepRecord { name: string; ms: number; ok: boolean; error?: string }
 interface CompareRecord {
@@ -28,6 +31,8 @@ interface SkipRecord { name: string; reason: string; status: 'blocked' | 'fail';
 export interface ParityCase {
   id: string;
   tags: string[];
+  /** 'in-process' runs the server in the harness process so upstream requests can be recorded. Default 'stdio'. */
+  mode?: McpMode;
   run(h: Harness): Promise<void>;
 }
 
@@ -78,11 +83,11 @@ function gitSha(): string {
   try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return 'unknown'; }
 }
 
-export async function createHarness(caseId: string, artifactsRoot = 'artifacts/parity') {
+export async function createHarness(caseId: string, mode: McpMode = 'stdio', artifactsRoot = 'artifacts/parity') {
   const startedAt = new Date().toISOString();
   const out = path.resolve(artifactsRoot, caseId, startedAt.replace(/[:.]/g, '-'));
   await mkdir(out, { recursive: true });
-  const mcp = await startMcp(out);
+  const mcp = await startMcp(out, mode);
   const web = createWeb(out);
   const steps: StepRecord[] = [];
   const compares: CompareRecord[] = [];
@@ -113,6 +118,18 @@ export async function createHarness(caseId: string, artifactsRoot = 'artifacts/p
       const unexpected = found.filter(item => !expected.some(entry => sameDifference(item, entry)));
       const status = unexpected.length > 0 || stale.length > 0 ? 'fail' : known.length > 0 ? 'known-difference' : 'pass';
       compares.push({ name, status, unexpected, known, stale });
+    },
+    /** Request-shape parity: the website's captured request against a request recorded in `mcp.requests`. */
+    compareRequest(name: string, webCapture: CapturedRequest, mcpRequest: WireRequest,
+      options: { normalize?: Normalizer; expectedDifferences?: ExpectedDifference[] } = {}): void {
+      const normalize = options.normalize ?? ((value: unknown) => value);
+      const apiPath = (value: string) => value.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api(?=\/)/, '').split('?')[0];
+      const shape = (method: string, requestPath: string, query: unknown, body: unknown) =>
+        ({ method, path: apiPath(requestPath), query: query ?? {}, body: normalize(body) });
+      const mcpBody = mcpRequest.body?.kind === 'form' ? mcpRequest.body.fields
+        : mcpRequest.body?.kind === 'json' ? mcpRequest.body.value : mcpRequest.body;
+      harness.compare(name, shape(webCapture.method, webCapture.path, webCapture.query, webCapture.body),
+        shape(mcpRequest.method, mcpRequest.path, mcpRequest.query, mcpBody), options.expectedDifferences ? { expectedDifferences: options.expectedDifferences } : {});
     },
     /** Records a blocked check; `probe` re-attempts the blocked call and must still throw the upstream error. */
     async skip(name: string, reason: string, probe: () => Promise<unknown>): Promise<void> {
