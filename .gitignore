@@ -30,3 +30,5 @@ coverage/
 # Project handoffs are shared, even when a developer globally ignores .docs.
 !.docs/
 !.docs/**
+
+!AGENTS.md
