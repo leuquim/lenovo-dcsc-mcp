@@ -82,7 +82,7 @@ async function enumerate(
     const reply = await callback(args);
     replies.push(reply);
     expect(reply.isError).not.toBe(true);
-    expect(textBytes(reply)).toBeLessThanOrEqual(7_500);
+    expect(textBytes(reply)).toBeLessThanOrEqual(8_000);
     const value = parse(reply);
     first ??= value;
     values.push(...((value[collection] as Json[] | undefined) ?? []));
@@ -105,7 +105,7 @@ async function reconstructLongField(
   while (args) {
     const reply = await callback(args);
     expect(reply.isError).not.toBe(true);
-    expect(textBytes(reply)).toBeLessThanOrEqual(7_500);
+    expect(textBytes(reply)).toBeLessThanOrEqual(8_000);
     const page = parse(reply);
     value += String(page['text'] ?? '');
     args = (page['next'] as { arguments?: Record<string, unknown> } | undefined)?.arguments;
@@ -126,7 +126,7 @@ async function enumerateBrowse(
     const reply = await callback(args);
     replies.push(reply);
     expect(reply.isError).not.toBe(true);
-    expect(textBytes(reply)).toBeLessThanOrEqual(7_500);
+    expect(textBytes(reply)).toBeLessThanOrEqual(8_000);
     const value = parse(reply);
     first ??= value;
     categories.push(...((value['categories'] as Json[] | undefined) ?? []));

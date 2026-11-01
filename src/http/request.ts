@@ -8,9 +8,11 @@ import {
   DcscBudgetExceededError,
   DcscError,
   DcscThrottledError,
+  DcscServerError,
   DcscTransportError,
   buildHttpError,
 } from './errors.js';
+import { redactBody } from './redact.js';
 import { assertPreamble, composeHeaders, composeQuery, type QueryValue } from './preamble.js';
 import { CircuitBreaker } from './resilience/breaker.js';
 import { RequestBudget, Semaphore, TokenBucket, sleep } from './resilience/pacer.js';
@@ -45,13 +47,12 @@ export interface SendInput {
   /** Stable logical id, used for logging, fixtures and fingerprints. */
   endpoint: string;
   method: HttpMethod;
-  /** Custom prefix, defaults to API_PREFIX ('/api'). For Nightingale, use AI_PREFIX ('/ai-acceler'). */
-  prefix?: string | undefined;
-  /** Path below /api (or custom prefix), e.g. "/category_hierarchies". */
+  /** Path below /api, e.g. "/category_hierarchies". */
   path: string;
   query?: Record<string, QueryValue> | undefined;
   body?: ReqBody | undefined;
-  responseKind: 'json' | 'stream';
+  /** 'json' requires a JSON body; 'text' accepts a bare string and returns it as `raw` when the body is not JSON. */
+  responseKind: 'json' | 'text' | 'stream';
   timeoutClass?: TimeoutClass | undefined;
   /** Bootstrap endpoints (/locales, /currencies) do not need solution context. */
   requiresSolution?: boolean | undefined;
@@ -273,8 +274,7 @@ export class DcscHttpClient {
       requiresSolution,
     });
 
-    const prefix = input.prefix ?? API_PREFIX;
-    const url = `https://${this.config.host}${prefix}${input.path}?${params.toString()}`;
+    const url = `https://${this.config.host}${API_PREFIX}${input.path}?${params.toString()}`;
     const headers: Record<string, string> = composeHeaders(input.ctx.locale);
     let payload: string | Buffer | undefined;
 
@@ -331,7 +331,7 @@ export class DcscHttpClient {
 
     if (res.statusCode >= 400) {
       // Errors are always small; safe to buffer even in stream mode.
-      const text = await res.body.text();
+      const text = await this.#readBodyText(res, input);
       const parsed = tryParseJson(text, contentType);
       const error = buildHttpError({
         status: res.statusCode,
@@ -375,12 +375,43 @@ export class DcscHttpClient {
       };
     }
 
-    const text = await res.body.text();
+    const text = await this.#readBodyText(res, input);
     log.info(
       { status: res.statusCode, durationMs, requestId, bytes: text.length },
       'DCSC request ok',
     );
-    return { ...base, raw: tryParseJson(text, contentType) ?? text };
+    if (input.responseKind === 'text') return { ...base, raw: tryParseJson(text, contentType) ?? text };
+    if (text === '') return { ...base, raw: text };
+    try {
+      return { ...base, raw: JSON.parse(text) };
+    } catch {
+      const redacted = redactBody(text);
+      throw new DcscServerError({
+        endpoint: input.endpoint,
+        status: res.statusCode,
+        requestId,
+        traceId,
+        corrId: input.ctx.corrId,
+        userMessage: 'DCSC returned a response that is not valid JSON.',
+        internal: redacted.text,
+        bodyHash: redacted.hash,
+        retryable: false,
+      });
+    }
+  }
+
+  async #readBodyText(res: { body: { text(): Promise<string> } }, input: SendInput): Promise<string> {
+    try {
+      return await res.body.text();
+    } catch (err) {
+      throw new DcscTransportError({
+        endpoint: input.endpoint,
+        corrId: input.ctx.corrId,
+        userMessage: 'Could not read the DCSC response (network error). This is usually transient.',
+        internal: describe(err),
+        retryable: isRetryableTransportError(err),
+      });
+    }
   }
 }
 

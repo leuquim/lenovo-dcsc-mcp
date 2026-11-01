@@ -324,18 +324,70 @@ async function writeRecoveryContent<F extends RecoveryArtifact['format'] | 'leno
   if (bytes.length > config.files.maxDownloadBytes) {
     throw new Error(`Recovery artifact exceeded the configured download limit of ${config.files.maxDownloadBytes} bytes.`);
   }
+  const published = await publishSingleFile(Readable.from([bytes]), {
+    fileName: fileName.replace(/\.json$/i, ''),
+    extension,
+    kind: extension === 'json' ? 'recovery-json' : 'recovery-source',
+    subject: 'Recovery artifact',
+    config,
+  });
+  return { ...published, format };
+}
 
+export interface SpreadsheetArtifact {
+  path: string;
+  bytes: number;
+  sha256: string;
+  warnings: string[];
+}
+
+/** Streams a DCSC .xlsx download into the artifact store, rejecting bodies that are not a ZIP container. */
+export async function writeSpreadsheetArtifact(
+  stream: NodeJS.ReadableStream,
+  fileName: string,
+  config: Config,
+): Promise<SpreadsheetArtifact> {
+  return publishSingleFile(stream, {
+    fileName: fileName.replace(/\.xlsx$/i, ''),
+    extension: 'xlsx',
+    kind: 'export-spreadsheet',
+    subject: 'DCSC export',
+    config,
+    assertHead: (preview) => {
+      if (!preview.subarray(0, 4).equals(MAGIC_BYTES.zip)) {
+        throw new Error(
+          `DCSC returned HTTP 200 but the body is not an .xlsx workbook (starts with ${JSON.stringify(
+            preview.toString('utf8').slice(0, 80),
+          )}). This is an error response disguised as a download.`,
+        );
+      }
+    },
+  });
+}
+
+async function publishSingleFile(
+  source: NodeJS.ReadableStream,
+  opts: {
+    fileName: string;
+    extension: 'json' | 'bin' | 'xml' | 'xlsx';
+    kind: string;
+    subject: string;
+    config: Config;
+    assertHead?: (preview: Buffer) => void;
+  },
+): Promise<SpreadsheetArtifact> {
+  const { config } = opts;
   const cleanup = cleanupExpiredArtifacts(config);
   const root = resolve(artifactDir(config));
   const day = new Date().toISOString().slice(0, 10);
   const dayDir = join(root, day);
-  const safeName = sanitiseFileName(fileName.replace(/\.json$/i, ''));
+  const safeName = sanitiseFileName(opts.fileName);
   const artifactName = `${safeName}-${randomUUID()}`;
   const finalDir = resolve(dayDir, artifactName);
   const stagingDir = resolve(dayDir, `.${artifactName}.tmp`);
 
   if (!isInside(root, finalDir) || !isInside(root, stagingDir)) {
-    throw new Error('Refusing to write a recovery artifact outside the configured artifact directory.');
+    throw new Error(`Refusing to write a ${opts.subject.toLowerCase()} outside the configured artifact directory.`);
   }
 
   mkdirSync(dayDir, { recursive: true });
@@ -343,20 +395,15 @@ async function writeRecoveryContent<F extends RecoveryArtifact['format'] | 'leno
   activeArtifacts.add(finalDir);
 
   try {
-    const outputName = `${safeName}.${extension}`;
+    const outputName = `${safeName}.${opts.extension}`;
     const stagedPath = join(stagingDir, outputName);
-    const finalPath = join(finalDir, outputName);
-    const inspection = new DownloadInspector(config.files.maxDownloadBytes, 'Recovery artifact');
-    await pipeline(
-      Readable.from([bytes]),
-      inspection,
-      createWriteStream(stagedPath, { flags: 'wx' }),
-    );
-    const artifact: Omit<RecoveryArtifact, 'format'> & { format: F } = {
-      path: finalPath,
+    const inspection = new DownloadInspector(config.files.maxDownloadBytes, opts.subject);
+    await pipeline(source, inspection, createWriteStream(stagedPath, { flags: 'wx' }));
+    opts.assertHead?.(inspection.preview);
+    const artifact: SpreadsheetArtifact = {
+      path: join(finalDir, outputName),
       bytes: inspection.bytes,
       sha256: inspection.digest(),
-      format,
       warnings: [...cleanup.warnings],
     };
     writeFileSync(
@@ -366,7 +413,7 @@ async function writeRecoveryContent<F extends RecoveryArtifact['format'] | 'leno
           owner: OWNED_ARTIFACT,
           version: OWNED_ARTIFACT_VERSION,
           status: 'complete',
-          kind: extension === 'json' ? 'recovery-json' : 'recovery-source',
+          kind: opts.kind,
           ...artifact,
           createdAt: new Date().toISOString(),
         },

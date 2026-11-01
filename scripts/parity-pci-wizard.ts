@@ -116,7 +116,7 @@ async function main() {
       stage = 'linked-setup';
       await call('dcsc_add_rack', { session: workspace, rackCode: '7D6DCTO1WW' });
       const rackId = String(rows((await saved())['rackArea'])[0]!['id']);
-      await call('dcsc_place_in_rack', { session: workspace, rackId, sessionId: session, uPosition: 1 });
+      await call('dcsc_place_in_rack', { session: workspace, rackId, configuration: session, uPosition: 1 });
       const cloned = await call('dcsc_clone_configuration', { session, count: 1, placement: 'same-rack' });
       session = String(rows(cloned['created'])[0]!['session']);
       assert(session && session !== 'undefined');
@@ -131,9 +131,9 @@ async function main() {
     };
     const before = await call('dcsc_pci_wizard', { session });
     assert.equal(values(before)['available'], true);
-    await call('dcsc_pci_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'], path: ['options', '0', 'adapterSlots'] });
+    await call('dcsc_pci_wizard', { session, expectedRevision: before['workspaceRevision'], path: ['options', '0', 'adapterSlots'] });
     stage = 'edit';
-    await call('dcsc_set_pci_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'],
+    await call('dcsc_set_pci_wizard', { session, expectedRevision: before['workspaceRevision'],
       optionId: '1P Rear5-a', rowId: '2', enabled: true });
     assert.deepEqual(slots(await current()), expected);
     stage = 'crash-restart';
@@ -146,13 +146,13 @@ async function main() {
     assert.deepEqual(JSON.parse(await readFile(sessionFile, 'utf8')), snapshot);
     assert.deepEqual(slots(await current()), expected);
     stage = 'stale-and-undo';
-    await call('dcsc_set_pci_wizard', { session, expectedWorkspaceRevision: before['workspaceRevision'], optionId: '1P Rear5-a' }, true);
+    await call('dcsc_set_pci_wizard', { session, expectedRevision: before['workspaceRevision'], optionId: '1P Rear5-a' }, true);
     await call('dcsc_workspace_history', { session: workspace, action: 'undo', expectedRevision: restarted['workspaceRevision'] });
     assert.deepEqual(slots(await current()), slots(object(configuration['raw'])));
     await call('dcsc_workspace_history', { session: workspace, action: 'redo' });
     assert.deepEqual(slots(await current()), expected);
     stage = 'remove-spare';
-    const removal = await call('dcsc_set_pci_wizard', { session, expectedWorkspaceRevision: (await saved())['revision'],
+    const removal = await call('dcsc_set_pci_wizard', { session, expectedRevision: (await saved())['revision'],
       optionId: '1P Rear5-a', rowId: '0', enabled: false });
     assert.equal(removal['affectedConfigurationCount'], linked ? 2 : 1);
     expected = expected.filter(slot => slot.code !== 'C62D');

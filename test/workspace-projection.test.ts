@@ -169,7 +169,7 @@ describe('bounded workspace projections', () => {
     ws.id = 'workspace-'.repeat(1_000);
     expect(() => projectWorkspaceSummary(ws, {
       tool: 'dcsc_session_info',
-      arguments: { session: ws.id, expectedWorkspaceRevision: ws.revision },
+      arguments: { session: ws.id, expectedRevision: ws.revision },
     })).toThrow('dcsc_recovery_export');
   });
 

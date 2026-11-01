@@ -23,8 +23,8 @@ export function errorCustomizeWithAutoDerivePath(family: EndpointFamily): string
   return `/${family}/errorCustomizeWithAutoDerive`;
 }
 
-export function exportXlsPath(family: EndpointFamily, report: 'power' | 'group'): string {
-  return `/${family}/${report}/export_xls`;
+export function exportXlsPath(family: EndpointFamily): string {
+  return `/${family}/power/export_xls`;
 }
 
 /** Launch route for a product code; the launch mode picks the route, not only the family. */

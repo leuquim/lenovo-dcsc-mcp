@@ -3,11 +3,11 @@ import { z } from 'zod';
 
 import { STORAGE_LAYOUTS, STORAGE_TYPES } from '../domain/storagePreferences.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerStorageTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerStorageTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_place_storage_network', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Place a storage network in a rack',
     description: 'Places physical controller and SAN-switch instances for an existing HPC & AI storage definition into the target rack and connects the workspace. Disable Automated Rack PDU when no PDU preference is configured.',
     inputSchema: {
@@ -29,7 +29,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
       placements,
       inspect: { tool: 'dcsc_workspace_layout', arguments: {
         session: result.workspace,
-        expectedWorkspaceRevision: result.revision,
+        expectedRevision: result.revision,
         path: ['rawRackArea'], offset: 0, limit: 20,
       } },
       export: { tool: 'dcsc_export', arguments: { session: result.workspace },
@@ -38,6 +38,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
   }, 'dcsc_place_storage_network failed'));
 
   server.registerTool('dcsc_customize_storage_controller', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Open a storage network controller for customization',
     description: 'Opens the managed controller template for an existing storage definition (Storage > Edit Item). Reopening returns the existing configuration handle without resetting selections.',
     inputSchema: {
@@ -64,6 +65,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
   }, 'dcsc_customize_storage_controller failed'));
 
   server.registerTool('dcsc_customize_storage_switch', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Open a storage network SAN switch for customization',
     description: 'Opens the managed SAN switch template for an existing storage definition (Storage > SAN Switch > Edit Item). Reopening returns the existing configuration handle without resetting selections.',
     inputSchema: {
@@ -90,6 +92,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
   }, 'dcsc_customize_storage_switch failed'));
 
   server.registerTool('dcsc_assign_storage_network', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Assign a storage network to a server configuration',
     description: 'Assigns a storage network definition (or null to clear) to a server configuration and re-derives in workspace context. Set autoConnect=true to regenerate cables immediately.',
     inputSchema: {
@@ -116,6 +119,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
   }, 'dcsc_assign_storage_network failed'));
 
   server.registerTool('dcsc_edit_storage_network', {
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     title: 'Update, rename or remove a storage network definition',
     description: 'Edits an existing storage definition by name. update requires changes and expectedRevision (controller locks after Edit Item; storage type locks while racked). rename updates assignment references. remove requires clearAssignments=true when assigned.',
     inputSchema: {
@@ -142,18 +146,19 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
     return { ...result,
       ...('retainedComponents' in result && result.retainedComponents.length > 0 ? {
         retainedHardware: { tool: 'dcsc_workspace_layout', arguments: {
-          session: result.workspace, expectedWorkspaceRevision: result.revision,
+          session: result.workspace, expectedRevision: result.revision,
           path: ['detachedStorageComponents'], offset: 0, limit: 10,
         } },
       } : {}),
       inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: result.workspace, expectedWorkspaceRevision: result.revision,
+        session: result.workspace, expectedRevision: result.revision,
         path: ['storageNetworks'], offset: 0, limit: 20,
       } },
     };
   }, 'dcsc_edit_storage_network failed'));
 
   server.registerTool('dcsc_add_storage_network', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Create an unassigned storage network definition',
     description: 'Creates a workspace storage network preference (Add Storage). Defaults to the first catalog controller; optionally pass controllerId and switchId from dcsc_fabric_options (or direct-attached to omit a switch).',
     inputSchema: {
@@ -170,7 +175,7 @@ export function registerStorageTools(rawServer: McpServer, service: DcscService)
     });
     return { ...result,
       inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: result.workspace, expectedWorkspaceRevision: result.revision,
+        session: result.workspace, expectedRevision: result.revision,
         path: ['storageNetworks'], offset: 0, limit: 20,
       } },
     };

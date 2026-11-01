@@ -50,7 +50,7 @@ The project has completed the **2026-10-31 Anonymous Parity Completion**:
 - **Complete Parity Phase Pipeline**:
   - **Phase 0 Inventory**: 381 paths mined from the live DCSC bundle (`app-2026-01-14-5be41ba.js`), classifying 107 MCP-covered routes, 75 auth-gated routes, 41 SPA routes, and 158 candidate gap paths.
   - **Phase 1 Live Verification**: Automated harness (`scripts/parity-phase1-tools.ts`) verified 25 tool/restart/export capabilities against live `dcsc.lenovo.com` (`artifacts/parity-phase1/2026-10-31/report.json`).
-  - **Phase 2 Gap Packages**: Implemented and verified G1 (Power & Quote XLS), G2 (P2P cabling XLS & distance calculation), G3 (Memory wizard), G4 (Nightingale AI configurator 12 actions), G5 (Supply status lead times), G6 (CFXML validation), G7 (Error customize with auto-derive), G9 (Rule & table versions), G10 (Anonymous discovery helpers), and G11 (Share URL retrieval) (`artifacts/parity-phase2/2026-10-31/report.json`).
+  - **Phase 2 Gap Packages**: Implemented and verified G1 (Power XLS), G5 (Supply status lead times), G7 (Error customize with auto-derive), G9 (Rule & table versions), G10 (Anonymous discovery helpers), and G11 (Share URL retrieval) (`artifacts/parity-phase2/2026-10-31/report.json`).
   - **Phase 3 HPC/AI E2E Acceptance**: Verified 3 comprehensive end-to-end scenarios against live DCSC (`artifacts/parity-phase3-hpc-e2e/2026-10-31/report.json`): Scenario 1 (Multi-rack HPC compute cluster), Scenario 2 (AI factory pod), and Scenario 3 (External CFXML import, validate, fix, re-export).
   - **Verified Release Checkpoint**: Source manifest integrity verified via `scripts/release-checkpoint.ts` (`artifacts/release-2026-10-31-parity-completion/checkpoint/manifest.json`).
 
@@ -105,8 +105,6 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_find_products` | Search the catalog. The normal way to get from "SR630 V3" to `7D73CTO1WW`. |
 | `dcsc_browse_catalog` | Walk the category tree. Understand catalog structure and root hierarchies. |
 | `dcsc_solution_modes` | List solution modes and their master slices (General Purpose, HPC and AI - Systems). |
-| `dcsc_blueprints` | Curated starting points with current catalog membership by mode and historical configuration checks. |
-| `dcsc_start_from_blueprint` | Launch a blueprint in the correct solution mode. |
 | `dcsc_reference_solutions` | Browse Lenovo's native Deployment-Ready/TruScale categories, CRNs, details, popular designs. |
 | `dcsc_launch_reference_solution` | Load a native CRN/SID into a new editable workspace through Lenovo's Customize API. |
 | `dcsc_download_reference_solution` | Validate download eligibility and save Lenovo’s original reference-template XML. |
@@ -121,7 +119,7 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_set_locale` | Set active country/currency for the workspace. |
 | **Configuring, Auto-Fix & SIDs (18 tools)** | |
 | `dcsc_launch` | Start a configuration session. Pass `workspace` to add to an existing solution. |
-| `dcsc_list_options` | Search or list options (`query` searches all tabs; pass `memoryWizardAction` for memory wizard launch/calculate). |
+| `dcsc_list_options` | Search or list options (`query` searches all tabs). |
 | `dcsc_get_feature` | Full detail + attribute map for up to 10 feature codes from local session index. |
 | `dcsc_feature_details` | Rich upstream feature specifications: shipping lead times, lifecycle dates, commercial recommendations, marketing tags, and price breakdown. |
 | `dcsc_subtab_recommendations` | Context-aware recommendations, transition guides, and rule warnings for a model’s configuration sub-tabs. |
@@ -185,7 +183,7 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_storage_wizard` | Discover native storage wizard options, backplanes, and RAID controllers. |
 | `dcsc_set_storage_wizard` | Select storage wizard options or edit individual storage components. |
 | **Wizards, Power & VLH / Virtual Containers (9 tools)** | |
-| `dcsc_pci_wizard` | Discover native PCI riser options, slot adapters, or dispatch `memoryWizardAction`. |
+| `dcsc_pci_wizard` | Discover native PCI riser options and slot adapters. |
 | `dcsc_set_pci_wizard` | Select PCI riser options or validate optional riser slots. |
 | `dcsc_power` | Aggregate workspace power and heat output per rack. |
 | `dcsc_power_controls` | Discover native voltage, power policy, and load factor settings. |
@@ -200,11 +198,10 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_explain` | Explain why an option is unavailable or restricted. |
 | `dcsc_diff_sessions` | Diff two configuration sessions showing added, removed, and changed options. |
 | `dcsc_summary_insights` | Extract service pricing savings or selectable special flag summary; supports `session` handle for automatic export snapshot generation. |
-| `dcsc_ai_recommend` | Execute Nightingale AI configurator actions (12 actions: `ctoCandidates`, `featureCompat`, `bladeRecommendation`, `defaultPrompt`, `promptTemplate`, `candidateAttributes`, `candidateFeatures`, `candidateFeaturesDesc`, `configReplenishment`, `replaceFeatures`, `recommendConfigs`, `recommendServices`). |
 | **Validation, Import/Export & Session Operations (15 tools)** | |
-| `dcsc_validate` | Authoritative manufacturing validation; pass `cfxmlContent` for direct XML pre-validation. |
+| `dcsc_validate` | Authoritative manufacturing validation. |
 | `dcsc_validation_jobs` | Page through saved validation reports and diagnostics. |
-| `dcsc_export` | Export CFXML + Excel ZIP; pass `directReport` (`'POWER_XLS'`, `'QUOTE_XLS'`, `'P2P_XLS'`) for direct binary spreadsheet downloads, or `includeShareUrl: true` for live redirect links. |
+| `dcsc_export` | Export CFXML + Excel ZIP; pass `directReport: 'POWER_XLS'` for the Power spreadsheet (written to the artifact store, path returned), or `includeShareUrl: true` for live redirect links. |
 | `dcsc_export_configuration_tree` | Export configuration tree data and category contents as an Excel spreadsheet (.xlsx). |
 | `dcsc_import` | Import CFXML or Excel files through Lenovo's importer. |
 | `dcsc_import_config_id` | Import a saved configuration by its 10-character online Configuration ID (with local session reconstitution fallback). |
@@ -239,8 +236,7 @@ populated chassis and their direct node children into separate linked groups.
 The D3 case passes undo/redo, restart and browser export/reimport with prices
 preserved. Simple product/machine-type capacity bounds are supported; deeper containers, VLH and complex placement rules remain unsupported.
 
-**Reference solutions use Lenovo's current catalog.** They are separate from
-the curated local blueprints. Imported Unconfigured selections are retained
+**Reference solutions use Lenovo's current catalog.** Imported Unconfigured selections are retained
 across hardware derivation and exported as separate commercial lines. Editing
 those selections uses `dcsc_load_unconfigured` and `dcsc_set_unconfigured`;
 one native quantity-edit/export comparison passes; broader linked/product coverage remains open. Original-template downloads use Lenovo’s validation/download flow; broader
@@ -297,7 +293,7 @@ assignments, compatible ports, placement and Lenovo messages before changing
 hardware. Use `dcsc_cabling_connections` followed by
 `dcsc_edit_cabling_connection` to modify existing native rows. To refresh choices for
 one existing row, call `dcsc_cabling_connections` with `refreshConnectionId` and
-`expectedWorkspaceRevision`; this queries Lenovo without changing the design.
+`expectedRevision`; this queries Lenovo without changing the design.
 Replacement recalculates choices when the requested part is absent from saved choices.
 Manual planning
 links are not included in native connection counts or Lenovo exports. For native manual
@@ -361,7 +357,7 @@ the workspace action history; use `dcsc_workspace_history` for that scope.
 
 Workspace summaries and layouts include executable `inspect`, `detail` and
 `next` objects for large collections, raw connection fields and warnings. Pass
-their arguments unchanged: `expectedWorkspaceRevision` prevents a design edit
+their arguments unchanged: `expectedRevision` prevents a design edit
 from shifting the results midway through inspection. Restart inspection after a
 revision conflict. Global part and standalone software catalog continuations
 similarly carry a fingerprint and preserve the query and filters. Page offsets
@@ -655,8 +651,7 @@ the 5xx template, the retry and 499 policies, the preamble assertion, export
 filename sanitisation, and the mutation diff.
 
 `test/scope-and-power.test.ts` covers the defects found building a real AI
-factory — handle-scope resolution, rack density banding, blueprint
-completeness disclosure, and the option-list truncation that hid every line
+factory — handle-scope resolution, rack density banding, and the option-list truncation that hid every line
 cord on a rack.
 
 Live checks (these hit DCSC; keep them occasional, not per-commit):
@@ -681,7 +676,6 @@ npm run parity:nested-detach -- --out=/path/to/report         # native Delete No
 npm run parity:nested-unplace -- --out=/path/to/report        # native Move To Non Rack wire/export oracle
 npm run parity:controls-locale   # headless DE/EUR conflicting-control differential
 npm run parity:catalogs          # exhaustive bounded catalog/fabric/software continuations
-npm run parity:blueprints        # launch every available blueprint; reject retired entries
 npm run parity:validation        # strict authoritative verdict, payload/hash and stale-job gate
 npm run parity:services          # base service + add-on selection, removal, export and reimport
 npm run parity:network           # populated Management graph and fresh-browser handoff

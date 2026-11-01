@@ -4,7 +4,8 @@ import {
   type ServiceSavingsResult,
   type FlagSummaryResult,
 } from '../domain/summaryInsights.js';
-import { exportPowerOrGroupXls, exportP2pReport, fetchShareUrl } from '../domain/exportExtras.js';
+import { exportPowerXls, fetchShareUrl } from '../domain/exportExtras.js';
+import { toToolError } from '../http/errors.js';
 import { restoreSavedBreakoutConnections } from '../domain/importCabling.js';
 import { planNativeManualCableSelection, assertNativeConnectionsRetained, stageNativeManualCableQuantity } from '../domain/nativeManualCabling.js';
 import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../domain/modeFamily.js';
@@ -77,7 +78,7 @@ export async function launchReferenceSolution(rt: Runtime, crnId: string, ctx: R
   const response = await rt.http.send({ endpoint: 'reference_customize', method: 'GET',
     path: `/reference_solution/CRNs/${id}/customize`, responseKind: 'json', timeoutClass: 'heavy',
     ctx: { ...ctx, solution } });
-  const raw: unknown = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw: unknown = response.raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('DCSC returned no customizable reference solution.');
   return acceptImportPayload(rt, { ...raw, crnId: id }, { ctx, solution, fileName: `${id}.xml` });
 }
@@ -559,19 +560,17 @@ export async function summaryInsights(rt: Runtime, input: {
   return fetchServiceSavings(rt.http, effectiveCtx, snapshot);
 }
 
-async function optionalShareUrl(
+export async function shareUrlFields(
   rt: Runtime,
   ctx: RequestCtx,
   include: boolean | undefined,
   configId: string,
-): Promise<string | undefined> {
-  if (!include) return undefined;
+): Promise<{ shareUrl?: string; shareUrlError?: string }> {
+  if (!include) return {};
   try {
-    const share = await fetchShareUrl(rt.http, ctx, configId);
-    return share.shareUrl;
-  } catch {
-    // Soft failure for share url
-    return undefined;
+    return { shareUrl: (await fetchShareUrl(rt.http, ctx, configId)).shareUrl };
+  } catch (err) {
+    return { shareUrlError: toToolError(err).error };
   }
 }
 
@@ -624,9 +623,8 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
     fileTypes?: ExportFileType[] | undefined;
     fileName?: string | undefined;
     scope?: 'auto' | 'configuration' | 'workspace' | undefined;
-    directReport?: 'POWER_XLS' | 'GROUP_XLS' | 'P2P_XLS' | undefined;
+    directReport?: 'POWER_XLS' | undefined;
     includeShareUrl?: boolean | undefined;
-    outputPath?: string | undefined;
     ctx?: RequestCtx | undefined;
   } = {},): Promise<Record<string, unknown>> {
   assertTrustedWorkspace(rt, sessionHandle);
@@ -651,7 +649,7 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
     ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
     ?? sessionHandle;
 
-  if (opts.directReport === 'POWER_XLS' || opts.directReport === 'GROUP_XLS') {
+  if (opts.directReport === 'POWER_XLS') {
     const isLfo = scope === 'workspace' && workspace
       ? workspaceHardwareMode(workspace.configurations.values()) === 'lfo'
       : session ? !usesCtoWire(session.mode) : false;
@@ -666,42 +664,18 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
       ? buildWorkspaceReportForm(workspace, effectiveSolution, fileTypes, validationMode)
       : buildConfigurationReportForm(session!, stripped, placement, effectiveSolution, fileTypes, validationMode);
 
-    const reportResult = await exportPowerOrGroupXls(rt.http, effectiveCtx, {
+    const report = await exportPowerXls(rt.http, effectiveCtx, rt.config, {
       mode: isLfo ? 'lfo' : 'cto',
-      reportType: opts.directReport === 'POWER_XLS' ? 'power' : 'group',
       fileName: `${baseFileName}.xlsx`,
       exportFormPayload: form,
-      outputPath: opts.outputPath,
     });
-
-    const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
 
     return {
       session: sessionHandle,
       scope,
       directReport: opts.directReport,
-      ...reportResult,
-      ...(shareUrl ? { shareUrl } : {}),
-    };
-  }
-
-  if (opts.directReport === 'P2P_XLS') {
-    const cablingPayload = (workspace?.serverState.cabling as Record<string, unknown>)
-      ?? { cabling: workspace?.cables ?? [] };
-
-    const reportResult = await exportP2pReport(rt.http, effectiveCtx, cablingPayload, {
-      fileName: `${baseFileName}.xlsx`,
-      outputPath: opts.outputPath,
-    });
-
-    const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
-
-    return {
-      session: sessionHandle,
-      scope,
-      directReport: opts.directReport,
-      ...reportResult,
-      ...(shareUrl ? { shareUrl } : {}),
+      ...report,
+      ...await shareUrlFields(rt, effectiveCtx, opts.includeShareUrl, configId),
     };
   }
 
@@ -715,12 +689,10 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
 
   const bundle = await writeExportBundle(zipResult.stream, baseFileName, rt.config);
 
-  const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
-
   return {
     session: sessionHandle,
     ...zipResult,
     ...bundle,
-    ...(shareUrl ? { shareUrl } : {}),
+    ...await shareUrlFields(rt, effectiveCtx, opts.includeShareUrl, configId),
   };
 }

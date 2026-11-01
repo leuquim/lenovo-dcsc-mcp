@@ -10,9 +10,7 @@ import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../doma
 import type { ConfigMode } from '../config/constants.js';
 import type { SolutionContext } from '../config/schema.js';
 import { applySoftwareDerivePatch, isSoftwareDerivePatch } from '../domain/softwareDerive.js';
-import { BLUEPRINTS } from '../domain/blueprints.js';
 import { generateConfigId as domainGenerateConfigId } from '../domain/configId.js';
-import { toSolutionContext } from '../domain/context.js';
 import {
   buildAutoDeriveRequest,
   buildGroups,
@@ -143,22 +141,6 @@ export async function modesContaining(rt: Runtime, ctx: RequestCtx, codes: strin
     }
   }
   return out;
-}
-
-export async function blueprintAvailability(rt: Runtime, ctx: RequestCtx) {
-  const modes = await rt.solutionModes(ctx);
-  const catalogs = await Promise.all(modes.map(async info => {
-    const solution = toSolutionContext(modes, info.mode);
-    return { mode: info.mode, catalog: await rt.catalog(ctx, solution) };
-  }));
-  return BLUEPRINTS.map(blueprint => {
-    const availableModes = catalogs.filter(({ catalog }) => catalog.entries.some(entry =>
-      entry.code.toUpperCase() === blueprint.productCode.toUpperCase() && !entry.withdrawn)).map(item => item.mode);
-    return { ...blueprint, available: availableModes.length > 0, availableModes,
-      catalogCheckedAt: new Date(Math.min(...catalogs.map(item => item.catalog.fetchedAt))).toISOString(),
-      historicalVerification: { date: blueprint.verifiedOn, country: 'US', currency: 'USD', listPrice: blueprint.verifiedListPriceUsd },
-      availabilityNote: availableModes.length ? 'Current catalog availability; configured BOM and pricing require fresh verification.' : 'Not present in the current catalogs for this locale. This historical blueprint cannot be launched.' };
-  });
 }
 
 /**

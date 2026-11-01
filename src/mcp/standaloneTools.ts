@@ -37,17 +37,19 @@ import { sanitiseFileName } from '../files/artifactStore.js';
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 import { isObject } from '../util/coerce.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 const MAX_PAGE = 50;
 
-export function registerStandaloneTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerStandaloneTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_find_parts',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Find Lenovo parts globally',
       description:
         'Searches DCSC global part lookup across hardware, software and services. ' +
@@ -112,12 +114,13 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_software_launch',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Open the standalone software catalog',
       description:
         'Loads the complete standalone software portal and stores it in a durable workspace. ' +
         'Use refresh=true to update the browse catalog while preserving selected quantities and prices, or replace=true to reset the basket.',
       inputSchema: {
-        workspace: z.string().optional(),
+        session: z.string().optional(),
         solutionMode: z.string().optional(),
         label: z.string().optional(),
         replace: z.boolean().optional().default(false),
@@ -137,7 +140,7 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
           ...pricingContext(workspace.locale.country, workspace.locale.currency),
           next: {
             tool: 'dcsc_software_browse',
-            arguments: { workspace: workspace.id, offset: 0, limit: 20 },
+            arguments: { session: workspace.id, offset: 0, limit: 20 },
           },
         };
       }),
@@ -146,12 +149,13 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_software_browse',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Browse standalone software',
       description:
         'Filters and paginates the complete software catalog already fetched into a workspace. ' +
         'Prices are anonymous Lenovo list prices from the launch catalog; no repricing endpoint is implied.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         query: z.string().optional(),
         tab: z.string().optional(),
         subTab: z.string().optional(),
@@ -165,7 +169,7 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
+        const workspace = requireWorkspace(service, args.session);
         const path: Partial<SoftwareCatalogPath> = {
           ...(args.tab !== undefined ? { tab: args.tab } : {}),
           ...(args.subTab !== undefined ? { subTab: args.subTab } : {}),
@@ -181,7 +185,7 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
         return projectCatalogPage({
           tool: 'dcsc_software_browse', collection: 'software',
           context: workspace.locale,
-          arguments: { workspace: workspace.id, query: args.query, ...path },
+          arguments: { session: workspace.id, query: args.query, ...path },
           offset: args.offset ?? 0, limit: args.limit ?? 20, path: args.path,
           expectedCatalogFingerprint: args.expectedCatalogFingerprint,
           items: page.items.map(feature => projectSoftwareFeature(feature, workspace.id, workspace.revision)),
@@ -211,11 +215,12 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_standalone_hardware_add',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Add a standalone hardware part',
       description:
         'Adds an exact Lenovo hardware option PN (transceiver, cable, kit) as a standalone item via Part Search, replacing quantity if already selected. Omit workspace to create a standalone workspace.',
       inputSchema: {
-        workspace: z.string().optional(),
+        session: z.string().optional(),
         code: z.string().min(1).describe('Option part number, e.g. "4TC7B10008".'),
         quantity: z.number().int().min(1).max(99999).optional().default(1),
         solutionMode: z.string().optional(),
@@ -233,10 +238,11 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_standalone_hardware_set_quantity',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Set standalone hardware quantity',
       description: 'Changes the quantity of a selected standalone hardware part, as the website quantity box does.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         code: z.string().min(1),
         quantity: z.number().int().min(1).max(99999),
         expectedRevision: z.number().int().min(1).optional(),
@@ -252,10 +258,11 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_standalone_hardware_remove',
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       title: 'Remove standalone hardware',
       description: 'Removes one standalone hardware part from the workspace.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         code: z.string().min(1),
         expectedRevision: z.number().int().min(1).optional(),
       },
@@ -270,13 +277,14 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_standalone_hardware_inspect',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Inspect standalone hardware',
       description: 'Lists the standalone hardware parts in a workspace with unit and extended list prices.',
-      inputSchema: { workspace: z.string() },
+      inputSchema: { session: z.string() },
     },
     async (args) =>
       guard(
-        async () => projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint),
+        async () => projectHardwareWorkspace(requireWorkspace(service, args.session), exportHint),
         'dcsc_standalone_hardware_inspect failed',
       ),
   );
@@ -309,10 +317,11 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
   server.registerTool(
     'dcsc_software_select',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       title: 'Select standalone software',
       description: 'Adds or replaces one software SKU in the durable workspace basket using its launch-catalog price.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         code: z.string().min(1),
         quantity: z.number().int().min(1).max(9999).optional().default(1),
         expectedRevision: z.number().int().min(1).optional(),
@@ -327,10 +336,11 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
   server.registerTool(
     'dcsc_software_set_quantity',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Set standalone software quantity',
       description: 'Changes a selected software quantity locally using the captured website behavior and launch price.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         code: z.string().min(1),
         quantity: z.number().int().min(1).max(9999),
         expectedRevision: z.number().int().min(1).optional(),
@@ -345,10 +355,11 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
   server.registerTool(
     'dcsc_software_remove',
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       title: 'Remove standalone software',
       description: 'Removes one selected standalone software SKU while retaining its fetched catalog.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         code: z.string().min(1),
         expectedRevision: z.number().int().min(1).optional(),
       },
@@ -362,21 +373,23 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
   server.registerTool(
     'dcsc_software_inspect',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Inspect standalone software basket',
       description: 'Returns selected software, extended list prices and the durable workspace handle.',
-      inputSchema: { workspace: z.string() },
+      inputSchema: { session: z.string() },
     },
-    async (args) => guard(async () => projectSoftwareWorkspace(requireWorkspace(service, args.workspace))),
+    async (args) => guard(async () => projectSoftwareWorkspace(requireWorkspace(service, args.session))),
   );
 
   server.registerTool(
     'dcsc_software_export',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Export standalone software',
       description:
         'Exports the complete workspace with standalone software using its hardware mode, or LFO for software-only baskets; streams the ZIP through the bounded artifact store and returns file paths.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         fileName: z.string().optional(),
         fileTypes: z
           .array(
@@ -402,7 +415,7 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
+        const workspace = requireWorkspace(service, args.session);
         const fileName = sanitiseFileName(args.fileName ?? `software-${Date.now()}`);
         const artifact = await exportStandaloneSoftwareArtifact(service, workspace, fileName, {
           ...(args.fileTypes ? { fileTypes: args.fileTypes as ExportFileType[] } : {}),
@@ -422,6 +435,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_launch',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Open product-bound services',
       description:
         'Loads service options for one Lenovo product and stores the complete option graph in a workspace. ' +
@@ -431,7 +445,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
         productQuantity: z.number().int().min(1).max(9999).optional().default(1),
         productDescription: z.string().optional(),
         subCategory: z.string().optional().default('Point of Sale'),
-        workspace: z.string().optional(),
+        session: z.string().optional(),
         solutionMode: z.string().optional(),
         label: z.string().optional(),
         replace: z.boolean().optional().default(false),
@@ -448,11 +462,12 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_select',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Select a product service or add-on',
       description:
         'Selects an offered base service or add-on (per covered product), runs DCSC auto-derive, and refreshes summary pricing. A base package replaces any active base package; an add-on replaces only terms in the same add-on family.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         serviceCode: z.string().min(1),
         quantity: z.number().int().min(1).max(9999).optional().default(1),
         expectedRevision: z.number().int().min(1).optional(),
@@ -467,11 +482,12 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_set_quantity',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Set selected product-service quantity',
       description:
         'Requests a positive per-product quantity for a selected service or add-on and refreshes summary pricing. Use dcsc_services_set_product_quantity for covered-product count and dcsc_services_remove to remove a service.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         serviceCode: z.string().min(1).optional(),
         quantity: z.number().int().min(1).max(9999),
         expectedRevision: z.number().int().min(1).optional(),
@@ -486,11 +502,12 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_set_product_quantity',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Set serviced-product quantity',
       description:
         'Changes the positive covered-product quantity without reselecting or normalizing saved service lines, then refreshes DCSC summary pricing.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         quantity: z.number().int().min(1).max(9999),
         expectedRevision: z.number().int().min(1).optional(),
       },
@@ -504,11 +521,12 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_remove',
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       title: 'Remove a selected product service',
       description:
         'Removes one selected base service or add-on through the captured DCSC toggle contract and refreshes authoritative summary pricing. Supply serviceCode when more than one item is selected.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         serviceCode: z.string().min(1).optional(),
         expectedRevision: z.number().int().min(1).optional(),
       },
@@ -522,10 +540,11 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_inspect',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Inspect product-bound services',
       description: 'Lists current base-service and add-on selections and paginates the fetched service options.',
       inputSchema: {
-        workspace: z.string(),
+        session: z.string(),
         query: z.string().optional(),
         offset: z.number().int().min(0).optional().default(0),
         limit: z.number().int().min(1).max(MAX_PAGE).optional().default(20),
@@ -533,7 +552,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
+        const workspace = requireWorkspace(service, args.session);
         return projectServiceWorkspace(workspace, args.offset, args.limit, args.query);
       }),
   );
@@ -541,15 +560,16 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
   server.registerTool(
     'dcsc_services_export',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Export product-bound services',
       description:
         'Posts the captured summary and exact selected service derive request to /service_pacs/export, then streams the ZIP through the bounded artifact store. ' +
         'The exported XML can be restored with dcsc_import into a separate service workspace.',
-      inputSchema: { workspace: z.string(), fileName: z.string().optional() },
+      inputSchema: { session: z.string(), fileName: z.string().optional() },
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
+        const workspace = requireWorkspace(service, args.session);
         const fileName = sanitiseFileName(args.fileName ?? `services-${Date.now()}`);
         const artifact = await exportProductServiceArtifact(service, workspace, fileName);
         const hasNonUnitServiceQuantity = serviceState(workspace).selections.some(
@@ -593,7 +613,7 @@ function projectSoftwareFeature(
     attributes: feature.attributes,
     next: {
       tool: 'dcsc_software_select',
-      arguments: { workspace, code: feature.code, quantity: 1, expectedRevision },
+      arguments: { session: workspace, code: feature.code, quantity: 1, expectedRevision },
     },
   };
 }
@@ -622,10 +642,10 @@ function projectSoftwareWorkspace(workspace: WorkspaceSession) {
     priceIncomplete: state.selections.some((selection) => selection.totalPrice === undefined),
     next:
       state.selections.length > 0
-        ? { tool: 'dcsc_software_export', arguments: { workspace: workspace.id } }
-        : { tool: 'dcsc_software_browse', arguments: { workspace: workspace.id } },
+        ? { tool: 'dcsc_software_export', arguments: { session: workspace.id } }
+        : { tool: 'dcsc_software_browse', arguments: { session: workspace.id } },
   };
-  if (Buffer.byteLength(JSON.stringify(result, null, 2)) <= 7_500) return result;
+  if (jsonBytes(result) <= PAGE_BYTE_BUDGET) return result;
   const compactSelections = selections.map(({ id, code, quantity, unitPrice, totalPrice }) => ({
     id, code, quantity, unitPrice, totalPrice,
   }));
@@ -637,7 +657,7 @@ function projectSoftwareWorkspace(workspace: WorkspaceSession) {
     compacted: true,
     note: 'Descriptions and catalog paths were omitted to keep this response within the tool budget.',
   };
-  while (Buffer.byteLength(JSON.stringify(compact, null, 2)) > 7_500 && compactSelections.length > 1) {
+  while (jsonBytes(compact) > PAGE_BYTE_BUDGET && compactSelections.length > 1) {
     compactSelections.pop();
     compact.omittedSelections = selections.length - compactSelections.length;
   }
@@ -669,7 +689,7 @@ function projectServiceWorkspace(
     next: {
       tool: 'dcsc_services_select',
       arguments: {
-        workspace: workspace.id,
+        session: workspace.id,
         serviceCode: option.code,
         quantity: 1,
         expectedRevision: workspace.revision,
@@ -682,7 +702,7 @@ function projectServiceWorkspace(
     product: state.product,
     subCategory: state.subCategory,
     selectionSemantics: 'base-plus-add-ons-verified',
-    refresh: { tool: 'dcsc_services_launch', arguments: { workspace: workspace.id, refresh: true, expectedRevision: workspace.revision } },
+    refresh: { tool: 'dcsc_services_launch', arguments: { session: workspace.id, refresh: true, expectedRevision: workspace.revision } },
     ...pricingContext(workspace.locale.country, workspace.locale.currency),
     selections: state.selections.map((selection) => ({
       code: selection.code,
@@ -703,12 +723,12 @@ function projectServiceWorkspace(
     result.next = offset + options.length < matches.length
       ? {
           tool: 'dcsc_services_inspect',
-          arguments: { workspace: workspace.id, query, offset: offset + options.length, limit },
+          arguments: { session: workspace.id, query, offset: offset + options.length, limit },
         }
       : undefined;
   };
   continuation();
-  while (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7_500 && options.length > 1) {
+  while (jsonBytes(result) > PAGE_BYTE_BUDGET && options.length > 1) {
     options.pop();
     continuation();
   }

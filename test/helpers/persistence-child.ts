@@ -100,19 +100,19 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     if (selected === 'software-launch') return;
     const workspace = String((JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>)['workspace']);
     const selectedReply = await handlers.get('dcsc_software_select')!({
-      workspace, code: '7S1S002WWW', quantity: 2,
+      session: workspace, code: '7S1S002WWW', quantity: 2,
     });
     assert(!selectedReply.isError, `software selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'software-refresh' || selected === 'software-replace') {
       const reply = await handlers.get('dcsc_software_launch')!({
-        workspace, refresh: selected === 'software-refresh', replace: selected === 'software-replace',
+        session: workspace, refresh: selected === 'software-refresh', replace: selected === 'software-replace',
       });
       assert(!reply.isError, `software ${selected} failed: ${reply.content[0]?.text ?? ''}`);
       return;
     }
     const mutation = selected === 'software-set-quantity'
-      ? await handlers.get('dcsc_software_set_quantity')!({ workspace, code: '7S1S002WWW', quantity: 5 })
-      : await handlers.get('dcsc_software_remove')!({ workspace, code: '7S1S002WWW' });
+      ? await handlers.get('dcsc_software_set_quantity')!({ session: workspace, code: '7S1S002WWW', quantity: 5 })
+      : await handlers.get('dcsc_software_remove')!({ session: workspace, code: '7S1S002WWW' });
     assert(!mutation.isError, `software mutation failed: ${mutation.content[0]?.text ?? ''}`);
     return;
   }
@@ -127,24 +127,24 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
     const launchedBody = JSON.parse(launched.content[0]?.text ?? '{}') as Record<string, unknown>;
     const workspace = String(launchedBody['workspace']);
     const selectedReply = await handlers.get('dcsc_services_select')!({
-      workspace, serviceCode: '5WS7B99623', quantity: 2,
+      session: workspace, serviceCode: '5WS7B99623', quantity: 2,
     });
     assert(!selectedReply.isError, `service basket selection failed: ${selectedReply.content[0]?.text ?? ''}`);
     if (selected === 'service-refresh' || selected === 'service-replace') {
       const reply = await handlers.get('dcsc_services_launch')!({
-        workspace, productCode: '7D73CTO1WW', productQuantity: 1,
+        session: workspace, productCode: '7D73CTO1WW', productQuantity: 1,
         subCategory: 'Point of Sale', refresh: selected === 'service-refresh',
         replace: selected === 'service-replace',
       });
       assert(!reply.isError, `service ${selected} failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-set-quantity') {
-      const reply = await handlers.get('dcsc_services_set_quantity')!({ workspace, quantity: 4 });
+      const reply = await handlers.get('dcsc_services_set_quantity')!({ session: workspace, quantity: 4 });
       assert(!reply.isError, `service quantity failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-set-product-quantity') {
-      const reply = await handlers.get('dcsc_services_set_product_quantity')!({ workspace, quantity: 3 });
+      const reply = await handlers.get('dcsc_services_set_product_quantity')!({ session: workspace, quantity: 3 });
       assert(!reply.isError, `service product quantity failed: ${reply.content[0]?.text ?? ''}`);
     } else if (selected === 'service-remove') {
-      const reply = await handlers.get('dcsc_services_remove')!({ workspace });
+      const reply = await handlers.get('dcsc_services_remove')!({ session: workspace });
       assert(!reply.isError, `service removal failed: ${reply.content[0]?.text ?? ''}`);
     }
     return;

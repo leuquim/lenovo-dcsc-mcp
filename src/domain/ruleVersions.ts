@@ -37,7 +37,7 @@ export async function fetchCtoVersions(
     ctx,
   });
 
-  const raw = typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  const raw = response.raw;
   if (Array.isArray(raw)) {
     return raw.map((item) => String(item));
   }
@@ -81,7 +81,7 @@ export async function fetchRuleVersions(
     ctx,
   });
 
-  return typeof response.raw === 'string' ? JSON.parse(response.raw) : response.raw;
+  return response.raw;
 }
 
 /**

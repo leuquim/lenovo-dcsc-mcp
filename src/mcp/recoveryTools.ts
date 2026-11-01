@@ -5,11 +5,11 @@ import { writeRecoveryArtifact, writeRecoverySourceArtifact } from '../files/art
 import { listSessionRecoveryArchives, readSessionRecoveryArchive, serializeWorkspaces } from '../session/persist.js';
 import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerRecoveryTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerRecoveryTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_recovery_inspect', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: 'Inspect session restore diagnostics and recovery archives',
     description: 'Inspects startup restore warnings, quarantined records and immutable original-file archives. Follow returned continuations for large reports. Export an archive with dcsc_recovery_export(archiveId).',
     inputSchema: {
@@ -26,6 +26,7 @@ export function registerRecoveryTools(rawServer: McpServer, service: DcscService
   server.registerTool(
     'dcsc_recovery_export',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       title: 'Export a workspace snapshot or original recovery archive',
       description:
         'Writes one requested workspace (including legacy or damaged recovery records) to a bounded local JSON artifact, or exports original archive bytes when archiveId is supplied. Supply exactly one of session or archiveId.',

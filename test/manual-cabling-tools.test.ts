@@ -49,7 +49,7 @@ describe('manual cabling MCP tools', () => {
     const connectionEntry = (report['items'] as Obj[]).find(item => item['key'] === 'connections')!;
     expect(connectionEntry).toMatchObject({ key: 'connections', type: 'array',
       next: { tool: 'dcsc_cabling_connections', arguments: {
-        session: 'workspace-1', expectedWorkspaceRevision: 7, path: ['connections'], offset: 0, limit: 20,
+        session: 'workspace-1', expectedRevision: 7, path: ['connections'], offset: 0, limit: 20,
       } } });
     const next = (connectionEntry['next'] as Obj)['arguments'] as Obj;
     const detail = await value.handlers.get('dcsc_cabling_connections')!(next);
@@ -81,7 +81,7 @@ describe('manual cabling MCP tools', () => {
     expect(json(reply)).toMatchObject({ workspace: 'workspace-1', workspaceRevision: 8,
       revisionScope: 'workspace', connection: { id: value.connection.id, type: 'MANUAL' },
       inspect: { tool: 'dcsc_cabling_connections', arguments: {
-        session: 'workspace-1', expectedWorkspaceRevision: 8, path: ['connections'], offset: 0, limit: 20,
+        session: 'workspace-1', expectedRevision: 8, path: ['connections'], offset: 0, limit: 20,
       } } });
     expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8_000);
     expect((json(reply)['connection'] as Obj)['compatibleCables']).toBeUndefined();
@@ -107,7 +107,7 @@ describe('manual cabling MCP tools', () => {
 
     value.inspectManualCabling.mockImplementationOnce(() => { throw new Error('workspace revision mismatch'); });
     const stale = await value.handlers.get('dcsc_cabling_connections')!({
-      session: 'workspace-1', expectedWorkspaceRevision: 6, path: [], offset: 0, limit: 20,
+      session: 'workspace-1', expectedRevision: 6, path: [], offset: 0, limit: 20,
     });
     expect(stale.isError).toBe(true);
     expect(stale.content[0]!.text).toMatch(/revision mismatch/);
@@ -181,9 +181,9 @@ it('reports all shared-cable branch changes without expanding their compatible c
 it('retains fresh-choice targeting and the revision guard in inspection continuations', async () => {
   const value = setup();
   const reply = await value.handlers.get('dcsc_cabling_connections')!({ session: 'workspace-1',
-    expectedWorkspaceRevision: 7, refreshConnectionId: 'row-1', path: [], offset: 0, limit: 20 });
+    expectedRevision: 7, refreshConnectionId: 'row-1', path: [], offset: 0, limit: 20 });
   expect(reply.isError).not.toBe(true);
   expect(value.inspectManualCableChoices).toHaveBeenCalledWith('workspace-1', 'row-1', 7, {});
   const entry = (json(reply)['items'] as Obj[]).find(item => item['key'] === 'connections')!;
-  expect(entry).toMatchObject({ next: { arguments: { refreshConnectionId: 'row-1', expectedWorkspaceRevision: 7 } } });
+  expect(entry).toMatchObject({ next: { arguments: { refreshConnectionId: 'row-1', expectedRevision: 7 } } });
 });

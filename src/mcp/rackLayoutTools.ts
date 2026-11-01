@@ -14,7 +14,9 @@ import {
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { requireSession } from './sessionTools.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 
 /**
  * Presents a rack layout the way an architect reads one.
@@ -28,7 +30,7 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
     tool: 'dcsc_workspace_layout',
     arguments: {
       session: workspace.id,
-      expectedWorkspaceRevision: workspace.revision,
+      expectedRevision: workspace.revision,
       path,
       offset: 0,
       limit: 20,
@@ -73,7 +75,7 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
         }
       : {}),
   };
-  if (Buffer.byteLength(JSON.stringify(full, null, 2)) <= 7_000) return full;
+  if (jsonBytes(full) <= PAGE_BYTE_BUDGET) return full;
 
   const clip = (value: string | undefined) => value === undefined
     ? { value: undefined, truncated: false }
@@ -133,18 +135,18 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
       ? { stabilityWarning: `Centre-of-gravity check returned ${unstable.length} non-passing rack verdict(s). Follow pages.racks for complete details.` }
       : {}),
   };
-  if (Buffer.byteLength(JSON.stringify(compact, null, 2)) > 7_500) {
+  if (jsonBytes(compact) > PAGE_BYTE_BUDGET) {
     throw new Error('Layout result context exceeds the response budget. Use dcsc_recovery_export to inspect the workspace.');
   }
   return compact;
 }
 
-export function registerRackLayoutTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerRackLayoutTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_list_racks',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'List rack cabinets and compatible chassis or nodes',
       description:
         'Lists rack cabinets (or compatible chassis/nodes via hardwareType). Pass session or productCode to filter by compatibility.',
@@ -181,6 +183,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_add_rack',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Add a rack enclosure to a solution workspace',
       description:
         'Adds a rack cabinet (rackCode from dcsc_list_racks) to a workspace and returns the DCSC-validated layout.',
@@ -207,6 +210,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_place_in_rack',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Place a configuration in a rack enclosure',
       description:
         'Places one configured product into a rack and returns DCSC\'s validated U positions, weight and stability verdict. Omit uPosition to let DCSC choose a valid slot. Places ONE physical unit per configuration (use dcsc_clone_configuration for multiple units). Pass chassisId to copy a non-rack node into a placed chassis.',
@@ -214,7 +218,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
         expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision.'),
         session: z.string().describe('Session or workspace ID.'),
         rackId: z.string().describe('Rack ID from dcsc_add_rack.'),
-        sessionId: z.string().describe('Configuration session/ID to place, or an existing managed-storage physical ID to move.'),
+        configuration: z.string().describe('Configuration session/ID to place, or an existing managed-storage physical ID to move.'),
         chassisId: z.string().optional().describe('Placed chassis ID for Add Node As Copy. The source node remains in the non-rack area.'),
         uPosition: z
           .number()
@@ -228,13 +232,13 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
     async (args) =>
       guard(async () => {
         const ctx = service.newCtx();
-        const placed = service.sessions.get(args.sessionId);
+        const placed = service.sessions.get(args.configuration);
         const quantity = placed?.raw.quantity ?? 1;
 
         const layout = await service.placeInRack(args.session, {
           rackId: args.rackId,
           expectedRevision: args.expectedRevision,
-          sessionId: args.sessionId,
+          sessionId: args.configuration,
           ...(args.chassisId !== undefined ? { chassisId: args.chassisId } : {}),
           ...(args.uPosition !== undefined ? { position: args.uPosition } : {}),
           ctx,
@@ -248,7 +252,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
           ...(quantity > 1
             ? {
                 quantityWarning:
-                  `${args.sessionId} has quantity ${quantity}, but placement added ONE item ` +
+                  `${args.configuration} has quantity ${quantity}, but placement added ONE item ` +
                   `(${placed?.product.code ?? 'unknown'}) to the rack. The rack elevation, used U and ` +
                   'weight therefore reflect a single unit while the price reflects ' +
                   `${quantity}. Use dcsc_clone_configuration(session, count: ${quantity - 1}) and place ` +
@@ -262,6 +266,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_edit_layout',
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       title: 'Move, unplace, detach, remove or arrange workspace items',
       description: 'Edits workspace layout atomically through DCSC: move (to rackId/uPosition), unplace (to non-rack area), detach (Delete Node from chassis while keeping commercial line; use unplace for roundtrip reimport retention), remove (delete configuration), or arrange (reorder rack contents).',
       inputSchema: {
@@ -296,6 +301,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_place_on_floor',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Place a rack on the floor grid (planning only)',
       description:
         'Positions a rack on client-side floor-tile coordinates (x, y) for layout planning and workspace exports.',
@@ -322,6 +328,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   );
 
   server.registerTool('dcsc_set_rack_lock', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     title: 'Lock or unlock a rack item or empty U position',
     description: 'Locks or unlocks an existing direct rack item (itemId) or empty U slot (rackId + 1-based position) and commits atomically with history.',
     inputSchema: {
@@ -343,6 +350,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   }, 'dcsc_set_rack_lock failed'));
 
   server.registerTool('dcsc_copy_rack_item', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     title: 'Copy a configured rack item independently',
     description: 'Performs the website rack Copy action for a direct CTO item (or populated HPC chassis with direct node children), creating an independent configuration Copy_<name> in the same rack whose future edits do not propagate to the source.',
     inputSchema: {
@@ -370,6 +378,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_clone_configuration',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Duplicate a configured product N times in the same workspace',
       description:
         'Duplicates a configured product into N additional configurations in the same workspace. Default placement="none" creates unplaced copies; placement="same-rack" performs the website Clone Multiple workflow (linked copies placed in free U slots of the same rack).',
@@ -434,6 +443,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_workspace_layout',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Read back the validated rack and floor layout',
       description:
         'Returns the physical layout of a workspace: racks (U occupancy, weight, stability verdict, items), cables, floor tiles and power selections. Large collections return revision-bound continuations.',
@@ -442,7 +452,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
         path: z.array(z.string()).optional().describe('Detail path from a returned inspect/detail continuation.'),
         offset: z.number().int().min(0).optional().default(0),
         limit: z.number().int().min(1).max(1000).optional().default(20),
-        expectedWorkspaceRevision: z.number().int().min(1).optional()
+        expectedRevision: z.number().int().min(1).optional()
           .describe('Revision supplied by a continuation; rejects pages from a workspace that changed.'),
       },
     },
@@ -450,22 +460,22 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
       guard(async () => {
         const ws = service.sessions.getWorkspace(args.session);
         if (!ws) throw new Error(`Session / Workspace ${args.session} not found`);
-        if (args.expectedWorkspaceRevision !== undefined && args.expectedWorkspaceRevision !== ws.revision) {
+        if (args.expectedRevision !== undefined && args.expectedRevision !== ws.revision) {
           throw new Error(
-            `Workspace ${ws.id} changed from revision ${args.expectedWorkspaceRevision} to ${ws.revision}. ` +
+            `Workspace ${ws.id} changed from revision ${args.expectedRevision} to ${ws.revision}. ` +
             'Restart dcsc_workspace_layout without path before following new continuations.',
           );
         }
         if (args.path !== undefined) {
-          if (args.expectedWorkspaceRevision === undefined) {
+          if (args.expectedRevision === undefined) {
             throw new Error(
-              'expectedWorkspaceRevision is required for detail pages. ' +
+              'expectedRevision is required for detail pages. ' +
               'Call dcsc_workspace_layout without path and follow its continuation.',
             );
           }
           return projectWorkspacePage(ws, {
             tool: 'dcsc_workspace_layout',
-            arguments: { session: ws.id, expectedWorkspaceRevision: ws.revision },
+            arguments: { session: ws.id, expectedRevision: ws.revision },
             path: args.path,
             offset: args.offset,
             limit: args.limit,
@@ -473,7 +483,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
         }
         return projectWorkspaceLayout(ws, {
           tool: 'dcsc_workspace_layout',
-          arguments: { session: ws.id, expectedWorkspaceRevision: ws.revision },
+          arguments: { session: ws.id, expectedRevision: ws.revision },
         });
       }, 'dcsc_workspace_layout failed'),
   );
@@ -481,6 +491,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_configure_pdu',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Select PDUs and power cords on a rack',
       description:
         'Configures PDUs and line/jumper cords on a rack cabinet through DCSC autoDerive. Call with session+rackId alone to list options and placement rules; call with pduCode (and optional cordCode, quantity) to apply.',
@@ -608,6 +619,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
   server.registerTool(
     'dcsc_rack_position_rule',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Get hardware U-position rules in a rack',
       description: 'Calculates lowest and highest valid U-positions and placement rules for a server or hardware item within a rack.',
       inputSchema: {

@@ -595,17 +595,17 @@ async function mcpFlow(outDir: string): Promise<{
     });
     const workspace = String(launched['workspace']);
     assert(workspace.startsWith('ws_'));
-    const base = await call('dcsc_services_select', { workspace, serviceCode: BASE, quantity: 1 });
+    const base = await call('dcsc_services_select', { session: workspace, serviceCode: BASE, quantity: 1 });
     assert.deepEqual(selectedCodes(base), [BASE]);
-    const addOn = await call('dcsc_services_select', { workspace, serviceCode: ADD_ON, quantity: 1 });
+    const addOn = await call('dcsc_services_select', { session: workspace, serviceCode: ADD_ON, quantity: 1 });
     assert.deepEqual(selectedCodes(addOn), [ADD_ON, BASE].sort());
     assert.equal(summaryTotal(addOn['summary']), EXPECTED_TOTAL);
-    const removed = await call('dcsc_services_remove', { workspace, serviceCode: ADD_ON });
+    const removed = await call('dcsc_services_remove', { session: workspace, serviceCode: ADD_ON });
     assert.deepEqual(selectedCodes(removed), [BASE]);
-    const readded = await call('dcsc_services_select', { workspace, serviceCode: ADD_ON, quantity: 1 });
+    const readded = await call('dcsc_services_select', { session: workspace, serviceCode: ADD_ON, quantity: 1 });
     assert.deepEqual(selectedCodes(readded), [ADD_ON, BASE].sort());
     assert.equal(summaryTotal(readded['summary']), EXPECTED_TOTAL);
-    const exported = await call('dcsc_services_export', { workspace, fileName: 'mcp-services' });
+    const exported = await call('dcsc_services_export', { session: workspace, fileName: 'mcp-services' });
     const zipPath = String(exported['zipPath']);
     assert(zipPath.endsWith('.zip'));
     const xmlPath = path.join(outDir, 'mcp-services.xml');
@@ -619,7 +619,7 @@ async function mcpFlow(outDir: string): Promise<{
     const beforeRejectedRevision = beforeRejected.revision;
     const beforeRejectedSelections = structuredClone(beforeRejected.serverState.standaloneServiceState);
     const rejectedReply = await invoke('dcsc_services_set_quantity', {
-      workspace,
+      session: workspace,
       serviceCode: BASE,
       quantity: 2,
       expectedRevision: beforeRejectedRevision,
@@ -648,7 +648,7 @@ async function mcpFlow(outDir: string): Promise<{
     const importedWorkspace = created.workspace;
     const resizeCaptureStart = captures.length;
     const resized = await call('dcsc_services_set_product_quantity', {
-      workspace: importedWorkspace.id,
+      session: importedWorkspace.id,
       quantity: UPDATED_PRODUCT_QUANTITY,
       expectedRevision: importedWorkspace.revision,
     });
@@ -668,7 +668,7 @@ async function mcpFlow(outDir: string): Promise<{
 
     const exactCaptureStart = captures.length;
     const exactQuantity = await call('dcsc_services_set_quantity', {
-      workspace: importedWorkspace.id,
+      session: importedWorkspace.id,
       serviceCode: BASE,
       quantity: IMPORTED_SERVICE_QUANTITY,
       expectedRevision: Number(resized['revision']),
@@ -677,7 +677,7 @@ async function mcpFlow(outDir: string): Promise<{
     assert.equal(captures.slice(exactCaptureStart)
       .filter(capture => capture.path === '/services/autoDerive').length, 0);
     const importedExport = await call('dcsc_services_export', {
-      workspace: importedWorkspace.id,
+      session: importedWorkspace.id,
       fileName: 'mcp-imported-service-quantity',
     });
     const importedZipPath = String(importedExport['zipPath']);
@@ -792,11 +792,11 @@ async function stdioImportedQuantityFlow(outDir: string): Promise<{
     });
     const workspace = String(imported['workspace']);
     assert(workspace.startsWith('ws_'), 'Service quantity import returned no workspace.');
-    const before = await call('dcsc_services_inspect', { workspace });
+    const before = await call('dcsc_services_inspect', { session: workspace });
     assert.equal(object(before['product'])['quantity'], IMPORTED_PRODUCT_QUANTITY);
     assert.equal(object(array(before['selections'])[0])['quantity'], IMPORTED_SERVICE_QUANTITY);
     const resized = await call('dcsc_services_set_product_quantity', {
-      workspace,
+      session: workspace,
       quantity: UPDATED_PRODUCT_QUANTITY,
       expectedRevision: Number(before['revision']),
     });
@@ -804,7 +804,7 @@ async function stdioImportedQuantityFlow(outDir: string): Promise<{
     assert.equal(object(array(resized['selections'])[0])['quantity'], IMPORTED_SERVICE_QUANTITY);
     assert.equal(summaryTotal(resized['summary']), IMPORTED_UPDATED_TOTAL);
     const exported = await call('dcsc_services_export', {
-      workspace,
+      session: workspace,
       fileName: 'stdio-imported-service-quantity',
     });
     const xmlPath = String(exported['xml']);
@@ -817,12 +817,12 @@ async function stdioImportedQuantityFlow(outDir: string): Promise<{
     }]);
 
     await crashRestart();
-    const restored = await call('dcsc_services_inspect', { workspace });
+    const restored = await call('dcsc_services_inspect', { session: workspace });
     assert.equal(object(restored['product'])['quantity'], UPDATED_PRODUCT_QUANTITY);
     assert.equal(object(array(restored['selections'])[0])['quantity'], IMPORTED_SERVICE_QUANTITY);
     assert.equal(summaryTotal(restored['summary']), IMPORTED_UPDATED_TOTAL);
     const restoredExport = await call('dcsc_services_export', {
-      workspace,
+      session: workspace,
       fileName: 'stdio-restored-service-quantity',
     });
     const restoredXmlPath = String(restoredExport['xml']);

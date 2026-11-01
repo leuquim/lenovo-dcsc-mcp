@@ -252,13 +252,13 @@ async function main(): Promise<void> {
     const launched = await call('dcsc_software_launch', { replace: false, refresh: false });
     const workspace = String(launched['workspace']);
     const software = await enumerate('dcsc_software_browse', {
-      workspace, offset: 0, limit: 50,
+      session: workspace, offset: 0, limit: 50,
     }, 'software', 'code');
     const selected = await call('dcsc_software_select', {
-      workspace, code: software.ids[0], quantity: 1,
+      session: workspace, code: software.ids[0], quantity: 1,
     });
     assert(array(selected['selections']).map(object).some(item => item['code'] === software.ids[0]));
-    const removed = await call('dcsc_software_remove', { workspace, code: software.ids[0] });
+    const removed = await call('dcsc_software_remove', { session: workspace, code: software.ids[0] });
     assert(!array(removed['selections']).map(object).some(item => item['code'] === software.ids[0]));
     await call('dcsc_session_close', { session: workspace });
 

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfigSchema } from '../src/config/schema.js';
 import { DcscService } from '../src/mcp/service.js';
-import { validateCfxml } from '../src/domain/cfxmlValidation.js';
 import { errorCustomizeWithAutoDerive } from '../src/domain/autoFix.js';
 import {
   fetchCtoVersions,
@@ -61,90 +60,6 @@ async function setupTestEnvironment() {
 function parse(reply: ToolReply): Record<string, unknown> {
   return JSON.parse(reply.content[0]?.text ?? '{}') as Record<string, unknown>;
 }
-
-describe('Phase 2 Part B: G6 — CFXML Validation', () => {
-  it('calls POST /ecomm/cfxml_validation with multipart payload and parses result', async () => {
-    const { service } = await setupTestEnvironment();
-    const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
-      raw: { success: false, message: 'only ecomm has this function', url: null },
-      status: 200,
-    } as never);
-
-    const result = await validateCfxml(service.http, service.newCtx(), {
-      cfxmlContent: '<configuration><product>7D73</product></configuration>',
-      filename: 'my-spec.xml',
-    });
-
-    expect(sendSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        endpoint: 'ecomm.cfxmlValidation',
-        method: 'POST',
-        path: '/ecomm/cfxml_validation',
-        body: expect.objectContaining({
-          kind: 'multipart',
-          parts: [
-            expect.objectContaining({
-              name: 'cfxmlFile',
-              filename: 'my-spec.xml',
-              contentType: 'application/xml',
-            }),
-          ],
-        }),
-        requiresSolution: false,
-      }),
-    );
-    expect(result.success).toBe(false);
-    expect(result.message).toBe('only ecomm has this function');
-    expect(result.url).toBeNull();
-  });
-
-  it('defaults filename to config.xml when not specified', async () => {
-    const { service } = await setupTestEnvironment();
-    const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
-      raw: { success: true, message: null, url: 'https://dcsc.lenovo.com/ecomm/123' },
-      status: 200,
-    } as never);
-
-    const result = await validateCfxml(service.http, service.newCtx(), {
-      cfxmlContent: '<configuration></configuration>',
-    });
-
-    expect(sendSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.objectContaining({
-          parts: [expect.objectContaining({ filename: 'config.xml' })],
-        }),
-      }),
-    );
-    expect(result.success).toBe(true);
-    expect(result.url).toBe('https://dcsc.lenovo.com/ecomm/123');
-  });
-
-  it('dcsc_validate MCP tool handles cfxmlContent without session', async () => {
-    const { service, handlers } = await setupTestEnvironment();
-    vi.spyOn(service.http, 'send').mockResolvedValue({
-      raw: { success: false, message: 'only ecomm has this function', url: null },
-      status: 200,
-    } as never);
-
-    const handler = handlers.get('dcsc_validate')!;
-    const reply = await handler({
-      cfxmlContent: '<configuration></configuration>',
-    });
-    const parsed = parse(reply);
-    expect(parsed.valid).toBe(false);
-    expect(parsed.message).toBe('only ecomm has this function');
-    expect(parsed.cfxml).toBeDefined();
-  });
-
-  it('dcsc_validate rejects when neither session nor cfxmlContent is passed', async () => {
-    const { handlers } = await setupTestEnvironment();
-    const handler = handlers.get('dcsc_validate')!;
-    const reply = await handler({});
-    expect(reply.isError).toBe(true);
-    expect(reply.content[0]?.text).toContain('A session ID or cfxmlContent is required');
-  });
-});
 
 describe('Phase 2 Part B: G7 — Batch & Error Customize', () => {
   it('errorCustomizeWithAutoDerive calls CTO endpoint by default', async () => {

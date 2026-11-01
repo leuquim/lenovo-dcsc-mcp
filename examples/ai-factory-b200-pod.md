@@ -38,7 +38,7 @@ Partner and bid pricing require a Lenovo login.
 
 ### Per compute node — $1,047,334.51
 
-Blueprint `b200-sxm-air` ships at $953,271.51 with no local storage and no
+The `7DM9CTO1WW` base node ships at $953,271.51 with no local storage and no
 fabric NICs. The $94,063.00 delta below is what makes it a usable factory node.
 
 | Section | Code | Qty | Purpose |
@@ -147,12 +147,12 @@ Beyond one pod the QM9700 downlinks stop being the constraint and a spine layer
 does — budget the free 16 cages per leaf accordingly.
 
 If rack power density is the binding constraint rather than floor space, the
-liquid-cooled `b200-hdx-dwc` blueprint (SR780a V3, `7DJ5CTO1WW`) is the swap.
+liquid-cooled SR780a V3 (`7DJ5CTO1WW`) is the swap.
 
 ## Reproducing it
 
 ```
-dcsc_start_from_blueprint("b200-sxm-air")
+dcsc_launch("7DM9CTO1WW")
 dcsc_configure(node, [C51C×8, BQBN×2, C4HM×8, BS7A, BS7M, BS7F, BXMH×2])
 dcsc_set_node_role(node, "Compute")
 dcsc_add_rack(ws, "7D6DCTO1WW")

@@ -1,6 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { querySids } from '../domain/configId.js';
-import { fetchShareUrl } from '../domain/exportExtras.js';
 import { z } from 'zod';
 
 import { CONFIG_MODES } from '../config/constants.js';
@@ -10,16 +9,16 @@ import { configurationListPrice } from '../domain/pricing.js';
 import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import type { DcscService } from './service.js';
-import { exportConfigurationTree, type ExportConfigurationTreeInput } from '../domain/exportConfigurationTree.js';
+import { exportConfigurationTree } from '../domain/exportConfigurationTree.js';
 import { exportProductServiceArtifact, exportStandaloneSoftwareArtifact } from '../app/standalone.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerImportExportTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerImportExportTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_import',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Import a Lenovo CFXML or Excel configuration',
       description:
         'Imports a saved Lenovo CFXML string or a local CFXML/Excel file into a configuration session or workspace. Specify solutionMode for Excel when outside General Purpose.',
@@ -28,7 +27,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
         filePath: z.string().optional().describe('Absolute local file path to a CFXML (.xml) or DCSC Excel (.xlsx/.xls) file.'),
         mode: z.enum(CONFIG_MODES).optional(),
         expectedRevision: z.number().int().min(1).optional(),
-        workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
+        session: z.string().optional().describe('Optional existing workspace ID to import into.'),
         solutionMode: z
           .string()
           .optional()
@@ -57,7 +56,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           ctx,
           ...(args.mode !== undefined ? { mode: args.mode } : {}),
           expectedRevision: args.expectedRevision,
-          ...(args.workspace !== undefined ? { workspaceId: args.workspace } : {}),
+          ...(args.session !== undefined ? { workspaceId: args.session } : {}),
           ...(args.solutionMode !== undefined ? { solutionMode: args.solutionMode } : {}),
           ...(inputPath !== undefined
             ? { fileName: inputPath.split(/[\\/]/).pop() ?? 'configuration.xml' }
@@ -100,7 +99,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
                     : res.standaloneKind === 'hardware'
                       ? 'dcsc_standalone_hardware_inspect'
                       : 'dcsc_services_inspect',
-                arguments: { workspace: res.workspaceId },
+                arguments: { session: res.workspaceId },
               }
             : { tool: 'dcsc_session_info', arguments: { session: res.workspaceId } },
         };
@@ -110,6 +109,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
   server.registerTool(
     'dcsc_export',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Export a configuration or solution workspace as XML + Excel',
       description:
         'Exports a configuration or workspace (including rack/floor layout and standalone software) to a ZIP on disk containing Lenovo CFXML and Excel quote reports, returning local file paths.',
@@ -146,17 +146,13 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           .optional()
           .describe('Defaults to the applicable reports for this workflow.'),
         directReport: z
-          .enum(['POWER_XLS', 'GROUP_XLS', 'P2P_XLS'])
+          .enum(['POWER_XLS'])
           .optional()
-          .describe('Directly export Power, Quote Group, or Cabling P2P spreadsheet.'),
+          .describe('Directly export the Power report spreadsheet to the artifact store and return its path.'),
         includeShareUrl: z
           .boolean()
           .optional()
           .describe('Include shareable web URL for the configuration in the output.'),
-        outputPath: z
-          .string()
-          .optional()
-          .describe('Optional file system path to save direct report.'),
       },
     },
     async (args) =>
@@ -176,23 +172,14 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
             fileName,
             directReport: args.directReport,
             includeShareUrl: args.includeShareUrl,
-            outputPath: args.outputPath,
             fileTypes: (args.fileTypes ?? DEFAULT_EXPORT_TYPES) as ExportFileType[],
             ctx,
           });
         }
-        let shareUrl: string | undefined;
-        if (args.includeShareUrl) {
-          const configId = session?.configurationId
-            ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
-            ?? args.session;
-          try {
-            const share = await fetchShareUrl(service.http, ctx, configId);
-            shareUrl = share.shareUrl;
-          } catch {
-            // Soft failure for share url
-          }
-        }
+        const configId = session?.configurationId
+          ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
+          ?? args.session;
+        const shareFields = await service.shareUrlFields(ctx, args.includeShareUrl, configId);
 
         const workspaceScope = args.scope === 'workspace' || (args.scope !== 'configuration' && args.session === workspace?.id);
         if (workspaceScope && workspace) {
@@ -212,7 +199,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
               });
             return { session: args.session, scope: 'workspace', configurationsExported: workspace.configurations.size,
               ...bundle, currency: workspace.locale.currency, priceType: 'LIST',
-              ...(shareUrl ? { shareUrl } : {}) };
+              ...shareFields };
           }
         }
 
@@ -236,7 +223,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
           ...bundle,
           priceType: 'LIST',
           rackDataOmitted,
-          ...(shareUrl ? { shareUrl } : {}),
+          ...shareFields,
           ...(powerSettings.some(value => value !== undefined && value !== 70) ? { powerSettingsWarning:
             'Lenovo CFXML reimport can reset custom load factors (verified SR630 V3: 100% to 70%). Saved MCP sessions retain them. Inspect dcsc_power_controls and reapply the desired load factor after XML import.' } : {}),
           ...(scope === 'workspace' && workspace && detachedNestedNodeIds(workspace).size > 0 ? {
@@ -257,6 +244,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
   server.registerTool(
     'dcsc_generate_config_id',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Generate an online Lenovo DCSC Configuration ID',
       description: 'Generates a 10-character online configuration ID for an active session or workspace.',
       inputSchema: {
@@ -276,11 +264,12 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
   server.registerTool(
     'dcsc_import_config_id',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Import an online configuration by Config ID',
       description: 'Imports a saved configuration online from DCSC by its 10-character Configuration ID.',
       inputSchema: {
         configId: z.string().describe('The 10-character online Lenovo DCSC Configuration ID.'),
-        workspace: z.string().optional().describe('Optional existing workspace ID to import into.'),
+        session: z.string().optional().describe('Optional existing workspace ID to import into.'),
         expectedRevision: z.number().int().min(1).optional().describe('Fails if workspace moved on.'),
         solutionMode: z.string().optional().describe('Solution mode to import under (e.g. "General Purpose").'),
         mode: z.enum(CONFIG_MODES).optional(),
@@ -290,7 +279,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
       guard(async () => {
         const ctx = service.newCtx();
         const res = await service.retrieveConfigId(args.configId, {
-          workspaceId: args.workspace,
+          workspaceId: args.session,
           expectedRevision: args.expectedRevision,
           solutionMode: args.solutionMode,
           mode: args.mode,
@@ -332,6 +321,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
   server.registerTool(
     'dcsc_query_sids',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Query preconfigured solution templates (SIDs)',
       description: 'Queries preconfigured solution ID (SID) templates by category with pagination.',
       inputSchema: {
@@ -369,8 +359,9 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
   server.registerTool(
     'dcsc_export_configuration_tree',
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       title: 'Export configuration tree to Excel spreadsheet',
-      description: 'Exports configuration tree data list and category contents as an Excel spreadsheet (.xlsx).',
+      description: 'Exports configuration tree data list and category contents as an Excel spreadsheet (.xlsx) in the artifact store and returns its path.',
       inputSchema: {
         name: z.string().describe('Configuration name or display code.'),
         dataList: z.array(
@@ -379,12 +370,11 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
             contents: z.array(z.string()),
           }),
         ).describe('List of type categories and their contents.'),
-        outputPath: z.string().optional().describe('Optional file system path to save the exported spreadsheet.'),
       },
     },
     async (args) =>
       guard(async () => {
-        return exportConfigurationTree(service.http, await service.ctxWithSolution(), args as unknown as ExportConfigurationTreeInput);
+        return exportConfigurationTree(service.http, await service.ctxWithSolution(), service.config, args);
       }, 'dcsc_export_configuration_tree failed'),
   );
 }

@@ -8,11 +8,11 @@ import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js
 import { configurationListPrice } from '../domain/pricing.js';
 import { physicalIds } from '../domain/workspaceReferences.js';
 import { isObject } from '../util/coerce.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET, RESPONSE_BYTE_BUDGET } from '../config/constants.js';
 
 const DEFAULT_PAGE_LIMIT = 20;
 const PREVIEW_TEXT_LIMIT = 160;
-const RESPONSE_BUDGET_BYTES = 7_000;
-const RESPONSE_HARD_LIMIT_BYTES = 7_500;
 
 export interface WorkspaceProjectionOptions {
   tool: string;
@@ -67,11 +67,11 @@ function clonedRecords(value: unknown): Array<Record<string, unknown>> {
 }
 
 function fitsResponse(value: unknown): boolean {
-  return Buffer.byteLength(JSON.stringify(value, null, 2)) <= RESPONSE_BUDGET_BYTES;
+  return jsonBytes(value) <= PAGE_BYTE_BUDGET;
 }
 
 function assertResponseFits(value: unknown): void {
-  if (Buffer.byteLength(JSON.stringify(value, null, 2)) > RESPONSE_HARD_LIMIT_BYTES) {
+  if (jsonBytes(value) > RESPONSE_BYTE_BUDGET) {
     throw new Error(
       'Workspace identity or locale context exceeds the response budget. ' +
       'Use dcsc_recovery_export to inspect the retained workspace safely.',

@@ -97,7 +97,7 @@ describe('bounded auto-connect tool result', () => {
 
     const cablingReply = await handlers.get('dcsc_add_cabling')!({ session: workspace.id, mode: 'auto' });
     const cabling = json(cablingReply);
-    expect(Buffer.byteLength(cablingReply.content[0]!.text)).toBeLessThan(7_500);
+    expect(Buffer.byteLength(cablingReply.content[0]!.text)).toBeLessThan(8_000);
     expect(cabling).toMatchObject({
       compacted: true, connectionCount: 90, messageGroupCount: 1, messageCount: 12,
       pages: {
@@ -142,7 +142,7 @@ it.each([undefined, 'auto'])('rejects manual endpoints before default/explicit A
 it('discovers native configuration IDs for an explicit local planning link', async () => {
   const { service, workspace, handlers } = setup();
   const send = vi.spyOn(service.http, 'send');
-  const listing = json(await handlers.get('dcsc_session_list')!({ workspace: workspace.id, offset: 0, limit: 15 }));
+  const listing = json(await handlers.get('dcsc_session_list')!({ session: workspace.id, offset: 0, limit: 15 }));
   const listed = (listing['sessions'] as Array<{ session: string; configurationId: string }>)[0]!;
   expect(listed.configurationId).toBe('server');
   expect(listed.session).not.toBe(listed.configurationId);

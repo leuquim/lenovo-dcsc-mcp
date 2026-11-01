@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { assessRackDensity } from '../src/domain/power.js';
-import { BLUEPRINTS } from '../src/domain/blueprints.js';
 import { listPduCatalog } from '../src/domain/pdu.js';
 import { SessionStore } from '../src/session/SessionStore.js';
 import type { ConfigIndex } from '../src/model/index.js';
@@ -89,20 +88,6 @@ describe('rack density advisory', () => {
 
   it('exempts direct water cooling, which carries its own heat out', () => {
     expect(assessRackDensity(80, 'direct water')).toBeUndefined();
-  });
-});
-
-describe('blueprint completeness disclosure', () => {
-  it('every blueprint states what it ships without', () => {
-    for (const b of BLUEPRINTS) {
-      expect(b.shipsWithout.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('the air-cooled B200 discloses missing storage and fabric', () => {
-    const b200 = BLUEPRINTS.find((x) => x.id === 'b200-sxm-air');
-    expect(b200?.shipsWithout.join(' ')).toMatch(/storage/i);
-    expect(b200?.shipsWithout.join(' ')).toMatch(/fabric|NIC/i);
   });
 });
 

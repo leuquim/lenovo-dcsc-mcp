@@ -16,14 +16,13 @@ import { registerSessionTools } from './sessionTools.js';
 import { registerStandaloneTools } from './standaloneTools.js';
 import { registerStorageTools } from './storageTools.js';
 import { registerStorageWizardTools } from './storageWizardTools.js';
-import { registerCapabilitiesResource, withToolSupport } from './toolSupport.js';
+import { registerCapabilitiesResource } from './toolSupport.js';
 import { registerUnconfiguredTools } from './unconfiguredTools.js';
 import { registerValidationTools } from './validationTools.js';
 import { registerVlhTools } from './vlhTools.js';
 
-export function registerTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
-  registerCapabilitiesResource(rawServer);
+export function registerTools(server: McpServer, service: DcscService): void {
+  registerCapabilitiesResource(server);
 
   registerReferenceSolutionTools(server, service);
   registerUnconfiguredTools(server, service);

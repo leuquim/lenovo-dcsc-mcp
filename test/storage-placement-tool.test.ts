@@ -115,7 +115,7 @@ describe('dcsc_place_storage_network', () => {
       templates: [{ configurationId: 'controller-template', created: false },
         { configurationId: 'switch-template', created: false }],
       inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: value.workspace.id, expectedWorkspaceRevision: revision + 1,
+        session: value.workspace.id, expectedRevision: revision + 1,
         path: ['rawRackArea'], offset: 0, limit: 20,
       } },
       export: { tool: 'dcsc_export', arguments: { session: value.workspace.id } },

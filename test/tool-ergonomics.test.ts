@@ -52,10 +52,10 @@ async function createConnectedHarness() {
 }
 
 describe('MCP tool annotations, context diet, resource, parameter aliasing, and inline dispatch', () => {
-  it('registers all 108 tools with complete MCP annotations and a tightened description footprint', async () => {
+  it('registers all 105 tools with complete MCP annotations and a tightened description footprint', async () => {
     const { client } = await createConnectedHarness();
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(108);
+    expect(tools).toHaveLength(105);
 
     let totalDescChars = 0;
     for (const tool of tools) {
@@ -64,7 +64,6 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
       expect(typeof tool.annotations?.destructiveHint).toBe('boolean');
       expect(typeof tool.annotations?.idempotentHint).toBe('boolean');
       expect(typeof tool.annotations?.openWorldHint).toBe('boolean');
-      expect(typeof tool.annotations?.title).toBe('string');
       totalDescChars += (tool.description ?? '').length;
     }
 
@@ -125,6 +124,10 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
       openWorldHint: true,
     });
 
+    for (const name of ['dcsc_power_controls', 'dcsc_pci_wizard', 'dcsc_storage_wizard', 'dcsc_export_configuration_tree']) {
+      expect(byName.get(name)?.annotations?.readOnlyHint, name).toBe(false);
+    }
+
     // Context diet: previously 36,352 description chars; verify substantial reduction
     expect(totalDescChars).toBeLessThan(28_000);
   });
@@ -142,7 +145,7 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     expect(text).toContain('Parameter Conventions');
   });
 
-  it('accepts bidirectional parameter aliases (session <-> workspace, expectedRevision <-> expectedWorkspaceRevision)', async () => {
+  it('takes one handle (session) and one revision (expectedRevision) on every tool', async () => {
     const { service, client } = await createConnectedHarness();
     const raw: RawConfiguration = {
       id: 'node-1',
@@ -179,11 +182,11 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     });
     const workspace = service.sessions.getWorkspace(session.id)!;
 
-    // 1. Pass `workspace` and `expectedRevision` to `dcsc_power_controls` (which declares `session` and `expectedWorkspaceRevision`)
+    // 1. dcsc_power_controls takes session and expectedRevision
     const inspectRes = await client.callTool({
       name: 'dcsc_power_controls',
       arguments: {
-        workspace: session.id,
+        session: session.id,
         expectedRevision: workspace.revision,
       },
     });
@@ -193,7 +196,7 @@ describe('MCP tool annotations, context diet, resource, parameter aliasing, and 
     ) as Obj;
     expect(inspectBody['session']).toBe(session.id);
 
-    // 2. Pass `session` to `dcsc_software_inspect` (which declares `workspace`)
+    // 2. dcsc_software_inspect takes the workspace id as session
     workspace.serverState['standaloneSoftwareState'] = {
       kind: 'standalone-software',
       features: [],

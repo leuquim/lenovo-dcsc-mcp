@@ -2,11 +2,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 import { type Obj, objectOrEmpty } from '../util/coerce.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
+import { jsonBytes } from '../util/jsonBytes.js';
 
 
-const jsonBytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value, null, 2));
 
 function clipText(value: string, limit: number): { value: string; truncated: boolean } {
   const characters = [...value];
@@ -37,8 +38,8 @@ export function projectValidationToolResult(full: Obj, options: {
   jobId: string;
   maxBytes?: number | undefined;
 }): Obj {
-  const maxBytes = options.maxBytes ?? 7_500;
-  if (jsonBytes(full) <= Math.min(7_000, maxBytes)) return full;
+  const maxBytes = options.maxBytes ?? PAGE_BYTE_BUDGET;
+  if (jsonBytes(full) <= Math.min(PAGE_BYTE_BUDGET, maxBytes)) return full;
 
   const messages = Array.isArray(full['messages']) ? full.messages : [];
   const localDiagnostics = Array.isArray(full['localDiagnostics']) ? full.localDiagnostics : [];
@@ -183,9 +184,9 @@ export function projectValidationToolResult(full: Obj, options: {
   return compact;
 }
 
-export function registerValidationTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerValidationTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_validation_jobs', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: 'Inspect saved manufacturing validation jobs',
     description: 'Lists saved validation jobs in the containing workspace and recomputes staleness from the current revision and payload. Pass jobId to inspect recorded descriptors, messages, local diagnostics, headroom and raw report through continuations.',
     inputSchema: {

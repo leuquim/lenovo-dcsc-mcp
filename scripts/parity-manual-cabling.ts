@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   };
   const detail = async (workspace: string, revision: number, index = 0): Promise<Obj> => {
     const page = await call('dcsc_cabling_connections', { session: workspace,
-      expectedWorkspaceRevision: revision, path: ['connections', String(index)], offset: 0, limit: 50 });
+      expectedRevision: revision, path: ['connections', String(index)], offset: 0, limit: 50 });
     return Object.fromEntries(rows(page['items']).filter(item => 'value' in item)
       .map(item => [String(item['key']), item['value']]));
   };
@@ -439,7 +439,7 @@ async function main(): Promise<void> {
         assert.deepEqual(await snapshot(), recoverySnapshot, 'Recovered connection changed across restart.');
         if (sharedStorage) {
           const choices = await call('dcsc_cabling_connections', { session: recoveredId,
-            expectedWorkspaceRevision: Number(recoveredWorkspace['revision']), refreshConnectionId: recoveredDetail['id'],
+            expectedRevision: Number(recoveredWorkspace['revision']), refreshConnectionId: recoveredDetail['id'],
             path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50 });
           assert(rows(choices['items']).some(item => object(item['value'])['part'] === 'A1PJ'));
           assert.deepEqual(await snapshot(), recoverySnapshot, 'Fresh cable discovery changed persisted workspace state.');
@@ -687,7 +687,7 @@ async function main(): Promise<void> {
     const destinationId = String(object(before['destination'])['configurationId']);
     const connectionId = String(before['id']);
     const choicesPage = await call('dcsc_cabling_connections', { session: workspace,
-      expectedWorkspaceRevision: revision, path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50 });
+      expectedRevision: revision, path: ['connections', '0', 'compatibleCables'], offset: 0, limit: 50 });
     const choices = rows(choicesPage['items']).map(item => object(item['value']));
     assert(choices.some(choice => choice['part'] === cablePart), `Captured ${cablePart} compatible cable is unavailable.`);
     const persistedBefore = await snapshot();

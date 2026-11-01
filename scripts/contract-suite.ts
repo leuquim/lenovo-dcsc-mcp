@@ -7,7 +7,7 @@
  * is exercised against the real service and asserted on the server's answer.
  *
  * Usage: npx tsx scripts/contract-suite.ts [group]
- *   groups: import, rack, power, fabric, scaleout, blueprints, persist,
+ *   groups: import, rack, power, fabric, scaleout, persist,
  *           floor, cabling, pdu, validate, locale, topology, services,
  *           services_cto, standalone, all
  */
@@ -269,38 +269,6 @@ async function groupScaleOut(service: DcscService): Promise<void> {
     `        32x ${plan.nodeCode}: $${plan.totalListPrice.toLocaleString()} list, ` +
       `${plan.racksNeeded} racks, ${plan.totalWeightKg} kg`,
   );
-}
-
-async function groupBlueprints(service: DcscService): Promise<void> {
-  console.log('\n=== blueprints: current catalog availability controls launch ===');
-  const blueprints = await service.blueprintAvailability(service.newCtx());
-  check(blueprints.length > 0, 'blueprint registry is non-empty', `${blueprints.length} records`);
-  let launched = 0;
-  for (const bp of blueprints) {
-    if (!bp.available) {
-      check(
-        bp.availableModes.length === 0 && /cannot be launched/i.test(bp.availabilityNote),
-        `${bp.id} is explicitly blocked when absent from current catalogs`,
-        bp.availabilityNote,
-      );
-      continue;
-    }
-    const currentMode = bp.availableModes[0]!;
-    const ctx = service.newCtx();
-    const solution = await service.resolveSolution(ctx, currentMode);
-    const session = await service.launch({ productCode: bp.productCode, mode: 'cto', solution, ctx });
-    const price = session.raw.totalPrice ?? 0;
-    const drift = Math.abs(price - bp.verifiedListPriceUsd) / (bp.verifiedListPriceUsd || 1);
-    check(price > 0, `${bp.id} launches in current mode ${currentMode}`, `$${price.toLocaleString()}`);
-    if (drift > 0.02) {
-      console.log(
-        `  NOTE  ${bp.id} list price moved ${(drift * 100).toFixed(1)}% since ${bp.verifiedOn} ` +
-          `($${bp.verifiedListPriceUsd.toLocaleString()} -> $${price.toLocaleString()})`,
-      );
-    }
-    launched += 1;
-  }
-  check(launched > 0, 'at least one historical blueprint remains currently launchable', `${launched} launched`);
 }
 
 async function groupPersist(): Promise<void> {
@@ -734,7 +702,6 @@ async function main(): Promise<void> {
     power: () => groupPower(service),
     fabric: () => groupFabric(service),
     scaleout: () => groupScaleOut(service),
-    blueprints: () => groupBlueprints(service),
     persist: () => groupPersist(),
     floor: () => groupFloor(service),
     cabling: () => groupCabling(service),

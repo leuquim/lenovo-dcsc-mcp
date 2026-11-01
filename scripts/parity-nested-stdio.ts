@@ -240,7 +240,7 @@ async function main(): Promise<void> {
     assert(Number.isInteger(revision), `Workspace ${workspaceId} projection has no revision.`);
     const detail = (path: string[], type: 'object' | 'array') => readJsonProjection(call, {
       tool: 'dcsc_session_info', arguments: { session: workspaceId,
-        expectedWorkspaceRevision: revision, path, offset: 0, limit: 50 },
+        expectedRevision: revision, path, offset: 0, limit: 50 },
     }, type);
     return {
       configurations: rows(info['configurations']).map(item => ({
@@ -437,13 +437,13 @@ async function main(): Promise<void> {
     assertAppendedHistory('add-rack', afterNodeLaunch, beforePlacement,
       { command: 'ADD', type: 'Rack', code: '7D6DCTO1WW', location: 'Rack Area' });
     stage = 'place-chassis';
-    await call('dcsc_place_in_rack', { session: workspace, rackId, sessionId: chassisSession });
+    await call('dcsc_place_in_rack', { session: workspace, rackId, configuration: chassisSession });
     const afterChassisPlacement = await snapshot(workspace);
     assertAppendedHistory('place-chassis', beforePlacement, afterChassisPlacement,
       { command: 'MOVE', type: 'Chassis', code: '7DD0CTOLWW' });
     stage = 'copy-node';
     const placed = await call('dcsc_place_in_rack', { session: workspace, rackId,
-      chassisId, sessionId: nodeSession });
+      chassisId, configuration: nodeSession });
     const nested = object(placed['nestedPlacement']);
     const copySession = String(nested['session']);
     const copyId = String(nested['nodeId']);

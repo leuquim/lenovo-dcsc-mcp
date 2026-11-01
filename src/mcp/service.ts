@@ -1,13 +1,11 @@
-import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, retrieveConfigId, customizeSid, importConfig, exportZip, summaryInsights, exportWorkspace } from '../app/importExport.js';
-import { generateConfigId, modesContaining, blueprintAvailability, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
+import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, retrieveConfigId, customizeSid, importConfig, exportZip, summaryInsights, exportWorkspace, shareUrlFields } from '../app/importExport.js';
+import { generateConfigId, modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
 import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
 import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, addManualCabling, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
-import { fetchAiRecommendation, type NightingaleAiAction } from '../domain/aiConfigurator.js';
-import type { RequestCtx } from '../http/request.js';
 
 type AppArgs<F> = F extends (rt: Runtime, ...args: infer A) => unknown ? A : never;
 
@@ -49,16 +47,16 @@ export class DcscService extends Runtime {
     return exportWorkspace(this, ...args);
   }
 
+  shareUrlFields(...args: AppArgs<typeof shareUrlFields>): ReturnType<typeof shareUrlFields> {
+    return shareUrlFields(this, ...args);
+  }
+
   generateConfigId(...args: AppArgs<typeof generateConfigId>): ReturnType<typeof generateConfigId> {
     return generateConfigId(this, ...args);
   }
 
   modesContaining(...args: AppArgs<typeof modesContaining>): ReturnType<typeof modesContaining> {
     return modesContaining(this, ...args);
-  }
-
-  blueprintAvailability(...args: AppArgs<typeof blueprintAvailability>): ReturnType<typeof blueprintAvailability> {
-    return blueprintAvailability(this, ...args);
   }
 
   launch(...args: AppArgs<typeof launch>): ReturnType<typeof launch> {
@@ -251,9 +249,5 @@ export class DcscService extends Runtime {
 
   applyTopology(...args: AppArgs<typeof applyTopology>): ReturnType<typeof applyTopology> {
     return applyTopology(this, ...args);
-  }
-
-  async aiRecommend(input: { action: NightingaleAiAction; payload: Record<string, unknown> }, ctx?: RequestCtx): Promise<unknown> {
-    return fetchAiRecommendation(this.http, await this.ctxWithSolution(ctx), input);
   }
 }

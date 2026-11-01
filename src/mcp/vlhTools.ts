@@ -7,14 +7,14 @@ import {
   fetchVirtualContainerCompatibleProducts,
 } from '../domain/virtualContainers.js';
 import type { DcscService } from './service.js';
-import { guard, withToolSupport } from './toolSupport.js';
+import { guard } from './toolSupport.js';
 
-export function registerVlhTools(rawServer: McpServer, service: DcscService): void {
-  const server = withToolSupport(rawServer);
+export function registerVlhTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
     'dcsc_vlh_wizard_info',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Inspect VLH Neptune wizard info',
       description:
         'Queries available network topologies, connector functions, and RPQ placeholder options for Neptune water-cooling and VLH items.',
@@ -37,6 +37,7 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
   server.registerTool(
     'dcsc_vlh_attributes',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Inspect VLH physical attributes',
       description:
         'Inspects physical dimensions, EIA U-height/capacity, and connector definitions for any product or VLH item.',
@@ -57,12 +58,13 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
   server.registerTool(
     'dcsc_virtual_container_compatible_products',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Fetch compatible products for virtual containers',
       description:
         'Fetches compatible inner products and categories for virtual containers in the current workspace.',
       inputSchema: {
         session: z.string().describe('Workspace session handle (accepts workspace alias).'),
-        expectedWorkspaceRevision: z
+        expectedRevision: z
           .number()
           .int()
           .min(1)
@@ -79,11 +81,11 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
           );
         }
         if (
-          args.expectedWorkspaceRevision !== undefined &&
-          workspace.revision !== args.expectedWorkspaceRevision
+          args.expectedRevision !== undefined &&
+          workspace.revision !== args.expectedRevision
         ) {
           throw new Error(
-            `Workspace revision conflict: expected revision ${args.expectedWorkspaceRevision}, but current revision is ${workspace.revision}.`,
+            `Workspace revision conflict: expected revision ${args.expectedRevision}, but current revision is ${workspace.revision}.`,
           );
         }
         const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
@@ -103,12 +105,13 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
   server.registerTool(
     'dcsc_virtual_container_check_rules',
     {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       title: 'Check virtual container rules',
       description:
         'Evaluates multi-product rules across virtual container hierarchies in the current workspace.',
       inputSchema: {
         session: z.string().describe('Workspace session handle (accepts workspace alias).'),
-        expectedWorkspaceRevision: z
+        expectedRevision: z
           .number()
           .int()
           .min(1)
@@ -125,11 +128,11 @@ export function registerVlhTools(rawServer: McpServer, service: DcscService): vo
           );
         }
         if (
-          args.expectedWorkspaceRevision !== undefined &&
-          workspace.revision !== args.expectedWorkspaceRevision
+          args.expectedRevision !== undefined &&
+          workspace.revision !== args.expectedRevision
         ) {
           throw new Error(
-            `Workspace revision conflict: expected revision ${args.expectedWorkspaceRevision}, but current revision is ${workspace.revision}.`,
+            `Workspace revision conflict: expected revision ${args.expectedRevision}, but current revision is ${workspace.revision}.`,
           );
         }
         const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });

@@ -1,4 +1,4 @@
-import { redactUnknown } from './redact.js';
+import { redactBody, redactUnknown } from './redact.js';
 import { SessionPersistenceError } from './persistenceError.js';
 
 export type DcscErrorKind =
@@ -224,6 +224,13 @@ export function serverErrorMessage(
     : 'No correlation reference was returned.'}`;
 }
 
+const MAX_TOOL_DETAIL_CHARS = 300;
+
+function boundedDetail(detail: string): string {
+  const { text } = redactBody(detail);
+  return text.length > MAX_TOOL_DETAIL_CHARS ? `${text.slice(0, MAX_TOOL_DETAIL_CHARS)}…` : text;
+}
+
 export interface BuildErrorInput {
   status: number;
   method: string;
@@ -261,9 +268,8 @@ export function buildHttpError(input: BuildErrorInput): DcscError {
   if (status >= 400 && status < 500) {
     const problem = isProblemJson(contentType) ? (body as ProblemDetails) : undefined;
     const parsed = parseProblemDetail(problem?.detail);
-    // A 4xx detail is short and names a parameter — safe to show verbatim.
-    const userMessage = problem?.detail
-      ? `DCSC rejected the request (HTTP ${status}): ${problem.detail}`
+    const userMessage = typeof problem?.detail === 'string' && problem.detail
+      ? `DCSC rejected the request (HTTP ${status}): ${boundedDetail(problem.detail)}`
       : `DCSC rejected the request (HTTP ${status}).`;
     return new DcscValidationError({
       ...base,

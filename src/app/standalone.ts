@@ -223,7 +223,7 @@ export async function partSupplyStatus(
 }
 
 export async function launchSoftware(rt: Runtime, args: {
-  workspace?: string | undefined;
+  session?: string | undefined;
   solutionMode?: string | undefined;
   label?: string | undefined;
   replace: boolean;
@@ -231,7 +231,7 @@ export async function launchSoftware(rt: Runtime, args: {
   expectedRevision?: number | undefined;
 }): Promise<{ workspace: WorkspaceSession; state: StandaloneSoftwareState }> {
   if (args.replace && args.refresh) throw new Error('Choose refresh or replace, not both.');
-  const existing = args.workspace ? requireWorkspace(rt, args.workspace) : undefined;
+  const existing = args.session ? requireWorkspace(rt, args.session) : undefined;
   if (existing && softwareState(existing, false) && !args.replace && !args.refresh) {
     throw new Error(SOFTWARE_CATALOG_EXISTS);
   }
@@ -255,13 +255,13 @@ export async function launchSoftware(rt: Runtime, args: {
 }
 
 export async function selectSoftware(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   code: string;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   await rt.sessions.transact(
-    args.workspace,
+    args.session,
     { keepEmptyWorkspace: true, ...revisionOption(args.expectedRevision) },
     (draft) => {
       draft.serverState[SOFTWARE_STATE] = selectStandaloneSoftware(softwareState(draft), {
@@ -270,17 +270,17 @@ export async function selectSoftware(rt: Runtime, args: {
       });
     },
   );
-  return requireWorkspace(rt, args.workspace);
+  return requireWorkspace(rt, args.session);
 }
 
 export async function setSoftwareQuantity(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   code: string;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   await rt.sessions.transact(
-    args.workspace,
+    args.session,
     { keepEmptyWorkspace: true, ...revisionOption(args.expectedRevision) },
     (draft) => {
       draft.serverState[SOFTWARE_STATE] = setStandaloneSoftwareQuantity(
@@ -290,16 +290,16 @@ export async function setSoftwareQuantity(rt: Runtime, args: {
       );
     },
   );
-  return requireWorkspace(rt, args.workspace);
+  return requireWorkspace(rt, args.session);
 }
 
 export async function removeSoftware(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   code: string;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   await rt.sessions.transact(
-    args.workspace,
+    args.session,
     { keepEmptyWorkspace: true, ...revisionOption(args.expectedRevision) },
     (draft) => {
       const current = softwareState(draft);
@@ -309,18 +309,18 @@ export async function removeSoftware(rt: Runtime, args: {
       draft.serverState[SOFTWARE_STATE] = removeStandaloneSoftware(current, args.code);
     },
   );
-  return requireWorkspace(rt, args.workspace);
+  return requireWorkspace(rt, args.session);
 }
 
 export async function addHardware(rt: Runtime, args: {
-  workspace?: string | undefined;
+  session?: string | undefined;
   code: string;
   quantity: number;
   solutionMode?: string | undefined;
   label?: string | undefined;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
-  const existing = args.workspace ? requireWorkspace(rt, args.workspace) : undefined;
+  const existing = args.session ? requireWorkspace(rt, args.session) : undefined;
   if (existing?.serverState[SERVICE_STATE]) throw new Error(SERVICE_WORKSPACE_REQUIRED);
   const { ctx, solution } = await contextFor(rt, existing, args.solutionMode);
   const part = await lookupStandaloneHardwarePart(rt.http, ctx, args.code);
@@ -338,34 +338,34 @@ export async function addHardware(rt: Runtime, args: {
 }
 
 export async function setHardwareQuantity(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   code: string;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   await rt.sessions.transact(
-    args.workspace,
+    args.session,
     { keepEmptyWorkspace: true, ...revisionOption(args.expectedRevision) },
     (draft) => {
       draft.serverState[HARDWARE_STATE] = setStandaloneHardwareQuantity(hardwareState(draft), args.code, args.quantity);
     },
   );
-  return requireWorkspace(rt, args.workspace);
+  return requireWorkspace(rt, args.session);
 }
 
 export async function removeHardware(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   code: string;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   await rt.sessions.transact(
-    args.workspace,
+    args.session,
     { keepEmptyWorkspace: true, ...revisionOption(args.expectedRevision) },
     (draft) => {
       draft.serverState[HARDWARE_STATE] = removeStandaloneHardware(hardwareState(draft), args.code);
     },
   );
-  return requireWorkspace(rt, args.workspace);
+  return requireWorkspace(rt, args.session);
 }
 
 export async function launchServices(rt: Runtime, args: {
@@ -373,7 +373,7 @@ export async function launchServices(rt: Runtime, args: {
   productQuantity: number;
   productDescription?: string | undefined;
   subCategory: string;
-  workspace?: string | undefined;
+  session?: string | undefined;
   solutionMode?: string | undefined;
   label?: string | undefined;
   replace: boolean;
@@ -381,7 +381,7 @@ export async function launchServices(rt: Runtime, args: {
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
   if (args.replace && args.refresh) throw new Error('Choose refresh or replace, not both.');
-  const existing = args.workspace ? requireWorkspace(rt, args.workspace) : undefined;
+  const existing = args.session ? requireWorkspace(rt, args.session) : undefined;
   if (args.refresh) {
     if (!existing || !serviceState(existing, false)) throw new Error('Service refresh requires an existing service workspace.');
     if (args.productCode && args.productCode !== serviceState(existing).product.code) {
@@ -479,34 +479,34 @@ async function selectAndSummarise(
 }
 
 export async function selectService(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   serviceCode: string;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
-  const workspace = requireWorkspace(rt, args.workspace);
+  const workspace = requireWorkspace(rt, args.session);
   await selectAndSummarise(rt, workspace, args.serviceCode, args.quantity, args.expectedRevision);
   return requireWorkspace(rt, workspace.id);
 }
 
 export async function setServiceQuantity(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   serviceCode?: string | undefined;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
-  const workspace = requireWorkspace(rt, args.workspace);
+  const workspace = requireWorkspace(rt, args.session);
   const selection = findServiceSelection(serviceState(workspace).selections, args.serviceCode);
   await selectAndSummarise(rt, workspace, selection.code, args.quantity, args.expectedRevision);
   return requireWorkspace(rt, workspace.id);
 }
 
 export async function setServiceProductQuantity(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   quantity: number;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
-  const workspace = requireWorkspace(rt, args.workspace);
+  const workspace = requireWorkspace(rt, args.session);
   const ctx = workspaceCtx(rt, workspace);
   await rt.sessions.transact(
     workspace.id,
@@ -532,11 +532,11 @@ export async function setServiceProductQuantity(rt: Runtime, args: {
 }
 
 export async function removeService(rt: Runtime, args: {
-  workspace: string;
+  session: string;
   serviceCode?: string | undefined;
   expectedRevision?: number | undefined;
 }): Promise<WorkspaceSession> {
-  const workspace = requireWorkspace(rt, args.workspace);
+  const workspace = requireWorkspace(rt, args.session);
   const ctx = workspaceCtx(rt, workspace);
   await rt.sessions.transact(
     workspace.id,

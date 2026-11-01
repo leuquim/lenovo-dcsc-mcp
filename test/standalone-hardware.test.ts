@@ -107,19 +107,19 @@ describe('standalone hardware tools', () => {
       query: { keyword: '4TC7B10008', type: 'HARDWARE' },
     });
 
-    await call('dcsc_standalone_hardware_add', { workspace, code: '4X97B05748', quantity: 1 });
+    await call('dcsc_standalone_hardware_add', { session: workspace, code: '4X97B05748', quantity: 1 });
     // Re-adding a selected part replaces its quantity; the website keeps one line per part.
-    await call('dcsc_standalone_hardware_add', { workspace, code: '4X97B05748', quantity: 2 });
-    const edited = parse(await call('dcsc_standalone_hardware_set_quantity', { workspace, code: '4X97B05748', quantity: 5 }));
+    await call('dcsc_standalone_hardware_add', { session: workspace, code: '4X97B05748', quantity: 2 });
+    const edited = parse(await call('dcsc_standalone_hardware_set_quantity', { session: workspace, code: '4X97B05748', quantity: 5 }));
     expect(edited).toMatchObject({
       selections: [{ code: '4TC7B10008', quantity: 3 }, { code: '4X97B05748', quantity: 5, totalPrice: 1897.5 }],
       totalListPrice: 12606,
     });
 
-    const missing = await call('dcsc_standalone_hardware_add', { workspace, code: 'NOPE123' });
+    const missing = await call('dcsc_standalone_hardware_add', { session: workspace, code: 'NOPE123' });
     expect(missing.isError).toBe(true);
 
-    const exported = parse(await call('dcsc_software_export', { workspace, fileName: 'parts' }));
+    const exported = parse(await call('dcsc_software_export', { session: workspace, fileName: 'parts' }));
     expect(exported).toMatchObject({ bytes: zip.length });
     const { data, groups } = exportFields(requests, '/lfos/export_zip');
     const rows = data['standaloneData'] as Array<Record<string, unknown>>;
@@ -133,7 +133,7 @@ describe('standalone hardware tools', () => {
         type: 'standalone', price: 1897.5, unitPrice: 379.5, groupId: 'Config 1' },
     ]);
 
-    const removed = parse(await call('dcsc_standalone_hardware_remove', { workspace, code: '4TC7B10008' }));
+    const removed = parse(await call('dcsc_standalone_hardware_remove', { session: workspace, code: '4TC7B10008' }));
     expect(removed).toMatchObject({ selections: [{ code: '4X97B05748' }], totalListPrice: 1897.5 });
   });
 
@@ -152,7 +152,7 @@ describe('standalone hardware tools', () => {
       primed: true,
       workspaceId: workspace,
     });
-    await call('dcsc_software_export', { workspace, fileName: 'mixed' });
+    await call('dcsc_software_export', { session: workspace, fileName: 'mixed' });
     const { data, groups } = exportFields(requests, '/ctos/export_zip');
     expect((data['standaloneData'] as unknown[])).toHaveLength(1);
     const products = groups[0]?.products ?? [];
@@ -175,7 +175,7 @@ describe('standalone hardware tools', () => {
       primed: true,
       workspaceId: workspace,
     });
-    await call('dcsc_software_export', { workspace, fileName: 'lfo-as-cto' });
+    await call('dcsc_software_export', { session: workspace, fileName: 'lfo-as-cto' });
     expect(requests.filter((request) => String(request['path']).endsWith('/export_zip')).map((request) => request['path']))
       .toEqual(['/ctos/export_zip']);
   });

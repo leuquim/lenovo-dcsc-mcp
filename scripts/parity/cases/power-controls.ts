@@ -26,7 +26,7 @@ export default {
       assert(session && session !== 'undefined');
       const before = await mcp.call('dcsc_power_controls', { session });
       assert.equal(values(before)['available'], true);
-      const edited = await mcp.call('dcsc_set_power_controls', { session, expectedWorkspaceRevision: before['workspaceRevision'],
+      const edited = await mcp.call('dcsc_set_power_controls', { session, expectedRevision: before['workspaceRevision'],
         voltage: '230V@AC', loadFactor: 100, powerPolicy: 5 });
       compare('set-controls-applied', { voltage: '230V@AC', loadFactor: 100, powerPolicy: 5 }, edited['current']);
       return { session, before, workspace: String(before['workspace']), edited };
@@ -38,7 +38,7 @@ export default {
       const restarted = await mcp.call('dcsc_power_controls', { session });
       compare('restart-retains-controls', edited['current'], values(restarted)['current']);
       compare('restart-session-file-unchanged', snapshot, JSON.parse(await readFile(mcp.sessionFile, 'utf8')));
-      await mcp.call('dcsc_set_power_controls', { session, expectedWorkspaceRevision: before['workspaceRevision'], loadFactor: 30 },
+      await mcp.call('dcsc_set_power_controls', { session, expectedRevision: before['workspaceRevision'], loadFactor: 30 },
         { expectError: true });
       await mcp.call('dcsc_workspace_history', { session: workspace, action: 'undo', expectedRevision: restarted['workspaceRevision'] });
       compare('undo-restores-original', values(before)['current'], await currentControls(session));
@@ -73,7 +73,7 @@ export default {
         compare(`browser-import-${label}-xml`, inspectPowerControls(node as RawConfiguration).current, mcpImported);
       }
       const reapplied = await mcp.call('dcsc_set_power_controls', { session: importedSession,
-        expectedWorkspaceRevision: importedControls['workspaceRevision'], loadFactor: 100 });
+        expectedRevision: importedControls['workspaceRevision'], loadFactor: 100 });
       compare('reapply-restores-load-factor', edited['current'], reapplied['current']);
     });
   },
