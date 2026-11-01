@@ -397,14 +397,32 @@ export interface CablingCandidate extends Omit<NativeManualConnectionRequest, 'c
   expectedRevision: number;
 }
 
-/** Reads the cable configuration panel: the connection list, one connection's refreshed cable choices, or the cable choices for a new connection. */
+export interface CableDistanceQuery { from: string; to: string; topology: string }
+
+/** The Distance calculator modal: cable run length between two physical endpoints for a topology. */
+async function inspectCableDistance(rt: Runtime, handle: string, query: CableDistanceQuery, expectedRevision: number | undefined, ctx: RequestCtx) {
+  const workspace = rt.sessions.getWorkspace(handle);
+  if (!workspace) throw new Error('Workspace not found.');
+  assertWorkspaceRevision(workspace, expectedRevision);
+  const input = manualCablingInput(workspace);
+  const response = await rt.http.send({ endpoint: 'manual_cabling_distance', method: 'POST', path: '/calculateDistance',
+    body: { kind: 'json', value: { floorPreference: input.floorPreference ?? {}, floorItems: [...input.floorItems ?? []],
+      from: query.from, to: query.to, network: query.topology } },
+    responseKind: 'json', timeoutClass: 'interactive', ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
+  const raw = response.raw as Record<string, unknown>;
+  const cables = Array.isArray(raw['compatibleCables']) ? raw['compatibleCables'] as Array<Record<string, unknown>> : [];
+  return { workspace: workspace.id, revision: workspace.revision, report: { ...query, totalDistance: raw['totalDistance'] ?? null,
+    compatibleCables: cables.map(cable => ({ part: cable['featureCode'], option: cable['optionCode'], length: cable['length'], price: cable['price'] })) } };
+}
+
+/** Reads the cable configuration panel: the connection list, one connection's refreshed cable choices, the cable choices for a new connection, or the distance between two endpoints. */
 export async function inspectCabling(rt: Runtime, handle: string, opts: {
   expectedRevision?: number | undefined; refreshConnectionId?: string | undefined;
-  candidate?: Omit<CablingCandidate, 'expectedRevision'> | undefined; ctx: RequestCtx;
+  candidate?: Omit<CablingCandidate, 'expectedRevision'> | undefined; distance?: CableDistanceQuery | undefined; ctx: RequestCtx;
 }) {
-  if (opts.candidate !== undefined && opts.refreshConnectionId !== undefined) {
-    throw new Error('Pass either candidate or refreshConnectionId, not both.');
-  }
+  const modes = [opts.candidate, opts.refreshConnectionId, opts.distance].filter(value => value !== undefined).length;
+  if (modes > 1) throw new Error('Pass only one of candidate, refreshConnectionId or distance.');
+  if (opts.distance !== undefined) return inspectCableDistance(rt, handle, opts.distance, opts.expectedRevision, opts.ctx);
   if (opts.candidate !== undefined) {
     if (opts.expectedRevision === undefined) throw new Error('expectedRevision is required to look up cable choices for a new connection.');
     return inspectNativeManualCabling(rt, handle, { ...opts.candidate, expectedRevision: opts.expectedRevision, ctx: opts.ctx });

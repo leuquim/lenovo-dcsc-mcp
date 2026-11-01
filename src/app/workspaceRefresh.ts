@@ -267,14 +267,18 @@ export async function provisionSwitchesDraft(rt: Runtime, ws: WorkspaceSession, 
   const switchMap = readSwitchMap(ws.serverState);
   const cloneDependency = structuredClone(workspaceNetworkState(ws).cloneDependency) as Record<string, string[]>;
   const generatedIds = new Set<string>();
+  const launchTrees = new Map(await Promise.all([...new Set(requirements.map(requirement => requirement.option))].map(async option => {
+    const launched = await rt.http.send({ endpoint: 'automatic_switch_launch', method: 'POST',
+      path: ctoLaunchPath(option),
+      query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
+      body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
+    const raw = launched.raw as RawConfiguration;
+    if (!raw || !Array.isArray(raw.tabs)) throw new Error('DCSC returned no configuration tree for the calculated switch.');
+    return [option, raw] as const;
+  })));
   for (const requirement of requirements) {
+    const raw = launchTrees.get(requirement.option)!;
     for (let index = 0; index < requirement.quantity; index += 1) {
-      const launched = await rt.http.send({ endpoint: 'automatic_switch_launch', method: 'POST',
-        path: ctoLaunchPath(requirement.option),
-        query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
-        body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
-      const raw = launched.raw as RawConfiguration;
-      if (!raw || !Array.isArray(raw.tabs)) throw new Error('DCSC returned no configuration tree for the calculated switch.');
       const id = newConfigurationId(ws.locale.country);
       const ordinal = switchMap.filter(value => value && typeof value === 'object' &&
         (value as Record<string, unknown>).network === requirement.network &&

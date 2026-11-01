@@ -1,4 +1,7 @@
-import { fetchVlhAttributes, fetchVlhWizardInfo } from '../domain/vlh.js';
+import { randomUUID } from 'node:crypto';
+
+import { writeVlhArtifact } from '../files/artifactStore.js';
+import { exportVlhItems, fetchVlhAttributes, fetchVlhWizardInfo, VLH_PRODUCT_TYPE, type VlhConnectorRecord, type VlhItem, type VlhType } from '../domain/vlh.js';
 import { checkVirtualContainerRules, fetchVirtualContainerCompatibleProducts } from '../domain/virtualContainers.js';
 import type { Runtime } from './runtime.js';
 import { assertWorkspaceRevision } from './serviceHelpers.js';
@@ -37,4 +40,33 @@ export async function inspectVirtualContainers(rt: Runtime, handle: string, opts
     ? { rules: await checkVirtualContainerRules(rt.http, workspace, ctx) }
     : { categories: await fetchVirtualContainerCompatibleProducts(rt.http, workspace, ctx) };
   return { session: handle, revision: workspace.revision, ...result };
+}
+
+export interface VlhItemInput {
+  vlhType: VlhType;
+  description: string;
+  listPrice?: number | undefined;
+  vlhId?: string | undefined;
+  commonInfo?: Record<string, unknown> | undefined;
+  connectors?: VlhConnectorRecord[] | undefined;
+  attributes?: Array<Record<string, unknown>> | undefined;
+  bundledParts?: Array<Record<string, unknown>> | undefined;
+}
+
+/** Builds the item the VLH Item Editor creates, with the defaults its wizard fills in. */
+export function buildVlhItem(input: VlhItemInput): VlhItem {
+  return {
+    commonInfo: { ...input.commonInfo, description: input.description, listPrice: input.listPrice ?? 0, productType: VLH_PRODUCT_TYPE },
+    vlhId: input.vlhId ?? randomUUID(),
+    vlhType: input.vlhType,
+    connectors: input.connectors ?? [],
+    attributes: input.attributes ?? [],
+    bundledParts: input.bundledParts ?? [{}],
+  };
+}
+
+/** Export Items: builds the VLH items and writes the downloaded .vlh file to the artifact store. */
+export async function exportVlh(rt: Runtime, opts: { items: VlhItemInput[]; fileName?: string | undefined }) {
+  const response = await exportVlhItems(rt.http, opts.items.map(buildVlhItem), rt.newCtx());
+  return writeVlhArtifact(response.stream, opts.fileName ?? 'vlh', rt.config);
 }

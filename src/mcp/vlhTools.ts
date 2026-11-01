@@ -1,9 +1,21 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { inspectVirtualContainers, inspectVlh, VIRTUAL_CONTAINER_CHECKS, VLH_SECTIONS } from '../app/vlh.js';
+import { exportVlh, inspectVirtualContainers, inspectVlh, VIRTUAL_CONTAINER_CHECKS, VLH_SECTIONS } from '../app/vlh.js';
+import { VLH_TYPES } from '../domain/vlh.js';
 import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
+
+const vlhItemSchema = z.object({
+  vlhType: z.enum(VLH_TYPES).default('basic'),
+  description: z.string().min(1),
+  listPrice: z.number().min(0).optional(),
+  vlhId: z.string().min(1).optional().describe('Defaults to a new UUID.'),
+  commonInfo: z.record(z.string(), z.unknown()).optional().describe('Extra Item Editor fields, e.g. partNumber, machineType.'),
+  connectors: z.array(z.record(z.string(), z.unknown())).optional().describe('Entries shaped like dcsc_vlh_get connectors.'),
+  attributes: z.array(z.record(z.string(), z.unknown())).optional(),
+  bundledParts: z.array(z.record(z.string(), z.unknown())).optional(),
+});
 
 export function registerVlhTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_vlh_get', {
@@ -27,4 +39,14 @@ export function registerVlhTools(server: McpServer, service: DcscService): void 
     },
   }, args => guard(() => inspectVirtualContainers(service, args.session,
     { check: args.check ?? 'compatibleProducts', expectedRevision: args.expectedRevision }), 'dcsc_virtual_container_get failed'));
+
+  server.registerTool('dcsc_vlh_set', {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    title: 'VLH Item Editor export',
+    description: 'Creates VLH items as the VLH Item Editor does and exports them (Export Items) to a .vlh file; returns its path.',
+    inputSchema: {
+      items: z.array(vlhItemSchema).min(1).max(50),
+      fileName: z.string().min(1).optional().describe('Base name without extension; defaults to vlh.'),
+    },
+  }, args => guard(() => exportVlh(service, args), 'dcsc_vlh_set failed'));
 }

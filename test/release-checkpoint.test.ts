@@ -46,9 +46,8 @@ it.each(['ignored', 'tracked'])('verifies %s review docs and rejects additional 
     expect(checkpoint.repository.ignoredDocumentation.count).toBe(documentationState === 'ignored' ? 3 : 0);
     expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity:recovery'))
       .toMatchObject({ blockedExit: 2 });
-    for (const command of ['npm run parity:manual-replace:breakout', 'npm run parity:manual-create:breakout']) {
-      expect(checkpoint.releaseCommands.find(entry => entry.command === command)).toMatchObject({ blockedExit: 2 });
-    }
+    expect(checkpoint.releaseCommands.find(entry => entry.command === 'npm run parity -- manual-cabling'))
+      .toMatchObject({ class: 'headless' });
     const verified = run('--verify', manifest);
     expect(verified.status, verified.stderr).toBe(0);
     const reviewFile = path.join(root, '.docs/roadmaps/2026_10_15_dcsc_parity.md');

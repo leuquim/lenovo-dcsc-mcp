@@ -93,6 +93,15 @@ it('provisions a separate switch, accepts authoritative placement, derives and e
   expect(workspace.configurations.size).toBe(4);
 });
 
+it('launches a calculated switch option once however many switches it requires', async () => {
+  const { service, workspace, calls } = setup();
+  fixture.calculationResponse[0].items[0].quantity = 3;
+  try {
+    await service.runAutoConnect(workspace.id, service.newCtx(), workspace.revision).catch(() => undefined);
+  } finally { fixture.calculationResponse[0].items[0].quantity = 1; }
+  expect(calls.filter(call => call.endpoint === 'automatic_switch_launch')).toHaveLength(1);
+});
+
 it.each(['switch_calculation', 'automatic_switch_launch', 'racks_customize',
   'workspace_autoDerive-1', 'auto_connect', 'workspace_autoDerive-2'])('does not publish a partial design after %s fails', async failAt => {
   const { service, workspace } = setup(failAt);
