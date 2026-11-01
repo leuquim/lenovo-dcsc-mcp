@@ -5,6 +5,7 @@
  * rejected placements surface, and that a populated rack finally makes
  * RACK_REPORT / RACK_DIAGRAM export real files.
  */
+import { fetchRackCabinets } from '../../src/domain/rack.js';
 import { loadConfig } from '../../src/config/load.js';
 import { DcscHttpClient } from '../../src/http/request.js';
 import { configureLogger } from '../../src/http/trace.js';
@@ -42,7 +43,7 @@ async function main() {
   const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
 
   console.log('=== rack catalog ===');
-  const racks = await service.rackCabinets(ctx, solution);
+  const racks = await fetchRackCabinets(service.http, { ...ctx, solution });
   check(racks.length > 0, `dcsc_list_racks returns cabinets`, `${racks.length} found`);
   console.log('   e.g.', racks.slice(0, 3).map((r) => `${r.code} ${r.description}`).join(' | '));
 

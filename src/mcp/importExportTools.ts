@@ -1,4 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { querySids } from '../domain/configId.js';
+import { fetchShareUrl } from '../domain/exportExtras.js';
 import { z } from 'zod';
 
 import { CONFIG_MODES } from '../config/constants.js';
@@ -8,7 +10,7 @@ import { configurationListPrice } from '../domain/pricing.js';
 import { DEFAULT_EXPORT_TYPES, type ExportFileType } from '../domain/reduce.js';
 import { sanitiseFileName, writeExportBundle } from '../files/artifactStore.js';
 import type { DcscService } from './service.js';
-import type { ExportConfigurationTreeInput } from '../domain/exportConfigurationTree.js';
+import { exportConfigurationTree, type ExportConfigurationTreeInput } from '../domain/exportConfigurationTree.js';
 import { exportProductServiceArtifact, exportStandaloneSoftwareArtifact } from './standaloneTools.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
@@ -185,7 +187,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
             ?? (workspace && [...workspace.configurations.values()][0]?.configurationId)
             ?? args.session;
           try {
-            const share = await service.fetchShareUrl(configId, ctx);
+            const share = await fetchShareUrl(service.http, ctx, configId);
             shareUrl = share.shareUrl;
           } catch {
             // Soft failure for share url
@@ -343,7 +345,8 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
     async (args) =>
       guard(async () => {
         const ctx = service.newCtx();
-        const result = await service.querySids(
+        const result = await querySids(
+          service.http,
           {
             categoryId: args.categoryId,
             pageIndex: args.pageIndex,
@@ -381,7 +384,7 @@ export function registerImportExportTools(rawServer: McpServer, service: DcscSer
     },
     async (args) =>
       guard(async () => {
-        return service.exportConfigurationTree(args as unknown as ExportConfigurationTreeInput);
+        return exportConfigurationTree(service.http, await service.ctxWithSolution(), args as unknown as ExportConfigurationTreeInput);
       }, 'dcsc_export_configuration_tree failed'),
   );
 }

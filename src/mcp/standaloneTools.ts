@@ -1,4 +1,5 @@
 import { reconcileImportedSoftwareCatalog, SERVICE_METADATA_REFRESH_WARNING } from '../domain/importStandalone.js';
+import { fetchSupplyStatus } from '../domain/supplyStatus.js';
 import { renderRackImage } from '../domain/rackImage.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -154,11 +155,11 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
         if (args.includeSupplyStatus) {
           const targetCode = items[0]?.code ?? args.keyword.trim();
           try {
-            const supply = await service.fetchSupplyStatus({
+            const supply = await fetchSupplyStatus(service.http, ctx, {
               code: targetCode,
               type: args.supplyStatusType ?? 'Option',
               country: ctx.locale.country,
-            }, ctx);
+            });
             return {
               ...projected,
               supplyStatus: {

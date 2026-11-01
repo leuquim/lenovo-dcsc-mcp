@@ -1,4 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { mandatoryVerifyConfig } from '../domain/mandatorySoftware.js';
+import { errorCustomizeWithAutoDerive } from '../domain/autoFix.js';
+import { validateCfxml } from '../domain/cfxmlValidation.js';
+import { queryMemoryWizard } from '../domain/memoryWizard.js';
 import { z } from 'zod';
 
 import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
@@ -62,7 +66,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
         const session = requireSession(service, args.session);
 
         if (args.memoryWizardAction) {
-          return service.memoryWizard({
+          return queryMemoryWizard(service.http, service.newCtx(), {
             action: args.memoryWizardAction,
             ctoCode: session.product.code,
             payload: args.memoryWizardPayload,
@@ -213,9 +217,10 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
                 }
               : undefined,
           );
-          const cfxml = await service.validateCfxml(
-            { cfxmlContent: args.cfxmlContent, filename: args.cfxmlFilename },
+          const cfxml = await validateCfxml(
+            service.http,
             ctx,
+            { cfxmlContent: args.cfxmlContent, filename: args.cfxmlFilename },
           );
           return {
             cfxml,
@@ -595,9 +600,10 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
             ...(locale ? { locale } : {}),
             solution,
           });
-          const configurations = await service.errorCustomizeWithAutoDerive(
+          const configurations = await errorCustomizeWithAutoDerive(
+            service.http,
+            await service.ctxEnsuringSolution(ctx),
             { mode: args.mode, configurations: args.errorCustomizeConfigurations },
-            ctx,
           );
           return {
             mode: args.mode ?? 'cto',
@@ -641,7 +647,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
     },
     async (args) =>
       guard(async () => {
-        return service.verifyMandatorySoftware(args as unknown as VerifyMandatorySoftwareInput);
+        return mandatoryVerifyConfig(service.http, await service.ctxWithSolution(), args as unknown as VerifyMandatorySoftwareInput);
       }, 'dcsc_verify_mandatory_software failed'),
   );
 

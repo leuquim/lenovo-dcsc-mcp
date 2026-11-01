@@ -8,7 +8,7 @@ import { ConfigSchema } from '../src/config/schema.js';
 import type { Catalog } from '../src/domain/catalog.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { DcscService } from '../src/mcp/service.js';
-import { catalogCodeSet } from '../src/mcp/serviceHelpers.js';
+import { catalogCodeSet } from '../src/app/serviceHelpers.js';
 import { registerTools } from '../src/mcp/tools.js';
 import type { RawConfiguration } from '../src/model/types.js';
 

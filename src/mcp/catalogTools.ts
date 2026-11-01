@@ -1,4 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { fetchAiRecommendation } from '../domain/aiConfigurator.js';
+import { fetchCategoryDetail, fetchLfoCodes } from '../domain/specialtyCatalog.js';
+import { queryDiscoveryHelper } from '../domain/discoveryHelpers.js';
+import { fetchServicePortalCategories } from '../domain/services-catalog.js';
+import { fetchLocales } from '../domain/locale.js';
 import { z } from 'zod';
 
 import { BLUEPRINTS, findBlueprint } from '../domain/blueprints.js';
@@ -169,7 +174,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     async (args) =>
       guard(async () => {
         const ctx = service.newCtx();
-        let locales = await service.listLocales(ctx);
+        let locales = await fetchLocales(service.http, ctx);
         locales = locales.filter((l) => !l.countryInvalid);
         if (args.query) {
           const q = args.query.toLowerCase();
@@ -240,7 +245,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
       guard(async () => {
         const ctx = service.newCtx();
         const solution = await service.resolveSolution(ctx, args.solutionMode);
-        const root = await service.servicePortalCategories(ctx, solution);
+        const root = await fetchServicePortalCategories(service.http, { ...ctx, solution });
         if (!root) {
           return {
             categories: [],
@@ -727,7 +732,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     async (args) =>
       guard(async () => {
         if (args.discoveryAction) {
-          return service.discoveryHelper({
+          return queryDiscoveryHelper(service.http, await service.ctxEnsuringSolution(), {
             action: args.discoveryAction,
             params: args.discoveryParams,
           });
@@ -735,7 +740,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
         if (!args.categoryId) {
           throw new Error('Either categoryId or discoveryAction must be provided for dcsc_category_detail.');
         }
-        const result = await service.categoryDetail({ categoryId: args.categoryId, isTruScale: args.isTruScale });
+        const result = await fetchCategoryDetail(service.http, await service.ctxWithSolution(), { categoryId: args.categoryId, isTruScale: args.isTruScale });
         if (args.limit !== undefined) {
           return {
             ...result,
@@ -759,7 +764,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     },
     async (args) =>
       guard(async () => {
-        const result = await service.ctoLfoCodes();
+        const result = await fetchLfoCodes(service.http, await service.ctxWithSolution());
         if (args.limit !== undefined) {
           return {
             ...result,
@@ -798,7 +803,7 @@ export function registerCatalogTools(rawServer: McpServer, service: DcscService)
     },
     async (args) =>
       guard(async () => {
-        return service.aiRecommend({ action: args.action, payload: args.payload });
+        return fetchAiRecommendation(service.http, await service.ctxWithSolution(), { action: args.action, payload: args.payload });
       }, 'dcsc_ai_recommend failed'),
   );
 }
