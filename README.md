@@ -616,13 +616,13 @@ npm run parity:services          # base service + add-on selection, removal, exp
 npm run parity:network           # populated Management graph and fresh-browser handoff
 npm run parity:network-leaf      # Distributed main/leaf graph, restart, export and browser handoff
 npm run parity:rack-power        # captured two-rack PDU/cord handoff, history and restart
-npm run parity:storage-wizard    # linked storage options/components, recovery, intent and native XML handoff
-npm run parity:storage-wizard -- --clear # whole-option clearing, drive guard and native XML handoff
-npm run parity:storage-wizard -- --raid # RAID-mode clearing, linked recovery and native XML handoff
-npm run parity:storage-wizard -- --raid-reverse # return to non-configured RAID and verify the empty choice
-npm run parity:storage-wizard -- --sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
+npm run parity -- storage-wizard # linked storage options/components, recovery, intent and native XML handoff
+npm run parity -- storage-wizard-clear # whole-option clearing, drive guard and native XML handoff
+npm run parity -- storage-wizard-raid # RAID-mode clearing, linked recovery and native XML handoff
+npm run parity -- storage-wizard-raid-reverse # return to non-configured RAID and verify the empty choice
+npm run parity -- storage-wizard-sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
 npm run parity:manual-source-swap # atomic source-port swap, history, restart and website handoff
-npm run parity:pci-wizard        # native PCI slots, crash/history, derive, XML and browser handoff
+npm run parity -- pci-wizard # native PCI slots, crash/history, derive, XML and browser handoff
 npm run parity:power-controls    # native power controls, crash/history, derive, XML and browser handoff
 npm run parity:chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
 npm run parity:chassis-copy      # independent populated-chassis Copy and browser handoff

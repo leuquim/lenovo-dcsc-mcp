@@ -86,8 +86,6 @@
     "prepack": "npm run build",
     "smoke:stdio": "tsx scripts/smoke-stdio.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run contract && npm run build && npm run smoke:stdio",
-    "parity:pci-wizard": "tsx scripts/parity-pci-wizard.ts",
-    "parity:storage-wizard": "tsx scripts/parity-storage-wizard.ts",
     "parity:manual-source-swap": "tsx scripts/parity-manual-source-swap.ts"
   },
   "dependencies": {
