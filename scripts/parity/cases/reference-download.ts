@@ -17,8 +17,7 @@ export default {
   async run(h) {
     const { mcp, web, step, compare, out } = h;
     const savedWorkspace = async (id: string) => {
-      const state = object(JSON.parse(await readFile(mcp.sessionFile, 'utf8')));
-      const workspace = rows(state['workspaces']).find(entry => entry['id'] === id);
+      const workspace = mcp.persistedWorkspaces().find(entry => entry['id'] === id);
       assert(workspace, `Workspace ${id} was not persisted.`);
       return workspace;
     };

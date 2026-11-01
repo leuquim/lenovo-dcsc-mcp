@@ -5,6 +5,9 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+import { ConfigSchema } from '../../src/config/schema.js';
+import { loadSessions, serializeWorkspaces } from '../../src/session/persist.js';
+import { SessionStore } from '../../src/session/SessionStore.js';
 import { isolatedChildEnv } from '../lib/isolated-runtime.js';
 
 export type Json = Record<string, unknown>;
@@ -34,6 +37,13 @@ export async function startMcp(outDir: string) {
   return {
     calls,
     sessionFile: files.sessionFile,
+    /** Reads what the server persisted through the project's own loader, independent of the on-disk layout. */
+    persistedWorkspaces(): Json[] {
+      const config = ConfigSchema.parse({ logLevel: 'error', files: { persistSessions: true, sessionFile: files.sessionFile } });
+      const store = new SessionStore();
+      loadSessions(store, config);
+      return (JSON.parse(serializeWorkspaces(store.listWorkspaces())) as { workspaces: Json[] }).workspaces;
+    },
     artifactDir: files.artifactDir,
     async call(tool: string, args: Json, options: CallOptions = {}): Promise<Json> {
       const started = Date.now();

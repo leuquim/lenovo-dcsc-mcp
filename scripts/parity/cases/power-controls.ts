@@ -33,11 +33,11 @@ export default {
     });
 
     await step('crash-restart', async () => {
-      const snapshot = JSON.parse(await readFile(mcp.sessionFile, 'utf8')) as unknown;
+      const snapshot = mcp.persistedWorkspaces();
       await mcp.killAndRestart();
       const restarted = await mcp.call('dcsc_power_get', { session, section: 'controls' });
       compare('restart-retains-controls', edited['current'], values(restarted)['current']);
-      compare('restart-session-file-unchanged', snapshot, JSON.parse(await readFile(mcp.sessionFile, 'utf8')));
+      compare('restart-persisted-state-unchanged', snapshot, mcp.persistedWorkspaces());
       await mcp.call('dcsc_power_set', { session, expectedRevision: before['revision'], loadFactor: 30 },
         { expectError: true });
       await mcp.call('dcsc_undo', { session: workspace, action: 'undo', expectedRevision: restarted['revision'] });
