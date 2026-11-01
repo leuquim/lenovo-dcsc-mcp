@@ -10,6 +10,7 @@ import { planNativeManualCableSelection, assertNativeConnectionsRetained, stageN
 import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../domain/modeFamily.js';
 import type { ConfigMode } from '../config/constants.js';
 import type { SolutionContext } from '../config/schema.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import {
   downloadReferenceSolution,
   fetchReferenceSolutions,
@@ -219,6 +220,108 @@ export async function importConfig(rt: Runtime, opts: {
     workspaceId: opts.workspaceId, fileName: file.fileName, expectedRevision: opts.expectedRevision, importSource: file.source });
 }
 
+type StandaloneImport = ReturnType<typeof parseStandaloneImportResponse>;
+
+function buildImportDiagnostics(
+  payload: RawImportResponse,
+  standalone: StandaloneImport,
+  restoredBreakouts: number,
+  importSource: ReturnType<typeof prepareImportFile>['source'] | undefined,
+): ImportDiagnostics {
+  const diagnostics: ImportDiagnostics = {
+    missingParts: toImportParts(payload.missingParts),
+    removedParts: toImportParts(payload.removedParts),
+    replacedParts: collectReplacedParts(payload.differentPartMap),
+    eccnRestricted: payload.eccnRestricted === true,
+  };
+
+  if (standalone) diagnostics.warnings = standalone.diagnostics.warnings;
+  if (restoredBreakouts) diagnostics.warnings = [...(diagnostics.warnings ?? []),
+    `Restored ${restoredBreakouts} saved breakout branch shapes that Lenovo's import response omitted. Website reimport may still lose these shapes.`];
+  if (importSource?.isXconfig) {
+    const warnings: string[] = [];
+    if (importSource.savedCabling && !payload['networkingInformation'] && !payload['connectionData']) {
+      warnings.push('The x-config source contains saved cabling, but Lenovo returned no networking or connection-recovery metadata. Imported cabling is not verified; inspect or regenerate the native graph before handoff.');
+    }
+    if (importSource.savedFloor && !payload['floorInformation']) {
+      warnings.push('The x-config source contains saved floor information, but Lenovo returned no floor metadata. Verify the imported floor placement before handoff.');
+    }
+    if (importSource.sourceInspectionUnavailable) warnings.push('The x-config source archive could not be inspected within the supported decoding limits. Source floor/cabling preservation is unverified.');
+    diagnostics.warnings = [...(diagnostics.warnings ?? []), ...warnings];
+  }
+  if (payload['needImportExcel'] === true) {
+    diagnostics.warnings = [...(diagnostics.warnings ?? []),
+      'Lenovo requests a companion Excel recovery step for this legacy design. That recovery workflow is not yet supported by the MCP; floor placement and cabling may be incomplete. Complete recovery on the website before relying on the imported layout.'];
+  }
+  return diagnostics;
+}
+
+async function rejectEmptyImport(
+  rt: Runtime,
+  ctx: RequestCtx,
+  solution: SolutionContext,
+  diagnostics: ImportDiagnostics,
+): Promise<never> {
+  const missing = diagnostics.missingParts.map((p) => p.productCode).join(', ');
+  const others = (await rt.solutionModes(ctx))
+    .map((m) => m.mode)
+    .filter((m) => m !== solution.solutionMode);
+  throw new Error(
+    `DCSC rejected every product in this configuration file${missing ? ` (missing: ${missing})` : ''}. ` +
+      `The import ran in solution mode "${solution.solutionMode}"; a model that is not in ` +
+      'that mode\'s catalog is dropped even though the file itself is valid. ' +
+      (others.length > 0
+        ? `Retry with solutionMode set to one of: ${others.join(', ')}.`
+        : 'Check that the model is available in this mode.'),
+  );
+}
+
+type BreakoutPlan = ReturnType<typeof planNativeManualCableSelection>;
+
+function planSavedBreakouts(workspace: WorkspaceSession): Map<string, BreakoutPlan> {
+  const breakoutPlans = new Map<string, BreakoutPlan>();
+  const input = manualCablingInput(workspace);
+  for (const value of readConnectionGraph(workspace.serverState)) {
+    const row = value as Record<string, unknown>;
+    if (row.category !== 'BREAKOUT' || row.divider !== 4) continue;
+    // CFXML rows omit cableFeature. Resolve the saved part against the
+    // destination catalog rather than requiring live distance metadata.
+    const plan = planNativeManualCableSelection(input, { ...row,
+      cableFeature: { featureCode: row.cablePart, selectionGroups: [] } });
+    breakoutPlans.set(JSON.stringify([plan.configurationIds ?? [plan.configurationId], plan.code]), plan);
+  }
+  return breakoutPlans;
+}
+
+async function restoreBreakoutQuantities(
+  rt: Runtime,
+  workspace: WorkspaceSession,
+  ctx: RequestCtx,
+  breakoutPlans: Map<string, BreakoutPlan>,
+  savedConnections: Parameters<typeof assertNativeConnectionsRetained>[0],
+): Promise<void> {
+  // Native import derivation counts branches rather than distinct cable heads.
+  // Restore each physical-port quantity (and imported spares) through native configure.
+  for (const plan of breakoutPlans.values()) {
+    const destination = [...workspace.configurations.values()].find(c => c.configurationId === plan.configurationId)!;
+    if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
+      // Native derive reads rack feature quantities ahead of the configuration delta.
+      const staged = stageNativeManualCableQuantity(manualCablingInput(workspace), plan);
+      workspace.rackArea = staged.rackArea; workspace.nonRackArea = staged.nonRackArea;
+      await configureDraft(rt, destination, [{ section: plan.section, code: plan.code, quantity: plan.quantity }], ctx, workspace);
+    }
+    const physical = stageNativeManualCableQuantity(manualCablingInput(workspace), plan);
+    workspace.rackArea = physical.rackArea; workspace.nonRackArea = physical.nonRackArea;
+    if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
+      throw new Error('DCSC did not retain the saved breakout cable quantity. Workspace was not committed.');
+    }
+  }
+  assertNativeConnectionsRetained(savedConnections, readConnectionGraph(workspace.serverState));
+  // The native quantity-only correction above marks the graph stale. Its
+  // original imported routes and accepted cable demand have now been verified.
+  delete workspace.serverState.connectionGraphInvalidation;
+}
+
 async function acceptImportPayload(rt: Runtime, raw: unknown, opts: {
   ctx: RequestCtx; solution: SolutionContext; mode?: ConfigMode | undefined;
   workspaceId?: string | undefined; fileName?: string | undefined; expectedRevision?: number | undefined;
@@ -234,49 +337,12 @@ async function acceptImportPayload(rt: Runtime, raw: unknown, opts: {
   const payload = expandImportedClones(importedPayload);
   const restoredBreakouts = restoreSavedBreakoutConnections(payload, opts.importSource?.breakoutConnections ?? []);
 
-  const diagnostics: ImportDiagnostics = {
-    missingParts: toImportParts(payload.missingParts),
-    removedParts: toImportParts(payload.removedParts),
-    replacedParts: collectReplacedParts(payload.differentPartMap),
-    eccnRestricted: payload.eccnRestricted === true,
-  };
-
   const standalone = parseStandaloneImportResponse(payload);
-  if (standalone) diagnostics.warnings = standalone.diagnostics.warnings;
-  if (restoredBreakouts) diagnostics.warnings = [...(diagnostics.warnings ?? []),
-    `Restored ${restoredBreakouts} saved breakout branch shapes that Lenovo's import response omitted. Website reimport may still lose these shapes.`];
-  if (opts.importSource?.isXconfig) {
-    const warnings: string[] = [];
-    if (opts.importSource.savedCabling && !payload['networkingInformation'] && !payload['connectionData']) {
-      warnings.push('The x-config source contains saved cabling, but Lenovo returned no networking or connection-recovery metadata. Imported cabling is not verified; inspect or regenerate the native graph before handoff.');
-    }
-    if (opts.importSource.savedFloor && !payload['floorInformation']) {
-      warnings.push('The x-config source contains saved floor information, but Lenovo returned no floor metadata. Verify the imported floor placement before handoff.');
-    }
-    if (opts.importSource.sourceInspectionUnavailable) warnings.push('The x-config source archive could not be inspected within the supported decoding limits. Source floor/cabling preservation is unverified.');
-    diagnostics.warnings = [...(diagnostics.warnings ?? []), ...warnings];
-  }
-  if (payload['needImportExcel'] === true) {
-    diagnostics.warnings = [...(diagnostics.warnings ?? []),
-      'Lenovo requests a companion Excel recovery step for this legacy design. That recovery workflow is not yet supported by the MCP; floor placement and cabling may be incomplete. Complete recovery on the website before relying on the imported layout.'];
-  }
+  const diagnostics = buildImportDiagnostics(payload, standalone, restoredBreakouts, opts.importSource);
   const configurations = standalone?.kind === 'service' ? []
     : Array.isArray(payload.configuration) ? payload.configuration : [];
 
-  if (configurations.length === 0 && !standalone) {
-    const missing = diagnostics.missingParts.map((p) => p.productCode).join(', ');
-    const others = (await rt.solutionModes(opts.ctx))
-      .map((m) => m.mode)
-      .filter((m) => m !== solution.solutionMode);
-    throw new Error(
-      `DCSC rejected every product in this configuration file${missing ? ` (missing: ${missing})` : ''}. ` +
-        `The import ran in solution mode "${solution.solutionMode}"; a model that is not in ` +
-        'that mode\'s catalog is dropped even though the file itself is valid. ' +
-        (others.length > 0
-          ? `Retry with solutionMode set to one of: ${others.join(', ')}.`
-          : 'Check that the model is available in this mode.'),
-    );
-  }
+  if (configurations.length === 0 && !standalone) await rejectEmptyImport(rt, ctx, solution, diagnostics);
 
   const mode = opts.mode ?? (payload.type === 'lfo' ? 'lfo' : 'cto');
   const reduceMode = hardwareModeFamily(mode);
@@ -321,43 +387,12 @@ async function acceptImportPayload(rt: Runtime, raw: unknown, opts: {
         workspace.integrityWarnings.push(...standalone.diagnostics.warnings);
       }
       await hydrateImportedLayout(rt.http, { ...ctx, locale: workspace.locale, solution }, workspace, payload);
-      const breakoutPlans = new Map<string, ReturnType<typeof planNativeManualCableSelection>>();
-      if (restoredBreakouts) {
-        const input = manualCablingInput(workspace);
-        for (const value of readConnectionGraph(workspace.serverState)) {
-          const row = value as Record<string, unknown>;
-          if (row.category !== 'BREAKOUT' || row.divider !== 4) continue;
-          // CFXML rows omit cableFeature. Resolve the saved part against the
-          // destination catalog rather than requiring live distance metadata.
-          const plan = planNativeManualCableSelection(input, { ...row,
-            cableFeature: { featureCode: row.cablePart, selectionGroups: [] } });
-          breakoutPlans.set(JSON.stringify([plan.configurationIds ?? [plan.configurationId], plan.code]), plan);
-        }
-      }
+      const breakoutPlans = restoredBreakouts ? planSavedBreakouts(workspace) : new Map<string, BreakoutPlan>();
       if (workspace.rackArea.length > 0 || workspace.nonRackArea.length > 0) {
         await syncLayout(rt, workspace, workspace.rackArea, ctx, { preserveImportedManualCables: true });
       } else workspace.rackSummaries = summariseRackArea(workspace.rackArea);
       if (restoredBreakouts) {
-        // Native import derivation counts branches rather than distinct cable heads.
-        // Restore each physical-port quantity (and imported spares) through native configure.
-        for (const plan of breakoutPlans.values()) {
-          const destination = [...workspace.configurations.values()].find(c => c.configurationId === plan.configurationId)!;
-          if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
-            // Native derive reads rack feature quantities ahead of the configuration delta.
-            const staged = stageNativeManualCableQuantity(manualCablingInput(workspace), plan);
-            workspace.rackArea = staged.rackArea; workspace.nonRackArea = staged.nonRackArea;
-            await configureDraft(rt, destination, [{ section: plan.section, code: plan.code, quantity: plan.quantity }], ctx, workspace);
-          }
-          const physical = stageNativeManualCableQuantity(manualCablingInput(workspace), plan);
-          workspace.rackArea = physical.rackArea; workspace.nonRackArea = physical.nonRackArea;
-          if ((destination.index.selected.get(plan.code) ?? 0) !== plan.quantity) {
-            throw new Error('DCSC did not retain the saved breakout cable quantity. Workspace was not committed.');
-          }
-        }
-        assertNativeConnectionsRetained(opts.importSource!.breakoutConnections, readConnectionGraph(workspace.serverState));
-        // The native quantity-only correction above marks the graph stale. Its
-        // original imported routes and accepted cable demand have now been verified.
-        delete workspace.serverState.connectionGraphInvalidation;
+        await restoreBreakoutQuantities(rt, workspace, ctx, breakoutPlans, opts.importSource!.breakoutConnections);
       }
     },
   });
@@ -524,6 +559,66 @@ export async function summaryInsights(rt: Runtime, input: {
   return fetchServiceSavings(rt.http, effectiveCtx, snapshot);
 }
 
+async function optionalShareUrl(
+  rt: Runtime,
+  ctx: RequestCtx,
+  include: boolean | undefined,
+  configId: string,
+): Promise<string | undefined> {
+  if (!include) return undefined;
+  try {
+    const share = await fetchShareUrl(rt.http, ctx, configId);
+    return share.shareUrl;
+  } catch {
+    // Soft failure for share url
+    return undefined;
+  }
+}
+
+function buildWorkspaceReportForm(
+  workspace: WorkspaceSession,
+  solution: SolutionContext,
+  fileTypes: ExportFileType[],
+  validationMode: ConfigSession['validationMode'],
+) {
+  return buildExportForm({
+    data: buildExportData({ workspace, solution, fileTypes, validationMode }),
+    image: workspace.rackArea.length > 0 && fileTypes.includes('RACK_REPORT') ? renderRackImage(workspace) : undefined,
+    groups: buildGroups(workspace),
+  });
+}
+
+function buildConfigurationReportForm(
+  session: ConfigSession,
+  workspace: WorkspaceSession | undefined,
+  placement: Record<string, unknown> | undefined,
+  solution: SolutionContext,
+  fileTypes: ExportFileType[],
+  validationMode: ConfigSession['validationMode'],
+) {
+  const autoDerivedResults = Array.isArray(workspace?.serverState.autoDerivedResults)
+    ? (workspace.serverState.autoDerivedResults.filter((value) => {
+        if (!value || typeof value !== 'object') return false;
+        const record = value as Record<string, unknown>;
+        const part = record.derivePart as Record<string, unknown> | undefined;
+        return part?.targetWorkspaceId === session.configurationId ||
+          (Array.isArray(record.appliedConfigurations) && record.appliedConfigurations.includes(session.configurationId));
+      }) as Array<Record<string, unknown>>) : [];
+  return buildExportForm({
+    data: buildExportData({
+      raw: session.raw,
+      config: session.reduced,
+      ...(placement ? { placement } : {}),
+      autoDerivedResults,
+      solution,
+      fileTypes,
+      validationMode,
+    }),
+    image: undefined,
+    groups: buildGroups(session.raw, session.configurationId, session.mode),
+  });
+}
+
 export async function exportWorkspace(rt: Runtime, sessionHandle: string,
   opts: {
     fileTypes?: ExportFileType[] | undefined;
@@ -566,37 +661,10 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
     const placement = session && stripped?.nonRackArea.find((item) => item.id === session.configurationId);
     const validationMode = workspace?.validationMode ?? session?.validationMode ?? 'expert';
 
-    const data = scope === 'workspace' && workspace
-      ? buildExportData({
-          workspace: stripped!,
-          solution: effectiveSolution,
-          fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
-          validationMode,
-        })
-      : buildExportData({
-          raw: session!.raw,
-          config: session!.reduced,
-          ...(placement ? { placement } : {}),
-          autoDerivedResults: Array.isArray(stripped?.serverState.autoDerivedResults)
-            ? (stripped.serverState.autoDerivedResults.filter((value) => {
-                if (!value || typeof value !== 'object') return false;
-                const record = value as Record<string, unknown>;
-                const part = record.derivePart as Record<string, unknown> | undefined;
-                return part?.targetWorkspaceId === session!.configurationId ||
-                  (Array.isArray(record.appliedConfigurations) && record.appliedConfigurations.includes(session!.configurationId));
-              }) as Array<Record<string, unknown>>) : [],
-          solution: effectiveSolution,
-          fileTypes: opts.fileTypes ?? DEFAULT_EXPORT_TYPES,
-          validationMode,
-        });
-
-    const form = buildExportForm({
-      data,
-      image: scope === 'workspace' && workspace && (workspace.rackArea.length > 0) && (opts.fileTypes ?? DEFAULT_EXPORT_TYPES).includes('RACK_REPORT') ? renderRackImage(workspace) : undefined,
-      groups: scope === 'workspace' && workspace
-        ? buildGroups(stripped!)
-        : buildGroups(session!.raw, session!.configurationId, session!.mode),
-    });
+    const fileTypes = opts.fileTypes ?? DEFAULT_EXPORT_TYPES;
+    const form = scope === 'workspace' && workspace
+      ? buildWorkspaceReportForm(workspace, effectiveSolution, fileTypes, validationMode)
+      : buildConfigurationReportForm(session!, stripped, placement, effectiveSolution, fileTypes, validationMode);
 
     const reportResult = await exportPowerOrGroupXls(rt.http, effectiveCtx, {
       mode: isLfo ? 'lfo' : 'cto',
@@ -606,15 +674,7 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
       outputPath: opts.outputPath,
     });
 
-    let shareUrl: string | undefined;
-    if (opts.includeShareUrl) {
-      try {
-        const share = await fetchShareUrl(rt.http, effectiveCtx, configId);
-        shareUrl = share.shareUrl;
-      } catch {
-        // Soft failure for share url
-      }
-    }
+    const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
 
     return {
       session: sessionHandle,
@@ -634,15 +694,7 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
       outputPath: opts.outputPath,
     });
 
-    let shareUrl: string | undefined;
-    if (opts.includeShareUrl) {
-      try {
-        const share = await fetchShareUrl(rt.http, effectiveCtx, configId);
-        shareUrl = share.shareUrl;
-      } catch {
-        // Soft failure for share url
-      }
-    }
+    const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
 
     return {
       session: sessionHandle,
@@ -663,15 +715,7 @@ export async function exportWorkspace(rt: Runtime, sessionHandle: string,
 
   const bundle = await writeExportBundle(zipResult.stream, baseFileName, rt.config);
 
-  let shareUrl: string | undefined;
-  if (opts.includeShareUrl) {
-    try {
-      const share = await fetchShareUrl(rt.http, effectiveCtx, configId);
-      shareUrl = share.shareUrl;
-    } catch {
-      // Soft failure for share url
-    }
-  }
+  const shareUrl = await optionalShareUrl(rt, effectiveCtx, opts.includeShareUrl, configId);
 
   return {
     session: sessionHandle,

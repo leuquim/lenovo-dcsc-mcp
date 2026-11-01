@@ -22,7 +22,8 @@ import { buildIndex } from '../model/index.js';
 import { projectSummary } from '../model/project.js';
 import { type RequestCtx } from '../http/request.js';
 import { SessionConflictError } from '../session/SessionStore.js';
-import type { ConfigSession } from '../model/session.js';
+import type { ConfigSession, WorkspaceSession } from '../model/session.js';
+import type { SolutionContext } from '../config/schema.js';
 import { updateHistoryFactory } from './serviceHelpers.js';
 import type { Runtime } from './runtime.js';
 import { autoDerive } from './launch.js';
@@ -182,15 +183,9 @@ export async function autoFix(rt: Runtime, handle: string,
   return { session, result: fixResult };
 }
 
-/**
- * Validates a configuration against DCSC's LMC validation endpoint.
- *
- * The SPA posts the export payload to /lmc_validation and receives a
- * manufacturing handoff (build entity + deep link). Local expansionMessages
- * from autoDerive are merged in so callers still see rule text that is
- * already on the tree.
- */
-export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestCtx, opts: { deadlineMs?: number | undefined } = {}): Promise<ValidationReport & {
+type ValidationScope = 'configuration' | 'workspace';
+
+export type ValidationOutcome = ValidationReport & {
   jobId: string;
   payloadSha256: string;
   freshValidationRequired: boolean;
@@ -209,54 +204,32 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
   rackDataOmitted: boolean;
   /** What the isValid verdict actually covers. Never claims more than was sent. */
   validatedScope: {
-    scope: 'configuration' | 'workspace';
+    scope: ValidationScope;
     configurations: number;
     racksInSolution: number;
     racksValidated: number;
     covers: string;
   };
   warning?: string | undefined;
-}> {
-  assertTrustedWorkspace(rt, sessionHandle);
-  const resolved = rt.sessions.resolveHandle(sessionHandle);
-  if (!resolved) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+};
 
-  // Same scope rule as export: a configuration handle validates that
-  // configuration, not everything sharing its workspace.
-  const scope: 'configuration' | 'workspace' =
-    resolved.kind === 'workspace' ? 'workspace' : 'configuration';
-  const session = resolved.session ? structuredClone(resolved.session) : undefined;
-  const workspace = scope === 'workspace' && resolved.workspace ? structuredClone(resolved.workspace) : undefined;
+function xmlExportOfSession(session: ConfigSession, solution: SolutionContext, validationMode: ConfigSession['validationMode']) {
+  return buildExportData({
+    raw: session.raw,
+    config: reduceConfiguration(session.raw, session.configurationId,
+      hardwareModeFamily(session.mode), solution.solutionMode),
+    solution, fileTypes: ['XML'], validationMode,
+  });
+}
 
-  const targets = workspace ? [...workspace.configurations.values()] : [session!];
-  const solution = workspace?.solution ?? session!.solution;
-  const validationMode = workspace?.validationMode ?? session!.validationMode;
-  if (targets.length === 0) throw new Error('Manufacturing validation requires a hardware configuration.');
-  const modes = new Set(targets.map((target) => hardwareModeFamily(target.mode)));
-  if (modes.size > 1) throw new Error('Validate CTO and LFO configurations separately; mixed-mode manufacturing validation is not established.');
-  const mode = [...modes][0]!;
+function xmlExportOfWorkspace(workspace: WorkspaceSession, solution: SolutionContext) {
+  return buildExportData({ workspace, solution, fileTypes: ['XML'], validationMode: workspace.validationMode });
+}
 
-  const validatedRevision = workspace?.revision ?? session!.revision;
-  const rackDataOmitted = false;
-  const exportPayload = workspace
-    ? buildExportData({ workspace, solution, fileTypes: ['XML'], validationMode })
-    : buildExportData({
-        raw: session!.raw,
-        config: reduceConfiguration(session!.raw, session!.configurationId,
-          hardwareModeFamily(session!.mode), solution.solutionMode),
-        solution, fileTypes: ['XML'], validationMode,
-      });
-
-  const messages = collectLocalDiagnostics(
-    targets.map((s) => ({
-      configurationId: s.configurationId,
-      raw: s.raw as Record<string, unknown>,
-    })),
-  );
-
-  // Grouped by configuration: a flat array repeats "Memory 32/32" once per
-  // node with nothing to say which node, and hides the one row that matters.
-  const headroom = targets.map((s) => {
+// Grouped by configuration: a flat array repeats "Memory 32/32" once per
+// node with nothing to say which node, and hides the one row that matters.
+function validationHeadroom(targets: ConfigSession[]) {
+  return targets.map((s) => {
     const constraints = projectSummary({
       sessionId: s.id,
       revision: s.revision,
@@ -278,9 +251,15 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
       breached,
     };
   });
+}
 
-  const racksInSolution = workspace?.rackArea.length ?? 0;
-  const racksValidated = rackDataOmitted ? 0 : racksInSolution;
+function describeValidatedScope(
+  scope: ValidationScope,
+  targets: ConfigSession[],
+  session: ConfigSession | undefined,
+  racksInSolution: number,
+  racksValidated: number,
+) {
   const covers =
     scope === 'configuration'
       ? `One configuration (${session?.product.code ?? 'unknown'}). Other products in the workspace were not sent.`
@@ -290,17 +269,87 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
           ? `${targets.length} configuration(s) only. ${racksInSolution} rack(s) present but NOT validated — ` +
             'their layout, PDU sufficiency, weight and stability were not checked by DCSC.'
           : `${targets.length} configuration(s) and ${racksValidated} rack(s).`;
+  return {
+    scope,
+    configurations: targets.length,
+    racksInSolution,
+    racksValidated,
+    covers,
+  };
+}
+
+/** Hash of the payload the current state would send, or undefined when there is nothing to validate. */
+function currentValidationHash(
+  rt: Runtime,
+  sessionHandle: string,
+  scope: ValidationScope,
+  solution: SolutionContext,
+  mode: string,
+): { revision: number; hash: string | undefined } {
+  const current = rt.sessions.resolveHandle(sessionHandle);
+  const currentWorkspace = scope === 'workspace' ? current?.workspace : undefined;
+  const currentSession = current?.session;
+  const revision = currentWorkspace?.revision ?? currentSession?.revision ?? -1;
+  let hash: string | undefined;
+  if (currentWorkspace) {
+    hash = validationPayloadSha256(xmlExportOfWorkspace(currentWorkspace, solution), mode);
+  } else if (currentSession) {
+    hash = validationPayloadSha256(xmlExportOfSession(currentSession, solution, currentSession.validationMode), mode);
+  }
+  return { revision, hash };
+}
+
+/**
+ * Validates a configuration against DCSC's LMC validation endpoint.
+ *
+ * The SPA posts the export payload to /lmc_validation and receives a
+ * manufacturing handoff (build entity + deep link). Local expansionMessages
+ * from autoDerive are merged in so callers still see rule text that is
+ * already on the tree.
+ */
+export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestCtx, opts: { deadlineMs?: number | undefined } = {}): Promise<ValidationOutcome> {
+  assertTrustedWorkspace(rt, sessionHandle);
+  const resolved = rt.sessions.resolveHandle(sessionHandle);
+  if (!resolved) throw new Error(`Session / Workspace ${sessionHandle} not found`);
+
+  // Same scope rule as export: a configuration handle validates that
+  // configuration, not everything sharing its workspace.
+  const scope: ValidationScope =
+    resolved.kind === 'workspace' ? 'workspace' : 'configuration';
+  const session = resolved.session ? structuredClone(resolved.session) : undefined;
+  const workspace = scope === 'workspace' && resolved.workspace ? structuredClone(resolved.workspace) : undefined;
+
+  const targets = workspace ? [...workspace.configurations.values()] : [session!];
+  const solution = workspace?.solution ?? session!.solution;
+  const validationMode = workspace?.validationMode ?? session!.validationMode;
+  if (targets.length === 0) throw new Error('Manufacturing validation requires a hardware configuration.');
+  const modes = new Set(targets.map((target) => hardwareModeFamily(target.mode)));
+  if (modes.size > 1) throw new Error('Validate CTO and LFO configurations separately; mixed-mode manufacturing validation is not established.');
+  const mode = [...modes][0]!;
+
+  const validatedRevision = workspace?.revision ?? session!.revision;
+  const rackDataOmitted = false;
+  const exportPayload = workspace
+    ? buildExportData({ workspace, solution, fileTypes: ['XML'], validationMode })
+    : xmlExportOfSession(session!, solution, validationMode);
+
+  const messages = collectLocalDiagnostics(
+    targets.map((s) => ({
+      configurationId: s.configurationId,
+      raw: s.raw as Record<string, unknown>,
+    })),
+  );
+
+  const headroom = validationHeadroom(targets);
+
+  const racksInSolution = workspace?.rackArea.length ?? 0;
+  const racksValidated = rackDataOmitted ? 0 : racksInSolution;
+  const validatedScope = describeValidatedScope(scope, targets, session, racksInSolution, racksValidated);
   const projection = {
     localDiagnostics: messages,
     headroom,
     rackDataOmitted,
-    validatedScope: {
-      scope,
-      configurations: targets.length,
-      racksInSolution,
-      racksValidated,
-      covers,
-    },
+    validatedScope,
   };
 
   const job = await runValidationJob(rt.http,
@@ -314,20 +363,7 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
         recoveryHint: 'The validation result was not saved. Correct persistence and request fresh validation; do not reuse the descriptor.',
       }),
     });
-  const current = rt.sessions.resolveHandle(sessionHandle);
-  const currentWorkspace = scope === 'workspace' ? current?.workspace : undefined;
-  const currentSession = current?.session;
-  const currentRevision = currentWorkspace?.revision ?? currentSession?.revision ?? -1;
-  let currentHash: string | undefined;
-  if (currentWorkspace) {
-    currentHash = validationPayloadSha256(buildExportData({ workspace: currentWorkspace, solution,
-      fileTypes: ['XML'], validationMode: currentWorkspace.validationMode }), mode);
-  } else if (currentSession) {
-    currentHash = validationPayloadSha256(buildExportData({ raw: currentSession.raw,
-      config: reduceConfiguration(currentSession.raw, currentSession.configurationId,
-        hardwareModeFamily(currentSession.mode), solution.solutionMode),
-      solution, fileTypes: ['XML'], validationMode: currentSession.validationMode }), mode);
-  }
+  const { revision: currentRevision, hash: currentHash } = currentValidationHash(rt, sessionHandle, scope, solution, mode);
   const server = validationResultFromJob(job);
   const stale = isValidationJobStale(job, currentRevision, currentHash);
   const summary = summariseValidation(server, messages);
@@ -352,13 +388,7 @@ export async function validate(rt: Runtime, sessionHandle: string, ctx: RequestC
     ...summary,
     headroom,
     rackDataOmitted,
-    validatedScope: {
-      scope,
-      configurations: targets.length,
-      racksInSolution,
-      racksValidated,
-      covers,
-    },
+    validatedScope,
     ...(warning !== undefined ? { warning } : {}),
   };
 }
@@ -376,15 +406,11 @@ export function validationJobs(rt: Runtime, handle: string) {
       try {
         if (target.kind === 'workspace') {
           revision = target.workspace.revision;
-          hash = validationPayloadSha256(buildExportData({ workspace: target.workspace,
-            solution: target.workspace.solution, fileTypes: ['XML'], validationMode: target.workspace.validationMode }), job.mode);
+          hash = validationPayloadSha256(xmlExportOfWorkspace(target.workspace, target.workspace.solution), job.mode);
         } else {
           const session = target.session;
           revision = session.revision;
-          hash = validationPayloadSha256(buildExportData({ raw: session.raw,
-            config: reduceConfiguration(session.raw, session.configurationId,
-              hardwareModeFamily(session.mode), session.solution.solutionMode),
-            solution: session.solution, fileTypes: ['XML'], validationMode: session.validationMode }), job.mode);
+          hash = validationPayloadSha256(xmlExportOfSession(session, session.solution, session.validationMode), job.mode);
         }
       } catch { /* An unbuildable current payload cannot reuse a saved verdict. */ }
     }
