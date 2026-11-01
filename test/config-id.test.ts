@@ -231,7 +231,7 @@ describe('Service Integration: Config ID & SIDs', () => {
     expect(ws?.serverState.userGeneratedConfigId).toBe('CIDU00CKWN');
   });
 
-  it('retrieveConfigId ingests upstream payload through #acceptImportPayload and creates workspace session', async () => {
+  it('retrieveConfigId ingests upstream payload through the import pipeline and creates workspace session', async () => {
     const service = createService();
     const importPayload = [
       {

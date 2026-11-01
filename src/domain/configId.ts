@@ -80,7 +80,7 @@ export async function generateConfigId(
  *
  * Upstream route: POST /api/retrieve/configId?country_or_region=${country}&language=${language}&currency=${currency}&configuration_id=${configId}&currentFileType=CTO
  * Request body: multipart/form-data with existing `configurationIds` keys.
- * Returns the raw import payload array or object to be ingested by #acceptImportPayload.
+ * Returns the raw import payload array or object to be ingested by acceptImportPayload in app/importExport.ts.
  */
 export async function retrieveConfigId(
   http: DcscHttpClient,
