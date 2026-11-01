@@ -5,7 +5,7 @@ import { fetchLocales, localeFromOption } from '../domain/locale.js';
 import { fetchSolutionModes, toSolutionContext, type SolutionModeInfo } from '../domain/context.js';
 import { DcscHttpClient, RequestBudget, type RequestCtx } from '../http/request.js';
 import { logger, newCorrId } from '../http/trace.js';
-import { createPersistenceWriter, loadSessions, saveSessions } from '../session/persist.js';
+import { createPersistenceWriter, loadSessions } from '../session/persist.js';
 import { SessionStore } from '../session/SessionStore.js';
 
 const SOLUTION_MODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -34,16 +34,11 @@ export class Runtime {
 
   constructor(readonly config: Config) {
     this.http = new DcscHttpClient(config);
-    const restored = loadSessions(this.sessions, config);
+    const persisted = loadSessions(this.sessions, config);
     this.sessions.setPersistenceWriter(createPersistenceWriter(config));
-    if (restored > 0) {
-      logger().info({ workspaces: restored }, 'Restored persisted workspaces');
+    if (persisted > 0) {
+      logger().info({ workspaces: persisted }, 'Found persisted workspaces; they load on first use');
     }
-  }
-
-  /** Compatibility for unmigrated mutations; transactions persist before publication. */
-  persist(): void {
-    saveSessions(this.sessions, this.config);
   }
 
   get locale(): Locale {

@@ -310,7 +310,7 @@ describe('SessionStore transactions', () => {
     expect(store.getWorkspace(workspace.id)).toBeUndefined();
   });
 
-  it('serializes cross-workspace persistence using the latest committed candidates', async () => {
+  it('serializes writes of different workspaces and hands each writer only its own committed state', async () => {
     const store = new SessionStore();
     const first = addSession(store);
     const second = addSession(store);
@@ -350,9 +350,10 @@ describe('SessionStore transactions', () => {
     releaseFirst?.();
     await Promise.all([firstWrite, secondWrite]);
 
-    expect(writes).toHaveLength(2);
-    expect(writes[1]?.[first.workspaceId]).toBe(2);
-    expect(writes[1]?.[second.workspaceId]).toBe(3);
+    expect(writes).toEqual([
+      { [first.workspaceId]: 2 },
+      { [second.workspaceId]: 3 },
+    ]);
   });
 
   it('persists removal before deleting the final live workspace', async () => {

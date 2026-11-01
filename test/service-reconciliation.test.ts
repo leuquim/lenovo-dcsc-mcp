@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSchema, type Config } from '../src/config/schema.js';
 import { RECONCILIATION_PROPOSALS_STATE_KEY } from '../src/domain/reconciliation.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
+import { workspaceFile } from '../src/session/persist.js';
 import { SessionConflictError } from '../src/session/SessionStore.js';
 import type { ConfigSession, WorkspaceSession } from '../src/model/session.js';
 import { SessionPersistenceError } from '../src/http/persistenceError.js';
@@ -106,7 +107,7 @@ describe('service reconciliation integration', () => {
     });
     expect(workspace.integrity).toBe('legacy-unverified');
     expect(workspace.revision).toBe(proposal.sourceRevision);
-    expect(existsSync(setup.sessionFile)).toBe(true);
+    expect(existsSync(workspaceFile(setup.config, workspace.id))).toBe(true);
 
     const second = service(setup.config);
     const restored = second.sessions.getWorkspace(workspace.id);

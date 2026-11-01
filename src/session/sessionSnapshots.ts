@@ -254,10 +254,6 @@ export function captureWorkspaceHistoryState(workspace: WorkspaceSession): Recor
       configurable: session.configurable,
       revision: session.revision,
       intents: session.intents,
-      snapshots: session.snapshots.map((snapshot) => ({
-        revision: snapshot.revision,
-        raw: snapshot.raw,
-      })),
       createdAt: session.createdAt,
       lastAccessAt: session.lastAccessAt,
       pricedAt: session.pricedAt,
@@ -309,7 +305,13 @@ export function applyWorkspaceHistoryState(
 
   const restored = new Map<string, ConfigSession>();
   for (const value of configurations) {
-    const session = restoreHistoryConfig(value, workspace.id, locale.data, solution.data);
+    const session = restoreHistoryConfig(
+      value,
+      workspace.id,
+      locale.data,
+      solution.data,
+      workspace.configurations,
+    );
     if (restored.has(session.id)) {
       throw new Error(`Workspace history contains duplicate handle ${session.id}`);
     }
@@ -345,6 +347,7 @@ function restoreHistoryConfig(
   workspaceId: string,
   locale: Locale,
   solution: SolutionContext,
+  current: ReadonlyMap<string, ConfigSession>,
 ): ConfigSession {
   if (typeof value !== 'object' || value === null) {
     throw new Error('Workspace history contains a malformed configuration');
@@ -362,26 +365,11 @@ function restoreHistoryConfig(
   const code = firstNonempty(product['code'], raw.lfoCode, raw.sliceCtoCode, raw.code);
   if (!code) throw new Error(`Workspace history configuration ${id} has no product code`);
   const mode = isConfigMode(saved['mode']) ? saved['mode'] : 'cto';
-  const snapshots: ConfigSession['snapshots'] = [];
-  if (Array.isArray(saved['snapshots'])) {
-    for (const value of saved['snapshots']) {
-      if (typeof value !== 'object' || value === null) continue;
-      const snapshot = value as Record<string, unknown>;
-      if (typeof snapshot['revision'] !== 'number') continue;
-      if (typeof snapshot['raw'] !== 'object' || snapshot['raw'] === null) continue;
-      const snapshotRaw = structuredClone(snapshot['raw'] as RawConfiguration);
-      snapshots.push({
-        revision: snapshot['revision'],
-        raw: snapshotRaw,
-        reduced: reduceConfiguration(
-          snapshotRaw,
-          firstNonempty(snapshotRaw.id, configurationId) ?? configurationId,
-          reducedMode(mode),
-          solution.solutionMode,
-        ),
-      });
-    }
-  }
+  const revision = typeof saved['revision'] === 'number' ? saved['revision'] : 1;
+  const snapshots = (current.get(id)?.snapshots ?? [])
+    .filter((snapshot) => snapshot.revision < revision)
+    .slice(-10)
+    .map((snapshot) => structuredClone(snapshot));
   return {
     id,
     workspaceId,
@@ -402,9 +390,9 @@ function restoreHistoryConfig(
     primed: saved['primed'] === true,
     configurable: saved['configurable'] !== false,
     index: buildIndex(raw),
-    revision: typeof saved['revision'] === 'number' ? saved['revision'] : 1,
+    revision,
     intents: arrayOrEmpty<ConfigIntent>(saved['intents']),
-    snapshots: snapshots.slice(-10),
+    snapshots,
     createdAt: typeof saved['createdAt'] === 'number' ? saved['createdAt'] : Date.now(),
     lastAccessAt: typeof saved['lastAccessAt'] === 'number' ? saved['lastAccessAt'] : Date.now(),
     pricedAt: typeof saved['pricedAt'] === 'number' ? saved['pricedAt'] : Date.now(),
@@ -470,7 +458,7 @@ function restoreHistoryEntries(
     return [
       {
         revision: entry['revision'] as number,
-        state: structuredClone(entry['state'] as Record<string, unknown>),
+        state: entry['state'] as Record<string, unknown>,
       },
     ];
   });
@@ -560,7 +548,7 @@ export function discardInvalidHistorySnapshots(
   for (const direction of ['undo', 'redo'] as const) {
     history[direction] = history[direction].flatMap((entry, index) => {
       try {
-        const probe = cloneWorkspace(workspace);
+        const probe: WorkspaceSession = { ...workspace, configurations: new Map() };
         applyWorkspaceHistoryState(probe, entry.state);
         const migration = reconcileRestoredCloneOwnership(probe);
         if (!migration.changed) return [entry];
@@ -612,12 +600,19 @@ export function isConfigMode(value: unknown): value is ConfigMode {
   );
 }
 
+/** Entries are immutable once recorded, so copies share them and only own the lists. */
+export function copyHistory(history: WorkspaceHistory | undefined): WorkspaceHistory | undefined {
+  return history && { undo: [...history.undo], redo: [...history.redo] };
+}
+
 export function cloneWorkspace(workspace: WorkspaceSession): WorkspaceSession {
   return {
     ...structuredClone({
       ...workspace,
       configurations: undefined,
+      history: undefined,
     }),
+    history: copyHistory(workspace.history),
     configurations: new Map(
       [...workspace.configurations].map(([id, session]) => [id, cloneConfig(session)]),
     ),
@@ -922,7 +917,7 @@ export function restoreObjectArray<T>(
       discarded.push({ warning: `Malformed ${name} record ${position} was quarantined`, record: candidate });
       continue;
     }
-    restored.push(structuredClone(candidate as T));
+    restored.push(candidate as T);
   }
   return restored;
 }

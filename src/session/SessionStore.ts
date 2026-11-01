@@ -43,6 +43,7 @@ import {
   buildEmptyWorkspace,
   captureWorkspaceHistoryState,
   cloneWorkspace,
+  copyHistory,
   discardInvalidHistorySnapshots,
   firstNonempty,
   markDamaged,
@@ -166,9 +167,29 @@ export interface TransactionOptions {
   persistenceFailure?: Omit<PersistenceFailureContext, 'remoteApplied'> | undefined;
 }
 
+/** What the store needs to find a workspace and its configurations without loading it. */
+export interface WorkspaceIndexEntry {
+  id: string;
+  lastAccessAt: number;
+  configurationIds: string[];
+}
+
+/** Receives only the workspaces that changed or were removed, plus the index after the change. */
 export type PersistenceWriter = (
-  candidateWorkspaces: readonly WorkspaceSession[],
+  changedWorkspaces: readonly WorkspaceSession[],
+  removedWorkspaceIds: readonly string[],
+  indexAfterChange: readonly WorkspaceIndexEntry[],
 ) => void | Promise<void>;
+
+export type WorkspaceHydrator = (workspaceId: string) => void;
+
+function indexEntryOf(workspace: WorkspaceSession): WorkspaceIndexEntry {
+  return {
+    id: workspace.id,
+    lastAccessAt: workspace.lastAccessAt,
+    configurationIds: [...workspace.configurations.keys()],
+  };
+}
 
 export class SessionConflictError extends Error {
   constructor(
@@ -210,6 +231,11 @@ export interface RestoreDiagnostics {
   warnings?: string[] | undefined;
   quarantined?: unknown[] | undefined;
   recoveryArchives?: RestoreRecoveryArchive[] | undefined;
+  evictedWorkspaceIds?: string[] | undefined;
+}
+
+export interface RestoreOptions {
+  provenance?: 'current' | 'legacy-unverified';
 }
 
 export const CLONE_OWNERSHIP_RECOVERY_STATE_KEY = 'unresolvedCloneOwnership';
@@ -219,6 +245,9 @@ export class SessionStore {
   readonly #sessions = new Map<string, ConfigSession>();
   readonly #mutexes = new Map<string, Mutex>();
   readonly #persistenceMutex = new Mutex();
+  readonly #unloaded = new Map<string, WorkspaceIndexEntry>();
+  readonly #unloadedConfigOwner = new Map<string, string>();
+  #hydrate: WorkspaceHydrator | undefined;
   #persistenceWriter: PersistenceWriter | undefined;
   #lastRestoreReport: RestoreReport = {
     restored: 0,
@@ -230,10 +259,24 @@ export class SessionStore {
     recoveryArchives: [],
   };
 
-  constructor(private readonly maxSessions = 20) {}
+  constructor(readonly maxSessions = 20) {}
 
   setPersistenceWriter(writer: PersistenceWriter | undefined): void {
     this.#persistenceWriter = writer;
+  }
+
+  /** Registers persisted workspaces that are parsed and restored on first access. */
+  registerUnloaded(entries: readonly WorkspaceIndexEntry[], hydrate: WorkspaceHydrator): void {
+    this.#hydrate = hydrate;
+    for (const entry of entries) {
+      this.#unloaded.set(entry.id, entry);
+      for (const configId of entry.configurationIds) this.#unloadedConfigOwner.set(configId, entry.id);
+    }
+  }
+
+  /** Index of every known workspace, loaded or not. */
+  workspaceIndex(): WorkspaceIndexEntry[] {
+    return this.#indexAfterChange([], []);
   }
 
   get lastRestoreReport(): RestoreReport {
@@ -245,6 +288,11 @@ export class SessionStore {
     const warnings = diagnostics.warnings ?? [];
     const quarantined = diagnostics.quarantined ?? [];
     const archives = diagnostics.recoveryArchives ?? [];
+    const evicted = diagnostics.evictedWorkspaceIds ?? [];
+    if (evicted.length > 0) {
+      this.#lastRestoreReport.evictedWorkspaceIds.push(...evicted);
+      this.#lastRestoreReport.normalizationRequired = true;
+    }
     this.#lastRestoreReport.warnings = [...new Set([
       ...this.#lastRestoreReport.warnings,
       ...warnings,
@@ -295,7 +343,7 @@ export class SessionStore {
       }
       workspace = existing;
     } else {
-      if (this.#persistenceWriter && this.#workspaces.size >= this.maxSessions) {
+      if (this.#persistenceWriter && this.#knownWorkspaceIds().length >= this.maxSessions) {
         throw new Error(
           `Session capacity ${this.maxSessions} reached; use createAtomic for durable eviction`,
         );
@@ -440,7 +488,7 @@ export class SessionStore {
       this.#mutexes.set(workspaceId, mutex);
     }
     return mutex.run(async () => {
-      if (this.#workspaces.has(workspaceId)) {
+      if (this.#isKnownWorkspace(workspaceId)) {
         throw new Error(`Workspace ${workspaceId} already exists`);
       }
       const context = inputs[0] ?? options.workspaceContext;
@@ -467,21 +515,15 @@ export class SessionStore {
 
       return this.#withAllWorkspaceLocks(workspaceId, () =>
         this.#persistenceMutex.run(async () => {
-          if (this.#workspaces.has(workspaceId)) {
+          if (this.#isKnownWorkspace(workspaceId)) {
             throw new Error(`Workspace ${workspaceId} already exists`);
           }
-          const ordered = [...this.#workspaces.values()].sort(
+          const ordered = this.workspaceIndex().sort(
             (a, b) => a.lastAccessAt - b.lastAccessAt || a.id.localeCompare(b.id),
           );
           const excess = Math.max(0, ordered.length + 1 - this.maxSessions);
-          const evictedIds = new Set(ordered.slice(0, excess).map((workspace) => workspace.id));
-          const candidate = [
-            ...ordered
-              .filter((workspace) => !evictedIds.has(workspace.id))
-              .map((workspace) => cloneWorkspace(workspace)),
-            draft,
-          ];
-          await this.#persistCandidate(candidate, {
+          const evictedIds = ordered.slice(0, excess).map((entry) => entry.id);
+          await this.#persistChange([draft], evictedIds, {
             ...options.persistenceFailure,
             remoteApplied: options.remoteApplied,
           });
@@ -511,14 +553,14 @@ export class SessionStore {
   }
 
   get(id: string): ConfigSession | undefined {
-    const s = this.#sessions.get(id);
+    const s = this.#findSession(id);
     if (s) {
       s.lastAccessAt = Date.now();
       const ws = this.#workspaces.get(s.workspaceId);
       if (ws) ws.lastAccessAt = Date.now();
       return s;
     }
-    const ws = this.#workspaces.get(id);
+    const ws = this.#findWorkspace(id);
     if (ws) {
       ws.lastAccessAt = Date.now();
       return [...ws.configurations.values()][0];
@@ -532,12 +574,12 @@ export class SessionStore {
     | { kind: 'workspace'; workspace: WorkspaceSession; session: ConfigSession | undefined }
     | { kind: 'configuration'; session: ConfigSession; workspace: WorkspaceSession | undefined }
     | undefined {
-    const ws = this.#workspaces.get(id);
+    const ws = this.#findWorkspace(id);
     if (ws) {
       ws.lastAccessAt = Date.now();
       return { kind: 'workspace', workspace: ws, session: [...ws.configurations.values()][0] };
     }
-    const s = this.#sessions.get(id);
+    const s = this.#findSession(id);
     if (s) {
       s.lastAccessAt = Date.now();
       const parent = this.#workspaces.get(s.workspaceId);
@@ -548,12 +590,12 @@ export class SessionStore {
   }
 
   getWorkspace(id: string): WorkspaceSession | undefined {
-    const ws = this.#workspaces.get(id);
+    const ws = this.#findWorkspace(id);
     if (ws) {
       ws.lastAccessAt = Date.now();
       return ws;
     }
-    const s = this.#sessions.get(id);
+    const s = this.#findSession(id);
     if (s) {
       const parent = this.#workspaces.get(s.workspaceId);
       if (parent) {
@@ -565,16 +607,18 @@ export class SessionStore {
   }
 
   list(): ConfigSession[] {
+    this.#loadAll();
     return [...this.#sessions.values()].sort((a, b) => b.lastAccessAt - a.lastAccessAt);
   }
 
   listWorkspaces(): WorkspaceSession[] {
+    this.#loadAll();
     return [...this.#workspaces.values()].sort((a, b) => b.lastAccessAt - a.lastAccessAt);
   }
 
   delete(id: string): boolean {
     this.#mutexes.delete(id);
-    const s = this.#sessions.get(id);
+    const s = this.#findSession(id);
     if (s) {
       const ws = this.#workspaces.get(s.workspaceId);
       if (ws) {
@@ -585,7 +629,7 @@ export class SessionStore {
       }
       return this.#sessions.delete(id);
     }
-    const ws = this.#workspaces.get(id);
+    const ws = this.#findWorkspace(id);
     if (ws) {
       for (const configId of ws.configurations.keys()) {
         this.#sessions.delete(configId);
@@ -624,10 +668,7 @@ export class SessionStore {
       }
 
       await this.#persistenceMutex.run(async () => {
-        const candidate = [...this.#workspaces.values()]
-          .filter((workspace) => workspace.id !== workspaceId)
-          .map((workspace) => cloneWorkspace(workspace));
-        await this.#persistCandidate(candidate, persistenceFailure);
+        await this.#persistChange([], [workspaceId], persistenceFailure);
         this.#removeWorkspaceInMemory(workspaceId);
       });
       return true;
@@ -700,16 +741,9 @@ export class SessionStore {
         draft.serverState.standaloneSoftwareState !== undefined ||
         draft.serverState.standaloneHardwareState !== undefined ||
         draft.serverState.standaloneServiceState !== undefined;
+      const retainsWorkspace = draft.configurations.size > 0 || keepEmptyWorkspace;
       await this.#persistenceMutex.run(async () => {
-        const candidate = [...this.#workspaces.values()]
-          .filter(
-            (workspace) =>
-              workspace.id !== draft.id ||
-              draft.configurations.size > 0 ||
-              keepEmptyWorkspace,
-          )
-          .map((workspace) => (workspace.id === draft.id ? draft : cloneWorkspace(workspace)));
-        await this.#persistCandidate(candidate, {
+        await this.#persistChange(retainsWorkspace ? [draft] : [], retainsWorkspace ? [] : [draft.id], {
           ...options.persistenceFailure,
           remoteApplied: options.remoteApplied,
         });
@@ -744,15 +778,11 @@ export class SessionStore {
       const liveWorkspace = current.workspace;
       const nextServerState = saveValidationJob(liveWorkspace.serverState, job);
       if (isDeepStrictEqual(nextServerState, liveWorkspace.serverState)) return;
-      const draft = cloneWorkspace(liveWorkspace);
-      draft.serverState = nextServerState;
+      const candidate = { ...liveWorkspace, serverState: nextServerState };
 
       await this.#persistenceMutex.run(async () => {
-        const candidate = [...this.#workspaces.values()].map((workspace) =>
-          workspace.id === workspaceId ? draft : cloneWorkspace(workspace),
-        );
-        await this.#persistCandidate(candidate, persistenceFailure);
-        liveWorkspace.serverState = structuredClone(nextServerState);
+        await this.#persistChange([candidate], [], persistenceFailure);
+        liveWorkspace.serverState = nextServerState;
       });
     });
   }
@@ -803,15 +833,11 @@ export class SessionStore {
 
       const nextServerState = saveReconciliationProposal(liveWorkspace.serverState, proposal);
       if (isDeepStrictEqual(nextServerState, liveWorkspace.serverState)) return;
-      const draft = cloneWorkspace(liveWorkspace);
-      draft.serverState = nextServerState;
+      const candidate = { ...liveWorkspace, serverState: nextServerState };
 
       await this.#persistenceMutex.run(async () => {
-        const candidate = [...this.#workspaces.values()].map((workspace) =>
-          workspace.id === workspaceId ? draft : cloneWorkspace(workspace),
-        );
-        await this.#persistCandidate(candidate, persistenceFailure);
-        liveWorkspace.serverState = structuredClone(nextServerState);
+        await this.#persistChange([candidate], [], persistenceFailure);
+        liveWorkspace.serverState = nextServerState;
       });
     });
   }
@@ -831,9 +857,9 @@ export class SessionStore {
     | { kind: 'workspace'; workspace: WorkspaceSession }
     | { kind: 'configuration'; session: ConfigSession; workspace: WorkspaceSession | undefined }
     | undefined {
-    const workspace = this.#workspaces.get(id);
+    const workspace = this.#findWorkspace(id);
     if (workspace) return { kind: 'workspace', workspace };
-    const session = this.#sessions.get(id);
+    const session = this.#findSession(id);
     if (!session) return undefined;
     return {
       kind: 'configuration',
@@ -842,13 +868,64 @@ export class SessionStore {
     };
   }
 
-  async #persistCandidate(
-    candidate: readonly WorkspaceSession[],
+  #findWorkspace(id: string): WorkspaceSession | undefined {
+    this.#ensureLoaded(id);
+    return this.#workspaces.get(id);
+  }
+
+  #findSession(id: string): ConfigSession | undefined {
+    const owner = this.#unloadedConfigOwner.get(id);
+    if (owner !== undefined) this.#ensureLoaded(owner);
+    return this.#sessions.get(id);
+  }
+
+  #ensureLoaded(workspaceId: string): void {
+    const entry = this.#unloaded.get(workspaceId);
+    if (!entry) return;
+    this.#forgetUnloaded(entry);
+    this.#hydrate?.(workspaceId);
+  }
+
+  #forgetUnloaded(entry: WorkspaceIndexEntry): void {
+    this.#unloaded.delete(entry.id);
+    for (const configId of entry.configurationIds) {
+      if (this.#unloadedConfigOwner.get(configId) === entry.id) {
+        this.#unloadedConfigOwner.delete(configId);
+      }
+    }
+  }
+
+  #loadAll(): void {
+    for (const id of [...this.#unloaded.keys()]) this.#ensureLoaded(id);
+  }
+
+  #knownWorkspaceIds(): string[] {
+    return [...this.#workspaces.keys(), ...this.#unloaded.keys()];
+  }
+
+  #isKnownWorkspace(id: string): boolean {
+    return this.#workspaces.has(id) || this.#unloaded.has(id);
+  }
+
+  #indexAfterChange(
+    changed: readonly WorkspaceSession[],
+    removedIds: readonly string[],
+  ): WorkspaceIndexEntry[] {
+    const entries = new Map<string, WorkspaceIndexEntry>(this.#unloaded);
+    for (const workspace of this.#workspaces.values()) entries.set(workspace.id, indexEntryOf(workspace));
+    for (const workspace of changed) entries.set(workspace.id, indexEntryOf(workspace));
+    for (const id of removedIds) entries.delete(id);
+    return [...entries.values()];
+  }
+
+  async #persistChange(
+    changed: readonly WorkspaceSession[],
+    removedIds: readonly string[],
     context: PersistenceFailureContext = {},
   ): Promise<void> {
     if (!this.#persistenceWriter) return;
     try {
-      await this.#persistenceWriter(candidate);
+      await this.#persistenceWriter(changed, removedIds, this.#indexAfterChange(changed, removedIds));
     } catch (error) {
       throw asSessionPersistenceError(error, context);
     }
@@ -871,7 +948,7 @@ export class SessionStore {
         redo: [],
       };
     } else {
-      draft.history = structuredClone(draft.history ?? originalHistory);
+      draft.history = copyHistory(draft.history ?? originalHistory);
     }
 
     for (const [id, session] of draft.configurations) {
@@ -915,9 +992,9 @@ export class SessionStore {
           },
         ].slice(-10);
       } else if (old && history === 'record') {
-        session.snapshots = structuredClone(old.snapshots);
+        session.snapshots = [...old.snapshots];
       } else {
-        session.snapshots = structuredClone(session.snapshots).slice(-10);
+        session.snapshots = session.snapshots.slice(-10);
       }
 
       session.raw = canonicalRaw;
@@ -985,7 +1062,7 @@ export class SessionStore {
     original.integrity = draft.integrity;
     original.integrityWarnings = [...draft.integrityWarnings];
     original.recoveryData = structuredClone(draft.recoveryData);
-    original.history = structuredClone(draft.history);
+    original.history = copyHistory(draft.history);
     original.revision = draft.revision;
     original.createdAt = draft.createdAt;
     original.lastAccessAt = draft.lastAccessAt;
@@ -995,8 +1072,35 @@ export class SessionStore {
   /** Rebuilds canonical workspaces while retaining diagnostics for recovery. */
   restore(
     workspaces: unknown[],
-    options: { provenance?: 'current' | 'legacy-unverified' } = {},
+    options: RestoreOptions = {},
   ): number {
+    const report = this.#restoreWorkspaces(workspaces, options);
+    report.evictedWorkspaceIds = this.#evictIfNeeded();
+    report.restored -= report.evictedWorkspaceIds.length;
+    if (report.evictedWorkspaceIds.length > 0) {
+      report.normalizationRequired = true;
+      report.warnings.push(
+        `Evicted ${report.evictedWorkspaceIds.length} workspace(s) to enforce session capacity`,
+      );
+    }
+    this.#lastRestoreReport = report;
+    return report.restored;
+  }
+
+  /** Restores workspaces on first access and merges the outcome into lastRestoreReport. */
+  restoreLazily(workspaces: unknown[]): RestoreReport {
+    const report = this.#restoreWorkspaces(workspaces, {});
+    const total = this.#lastRestoreReport;
+    total.restored += report.restored;
+    total.warnings = [...new Set([...total.warnings, ...report.warnings])];
+    total.quarantined.push(...report.quarantined);
+    total.normalizationRequired ||= report.normalizationRequired;
+    total.canonicalRewriteReasons.push(...report.canonicalRewriteReasons);
+    return report;
+  }
+
+  #restoreWorkspaces(workspaces: unknown[], options: RestoreOptions): RestoreReport {
+    const restoredWorkspaces: WorkspaceSession[] = [];
     const report: RestoreReport = {
       restored: 0,
       warnings: [],
@@ -1106,7 +1210,7 @@ export class SessionStore {
           continue;
         }
 
-        const canonicalRaw = structuredClone(raw as RawConfiguration);
+        const canonicalRaw = raw as RawConfiguration;
         const configurationId = firstNonempty(s['configurationId'], canonicalRaw.id);
         const productRecord = recordOrEmpty(s['product']);
         const productCode = firstNonempty(
@@ -1222,25 +1326,15 @@ export class SessionStore {
         );
       }
       this.#workspaces.set(ws.id, ws);
+      restoredWorkspaces.push(ws);
       report.restored += 1;
     }
 
-    for (const workspace of this.#workspaces.values()) {
+    for (const workspace of restoredWorkspaces) {
       report.warnings.push(...workspace.integrityWarnings.map((warning) => `${workspace.id}: ${warning}`));
     }
-    report.quarantined.push(
-      ...[...this.#workspaces.values()].flatMap((workspace) => workspace.recoveryData ?? []),
-    );
-    report.evictedWorkspaceIds = this.#evictIfNeeded();
-    report.restored -= report.evictedWorkspaceIds.length;
-    if (report.evictedWorkspaceIds.length > 0) {
-      report.normalizationRequired = true;
-      report.warnings.push(
-        `Evicted ${report.evictedWorkspaceIds.length} workspace(s) to enforce session capacity`,
-      );
-    }
-    this.#lastRestoreReport = report;
-    return report.restored;
+    report.quarantined.push(...restoredWorkspaces.flatMap((workspace) => workspace.recoveryData ?? []));
+    return report;
   }
 
   #evictIfNeeded(): string[] {
@@ -1261,6 +1355,12 @@ export class SessionStore {
   }
 
   #removeWorkspaceInMemory(workspaceId: string): boolean {
+    const unloaded = this.#unloaded.get(workspaceId);
+    if (unloaded) {
+      this.#forgetUnloaded(unloaded);
+      this.#mutexes.delete(workspaceId);
+      return true;
+    }
     const workspace = this.#workspaces.get(workspaceId);
     if (!workspace) return false;
     for (const configId of workspace.configurations.keys()) this.#sessions.delete(configId);
@@ -1272,7 +1372,7 @@ export class SessionStore {
   #withAllWorkspaceLocks<T>(excludedId: string, fn: () => Promise<T>): Promise<T> {
     const locked = new Set<string>();
     const acquireNext = (): Promise<T> => {
-      const nextId = [...this.#workspaces.keys()]
+      const nextId = this.#knownWorkspaceIds()
         .filter((id) => id !== excludedId && !locked.has(id))
         .sort()[0];
       if (!nextId) return fn();
