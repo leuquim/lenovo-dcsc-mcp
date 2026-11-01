@@ -57,8 +57,8 @@ describe('registered bounded workspace readers', () => {
       transceivers: [{ code: 'OPTIC' }],
     }];
 
-    const handler = handlers.get('dcsc_workspace_layout')!;
-    const summaryReply = await handler({ session: workspace.id });
+    const handler = handlers.get('dcsc_workspace_get')!;
+    const summaryReply = await handler({ session: workspace.id, view: 'layout' });
     expect(summaryReply.isError).not.toBe(true);
     const summary = json(summaryReply);
     expect(Buffer.byteLength(summaryReply.content[0]!.text)).toBeLessThan(7_500);
@@ -69,7 +69,7 @@ describe('registered bounded workspace readers', () => {
 
     const rawLink = ((summary['pages'] as Record<string, { inspect: Continuation }>)['rawConnections']!).inspect;
     expect(rawLink).toMatchObject({
-      tool: 'dcsc_workspace_layout',
+      tool: 'dcsc_workspace_get',
       arguments: { session: workspace.id, expectedRevision: workspace.revision, path: ['rawConnections'] },
     });
     const rawPage = json(await handler(rawLink.arguments));
@@ -79,7 +79,7 @@ describe('registered bounded workspace readers', () => {
     const stale = await handler(rawLink.arguments);
     expect(stale.isError).toBe(true);
     expect(stale.content[0]!.text).toContain('changed from revision');
-    expect(stale.content[0]!.text).toContain('Restart dcsc_workspace_layout');
+    expect(stale.content[0]!.text).toContain('Restart dcsc_workspace_get');
 
     const unbound = await handler({ session: workspace.id, path: ['cables'], offset: 0, limit: 20 });
     expect(unbound.isError).toBe(true);
@@ -99,12 +99,12 @@ describe('registered bounded workspace readers', () => {
       toConfigId: 'switch-1', toPort: `B${index}`, description: `Cable ${index}`,
     }));
 
-    const handler = handlers.get('dcsc_session_info')!;
+    const handler = handlers.get('dcsc_workspace_get')!;
     const summaryReply = await handler({ session: workspace.id });
     const summary = json(summaryReply);
     expect(Buffer.byteLength(summaryReply.content[0]!.text)).toBeLessThan(7_500);
     expect(summary).toMatchObject({
-      revisionScope: 'workspace', totalPrice: 240, priceIncomplete: false,
+      totalPrice: 240, priceIncomplete: false,
       subtotals: { configurations: 200, standaloneSoftware: 40 },
       totals: { configurations: 1, cables: 83, standaloneSoftware: 1 },
     });
@@ -128,16 +128,14 @@ describe('registered bounded workspace readers', () => {
     workspace.integrityWarnings = Array.from({ length: 100 }, (_, index) =>
       `warning-${index}-` + 'x'.repeat(4_000));
 
-    const handler = handlers.get('dcsc_session_info')!;
+    const handler = handlers.get('dcsc_workspace_get')!;
     const reply = await handler({ session: session.id });
     const result = json(reply);
     expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(7_500);
     expect(result).toMatchObject({
       session: session.id,
-      revision: session.revision,
-      revisionScope: 'configuration',
+      revision: workspace.revision,
       workspace: workspace.id,
-      workspaceRevision: workspace.revision,
       integrityWarningCount: 100,
     });
     const page = result['integrityWarningsPage'] as { inspect: Continuation };

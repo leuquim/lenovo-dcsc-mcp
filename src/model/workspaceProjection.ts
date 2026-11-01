@@ -379,7 +379,7 @@ export function projectWorkspaceIntegrity(
   return result;
 }
 
-/** Compact replacement for the multi-configuration dcsc_session_info body. */
+/** Compact replacement for the multi-configuration dcsc_workspace_get summary. */
 export function projectWorkspaceSummary(
   workspace: WorkspaceSession,
   options: WorkspaceProjectionOptions,
@@ -538,7 +538,7 @@ export function projectWorkspaceSummary(
   return result;
 }
 
-/** Compact replacement for the default dcsc_workspace_layout response. */
+/** Compact replacement for the dcsc_workspace_get layout view. */
 export function projectWorkspaceLayout(
   workspace: WorkspaceSession,
   options: WorkspaceProjectionOptions,

@@ -581,7 +581,7 @@ export function prepareConfigurationChanges(
     }
     if (ref.subTab === 'Riser Card' && pciWizardOptions(session.raw).length > 0) {
       throw new Error(
-        'Use dcsc_pci_wizard and dcsc_set_pci_wizard for riser slots on this configuration; ordinary feature edits do not apply native PCI wizard selections.',
+        'Use dcsc_wizard_get and dcsc_wizard_set (wizard "pci") for riser slots on this configuration; ordinary feature edits do not apply native PCI wizard selections.',
       );
     }
     if (ref.subTab === 'Controller and Backplane') ordinaryStorageEdit = true;
@@ -604,7 +604,7 @@ export function prepareConfigurationChanges(
     const tabType = session.raw.tabs?.find((tab) => tab.title === ref.tab)?.type;
     if (tabType === 'UNCONFIGURED_TAB') {
       throw new Error(
-        'Use dcsc_set_unconfigured for Unconfigured selections; these are native client-held options and must not be sent through hardware derivation. Load choices with dcsc_load_unconfigured first.',
+        'Send Unconfigured selections in a dcsc_configure call of their own; these are native client-held options and must not be sent through hardware derivation. Load choices with dcsc_launch (mode "unconfigured") first.',
       );
     }
     editKinds.add(tabType === 'software' ? 'software' : 'hardware');

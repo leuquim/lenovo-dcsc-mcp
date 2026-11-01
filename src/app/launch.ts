@@ -379,7 +379,7 @@ export async function setUnconfigured(rt: Runtime, handle: string, changes: Arra
     if (!session) throw new Error('Configuration is no longer present.');
     const edits = changes.map(change => {
       const section = resolveSection(session.index, change.section);
-      if (!section) throw new Error('Load Unconfigured options and use an exact section ID from dcsc_list_options.');
+      if (!section) throw new Error('Load Unconfigured options and use an exact section ID from dcsc_configuration_get.');
       return { ...change, sectionName: section.name };
     });
     const group = linkedGroup(workspace, session.configurationId);
@@ -657,7 +657,7 @@ export async function setQuantity(rt: Runtime, session: ConfigSession, quantity:
     }
     const group = linkedGroup(workspace, draft.configurationId);
     if (group.linked && quantity !== 1) {
-      throw new Error('Linked physical clones each have quantity one. Use dcsc_clone_configuration with placement="same-rack" to add physical instances, or close an unwanted clone configuration.');
+      throw new Error('Linked physical clones each have quantity one. Use dcsc_rack_edit with action "clone" and placement "same-rack" to add physical instances, or close an unwanted clone configuration.');
     }
     draft.raw.quantity = quantity;
     return draft;
@@ -668,7 +668,7 @@ export async function undo(rt: Runtime, session: ConfigSession, expectedRevision
   return rt.sessions.transact(session.id, { history: 'restore', expectedRevision }, (workspace, draft) => {
     if (!draft) throw new Error('A configuration handle is required.');
     if ([...storagePhysicalTemplateIds(workspace).values()].includes(draft.configurationId)) {
-      throw new Error('This storage configuration has physical instances. Use dcsc_workspace_history with action="undo" to restore its selections, physical instances, prices and connection graph together.');
+      throw new Error('This storage configuration has physical instances. Use dcsc_undo with scope "workspace" to restore its selections, physical instances, prices and connection graph together.');
     }
     const group = linkedGroup(workspace, draft.configurationId);
     if (group.linked) {
@@ -677,7 +677,7 @@ export async function undo(rt: Runtime, session: ConfigSession, expectedRevision
       const marker = Array.isArray(entries) ? entries.at(-1) as {
         at?: unknown; requiresWorkspaceUndo?: boolean; members?: Array<{ configurationId: string; revision: number; intentCount: number }>;
       } | undefined : undefined;
-      const message = 'No matching atomic linked edit can be undone. Use dcsc_workspace_history to restore the complete workspace.';
+      const message = 'No matching atomic linked edit can be undone. Use dcsc_undo with scope "workspace" to restore the complete workspace.';
       if (!Array.isArray(entries) || !marker || marker.requiresWorkspaceUndo || typeof marker.at !== 'number' || !Array.isArray(marker.members) ||
         marker.members.some(member => !member || typeof member !== 'object' || typeof member.configurationId !== 'string') ||
         marker.members.length !== group.memberIds.length ||
@@ -725,12 +725,12 @@ export async function closeSession(rt: Runtime, handle: string, expectedRevision
     const storageDefinitions = readStorageConnectionNetworks(workspace.serverState)
       .filter(network => [network.controller, network.mainSwitch].some(selection => selection?.id === id));
     if (storageDefinitions.length > 0) {
-      throw new Error(`This managed component belongs to storage network ${storageDefinitions.map(network => `"${network.name}"`).join(', ')}. Use dcsc_edit_storage_network with action="remove" to remove the definition and its managed components together.`);
+      throw new Error(`This managed component belongs to storage network ${storageDefinitions.map(network => `"${network.name}"`).join(', ')}. Use dcsc_storage_set to remove the definition and its managed components together.`);
     }
     const physicalItems = [...workspace.rackArea, ...workspace.nonRackArea];
     for (const item of physicalItems) {
       if (item.id === id && physicalIds(item).size > 1) {
-        throw new Error(`This ${item.type ?? 'container'} contains configurations. Use dcsc_edit_layout with an explicit contents disposition before closing it.`);
+        throw new Error(`This ${item.type ?? 'container'} contains configurations. Use dcsc_rack_edit with an explicit contents disposition before closing it.`);
       }
       for (const field of ['rackItems', 'nodes']) {
         if (Array.isArray(item[field])) physicalItems.push(...item[field] as RackObject[]);
@@ -741,4 +741,24 @@ export async function closeSession(rt: Runtime, handle: string, expectedRevision
     workspace.rackSummaries = summariseRackArea(workspace.rackArea);
     return true;
   });
+}
+
+/** Unconfigured selections are client-held, so they never go through DCSC derivation. */
+export async function applySelections(rt: Runtime, session: ConfigSession,
+  changes: Array<{ section: string; code: string; quantity: number }>,
+  ctx: RequestCtx,
+  expectedWorkspaceRevision?: number,): Promise<{ unconfigured: boolean; session: ConfigSession }> {
+  const targetsUnconfigured = changes.map((change) => {
+    const section = resolveSection(session.index, change.section);
+    return section !== undefined && session.raw.tabs?.find((tab) => tab.title === section.tab)?.type === 'UNCONFIGURED_TAB';
+  });
+  if (targetsUnconfigured.some(Boolean)) {
+    if (!targetsUnconfigured.every(Boolean)) {
+      throw new Error('Send Unconfigured selections in a dcsc_configure call of their own, apart from hardware or software sections.');
+    }
+    const workspace = rt.sessions.getWorkspace(session.workspaceId)!;
+    const updated = await setUnconfigured(rt, session.id, changes, expectedWorkspaceRevision ?? workspace.revision);
+    return { unconfigured: true, session: updated };
+  }
+  return { unconfigured: false, session: await configure(rt, session, changes, ctx, session.revision) };
 }

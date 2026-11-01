@@ -118,7 +118,7 @@ it('rejects generic riser edits before HTTP and does not publish a wizard edit w
     return { raw: { configurations: [fixture.derived] } } as never;
   });
   await expect(service.configure(session, [{ section: 'REAR_SLOT1', code: 'C3R9', quantity: 1 }], service.newCtx()))
-    .rejects.toThrow(/dcsc_set_pci_wizard/);
+    .rejects.toThrow(/dcsc_wizard_set/);
   expect(send).not.toHaveBeenCalled();
   service.sessions.setPersistenceWriter(async () => { throw new Error('disk full'); });
   await expect(service.setPciWizard(session.id, change, workspace.revision, service.newCtx()))

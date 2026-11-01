@@ -18,12 +18,14 @@ import {
   validationPayloadSha256,
 } from '../domain/validationJobs.js';
 import { diffConfigurations } from '../model/diff.js';
+import { projectJsonPage } from '../model/pagedJson.js';
+import { mandatoryVerifyConfig, type VerifyMandatorySoftwareResult } from '../domain/mandatorySoftware.js';
 import { buildIndex } from '../model/index.js';
 import { projectSummary } from '../model/project.js';
 import { type RequestCtx } from '../http/request.js';
-import { SessionConflictError } from '../session/SessionStore.js';
 import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import type { SolutionContext } from '../config/schema.js';
+import { SessionConflictError } from '../session/SessionStore.js';
 import { updateHistoryFactory } from './serviceHelpers.js';
 import type { Runtime } from './runtime.js';
 import { autoDerive } from './launch.js';
@@ -455,4 +457,36 @@ export function diffSessions(rt: Runtime, sessionHandleA: string, sessionHandleB
     currency: sA.locale.currency,
     ...diff,
   };
+}
+
+/** Checks the mandatory OS/hypervisor selections of one configuration, as the website does before Summary. */
+export async function verifyMandatorySoftware(rt: Runtime, handle: string, ctx: RequestCtx): Promise<VerifyMandatorySoftwareResult> {
+  const resolved = rt.sessions.resolveHandle(handle);
+  const session = resolved?.session;
+  if (!session) throw new Error('Mandatory software verification requires a configuration session handle.');
+  const mode = hardwareModeFamily(session.mode);
+  return mandatoryVerifyConfig(rt.http, { ...ctx, locale: session.locale, solution: session.solution }, {
+    mode,
+    configuration: { ...session.reduced, code: session.reduced.ctoCode, lfoCode: session.reduced.lfoCode ?? undefined },
+  });
+}
+
+/** Saved validation jobs of a workspace, or one job's recorded report, as paged JSON. */
+export function inspectValidationJobs(rt: Runtime, opts: {
+  session: string; jobId?: string | undefined; path: string[]; offset: number; limit: number;
+}): Record<string, unknown> {
+  const jobs = validationJobs(rt, opts.session);
+  let source: unknown;
+  if (opts.jobId) {
+    source = jobs.find(job => job.id === opts.jobId);
+    if (!source) throw new Error(`Validation job ${opts.jobId} is not stored in this workspace.`);
+  } else {
+    source = jobs.map(job => ({ jobId: job.id, target: job.target, status: job.currentStatus,
+      isValid: job.isValid, stale: job.stale, validatedRevision: job.validatedRevision,
+      startedAt: job.startedAt, terminal: job.terminal, freshValidationRequired: job.freshValidationRequired,
+      next: { tool: 'dcsc_workspace_get', arguments: { session: opts.session, view: 'validation', jobId: job.id } } }));
+  }
+  return projectJsonPage(source, { tool: 'dcsc_workspace_get',
+    arguments: { session: opts.session, view: 'validation', ...(opts.jobId ? { jobId: opts.jobId } : {}) },
+    path: opts.path, offset: opts.offset, limit: opts.limit });
 }

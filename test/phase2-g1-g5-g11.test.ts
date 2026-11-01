@@ -15,7 +15,7 @@ import {
 } from '../src/domain/supplyStatus.js';
 import { registerImportExportTools } from '../src/mcp/importExportTools.js';
 import { registerConfigurationTools } from '../src/mcp/configurationTools.js';
-import { registerPciWizardTools } from '../src/mcp/pciWizardTools.js';
+import { registerWizardTools } from '../src/mcp/wizardTools.js';
 import { registerCatalogTools } from '../src/mcp/catalogTools.js';
 import { registerStandaloneTools } from '../src/mcp/standaloneTools.js';
 
@@ -59,7 +59,7 @@ async function setupTestEnvironment() {
 
   registerImportExportTools(server as unknown as McpServer, service);
   registerConfigurationTools(server as unknown as McpServer, service);
-  registerPciWizardTools(server as unknown as McpServer, service);
+  registerWizardTools(server as unknown as McpServer, service);
   registerCatalogTools(server as unknown as McpServer, service);
   registerStandaloneTools(server as unknown as McpServer, service);
 

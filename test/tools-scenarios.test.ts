@@ -211,7 +211,7 @@ describe('tool power accounting', () => {
     const power = parse(await handlers.get('dcsc_power_get')!({ session: ws.id }));
     expect(power).toMatchObject({ total: { maxKW: 5 }, perConfiguration: [{ salesQuantity: 2 }],
       perRack: [{ maxKW: 5, physicallyPlacedUnits: 2 }], unplacedSalesUnits: [] });
-    expect(parse(await handlers.get('dcsc_compare_scenarios')!({ sessions: [ws.id] }))).toMatchObject({
+    expect(parse(await handlers.get('dcsc_compare')!({ analysis: 'scenarios', sessions: [ws.id] }))).toMatchObject({
       scenarios: [{ listPrice: 40000, maxKW: 5 }],
     });
     expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
@@ -235,7 +235,7 @@ describe('tool power accounting', () => {
         { physicalId: 'physical-2', power: { inputPowerW: { max: 4000 } } },
       ] }],
     });
-    expect(parse(await handlers.get('dcsc_compare_scenarios')!({ sessions: [ws.id] }))).toMatchObject({
+    expect(parse(await handlers.get('dcsc_compare')!({ analysis: 'scenarios', sessions: [ws.id] }))).toMatchObject({
       scenarios: [{ listPrice: 43000, maxKW: 7 }],
     });
     expect(workspaceDetailSource(ws)).toMatchObject({ configurations: [{ unitPrice: null,
@@ -248,7 +248,7 @@ describe('tool power accounting', () => {
     delete secondPhysical.powerReportResponse;
     expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
       .toMatchObject({ totalPrice: null, knownPriceSubtotal: 21000 });
-    expect(parse(await handlers.get('dcsc_compare_scenarios')!({ sessions: [ws.id] }))).toMatchObject({
+    expect(parse(await handlers.get('dcsc_compare')!({ analysis: 'scenarios', sessions: [ws.id] }))).toMatchObject({
       scenarios: [{ listPrice: null, priceAvailable: false, knownListPriceSubtotal: 21000,
         powerAvailable: false, knownPowerSubtotal: { maxKW: 3 } }],
     });
@@ -280,7 +280,7 @@ describe('tool power accounting', () => {
     ws.serverState.storageConnectionNetworks = [{ name: 'SAN', controller: { id: controller.configurationId } }];
     const handlers = register(fakeService([ws]));
     const power = handlers.get('dcsc_power_get')!;
-    const compare = handlers.get('dcsc_compare_scenarios')!;
+    const compare = handlers.get('dcsc_compare')!;
     const workspacePower = parse(await power({ session: ws.id }));
     expect(workspacePower.total).toMatchObject({ maxKW: 1 });
     expect(workspacePower.perConfiguration).toEqual(expect.arrayContaining([
@@ -290,11 +290,11 @@ describe('tool power accounting', () => {
       expect.objectContaining({ session: node.id, unplacedUnits: 1 }),
     ]);
     expect(parse(await power({ session: controller.id })).total).toMatchObject({ maxKW: 2.5 });
-    expect(parse(await compare({ sessions: [ws.id, controller.id] })).scenarios).toEqual([
+    expect(parse(await compare({ analysis: 'scenarios', sessions: [ws.id, controller.id] })).scenarios).toEqual([
       expect.objectContaining({ listPrice: 100, maxKW: 1 }),
       expect.objectContaining({ listPrice: 20000, maxKW: 2.5 }),
     ]);
-    expect(parse(await compare({ sessions: [node.id], nodes: 8 })).scenarios).toEqual([
+    expect(parse(await compare({ analysis: 'scenarios', sessions: [node.id], nodes: 8 })).scenarios).toEqual([
       expect.objectContaining({ listPrice: 800, maxKW: 8 }),
     ]);
     expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
@@ -309,7 +309,7 @@ describe('tool power accounting', () => {
     // An actual returned placement converts the template into physical supply.
     ws.nonRackArea = [{ id: controller.configurationId, type: 'storage' }];
     expect(parse(await power({ session: ws.id })).total).toMatchObject({ maxKW: 3.5 });
-    expect(parse(await compare({ sessions: [ws.id] })).scenarios).toEqual([
+    expect(parse(await compare({ analysis: 'scenarios', sessions: [ws.id] })).scenarios).toEqual([
       expect.objectContaining({ listPrice: 20100, maxKW: 3.5 }),
     ]);
     expect(projectWorkspaceSummary(ws, { tool: 'dcsc_session_info', arguments: { session: ws.id } }))
@@ -378,8 +378,8 @@ describe('scenario comparison scope and currency', () => {
     else unknown.raw.priceNotAvailable = true;
     const complete = configuration({ id: 'complete', workspaceId: 'complete-ws', price: 500, maxPowerW: 2000 });
     const handler = register(fakeService([workspace('partial', [known, unknown]), workspace('complete-ws', [complete])]))
-      .get('dcsc_compare_scenarios')!;
-    const result = parse(await handler({ sessions: ['partial', 'complete-ws'] }));
+      .get('dcsc_compare')!;
+    const result = parse(await handler({ analysis: 'scenarios', sessions: ['partial', 'complete-ws'] }));
     expect(result).not.toHaveProperty('cheapest');
     expect(result).not.toHaveProperty('lowestPower');
     expect(result.priceRanking).toMatchObject({ status: 'unavailable' });
@@ -418,10 +418,10 @@ describe('scenario comparison scope and currency', () => {
     };
     const handler = register(
       fakeService([workspace('ws-a', [nodeA, fixedA], [rack]), workspace('ws-b', [nodeB, fixedB], [rack])]),
-    ).get('dcsc_compare_scenarios');
+    ).get('dcsc_compare');
     if (!handler) throw new Error('scenario tool not registered');
 
-    const body = parse(await handler({ sessions: [nodeA.id, nodeB.id], nodes: 8 }));
+    const body = parse(await handler({ analysis: 'scenarios', sessions: [nodeA.id, nodeB.id], nodes: 8 }));
     expect(body.currency).toBe('USD');
     expect(body.cheapest).toBe(nodeA.id);
     const scenarios = body.scenarios as Array<Record<string, unknown>>;
@@ -440,7 +440,7 @@ describe('scenario comparison scope and currency', () => {
     expect(nodeA.raw.quantity).toBe(1);
     expect(fixedA.raw.quantity).toBe(1);
 
-    const ambiguous = await handler({ sessions: ['ws-a', 'ws-b'], nodes: 8 });
+    const ambiguous = await handler({ analysis: 'scenarios', sessions: ['ws-a', 'ws-b'], nodes: 8 });
     expect(ambiguous.isError).toBe(true);
     expect(parse(ambiguous).error).toContain('Pass the configuration session ID');
   });
@@ -450,10 +450,10 @@ describe('scenario comparison scope and currency', () => {
     const eur = configuration({ id: 'eur', workspaceId: 'ws-eur', currency: 'EUR', price: 90 });
     const handler = register(
       fakeService([workspace('ws-usd', [usd]), workspace('ws-eur', [eur])]),
-    ).get('dcsc_compare_scenarios');
+    ).get('dcsc_compare');
     if (!handler) throw new Error('scenario tool not registered');
 
-    const body = parse(await handler({ sessions: [usd.id, eur.id] }));
+    const body = parse(await handler({ analysis: 'scenarios', sessions: [usd.id, eur.id] }));
     expect(body.scenarios).toEqual([
       expect.objectContaining({ session: usd.id, currency: 'USD', listPrice: 100 }),
       expect.objectContaining({ session: eur.id, currency: 'EUR', listPrice: 90 }),
@@ -469,7 +469,7 @@ describe('configuration targeting and mutation', () => {
     const first = configuration({ id: 'first', workspaceId: 'multi' });
     const second = configuration({ id: 'second', workspaceId: 'multi' });
     const handler = register(fakeService([workspace('multi', [first, second])])).get(
-      'dcsc_list_options',
+      'dcsc_configuration_get',
     );
     if (!handler) throw new Error('list options tool not registered');
 

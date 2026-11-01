@@ -213,16 +213,14 @@ describe('rack item and empty-U Lock service orchestration', () => {
       return { remove() {}, update() {} };
     } } as unknown as McpServer, service);
 
-    const reply = await handlers.get('dcsc_set_rack_lock')!({
-      session: source.id, target: { rackId: 'rack-1', position: 42 }, locked: true,
+    const reply = await handlers.get('dcsc_rack_edit')!({
+      session: source.id, action: 'lock', rackId: 'rack-1', uPosition: 42,
       expectedRevision: workspace.revision,
     });
     expect(reply.isError).not.toBe(true);
     expect(JSON.parse(reply.content[0]!.text)).toMatchObject({
       rackId: 'rack-1', position: 42, locked: true,
-      workspace: workspace.id, workspaceRevision: workspace.revision,
-      revisionScope: 'workspace',
-      next: { tool: 'dcsc_workspace_layout', arguments: { session: workspace.id } },
+      session: source.id, workspace: workspace.id, revision: workspace.revision,
     });
   });
 });

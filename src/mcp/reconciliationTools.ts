@@ -9,8 +9,8 @@ import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 export function registerReconciliationTools(server: McpServer, service: DcscService): void {
   server.registerTool('dcsc_reconcile_workspace', {
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
-    title: 'Review and accept a saved design reconciliation',
-    description: 'propose derives current configurations and stores a reviewable comparison without changing selections or revision. inspect pages through differences and warnings. apply accepts the identified proposal while its original revision and content still match.',
+    title: 'Reconcile a saved design',
+    description: 'For damaged or legacy workspaces: propose stores a reviewable comparison, inspect pages through it, apply accepts it while the workspace is unchanged.',
     inputSchema: {
       session: z.string(),
       action: z.enum(['propose', 'inspect', 'apply']),
@@ -22,7 +22,7 @@ export function registerReconciliationTools(server: McpServer, service: DcscServ
   }, async args => guard(async () => {
     if (args.action === 'propose') {
       const proposal = await service.proposeReconciliation(args.session, service.newCtx());
-      return { workspace: proposal.workspaceId, proposalId: proposal.id, sourceRevision: proposal.sourceRevision,
+      return { session: proposal.workspaceId, revision: service.sessions.getWorkspace(proposal.workspaceId)?.revision, proposalId: proposal.id, sourceRevision: proposal.sourceRevision,
         sourceHash: proposal.sourceHash, status: proposal.status, configurations: proposal.diffs.length,
         changedConfigurations: proposal.diffs.filter(diff => diff.changed).length,
         warningCount: proposal.warnings.length,
@@ -31,7 +31,10 @@ export function registerReconciliationTools(server: McpServer, service: DcscServ
           action: 'inspect', proposalId: proposal.id, path: [], offset: 0, limit: 20 } } };
     }
     if (!args.proposalId) throw new Error('proposalId is required for inspect or apply.');
-    if (args.action === 'apply') return service.acceptReconciliation(args.session, args.proposalId);
+    if (args.action === 'apply') {
+      const accepted = await service.acceptReconciliation(args.session, args.proposalId);
+      return { session: accepted.workspace, revision: accepted.revision, integrity: accepted.integrity };
+    }
     return projectProposal(service.reconciliationProposal(args.session, args.proposalId), args.path, args.offset, args.limit);
   }, 'dcsc_reconcile_workspace failed'));
 }

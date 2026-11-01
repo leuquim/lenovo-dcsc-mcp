@@ -52,10 +52,10 @@ describe('recovery tools for unreadable session sources', () => {
     const original = Buffer.concat([Buffer.from('{"version":2,"workspaces":['), Buffer.from([0xff, 0x00])]);
     const { service, config, call } = setup(original);
     expect(service.sessions.listWorkspaces()).toEqual([]);
-    const health = await call('dcsc_health');
+    const health = await call('dcsc_session_list', { view: 'health' });
     expect(health.json.recovery).toMatchObject({ warningCount: expect.any(Number), archiveCount: 1,
-      inspect: { tool: 'dcsc_recovery_inspect' } });
-    const inspection = await call('dcsc_recovery_inspect', { path: [], offset: 0, limit: 20 });
+      inspect: { tool: 'dcsc_session_list' } });
+    const inspection = await call('dcsc_session_list', { view: 'recovery', path: [], offset: 0, limit: 20 });
     expect(inspection.isError).not.toBe(true);
     expect(inspection.json.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: 'warnings' }), expect.objectContaining({ key: 'recoveryArchives' }),
@@ -79,7 +79,7 @@ describe('recovery tools for unreadable session sources', () => {
     const { service, call } = setup(Buffer.from('invalid JSON'));
     service.sessions.recordRestoreDiagnostics({ quarantined: [{ payload: 'x'.repeat(20_000) }] });
     const position = String(service.sessions.lastRestoreReport.quarantined.length - 1);
-    const reply = await call('dcsc_recovery_inspect', { path: ['quarantined', position], offset: 0, limit: 20 });
+    const reply = await call('dcsc_session_list', { view: 'recovery', path: ['quarantined', position], offset: 0, limit: 20 });
     expect(reply.isError).not.toBe(true);
     expect(Buffer.byteLength(reply.content[0]!.text)).toBeLessThan(8000);
     const item = (reply.json.items as Array<{ next: { tool: string; arguments: Record<string, unknown> } }>)[0]!;

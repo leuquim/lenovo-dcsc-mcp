@@ -146,8 +146,8 @@ describe('registered tool persistence diagnostics', () => {
     const writer = vi.fn(() => { throw new Error('SECRET_QUANTITY_PATH: read only'); });
     service.sessions.setPersistenceWriter(writer);
 
-    const reply = await handlers.get('dcsc_set_quantity')!({
-      session: session.id, expectedRevision: session.revision, quantity: 8,
+    const reply = await handlers.get('dcsc_configure')!({
+      session: session.id, expectedRevision: session.revision, salesQuantity: 8,
     });
 
     expect(reply.isError).toBe(true);

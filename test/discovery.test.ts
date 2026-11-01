@@ -210,8 +210,8 @@ describe('option projections', () => {
 
     expect(view.options.length).toBeGreaterThan(0);
     expect(view.options.length).toBeLessThan(found.items.length);
-    expect(view.next).toEqual({ tool: 'dcsc_list_options', arguments: {
-      session: 'sess-1', query: 'rack drive', tab: 'Storage & Drives',
+    expect(view.next).toEqual({ tool: 'dcsc_configuration_get', arguments: {
+      session: 'sess-1', view: 'options', query: 'rack drive', tab: 'Storage & Drives',
       section: 'storage-drives.front-drive', filter: 'selectable',
       offset: view.options.length, limit: found.limit,
     } });

@@ -4,7 +4,8 @@ import { ConfigSchema } from '../src/config/schema.js';
 import { reduceConfiguration } from '../src/domain/reduce.js';
 import { DcscService } from '../src/mcp/service.js';
 import { registerTools } from '../src/mcp/tools.js';
-import { projectValidationToolResult, registerValidationTools } from '../src/mcp/validationTools.js';
+import { projectValidationToolResult } from '../src/mcp/validationTools.js';
+import { registerSessionTools } from '../src/mcp/sessionTools.js';
 import { projectJsonPage } from '../src/model/pagedJson.js';
 import type { RawConfiguration } from '../src/model/types.js';
 
@@ -102,12 +103,12 @@ describe('saved validation inspection', () => {
     const { service, session, send } = setup();
     await service.validate(session.id, service.newCtx());
     type Reply = { isError?: boolean; content: Array<{ text: string }> };
-    let handler!: (args: { session: string; jobId?: string; path: string[]; offset: number; limit: number }) => Promise<Reply>;
-    registerValidationTools({ registerTool(_name: string, _config: unknown, fn: typeof handler) { handler = fn; } } as unknown as McpServer, service);
-    const args = { session: session.workspaceId, path: [], offset: 0, limit: 20 };
+    let handler!: (args: { session: string; view: string; jobId?: string; path: string[]; offset: number; limit: number }) => Promise<Reply>;
+    registerSessionTools({ registerTool(name: string, _config: unknown, fn: typeof handler) { if (name === 'dcsc_workspace_get') handler = fn; } } as unknown as McpServer, service);
+    const args = { session: session.workspaceId, view: 'validation', path: [], offset: 0, limit: 20 };
     const list = JSON.parse((await handler(args)).content[0]!.text);
     const next = list.items[0].value.next;
-    expect(next.tool).toBe('dcsc_validation_jobs');
+    expect(next.tool).toBe('dcsc_workspace_get');
     const detail = await handler({ ...args, ...next.arguments });
     expect(detail.isError).not.toBe(true);
     expect(Buffer.byteLength(detail.content[0]!.text)).toBeLessThan(8000);
@@ -196,7 +197,7 @@ describe('bounded validation result projection', () => {
       validatedRevision: 3, stale: false, freshValidationRequired: false,
       errorCount: 21, localErrorCount: 1, compacted: true,
       pages: {
-        messages: { total: 21, inspect: { tool: 'dcsc_validation_jobs', arguments: {
+        messages: { total: 21, inspect: { tool: 'dcsc_workspace_get', arguments: {
           session: 'ws', jobId: 'job', path: ['report', 'messages'], offset: 0, limit: 20,
         } } },
         localDiagnostics: { total: 7 },
@@ -213,14 +214,14 @@ describe('bounded validation result projection', () => {
       let offset = 0;
       const entries: Array<[string, unknown]> = [];
       for (;;) {
-        const page = projectJsonPage(saved, { tool: 'dcsc_validation_jobs', arguments: {
+        const page = projectJsonPage(saved, { tool: 'dcsc_workspace_get', arguments: {
           session: 'ws', jobId: 'job',
         }, path, offset, limit: 20 });
         if (typeof page['text'] === 'string') {
           let text = page['text'];
           let next = page['next'] as { arguments: { offset: number } } | undefined;
           while (next) {
-            const chunk = projectJsonPage(saved, { tool: 'dcsc_validation_jobs', arguments: {
+            const chunk = projectJsonPage(saved, { tool: 'dcsc_workspace_get', arguments: {
               session: 'ws', jobId: 'job',
             }, path, offset: next.arguments.offset, limit: 1000 });
             text += String(chunk['text']);
@@ -276,7 +277,7 @@ describe('bounded validation result projection', () => {
       compacted: true,
       lmc: { buildEntityNumber: 'BUILD', uuid: 'uuid', lmcURLTruncated: true },
       pages: {
-        savedJob: { inspect: { tool: 'dcsc_validation_jobs', arguments: {
+        savedJob: { inspect: { tool: 'dcsc_workspace_get', arguments: {
           session: 'ws', jobId: 'job', path: [], offset: 0, limit: 20,
         } } },
         lmc: { lmcURL: { total: [...lmcURL].length, inspect: { arguments: {
@@ -303,7 +304,7 @@ describe('bounded validation result projection', () => {
       } } } },
     });
     const page = projectJsonPage({ error: { message: warning } }, {
-      tool: 'dcsc_validation_jobs', arguments: { session: 'ws', jobId: 'job' },
+      tool: 'dcsc_workspace_get', arguments: { session: 'ws', jobId: 'job' },
       path: ['error', 'message'], offset: 0, limit: 1_000,
     });
     expect(page['text']).toBe(warning.slice(0, 1_000));
@@ -334,10 +335,10 @@ describe('bounded validation result projection', () => {
       localErrorCount: 7, localWarningCount: 5, localInfoCount: 3,
       compacted: true, contextOmitted: true,
       warningTruncated: true,
-      warningInspect: { tool: 'dcsc_validation_jobs', arguments: {
+      warningInspect: { tool: 'dcsc_workspace_get', arguments: {
         session: 'ws', jobId: 'job', path: ['error', 'message'], offset: 0, limit: 20,
       } },
-      inspectSavedJob: { tool: 'dcsc_validation_jobs', arguments: {
+      inspectSavedJob: { tool: 'dcsc_workspace_get', arguments: {
         session: 'ws', jobId: 'job', path: [], offset: 0, limit: 20,
       } },
     });

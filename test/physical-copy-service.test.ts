@@ -203,16 +203,15 @@ describe('independent physical rack Copy service orchestration', () => {
       return { remove() {}, update() {} };
     } } as unknown as McpServer, service);
 
-    const reply = await handlers.get('dcsc_copy_rack_item')!({
-      session: source.id, expectedRevision: workspace.revision,
+    const reply = await handlers.get('dcsc_rack_edit')!({
+      session: source.id, action: 'copy', expectedRevision: workspace.revision,
     });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text) as Obj;
     expect(result).toMatchObject({
-      workspace: workspace.id, workspaceRevision: workspace.revision,
+      session: source.id, workspace: workspace.id, revision: workspace.revision,
       name: 'Copy_Server', source: { session: source.id, configurationId: 'server-1' },
       placement: { rackId: 'rack-1', position: 2 },
-      next: { tool: 'dcsc_list_options' }, inspect: { tool: 'dcsc_workspace_layout' },
     });
     expect(result['configurationId']).not.toBe('server-1');
   });

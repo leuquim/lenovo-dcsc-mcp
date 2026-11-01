@@ -179,7 +179,7 @@ describe('dcsc_storage_set customize switch', () => {
     expect(reopened).toMatchObject({ session: result.configuration, switchId: 'switch-id', created: false });
     expect(requests).toHaveLength(2);
 
-    await expect(service.closeSession(result.configuration)).rejects.toThrow(/dcsc_(edit_storage_network|storage_set)/);
+    await expect(service.closeSession(result.configuration)).rejects.toThrow(/dcsc_storage_set/);
     expect(service.sessions.get(result.configuration)?.configurationId).toBe('switch-id');
   });
 

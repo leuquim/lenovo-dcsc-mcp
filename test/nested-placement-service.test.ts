@@ -205,7 +205,7 @@ it.each(['racked', 'loose'])('does not orphan nested configurations when closing
   const physicalBefore = structuredClone({ rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea });
   const idsBefore = [...workspace.configurations.keys()];
   const revision = workspace.revision;
-  await expect(service.closeSession(chassis.id)).rejects.toThrow(/contains configurations.*dcsc_edit_layout/);
+  await expect(service.closeSession(chassis.id)).rejects.toThrow(/contains configurations.*dcsc_rack_edit/);
   expect({ rackArea: workspace.rackArea, nonRackArea: workspace.nonRackArea }).toEqual(physicalBefore);
   expect([...workspace.configurations.keys()]).toEqual(idsBefore);
   expect(workspace.revision).toBe(revision);

@@ -124,7 +124,7 @@ export async function scaleOut(rt: Runtime, opts: {
   if (perRack === 0) {
     throw new Error(
       `DCSC would not place ${node.reduced.sliceCtoCode} in ${opts.rackCode} at all. ` +
-        'Try a different rack cabinet from dcsc_list_racks.',
+        'Try a different rack cabinet from dcsc_rack_get.',
     );
   }
 
@@ -199,7 +199,7 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
   const envelope = envelopes.get(rackCode.toUpperCase());
   if (!envelope) {
     throw new Error(
-      `DCSC returned no physical data for rack ${rackCode}. Use dcsc_list_racks for valid codes.`,
+      `DCSC returned no physical data for rack ${rackCode}. Use dcsc_rack_get for valid codes.`,
     );
   }
 
@@ -238,7 +238,7 @@ export async function placeInRack(rt: Runtime, sessionHandle: string,
     session.configurationId === (aliasTemplateId ?? opts.sessionId));
   if (!target) throw new Error(`Configuration or physical item ${opts.sessionId} does not belong to this workspace.`);
   if (!aliasTemplateId && managedStorageComponentIds(ws.serverState).has(target.configurationId)) {
-    throw new Error('Use dcsc_place_storage_network to instantiate a managed storage template. To move an existing instance, pass its physical ID from dcsc_workspace_layout.');
+    throw new Error('Use dcsc_storage_set to instantiate a managed storage template. To move an existing instance, pass its physical ID from dcsc_workspace_get.');
   }
   const physicalId = aliasTemplateId ? opts.sessionId : target.configurationId;
   if (opts.position !== undefined && (!Number.isInteger(opts.position) || opts.position < 1)) {
@@ -261,7 +261,7 @@ export async function placeInRack(rt: Runtime, sessionHandle: string,
 
   const rackIndex = ws.rackArea.findIndex((r) => String(r['id']) === opts.rackId);
   if (rackIndex < 0) {
-    throw new Error(`Rack ${opts.rackId} not found in this workspace. Add one with dcsc_add_rack.`);
+    throw new Error(`Rack ${opts.rackId} not found in this workspace. Add one with dcsc_rack_add.`);
   }
 
   const previous = detachPhysicalItem(ws, physicalId);
@@ -364,7 +364,7 @@ async function copyNodeIntoChassis(rt: Runtime, handle: string, opts: {
       const compatible = await fetchRackCabinets(rt.http, { ...context, solution: workspace.solution }, String(parent.code), type);
       if (!compatible.some(item => item.code.toUpperCase() === String(child.code).toUpperCase())) {
         throw new Error(`DCSC does not list ${String(child.code)} as compatible with ${String(parent.code)}. ` +
-          `Use dcsc_list_racks with productCode="${String(parent.code)}" and hardwareType="${type}" for supported products.`);
+          `Use dcsc_rack_get with productCode="${String(parent.code)}" and hardwareType="${type}" for supported products.`);
       }
     }
     transaction.remoteApplied = true;
@@ -495,7 +495,7 @@ async function stageLayoutEdit(rt: Runtime, draft: WorkspaceSession, opts: Layou
   }
   const managed = managedStorageComponentIds(draft.serverState).has(target.configurationId);
   if (managed && !aliasTemplate && opts.action === 'remove') {
-    throw new Error('Remove a storage definition with dcsc_edit_storage_network, or pass a physical instance ID to remove only that placement.');
+    throw new Error('Remove a storage definition with dcsc_storage_set, or pass a physical instance ID to remove only that placement.');
   }
   if (managed && !aliasTemplate && opts.action === 'unplace') {
     const instances = [...storageAliases].filter(([, template]) => template === target.configurationId);
@@ -846,7 +846,7 @@ export async function configurePdu(rt: Runtime, sessionHandle: string,
   const rackSession = [...ws.configurations.values()].find((candidate) => candidate.configurationId === rackId);
   if (!rackSession) {
     throw new Error(
-      `Rack ${rackId} has no configuration session. Add the rack with dcsc_add_rack first.`,
+      `Rack ${rackId} has no configuration session. Add the rack with dcsc_rack_add first.`,
     );
   }
 
@@ -891,7 +891,7 @@ export async function configurePdu(rt: Runtime, sessionHandle: string,
     if (got < ch.quantity || ch.quantity === 0 && got !== 0) {
       throw new Error(
         `DCSC did not accept ${ch.code} x${ch.quantity} on the rack (selected quantity is ${got}). ` +
-          'Check min/max with dcsc_configure_pdu without a code, or dcsc_list_options on the rack session.',
+          'Check min/max with dcsc_rack_get (with rackId), or dcsc_configuration_get on the rack session.',
       );
     }
   }
@@ -930,8 +930,8 @@ export async function configurePdu(rt: Runtime, sessionHandle: string,
                 ? `Choose one of: ${availableLineCords
                     .slice(0, 6)
                     .map((c) => `${c.code} (${c.description})`)
-                    .join('; ')}. Apply with dcsc_configure_pdu(cordCode).`
-                : 'No LINECORD options are on the rack tree — check dcsc_list_options(rackSession, tab: "Power").'),
+                    .join('; ')}. Apply with dcsc_pdu_set (cordCode).`
+                : 'No LINECORD options are on the rack tree — check dcsc_configuration_get (rack session, tab "Power").'),
           }),
     },
   };
