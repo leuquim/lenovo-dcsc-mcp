@@ -33,11 +33,11 @@ import { buildRackRecustomizePlan, parseRackRecustomizeResult } from '../domain/
 import { configIdTargetCodes } from '../domain/configIdFeatures.js';
 import { projectAutoDerivedSelections } from '../domain/autoDerivedSelections.js';
 import { buildLfoHardwareDeriveRequest } from '../domain/lfoWire.js';
-import { buildIndex, resolveSection } from '../model/index.js';
+import { resolveSection } from '../model/index.js';
 import { type RequestCtx } from '../http/request.js';
 import { logger } from '../http/trace.js';
 import type { RawConfiguration } from '../model/types.js';
-import { SessionConflictError, type CreateSessionInput } from '../session/SessionStore.js';
+import { type CreateSessionInput } from '../session/SessionStore.js';
 import type { ConfigSession, WorkspaceSession } from '../model/session.js';
 import {
   addHistoryFactory,
@@ -47,6 +47,10 @@ import {
   removeHistoryFactory,
   summariseRackArea,
   updateHistoryFactory,
+  assertWorkspaceRevision,
+  requireConfiguration,
+  linkedGroup,
+  rebuildDerived,
 } from './serviceHelpers.js';
 import { errorMessage } from '../util/coerce.js';
 import { autoDerivePath, launchPath } from '../domain/endpoints.js';
@@ -164,9 +168,7 @@ export async function launch(rt: Runtime, opts: LaunchOptions): Promise<ConfigSe
   const workspace = opts.workspaceId ? rt.sessions.getWorkspace(opts.workspaceId) : undefined;
   if (opts.workspaceId && !workspace) throw new Error(`Workspace ${opts.workspaceId} not found`);
   if (opts.expectedRevision !== undefined && !workspace) throw new Error('expectedRevision requires an existing workspace.');
-  if (workspace && opts.expectedRevision !== undefined && workspace.revision !== opts.expectedRevision) {
-    throw new SessionConflictError(opts.expectedRevision, workspace.revision, 'workspace');
-  }
+  if (workspace) assertWorkspaceRevision(workspace, opts.expectedRevision);
   const prepared = await prepareLaunch(rt, { ...opts, ...(workspace ? { workspaceId: workspace.id } : {}) });
   const result = await rt.sessions.createManyAtomic([prepared], {
     remoteApplied: true,
@@ -366,24 +368,21 @@ export async function configure(rt: Runtime, session: ConfigSession,
 }
 
 export async function loadUnconfigured(rt: Runtime, handle: string, expectedWorkspaceRevision: number, ctx: RequestCtx) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Choose one configuration handle before loading Unconfigured options.');
+  const resolved = requireConfiguration(rt.sessions, handle, 'Choose one configuration handle before loading Unconfigured options.');
   await rt.sessions.transact(handle, { expectedRevision: resolved.session.revision, remoteApplied: false }, async (workspace, session) => {
-    if (workspace.revision !== expectedWorkspaceRevision) throw new Error('Workspace changed; refresh the configuration before loading options.');
+    assertWorkspaceRevision(workspace, expectedWorkspaceRevision);
     if (!session) throw new Error('A configuration handle is required.');
     const code = session.raw.sliceCtoCode ?? session.raw.ctoCode ?? session.raw.code;
     if (typeof code !== 'string' || !/^[A-Za-z0-9_-]+$/.test(code)) throw new Error('Configuration has no native product code.');
     const response = await rt.http.send({ endpoint: 'unconfigured_catalog', method: 'POST', path: `/unconfigured/${code}`,
       responseKind: 'json', timeoutClass: 'heavy', ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(s => s.configurationId), session.configurationId);
+    const group = linkedGroup(workspace, session.configurationId);
     for (const member of workspace.configurations.values()) {
       if (!group.memberIds.includes(member.configurationId)) continue;
       const memberCode = member.raw.sliceCtoCode ?? member.raw.ctoCode ?? member.raw.code;
       if (memberCode !== code) throw new Error('Linked configurations have inconsistent product identities; catalog refresh was not committed.');
       member.raw = hydrateUnconfiguredCatalog(member.raw, response.raw as RawConfiguration);
-      member.index = buildIndex(member.raw);
-      member.reduced = reduceConfiguration(member.raw, member.configurationId, hardwareModeFamily(member.mode), workspace.solution.solutionMode);
+      rebuildDerived(member, workspace);
     }
     refreshRackMetadata(workspace, true);
   });
@@ -391,8 +390,7 @@ export async function loadUnconfigured(rt: Runtime, handle: string, expectedWork
 }
 
 export async function setUnconfigured(rt: Runtime, handle: string, changes: Array<{ section: string; code: string; quantity: number }>, expectedWorkspaceRevision: number) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Choose one configuration handle before editing Unconfigured selections.');
+  const resolved = requireConfiguration(rt.sessions, handle, 'Choose one configuration handle before editing Unconfigured selections.');
   if (changes.length === 0) throw new Error('Provide at least one Unconfigured selection change.');
   await rt.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: false }, async workspace => {
     const session = workspace.configurations.get(resolved.session.id);
@@ -402,13 +400,11 @@ export async function setUnconfigured(rt: Runtime, handle: string, changes: Arra
       if (!section) throw new Error('Load Unconfigured options and use an exact section ID from dcsc_list_options.');
       return { ...change, sectionName: section.name };
     });
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(s => s.configurationId), session.configurationId);
+    const group = linkedGroup(workspace, session.configurationId);
     for (const member of workspace.configurations.values()) {
       if (!group.memberIds.includes(member.configurationId)) continue;
       for (const edit of edits) member.raw = stageUnconfiguredSelection(member.raw, edit);
-      member.index = buildIndex(member.raw);
-      member.reduced = reduceConfiguration(member.raw, member.configurationId, hardwareModeFamily(member.mode), workspace.solution.solutionMode);
+      rebuildDerived(member, workspace);
       member.intents.push({ at: Date.now(), changes });
     }
     refreshRackMetadata(workspace, true);
@@ -446,8 +442,7 @@ export async function configureDraft(rt: Runtime, session: ConfigSession,
 const previousSelections = new Map(session.index.selected);
 if (workspace) await prepareConfigIdsDraft(rt, workspace, ctx);
 if (workspace) {
-  const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-    [...workspace.configurations.values()].map(value => value.configurationId), session.configurationId);
+  const group = linkedGroup(workspace, session.configurationId);
   if (group.linked) return configureLinkedDraft(rt, workspace, session, changes, ctx, group);
 }
 if (workspace && session.raw.type === 'rack' && usesCtoWire(session.mode) &&
@@ -499,9 +494,7 @@ const mergedUpdated = {
   nodeRole: updatedRole && updatedRole !== '' ? updatedRole : preservedRole,
 };
 session.raw = mergedUpdated;
-session.index = buildIndex(session.raw);
-session.reduced = reduceConfiguration(session.raw, session.configurationId,
-  hardwareModeFamily(session.mode), session.solution.solutionMode);
+rebuildDerived(session, session);
 if (workspace) await prepareConfigIdsDraft(rt, workspace, ctx);
 if (workspace) refreshRackMetadata(workspace, true);
 if (workspace && (previousSelections.size !== session.index.selected.size ||
@@ -658,8 +651,7 @@ export async function setConfigurationControls(rt: Runtime, handle: string, opts
     const applied = new Set<string>();
     for (const session of workspace.configurations.values()) {
       if (!session.configurable || applied.has(session.configurationId)) continue;
-      const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-        [...workspace.configurations.values()].map(value => value.configurationId), session.configurationId);
+      const group = linkedGroup(workspace, session.configurationId);
       await configureDraft(rt, session, [], { ...opts.ctx, locale: workspace.locale }, workspace);
       transaction.remoteApplied = true;
       for (const id of group.memberIds) applied.add(id);
@@ -681,8 +673,7 @@ export async function setQuantity(rt: Runtime, session: ConfigSession, quantity:
     if (managedStorageComponentIds(workspace.serverState).has(draft.configurationId) && quantity !== 1) {
       throw new Error('Managed storage templates retain quantity one. Add or remove physical storage network placements to change installed quantities.');
     }
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(value => value.configurationId), draft.configurationId);
+    const group = linkedGroup(workspace, draft.configurationId);
     if (group.linked && quantity !== 1) {
       throw new Error('Linked physical clones each have quantity one. Use dcsc_clone_configuration with placement="same-rack" to add physical instances, or close an unwanted clone configuration.');
     }
@@ -697,8 +688,7 @@ export async function undo(rt: Runtime, session: ConfigSession, expectedRevision
     if ([...storagePhysicalTemplateIds(workspace).values()].includes(draft.configurationId)) {
       throw new Error('This storage configuration has physical instances. Use dcsc_workspace_history with action="undo" to restore its selections, physical instances, prices and connection graph together.');
     }
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(value => value.configurationId), draft.configurationId);
+    const group = linkedGroup(workspace, draft.configurationId);
     if (group.linked) {
       const histories = workspace.serverState.linkedConfigurationEdits as Record<string, unknown> | undefined;
       const entries = histories?.[group.rootId];

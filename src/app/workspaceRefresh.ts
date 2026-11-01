@@ -48,7 +48,10 @@ import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { stageConfiguration } from '../session/SessionStore.js';
 import type { WorkspaceSession } from '../model/session.js';
-import { summariseRackArea } from './serviceHelpers.js';
+import {
+  summariseRackArea,
+  rebuildDerived,
+} from './serviceHelpers.js';
 import { autoDerivePath, ctoLaunchPath } from '../domain/endpoints.js';
 import { CATALOG_TTL_MS, type Runtime } from './runtime.js';
 
@@ -118,8 +121,7 @@ export async function syncLayout(rt: Runtime, ws: WorkspaceSession,
     const session = [...ws.configurations.values()].find(c => c.configurationId === rack.id);
     if (!session) throw new Error(`Cloned chassis rack ${rack.id} has no configuration.`);
     session.raw = repriceRackFillers(session.raw, projectRackFiller(rack, session.raw).configuration);
-    session.index = buildIndex(session.raw);
-    session.reduced = reduceConfiguration(session.raw, session.configurationId, hardwareModeFamily(session.mode), ws.solution.solutionMode);
+    rebuildDerived(session, ws);
   }
 
   // LFO import/layout only customizes the layout. The website derives LFO

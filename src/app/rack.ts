@@ -1,4 +1,3 @@
-import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import { hardwareModeFamily, usesCtoWire } from '../domain/modeFamily.js';
 import { buildGroups, newConfigurationId, reduceConfiguration } from '../domain/reduce.js';
@@ -14,7 +13,7 @@ import {
   type RackObject,
 } from '../domain/rack.js';
 import { aggregatePower, extractPowerReport } from '../domain/power.js';
-import { managedStorageComponentIds, configurationCloneDependency, storagePhysicalTemplateIds } from '../domain/storagePreferences.js';
+import { managedStorageComponentIds, storagePhysicalTemplateIds } from '../domain/storagePreferences.js';
 import { projectConnectionGraph } from '../domain/cabling.js';
 import { detachPhysicalItem, physicalIds, removeWorkspaceReferences } from '../domain/workspaceReferences.js';
 import { buildFloorState } from '../domain/floorWire.js';
@@ -41,7 +40,7 @@ import { createCloneDependencyColor } from '../domain/cloneDependency.js';
 import type { ActionHistoryFactory } from '../domain/actionHistory.js';
 import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
-import { stageConfiguration, SessionConflictError } from '../session/SessionStore.js';
+import { stageConfiguration } from '../session/SessionStore.js';
 import type { ConfigSession, PduSelection } from '../model/session.js';
 import {
   addHistoryFactory,
@@ -52,6 +51,8 @@ import {
   replicateHistoryFactory,
   updateHistoryFactory,
   type ScaleOutPlan,
+  assertWorkspaceRevision,
+  linkedGroup,
 } from './serviceHelpers.js';
 import { newId } from '../session/ids.js';
 import type { Runtime } from './runtime.js';
@@ -180,9 +181,7 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
   if (!ws) throw new Error(`Session / Workspace ${sessionHandle} not found`);
   // Avoid unnecessary launch requests on an already-stale call. Atomic creation
   // checks again under the workspace lock after remote preparation.
-  if (expectedRevision !== undefined && ws.revision !== expectedRevision) {
-    throw new SessionConflictError(expectedRevision, ws.revision, 'workspace');
-  }
+  assertWorkspaceRevision(ws, expectedRevision);
 
   const prepared = await prepareLaunch(rt, {
     productCode: rackCode,
@@ -356,8 +355,7 @@ async function copyNodeIntoChassis(rt: Runtime, handle: string, opts: {
     const staged = stageConfiguredNodeCopy({ rackArea: workspace.rackArea, nonRackArea,
       chassisId: opts.chassisId, sourceNodeId: source.configurationId, copyId: configurationId });
     if (staged.placement.rackId !== opts.rackId) throw new Error('The selected chassis does not belong to the requested rack.');
-    const chassisGroup = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(session => session.configurationId), opts.chassisId);
+    const chassisGroup = linkedGroup(workspace, opts.chassisId);
     if (chassisGroup.linked) throw new Error('DCSC does not allow Add Node into a linked cloned chassis.');
     const rack = workspace.rackArea.find(item => item.id === opts.rackId)!;
     const chassis = (rack.rackItems as RackObject[]).find(item => item.id === opts.chassisId)!;
@@ -449,8 +447,7 @@ export async function editLayout(rt: Runtime, handle: string, opts: {
         session.id === opts.configurationId || session.configurationId === (aliasTemplate ?? opts.configurationId));
       if (!target) throw new Error('Choose a configuration belonging to this workspace.');
       if (opts.action === 'remove' && !aliasTemplate) {
-        const group = resolveLinkedCloneGroup(configurationCloneDependency(draft),
-          [...draft.configurations.values()].map(session => session.configurationId), target.configurationId);
+        const group = linkedGroup(draft, target.configurationId);
         if (group.linked && group.rootId === target.configurationId) {
           deletedLinkedRootConfigurations = [...draft.configurations.values()].map(session => structuredClone(session.raw));
         }
@@ -480,8 +477,7 @@ export async function editLayout(rt: Runtime, handle: string, opts: {
         throw new Error('Detach matches DCSC Delete Node and requires a node inside a chassis. Use unplace to retain a loose physical item, or remove to delete its configuration.');
       }
       if (opts.action === 'detach') {
-        const group = resolveLinkedCloneGroup(configurationCloneDependency(draft),
-          [...draft.configurations.values()].map(session => session.configurationId), id);
+        const group = linkedGroup(draft, id);
         if (group.linked) throw new Error('Detach of a linked nested node is not yet verified. Use unplace to preserve its physical and clone identities.');
       }
       if (nestedNode && (opts.action === 'detach' || opts.action === 'unplace')) {
@@ -747,8 +743,7 @@ export async function cloneConfiguration(rt: Runtime, opts: {
       transaction.remoteApplied = true;
       const hpcSwitch = workspace.solution.solutionMode === 'HPC and AI - Systems' && source.raw.type === 'switch';
       const result = await syncLayout(rt, workspace, staged.rackArea, opts.ctx!, { autoArrange: hpcSwitch,
-        ...(nodes.length > 0 ? { clonePopulatedChassis: true } : hpcSwitch ? { cloneHpcSwitch: resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-          [...workspace.configurations.values()].map(c => c.configurationId), source.configurationId).rootId } : { cloneMultiple: true }) });
+        ...(nodes.length > 0 ? { clonePopulatedChassis: true } : hpcSwitch ? { cloneHpcSwitch: linkedGroup(workspace, source.configurationId).rootId } : { cloneMultiple: true }) });
       const placements = clones.map(clone => {
         const rack = result.racks.find(rack => rack.items.some(item => item.id === clone.configurationId));
         const item = rack?.items.find(item => item.id === clone.configurationId);

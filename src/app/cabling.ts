@@ -10,7 +10,6 @@ import {
   filterNativeManualCableChoices,
   type NativeManualConnectionRequest,
 } from '../domain/nativeManualCabling.js';
-import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import {
   inspectManualCabling as projectManualCabling,
@@ -43,7 +42,11 @@ import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { SessionConflictError } from '../session/SessionStore.js';
 import type { CableLink } from '../model/session.js';
-import { updateHistoryFactory } from './serviceHelpers.js';
+import {
+  updateHistoryFactory,
+  assertWorkspaceRevision,
+  linkedGroup,
+} from './serviceHelpers.js';
 import { newId } from '../session/ids.js';
 import { autoDerivePath } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
@@ -71,9 +74,7 @@ export async function runAutoConnect(rt: Runtime, sessionHandle: string, ctx: Re
 export function inspectManualCabling(rt: Runtime, handle: string, expectedWorkspaceRevision?: number) {
   const workspace = rt.sessions.getWorkspace(handle);
   if (!workspace) throw new Error('Workspace not found.');
-  if (expectedWorkspaceRevision !== undefined && workspace.revision !== expectedWorkspaceRevision) {
-    throw new SessionConflictError(expectedWorkspaceRevision, workspace.revision, 'workspace');
-  }
+  assertWorkspaceRevision(workspace, expectedWorkspaceRevision);
   return { workspace: workspace.id, revision: workspace.revision,
     report: projectManualCabling(manualCablingInput(workspace)) };
 }
@@ -186,8 +187,7 @@ export async function inspectNativeManualCabling(rt: Runtime, handle: string, re
   const destinationId = nativeManualSourceConfigurationId(request.destination.configurationId, physicalTemplates);
   const destination = [...workspace.configurations.values()].find(c => c.configurationId === destinationId);
   if (!destination) throw new Error('Manual cable destination must resolve to one configuration or managed template.');
-  const destinationGroup = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-    [...workspace.configurations.values()].map(c => c.configurationId), destination.configurationId);
+  const destinationGroup = linkedGroup(workspace, destination.configurationId);
   const input = structuredClone(manualCablingInput(workspace));
   const source = input.configurations.find(c => c.id === nativeManualSourceConfigurationId(request.source.configurationId, input.physicalTemplateIds));
   const networks = source?.selectedTopologies as Record<string, { networkTechnology?: string }> | undefined;

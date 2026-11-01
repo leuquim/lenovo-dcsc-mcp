@@ -1,13 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { linkedGroup } from '../app/serviceHelpers.js';
 import { mandatoryVerifyConfig } from '../domain/mandatorySoftware.js';
 import { errorCustomizeWithAutoDerive } from '../domain/autoFix.js';
 import { validateCfxml } from '../domain/cfxmlValidation.js';
 import { queryMemoryWizard } from '../domain/memoryWizard.js';
 import { z } from 'zod';
 
-import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { configurationListPrice } from '../domain/pricing.js';
-import { configurationCloneDependency } from '../domain/storagePreferences.js';
 import { diffConfigurations } from '../model/diff.js';
 import { buildIndex, resolveSection, searchFeatures } from '../model/index.js';
 import {
@@ -348,8 +347,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
 
         const updated = await service.configure(session, args.changes, ctx, args.expectedRevision);
         const workspace = service.sessions.getWorkspace(updated.id);
-        const linkedGroup = workspace ? resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-          [...workspace.configurations.values()].map(value => value.configurationId), updated.configurationId) : undefined;
+        const updatedGroup = workspace ? linkedGroup(workspace, updated.configurationId) : undefined;
 
         const diff = diffConfigurations({
           beforeIndex,
@@ -402,8 +400,8 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
               } },
             } : {}),
           } : {}),
-          ...(linkedGroup?.linked ? { linkedUpdate: { configurationIds: linkedGroup.memberIds,
-            rootConfigurationId: linkedGroup.rootId, workspace: workspace!.id, workspaceRevision: workspace!.revision } } : {}),
+          ...(updatedGroup?.linked ? { linkedUpdate: { configurationIds: updatedGroup.memberIds,
+            rootConfigurationId: updatedGroup.rootId, workspace: workspace!.id, workspaceRevision: workspace!.revision } } : {}),
           applied: notApplied.length === 0 && touched,
           partiallyApplied: notApplied.length > 0 && touched,
           notApplied: notApplied.length > 0 ? notApplied : undefined,
@@ -469,8 +467,7 @@ export function registerConfigurationTools(rawServer: McpServer, service: DcscSe
           throw new Error('Nothing to undo — this configuration has no recorded changes.');
         }
         const workspace = service.sessions.getWorkspace(session.id);
-        const group = workspace ? resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-          [...workspace.configurations.values()].map(value => value.configurationId), session.configurationId) : undefined;
+        const group = workspace ? linkedGroup(workspace, session.configurationId) : undefined;
         return {
           undone: true,
           ...(workspace ? { workspace: workspace.id, workspaceRevision: workspace.revision,

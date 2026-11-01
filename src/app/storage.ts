@@ -12,9 +12,8 @@ import {
   type PciWizardChange,
 } from '../domain/pciWizard.js';
 import { serializeSections } from '../domain/dcscWire.js';
-import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
 import { reconfigureStorageConnectionNetwork, type StorageNetworkChanges } from '../domain/storagePreferences.js';
-import { hardwareModeFamily, usesCtoWire } from '../domain/modeFamily.js';
+import { usesCtoWire } from '../domain/modeFamily.js';
 import { newConfigurationId, reduceConfiguration } from '../domain/reduce.js';
 import { customizeLayout } from '../domain/rack.js';
 import { extractPowerReport } from '../domain/power.js';
@@ -33,7 +32,6 @@ import {
   addStorageConnectionNetwork,
   editStorageConnectionNetwork,
   readStorageConnectionNetworks,
-  configurationCloneDependency,
   storagePhysicalTemplateIds,
   storageDependencyColors,
   type StorageNetworkInput,
@@ -54,7 +52,6 @@ import {
   type AcceptedStoragePlacement,
   type StoragePlacementComponent,
 } from '../domain/storagePlacement.js';
-import { buildIndex } from '../model/index.js';
 import { type RequestCtx } from '../http/request.js';
 import type { RawConfiguration } from '../model/types.js';
 import { stageConfiguration } from '../session/SessionStore.js';
@@ -64,6 +61,11 @@ import {
   storageChangeHistoryFactory,
   summariseRackArea,
   updateHistoryFactory,
+  requireConfiguration,
+  assertWorkspaceRevision,
+  linkedGroup,
+  linkedMembers,
+  rebuildDerived,
 } from './serviceHelpers.js';
 import { ctoLaunchPath } from '../domain/endpoints.js';
 import type { Runtime } from './runtime.js';
@@ -71,13 +73,9 @@ import { configureDraft } from './launch.js';
 import { acceptDerivedWorkspaceConfigurations, autoConnectDraft, prepareConfigIdsDraft, provisionSwitchesDraft, refreshRackMetadata, refreshStorageLayoutDraft, workspaceCablingPayload, workspaceNetworkState } from './workspaceRefresh.js';
 
 export function inspectStorageWizard(rt: Runtime, handle: string, expectedWorkspaceRevision?: number) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Storage wizard requires one configuration handle.');
-  if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
-    throw new Error('Workspace changed; refresh dcsc_storage_wizard choices.');
-  }
-  const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
-    [...resolved.workspace.configurations.values()].map(s => s.configurationId), resolved.session.configurationId);
+  const resolved = requireConfiguration(rt.sessions, handle, 'Storage wizard requires one configuration handle.');
+  assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+  const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
   const options = storageWizardOptions(resolved.session.raw);
   const wizard = resolved.session.raw['storageWizard'] as Record<string, unknown> | undefined;
   return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
@@ -88,20 +86,16 @@ export function inspectStorageWizard(rt: Runtime, handle: string, expectedWorksp
 }
 
 export async function setStorageWizard(rt: Runtime, handle: string, change: StorageWizardChange, expectedWorkspaceRevision: number, ctx: RequestCtx) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Storage wizard requires one configuration handle.');
+  const resolved = requireConfiguration(rt.sessions, handle, 'Storage wizard requires one configuration handle.');
   const id = resolved.session.configurationId;
   await rt.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
     actionHistory: updateHistoryFactory(id) }, async workspace => {
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(s => s.configurationId), id);
-    const members = [...workspace.configurations.values()].filter(s => group.memberIds.includes(s.configurationId));
+    const group = linkedGroup(workspace, id);
+    const members = linkedMembers(workspace, group);
     const staged = members.map(session => ({ session, raw: stageStorageWizardChange(session.raw, change) }));
     for (const item of staged) {
       item.session.raw = item.raw;
-      item.session.index = buildIndex(item.raw);
-      item.session.reduced = reduceConfiguration(item.raw, item.session.configurationId,
-        hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+      rebuildDerived(item.session, workspace);
     }
     await configureDraft(rt, members.find(s => s.configurationId === id)!, [],
       { ...ctx, locale: workspace.locale, solution: workspace.solution }, workspace);
@@ -117,13 +111,9 @@ export async function setStorageWizard(rt: Runtime, handle: string, change: Stor
 }
 
 export function inspectPciWizard(rt: Runtime, handle: string, expectedWorkspaceRevision?: number) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('PCI wizard requires one configuration handle.');
-  if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
-    throw new Error('Workspace changed; refresh dcsc_pci_wizard choices.');
-  }
-  const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
-    [...resolved.workspace.configurations.values()].map(s => s.configurationId), resolved.session.configurationId);
+  const resolved = requireConfiguration(rt.sessions, handle, 'PCI wizard requires one configuration handle.');
+  assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+  const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
   const options = pciWizardOptions(resolved.session.raw);
   return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
     configurationRevision: resolved.session.revision, available: options.length > 0,
@@ -131,14 +121,12 @@ export function inspectPciWizard(rt: Runtime, handle: string, expectedWorkspaceR
 }
 
 export async function setPciWizard(rt: Runtime, handle: string, change: PciWizardChange, expectedWorkspaceRevision: number, ctx: RequestCtx) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('PCI wizard requires one configuration handle.');
+  const resolved = requireConfiguration(rt.sessions, handle, 'PCI wizard requires one configuration handle.');
   const id = resolved.session.configurationId;
   await rt.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
     actionHistory: updateHistoryFactory(id) }, async workspace => {
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(s => s.configurationId), id);
-    const members = [...workspace.configurations.values()].filter(s => group.memberIds.includes(s.configurationId));
+    const group = linkedGroup(workspace, id);
+    const members = linkedMembers(workspace, group);
     const staged = members.map(session => ({ session, ...stagePciWizardChange(session.raw, change) }));
     const requestCtx = { ...ctx, locale: workspace.locale, solution: workspace.solution };
     for (const item of staged) {
@@ -154,9 +142,7 @@ export async function setPciWizard(rt: Runtime, handle: string, change: PciWizar
         option = acceptPciWizardValidation(option, response.raw, item.operate);
       }
       item.session.raw = withPciWizardOption(item.session.raw, item.options, option);
-      item.session.index = buildIndex(item.session.raw);
-      item.session.reduced = reduceConfiguration(item.session.raw, item.session.configurationId,
-        hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+      rebuildDerived(item.session, workspace);
     }
     await configureDraft(rt, members.find(s => s.configurationId === id)!, [], requestCtx, workspace);
     for (const member of members) {
@@ -170,13 +156,9 @@ export async function setPciWizard(rt: Runtime, handle: string, change: PciWizar
 }
 
 export function inspectWorkspacePowerControls(rt: Runtime, handle: string, expectedWorkspaceRevision?: number) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Power controls require one configuration handle from dcsc_session_list.');
-  if (expectedWorkspaceRevision !== undefined && expectedWorkspaceRevision !== resolved.workspace.revision) {
-    throw new Error('Workspace changed. Call dcsc_power_controls again without a revision to refresh the available choices.');
-  }
-  const group = resolveLinkedCloneGroup(configurationCloneDependency(resolved.workspace),
-    [...resolved.workspace.configurations.values()].map(session => session.configurationId), resolved.session.configurationId);
+  const resolved = requireConfiguration(rt.sessions, handle, 'Power controls require one configuration handle from dcsc_session_list.');
+  assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+  const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
   return { workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
     session: resolved.session.id, configurationRevision: resolved.session.revision,
     affectedConfigurationIds: group.memberIds, ...inspectPowerControls(resolved.session.raw) };
@@ -184,14 +166,12 @@ export function inspectWorkspacePowerControls(rt: Runtime, handle: string, expec
 
 /** Mirrors the Engineering Power Report dialog's calculate + Save, in one durable transaction. */
 export async function setPowerControls(rt: Runtime, handle: string, changes: PowerControlChanges, expectedWorkspaceRevision: number, ctx: RequestCtx) {
-  const resolved = rt.sessions.resolveHandle(handle);
-  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error('Power controls require one configuration handle from dcsc_session_list.');
+  const resolved = requireConfiguration(rt.sessions, handle, 'Power controls require one configuration handle from dcsc_session_list.');
   const configurationId = resolved.session.configurationId;
   const transaction = { expectedRevision: expectedWorkspaceRevision, remoteApplied: false };
   await rt.sessions.transact(resolved.workspace.id, transaction, async workspace => {
-    const group = resolveLinkedCloneGroup(configurationCloneDependency(workspace),
-      [...workspace.configurations.values()].map(session => session.configurationId), configurationId);
-    const members = [...workspace.configurations.values()].filter(session => group.memberIds.includes(session.configurationId));
+    const group = linkedGroup(workspace, configurationId);
+    const members = linkedMembers(workspace, group);
     const staged = members.map(session => ({ session, raw: stagePowerControls(session.raw, changes),
       physical: storagePhysicalConfigurations(workspace, session.configurationId, session.raw)
         .map(item => ({ ...item, raw: stagePowerControls(item.raw, changes) })),
@@ -205,9 +185,7 @@ export async function setPowerControls(rt: Runtime, handle: string, changes: Pow
     };
     for (const item of staged) {
       item.session.raw = await calculate(item.raw);
-      item.session.index = buildIndex(item.session.raw);
-      item.session.reduced = reduceConfiguration(item.session.raw, item.session.configurationId,
-        hardwareModeFamily(item.session.mode), workspace.solution.solutionMode);
+      rebuildDerived(item.session, workspace);
       for (const physical of item.physical) {
         const accepted = await calculate(physical.raw);
         workspace.serverState.storagePhysicalConfigurations = {
