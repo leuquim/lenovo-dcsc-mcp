@@ -10,6 +10,7 @@ import { hardwareModeFamily, hardwareEndpointFamily, usesCtoWire } from '../doma
 import type { ConfigMode } from '../config/constants.js';
 import type { SolutionContext } from '../config/schema.js';
 import { applySoftwareDerivePatch, isSoftwareDerivePatch } from '../domain/softwareDerive.js';
+import { mergeLfoSoftwareTab } from '../domain/lfoWire.js';
 import {
   buildAutoDeriveRequest,
   buildGroups,
