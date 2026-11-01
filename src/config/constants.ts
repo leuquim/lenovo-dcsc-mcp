@@ -105,6 +105,8 @@ export const REQUEST_SOURCE = 'web';
 export const CONFIG_MODES = ['cto', 'lfo', 'lfo-as-cto', 'lfo-add-options'] as const;
 export type ConfigMode = (typeof CONFIG_MODES)[number];
 
+export const HPC_SOLUTION_MODE = 'HPC and AI - Systems';
+
 /**
  * Fallback masterSlices for General Purpose. The authoritative values come
  * from /api/solution_modes at runtime; this exists only so the very first

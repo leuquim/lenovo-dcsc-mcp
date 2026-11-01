@@ -115,7 +115,7 @@ describe('dcsc_storage_set place', () => {
       templates: [{ configurationId: 'controller-template', created: false },
         { configurationId: 'switch-template', created: false }],
       inspect: { tool: 'dcsc_workspace_get', arguments: {
-        session: value.workspace.id, view: 'layout', path: ['rawRackArea'], expectedRevision: revision + 1,
+        session: value.workspace.id, view: { kind: 'layout', path: ['rawRackArea'] }, expectedRevision: revision + 1,
       } },
     });
     const placements = result['placements'] as Obj[];

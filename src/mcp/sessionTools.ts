@@ -36,6 +36,30 @@ export function writeHeader(service: DcscService, handle: string): { session: st
 
 const expectedRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
 
+const pageOffset = z.number().int().min(0).optional().default(0);
+const pageLimit = z.number().int().min(1).max(1000).optional().default(20);
+const detailPath = z.array(z.string()).optional().describe('Detail path from a returned continuation.');
+
+const workspaceViewSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('summary'), path: detailPath, offset: pageOffset, limit: pageLimit }),
+  z.object({ kind: z.literal('layout'), path: detailPath, offset: pageOffset, limit: pageLimit }),
+  z.object({ kind: z.literal('baskets'), basket: z.enum(BASKETS).optional().describe('The basket to read when the workspace holds several.'),
+    offset: pageOffset, limit: pageLimit }),
+  z.object({ kind: z.literal('history') }),
+  z.object({ kind: z.literal('validation'), jobId: z.string().optional().describe('One saved job to inspect.'), path: detailPath,
+    offset: pageOffset, limit: pageLimit }),
+]);
+
+const compareSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('scenarios'), sessions: z.array(z.string()).min(2).max(6).describe('Session or workspace ids.'),
+    nodes: z.number().int().min(1).max(10000).optional().describe('Scale each scenario to this many nodes.') }),
+  z.object({ kind: z.literal('scale-out'), session: z.string(), nodes: z.number().int().min(1).max(10000).describe('Cluster size.'),
+    rackCode: z.string().describe('Rack cabinet code from dcsc_rack_get.') }),
+  z.object({ kind: z.literal('parts'), sessionA: z.string().describe('First configuration.'), sessionB: z.string().describe('Second configuration.') }),
+  z.object({ kind: z.literal('insights'), session: z.string(),
+    insight: z.enum(['serviceSaving', 'flagSummary']).optional().default('serviceSaving') }),
+]);
+
 export function registerSessionTools(server: McpServer, service: DcscService): void {
 
   server.registerTool(
@@ -261,26 +285,23 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
         'Reads a configuration or workspace: summary, rack and floor layout, standalone baskets, undo history or saved validation jobs. Follow returned continuations for large collections.',
       inputSchema: {
         session: z.string(),
-        view: z.enum(['summary', 'layout', 'baskets', 'history', 'validation']).optional().default('summary'),
-        basket: z.enum(BASKETS).optional().describe('View baskets: the basket to read when the workspace holds several.'),
-        jobId: z.string().optional().describe('View validation: one saved job to inspect.'),
-        path: z.array(z.string()).optional().describe('Detail path from a returned continuation.'),
-        offset: z.number().int().min(0).optional().default(0),
-        limit: z.number().int().min(1).max(1000).optional().default(20),
+        view: workspaceViewSchema.optional().describe('What to read; default summary.'),
         expectedRevision: z.number().int().min(1).optional().describe('Revision carried by a continuation; rejects pages from a workspace that moved.'),
       },
     },
     async (args) =>
       guard(async () => {
-        switch (args.view) {
+        const view = args.view ?? { kind: 'summary' as const, offset: 0, limit: 20 };
+        switch (view.kind) {
           case 'history': return inspectHistory(service, args.session);
-          case 'baskets': return inspectBaskets(service, args);
+          case 'baskets': return inspectBaskets(service, { session: args.session, basket: view.basket, offset: view.offset, limit: view.limit });
           case 'validation': {
             const workspace = requireWorkspaceOf(service, args.session);
             return { session: args.session, revision: workspace.revision,
-              ...inspectValidationJobs(service, { session: args.session, jobId: args.jobId, path: args.path ?? [], offset: args.offset, limit: args.limit }) };
+              ...inspectValidationJobs(service, { session: args.session, jobId: view.jobId, path: view.path ?? [], offset: view.offset, limit: view.limit }) };
           }
-          default: return inspectWorkspace(service, { ...args, view: args.view });
+          default: return inspectWorkspace(service, { session: args.session, view: view.kind, path: view.path, offset: view.offset,
+            limit: view.limit, expectedRevision: args.expectedRevision });
         }
       }, 'dcsc_workspace_get failed'),
   );
@@ -292,34 +313,15 @@ export function registerSessionTools(server: McpServer, service: DcscService): v
       title: 'Compare designs',
       description:
         'Local analysis: scenarios compares 2-6 designs by price, power and heat; scale-out sizes racks for N nodes; parts lists the differences between two configurations; insights fetches service savings or flag summary.',
-      inputSchema: {
-        analysis: z.enum(['scenarios', 'scale-out', 'parts', 'insights']),
-        sessions: z.array(z.string()).min(2).max(6).optional().describe('scenarios: session or workspace ids.'),
-        session: z.string().optional().describe('scale-out and insights: the session to analyse.'),
-        sessionA: z.string().optional().describe('parts: first configuration.'),
-        sessionB: z.string().optional().describe('parts: second configuration.'),
-        nodes: z.number().int().min(1).max(10000).optional().describe('scale-out: cluster size; scenarios: scale each scenario to this many nodes.'),
-        rackCode: z.string().optional().describe('scale-out: rack cabinet code from dcsc_rack_get.'),
-        insight: z.enum(['serviceSaving', 'flagSummary']).optional().default('serviceSaving').describe('insights: which summary to fetch.'),
-      },
+      inputSchema: { analysis: compareSchema },
     },
-    async (args) =>
+    async ({ analysis }) =>
       guard(async () => {
-        switch (args.analysis) {
-          case 'scenarios':
-            if (!args.sessions) throw new Error('sessions is required for analysis scenarios.');
-            return compareScenarios(service, args.sessions, args.nodes);
-          case 'scale-out':
-            if (!args.session || args.nodes === undefined || !args.rackCode) {
-              throw new Error('session, nodes and rackCode are required for analysis scale-out.');
-            }
-            return sizeScaleOut(service, { session: args.session, nodes: args.nodes, rackCode: args.rackCode });
-          case 'parts':
-            if (!args.sessionA || !args.sessionB) throw new Error('sessionA and sessionB are required for analysis parts.');
-            return service.diffSessions(args.sessionA, args.sessionB);
-          default:
-            if (!args.session) throw new Error('session is required for analysis insights.');
-            return service.summaryInsights({ session: args.session, type: args.insight });
+        switch (analysis.kind) {
+          case 'scenarios': return compareScenarios(service, analysis.sessions, analysis.nodes);
+          case 'scale-out': return sizeScaleOut(service, { session: analysis.session, nodes: analysis.nodes, rackCode: analysis.rackCode });
+          case 'parts': return service.diffSessions(analysis.sessionA, analysis.sessionB);
+          default: return service.summaryInsights({ session: analysis.session, type: analysis.insight });
         }
       }, 'dcsc_compare failed'),
   );

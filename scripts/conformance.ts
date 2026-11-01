@@ -176,7 +176,7 @@ async function main(): Promise<void> {
       projectedSwitch.configurationQuantity === 1,
     JSON.stringify(projectedSwitch ?? summaryResult.json).slice(0, 220));
 
-    const layoutResult = await track('dcsc_workspace_get', { session: workspace, view: 'layout' });
+    const layoutResult = await track('dcsc_workspace_get', { session: workspace, view: { kind: 'layout' } });
     const layoutJson = layoutResult.json as {
       unracked?: Array<{ session?: string; code?: string }>;
       totals?: { rawNonRackArea?: number; configurations?: number };
@@ -625,7 +625,7 @@ async function main(): Promise<void> {
     );
     await track('dcsc_undo', { session, action: 'undo' });
 
-    const floor = await track('dcsc_floor_set', { session, rackId, x: 2, y: 3 });
+    const floor = await track('dcsc_floor_set', { session, change: { kind: 'place', rackId, x: 2, y: 3 } });
     check('dcsc_floor_set positions rack on grid', !floor.isError, JSON.stringify(floor.json).slice(0, 120));
 
     const pdu = await track('dcsc_rack_get', { session, rackId });
@@ -676,7 +676,7 @@ async function main(): Promise<void> {
     );
 
     // The layout is only readable here — export cannot carry rack data.
-    const layout = await track('dcsc_workspace_get', { session, view: 'layout' });
+    const layout = await track('dcsc_workspace_get', { session, view: { kind: 'layout' } });
     const layoutJson = layout.json as { rackCount?: number; racks?: unknown };
     check(
       'dcsc_workspace_get layout reads back the placed racks',
@@ -689,7 +689,7 @@ async function main(): Promise<void> {
   check('dcsc_validate returns validation report', !val.isError, JSON.stringify(val.json).slice(0, 120));
   const validation = val.json as { jobId?: string };
   const inspectedValidation = await track('dcsc_workspace_get', {
-    session, view: 'validation', jobId: validation.jobId });
+    session, view: { kind: 'validation', jobId: validation.jobId } });
   check(
     'dcsc_workspace_get validation inspects the saved validation result without rerunning it',
     !inspectedValidation.isError && JSON.stringify(inspectedValidation.json).includes(validation.jobId ?? '__missing__'),
@@ -719,9 +719,7 @@ async function main(): Promise<void> {
       const impSession = ((imported.json as { configurations: Array<{ id: string }> }).configurations[0])?.id;
       if (impSession) {
         const diff = await track('dcsc_compare', {
-          analysis: 'parts',
-          sessionA: session,
-          sessionB: impSession,
+          analysis: { kind: 'parts', sessionA: session, sessionB: impSession },
         });
         check('dcsc_compare parts compares configurations', !diff.isError, JSON.stringify(diff.json).slice(0, 150));
         await track('dcsc_session_close', { session: impSession });
@@ -1528,10 +1526,7 @@ async function main(): Promise<void> {
     }
 
     const scale = await track('dcsc_compare', {
-      analysis: 'scale-out',
-      session: designSession,
-      nodes: 4,
-      rackCode: '7D6DCTO1WW',
+      analysis: { kind: 'scale-out', session: designSession, nodes: 4, rackCode: '7D6DCTO1WW' },
     });
     check(
       'dcsc_compare scale-out sizes against DCSC placement rules',
@@ -1543,8 +1538,7 @@ async function main(): Promise<void> {
     check('dcsc_configuration_get explain reports DCSC-authored changes', !explain.isError, JSON.stringify(explain.json).slice(0, 150));
 
     const compare = await track('dcsc_compare', {
-      analysis: 'scenarios',
-      sessions: [designSession, rivalSession],
+      analysis: { kind: 'scenarios', sessions: [designSession, rivalSession] },
     });
     check(
       'dcsc_compare scenarios ranks two catalog-backed designs',
@@ -1671,7 +1665,7 @@ async function main(): Promise<void> {
     check('dcsc_validate inspects mandatory software tabs', !mandSw.isError &&
       (mandSw.json as { mandatorySoftware?: unknown }).mandatorySoftware !== undefined, JSON.stringify(mandSw.json).slice(0, 160));
 
-    const insSave = await track('dcsc_compare', { analysis: 'insights', session: paritySession, insight: 'serviceSaving' });
+    const insSave = await track('dcsc_compare', { analysis: { kind: 'insights', session: paritySession, insight: 'serviceSaving' } });
     check('dcsc_compare insights extracts service pricing savings', !insSave.isError, JSON.stringify(insSave.json).slice(0, 160));
 
     const treeExp = await track('dcsc_export', {

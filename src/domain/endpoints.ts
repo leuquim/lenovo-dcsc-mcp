@@ -1,4 +1,4 @@
-import type { ConfigMode } from '../config/constants.js';
+import { HPC_SOLUTION_MODE, type ConfigMode } from '../config/constants.js';
 import type { hardwareEndpointFamily } from './modeFamily.js';
 
 /** Derive the family from a mode with `hardwareEndpointFamily`; never compare modes inline. */
@@ -36,6 +36,22 @@ export function launchPath(mode: ConfigMode, productCode: string): string {
     case 'lfo-add-options': return `/lfos/${code}/add_options_launch`;
     case 'cto': return `/ctos/${code}/launch`;
   }
+}
+
+/** The website sends controlExpressModal=false in the HPC mode and true otherwise. */
+export function launchQuery(solutionMode: string, scope?: 'SW' | 'HW'): Record<string, string | boolean> {
+  return {
+    serviceCto: true, serviceType: 'servicecto', controlExpressModal: solutionMode !== HPC_SOLUTION_MODE,
+    ...(scope ? { scope } : {}),
+  };
+}
+
+export function rackLaunchPath(rackCode: string): string {
+  return `/ctos/racks/${encodeURIComponent(rackCode)}/launch`;
+}
+
+export function rackLaunchQuery(solutionMode: string): Record<string, string | boolean> {
+  return { controlExpressModal: solutionMode !== HPC_SOLUTION_MODE, serviceCto: true };
 }
 
 /** CTO-family launch for service-only or generated products (no mode involved). */

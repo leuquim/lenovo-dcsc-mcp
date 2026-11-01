@@ -141,6 +141,29 @@ export function projectLayout(layout: LayoutResult, workspace: WorkspaceSession)
 
 const workspaceRevision = z.number().int().min(1).optional().describe('Workspace revision you last read; the call fails if it moved.');
 
+const floorChangeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('place'), rackId: z.string().describe('Rack id from dcsc_rack_add.'),
+    x: z.number().int().min(0).describe('Floor tile X (0-based).'), y: z.number().int().min(0).describe('Floor tile Y (0-based).') }),
+  z.object({ kind: z.literal('color'), rackId: z.string(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).describe('Hex colour, e.g. "#21bbbb".') }),
+  z.object({
+    kind: z.literal('preferences'),
+    rowCount: z.number().int().min(2).max(100).optional().describe('Grid rows.'),
+    colCount: z.number().int().min(1).max(100).optional().describe('Grid columns.'),
+    growthRatioHorizontal: z.number().min(0).optional(), growthRatioVertical: z.number().min(0).optional(),
+    rackDist: z.number().min(0).optional().describe('Distance between racks, metres.'),
+    vertDist: z.number().min(0).optional().describe('Vertical distance, metres.'),
+    coldDist: z.number().min(0).optional().describe('Cold aisle distance, metres.'),
+    hotDist: z.number().min(0).optional().describe('Hot aisle distance, metres.'),
+    slackDist: z.number().min(0).optional().describe('Cable slack, metres.'),
+    useTrayCabling: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal('controls'),
+    autoArrange: z.boolean().optional().describe('false keeps manual rack placement during layout requests.'),
+    cogValidation: z.boolean().optional().describe('Centre-of-gravity validation.'),
+  }),
+]);
+
 function projectPduListing(service: DcscService, session: string, result: Awaited<ReturnType<DcscService['configurePdu']>>) {
   const catalog = result.catalog;
   if (!catalog) throw new Error('DCSC returned no PDU options for this rack.');
@@ -338,20 +361,35 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
     'dcsc_floor_set',
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      title: 'Place a rack on the floor',
-      description: 'Positions a rack on floor-tile coordinates for layout planning and workspace exports.',
+      title: 'Set floor layout and layout switches',
+      description: 'Places a rack on floor tiles, sets its colour, edits the Floor Preference (grid size, aisle and slack distances) or flips the workspace Auto Arrange and COG Validation switches. Floor state is client-side planning data that exports carry.',
       inputSchema: {
         session: z.string().describe('Workspace or configuration handle.'),
-        rackId: z.string().describe('Rack id from dcsc_rack_add.'),
-        x: z.number().int().min(0).describe('Floor tile X (0-based).'),
-        y: z.number().int().min(0).describe('Floor tile Y (0-based).'),
+        change: floorChangeSchema,
         expectedRevision: workspaceRevision,
       },
     },
     async (args) =>
       guard(async () => {
-        const result = await service.placeOnFloor(args.session, args.rackId, args.x, args.y, args.expectedRevision);
-        return { ...writeHeader(service, args.session), floorPlacement: result.item, clientSide: result.clientSide, warning: result.warning };
+        const { change } = args;
+        switch (change.kind) {
+          case 'place': {
+            const result = await service.placeOnFloor(args.session, change.rackId, change.x, change.y, args.expectedRevision);
+            return { ...writeHeader(service, args.session), floorPlacement: result.item, clientSide: result.clientSide, warning: result.warning };
+          }
+          case 'color':
+            await service.setRackColor(args.session, change.rackId, change.color, args.expectedRevision);
+            return { ...writeHeader(service, args.session), rackId: change.rackId, color: change.color, clientSide: true };
+          case 'preferences': {
+            const { kind: _kind, ...preferences } = change;
+            return { ...writeHeader(service, args.session), floorPreference: await service.setFloorPreferences(args.session, preferences, args.expectedRevision), clientSide: true };
+          }
+          default: {
+            const { kind: _kind, ...controls } = change;
+            const current = await service.setLayoutControls(args.session, controls, args.expectedRevision);
+            return { ...writeHeader(service, args.session), ...current };
+          }
+        }
       }, 'dcsc_floor_set failed'),
   );
 

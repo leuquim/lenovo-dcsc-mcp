@@ -108,7 +108,7 @@ describe('mutating tool revision contracts', () => {
     ['dcsc_rack_edit', { action: 'place', rackId: 'US__node', configuration: 'missing' }],
     ['dcsc_auto_connect', {}],
     ['dcsc_cabling_set', { changes: [{ action: 'edit', connectionId: 'connection_00000000000000000000', cablePart: 'X' }] }],
-    ['dcsc_floor_set', { rackId: 'US__node', x: 0, y: 0 }],
+    ['dcsc_floor_set', { change: { kind: 'place', rackId: 'US__node', x: 0, y: 0 } }],
     ['dcsc_rack_edit', { action: 'clone', count: 1 }],
     ['dcsc_pdu_set', { rackId: 'US__node', pduCode: 'PDU', quantity: 1 }],
     ['dcsc_network_set', { change: { kind: 'nodeRole', role: 'Compute' } }],
@@ -128,7 +128,7 @@ describe('mutating tool revision contracts', () => {
     ['dcsc_configure', { salesQuantity: 2 }, { salesQuantity: 3 }],
     ['dcsc_rack_edit', { action: 'clone', count: 1 }, { action: 'clone', count: 2 }],
     ['dcsc_network_set', { change: { kind: 'nodeRole', role: 'Compute' } }, { change: { kind: 'nodeRole', role: 'Storage' } }],
-    ['dcsc_floor_set', { rackId: 'US__node', x: 0, y: 0 }, { rackId: 'US__node', x: 1, y: 0 }],
+    ['dcsc_floor_set', { change: { kind: 'place', rackId: 'US__node', x: 0, y: 0 } }, { change: { kind: 'place', rackId: 'US__node', x: 1, y: 0 } }],
   ])('%s commits exactly once for concurrent calls at the same revision', async (name, first, second) => {
     const { session, workspace, handlers } = setup();
     const handler = handlers.get(name)!;

@@ -418,7 +418,7 @@ describe('Empirical Adversarial Parity Challenge (R1 - R6)', () => {
       await expect(inspectAutoFixCandidates(service.http, '', ctx)).rejects.toThrow(
         /A CTO product code is required/,
       );
-      await expect(executeAutoFix(service.http, '', [], [], ctx)).rejects.toThrow(
+      await expect(executeAutoFix(service.http, '', [], [], ctx, { configurationId: 'US__x', showExpressMode: false })).rejects.toThrow(
         /A CTO product code is required/,
       );
     });

@@ -119,6 +119,11 @@ export async function autoFix(rt: Runtime, handle: string,
         requiredSections!,
         currentSelections,
         effectiveCtx,
+        {
+          configurationId: draft.configurationId,
+          showExpressMode: draft.reduced.showExpressMode,
+          selectedTceAudience: draft.reduced.selectedTceAudience,
+        },
       );
 
       if (response.autoFixResult !== 'FIX_SUCCESS' || response.sections.length === 0) {

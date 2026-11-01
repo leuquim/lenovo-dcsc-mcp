@@ -54,7 +54,8 @@ describe('bounded auto-connect tool result', () => {
     const inspection = await handlers.get('dcsc_workspace_get')!(pages['diagnostics']!.inspect.arguments);
     expect(inspection.isError).not.toBe(true);
     const networks = json(await handlers.get('dcsc_workspace_get')!({
-      ...pages['diagnostics']!.inspect.arguments, path: ['cablingDiagnostics', 'networks'],
+      ...pages['diagnostics']!.inspect.arguments,
+      view: { ...(pages['diagnostics']!.inspect.arguments['view'] as object), path: ['cablingDiagnostics', 'networks'] },
     }));
     expect(JSON.stringify(networks)).toContain('no_connections');
     expect(JSON.stringify(networks)).toContain('SAN');

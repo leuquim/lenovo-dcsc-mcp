@@ -1,5 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-import { racksCustomizePath } from './endpoints.js';
+import { rackLaunchPath, rackLaunchQuery, racksCustomizePath } from './endpoints.js';
 import { hardwareEndpointFamily } from './modeFamily.js';
 import { nonEmptyString, numericValueBlankAsZero, objectOrEmpty } from '../util/coerce.js';
 
@@ -149,6 +149,19 @@ export async function fetchRackCabinets(
   };
   walk((res.raw as CategoryNode[]) ?? []);
   return out;
+}
+
+/** The website's rack-add handshake after the CTO launch: the rack launch and the PDU preference lookup. */
+export async function openRackLaunch(http: DcscHttpClient, ctx: RequestCtx, rackCode: string, solutionMode: string): Promise<void> {
+  await http.send({
+    endpoint: 'racks_launch', method: 'POST', path: rackLaunchPath(rackCode),
+    query: rackLaunchQuery(solutionMode), body: { kind: 'json', value: {} },
+    responseKind: 'json', timeoutClass: 'interactive', ctx,
+  });
+  await http.send({
+    endpoint: 'pdu_preference', method: 'GET', path: '/pdu/pduPreference', query: { codes: rackCode },
+    responseKind: 'json', timeoutClass: 'fast', ctx,
+  });
 }
 
 /**

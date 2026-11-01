@@ -619,28 +619,29 @@ npm run parity:nested-detach -- --out=/path/to/report         # native Delete No
 npm run parity:nested-unplace -- --out=/path/to/report        # native Move To Non Rack wire/export oracle
 npm run parity -- controls-locale # headless DE/EUR conflicting-control differential
 npm run parity -- catalogs # exhaustive bounded catalog/fabric/software continuations
-npm run parity:validation        # strict authoritative verdict, payload/hash and stale-job gate
-npm run parity -- services # base service + add-on selection, removal, export and reimport
-npm run parity:storage-wizard    # linked storage options/components, recovery, intent and native XML handoff
-npm run parity:storage-wizard -- --clear # whole-option clearing, drive guard and native XML handoff
-npm run parity:storage-wizard -- --raid # RAID-mode clearing, linked recovery and native XML handoff
-npm run parity:storage-wizard -- --raid-reverse # return to non-configured RAID and verify the empty choice
-npm run parity:storage-wizard -- --sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
-npm run parity:pci-wizard        # native PCI slots, crash/history, derive, XML and browser handoff
-npm run parity:power-controls    # native power controls, crash/history, derive, XML and browser handoff
+npm run parity -- validation        # strict authoritative verdict, payload/hash and stale-job gate
+npm run parity -- services          # base service + add-on selection, removal, export and reimport
+npm run parity -- storage-wizard # linked storage options/components, recovery, intent and native XML handoff
+npm run parity -- storage-wizard-clear # whole-option clearing, drive guard and native XML handoff
+npm run parity -- storage-wizard-raid # RAID-mode clearing, linked recovery and native XML handoff
+npm run parity -- storage-wizard-raid-reverse # return to non-configured RAID and verify the empty choice
+npm run parity -- storage-wizard-sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
+npm run parity -- pci-wizard # native PCI slots, crash/history, derive, XML and browser handoff
+npm run parity -- power-controls    # native power controls, crash/history, derive, XML and browser handoff
 npm run parity:chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
 npm run parity:chassis-copy      # independent populated-chassis Copy and browser handoff
 npm run parity:chassis-linked-copy # preserve linked sources while creating an independent copy
 npm run parity:chassis-member-copy # Copy from a linked member; preserve original parent/child groups
 npm run parity:nested-grouped-import # populated chassis/node groups, restart and native reimport
-npm run parity:grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
-npm run parity -- xconfig-import # native x-config import/layout, restart and export handoff
-npm run parity -- workbook-import # Excel import over stdio, crash/restart, export and native browser controls
-npm run parity -- reference-unconfigured # Unconfigured quantity edit, restart and browser XML handoff
-npm run parity:reference-download # original-template bytes versus native Export, import and restart
+npm run parity -- grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
+npm run parity -- xconfig-import    # native x-config import/layout, restart and export handoff
+npm run parity -- workbook-import   # Excel import over stdio, crash/restart, export and native browser controls
+npm run parity -- reference-unconfigured      # Unconfigured quantity edit, restart and browser XML handoff
+npm run parity -- reference-download # original-template bytes versus native Export, import and restart
 npm run parity -- reference-solutions # native template catalog/customize, crash/restart and browser handoff
-npm run parity:switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
-npm run parity:switch-edit       # linked HPC switch cable edit and native handoff
+npm run parity -- storage-fc -- --out /path/to/report # post-import Direct Attached FC control; currently exits 2 on HTTP 200/zero storage rows
+npm run parity -- switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
+npm run parity -- switch-edit       # linked HPC switch cable edit and native handoff
 ```
 
 Parity runners exit `1` for a failed assertion and `2` when every executed

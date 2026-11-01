@@ -79,6 +79,24 @@ const DIAGNOSTIC_ARRAYS: Record<string, LocalMessage['severity']> = {
   serviceValidationMessages: 'error',
 };
 
+const LMC_VALIDATION_KEYS = [
+  'toggle7116On', 'workspace', 'configurations', 'crnId', 'cloneDependencyColor', 'virtualContainerIdMapping',
+  'virtualContainerRule2ConfigMapping', 'virtualContainerInvalidRuleIdMapping', 'statusRelatedResult',
+  'workspaceInformation', 'autoDerivedResults', 'crossSystemConfigs', 'standaloneData',
+  'standaloneSwSubcategorySelections', 'ruleConditionIdMapping', 'instanceIdMapping', 'controllerExpansionMap',
+  'controllerIndexMap', 'autoConnectResults', 'floorInformation', 'networkingInformation', 'customizingFlags',
+  'operationMode', 'messageHistory', 'solutionMode',
+] as const;
+
+/** The website's /lmc_validation body: the export payload narrowed to the keys it posts, plus the mode. */
+export function lmcValidationBody(exportPayload: Record<string, unknown>, mode: string): Record<string, unknown> {
+  return {
+    ...Object.fromEntries(LMC_VALIDATION_KEYS.map(key => [key, exportPayload[key] ?? (key === 'standaloneSwSubcategorySelections' ? [] : undefined)])
+      .filter(([, value]) => value !== undefined)),
+    mode,
+  };
+}
+
 /** Starts a manufacturing-validation job and retains the exact descriptor array. */
 export async function startLmcValidation(
   http: DcscHttpClient,
@@ -86,7 +104,7 @@ export async function startLmcValidation(
   exportPayload: Record<string, unknown>,
   mode: string,
 ): Promise<LmcValidationStart> {
-  const body = { ...exportPayload, mode };
+  const body = lmcValidationBody(exportPayload, mode);
   const res = await http.send({
     endpoint: 'lmc_validation',
     method: 'POST',

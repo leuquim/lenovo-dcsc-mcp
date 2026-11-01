@@ -4,6 +4,7 @@ import { RESPONSE_BYTE_BUDGET } from '../config/constants.js';
 import { toToolError } from '../http/errors.js';
 import { logger } from '../http/trace.js';
 import { errorMessage } from '../util/coerce.js';
+import { nestWorkspaceGetContinuations } from './continuations.js';
 
 export type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
@@ -30,7 +31,7 @@ export function fail(err: unknown, context = 'Tool failed'): ToolResult {
 /** Wraps a handler so no raw upstream detail can escape through a tool result. */
 export async function guard(fn: () => unknown | Promise<unknown>, context = 'Tool failed'): Promise<ToolResult> {
   try {
-    return ok(await fn());
+    return ok(nestWorkspaceGetContinuations(await fn()));
   } catch (err) {
     return fail(err, context);
   }

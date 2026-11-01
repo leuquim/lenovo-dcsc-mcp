@@ -86,6 +86,30 @@ function findResource(
   return undefined;
 }
 
+export interface ResourceTrackerView {
+  name: string;
+  unit?: string | undefined;
+  resources: Array<{ label: string; value: string }>;
+}
+
+/** The configurator's Resource Tracker panel: slot and bay occupancy exactly as DCSC reports it. */
+export function projectResourceTrackers(raw: RawConfiguration): ResourceTrackerView[] {
+  return (raw.resourceTrackers ?? []).map((tracker) => ({
+    name: tracker.description ?? tracker.key ?? 'resource',
+    ...(tracker.unit != null ? { unit: tracker.unit } : {}),
+    resources: (tracker.resources ?? []).map((entry) => ({ label: entry.label ?? '', value: entry.value ?? '' })),
+  }));
+}
+
+export interface ConfigurationError { tab: string; subTab: string; section: string; errors: unknown[] }
+
+/** The configurator's Show Errors list: rule errors DCSC attached to sections. */
+export function projectConfigurationErrors(index: ConfigIndex): ConfigurationError[] {
+  return index.sections
+    .filter((ref) => (ref.section.errors ?? []).length > 0)
+    .map((ref) => ({ tab: ref.tab, subTab: ref.subTab, section: ref.title, errors: ref.section.errors! }));
+}
+
 export interface SessionSummary {
   session: string;
   revision: number;
@@ -177,7 +201,7 @@ export interface TabView {
   tab: string;
   /** Exact identifier accepted by option search's `tab` filter. */
   tabId: string;
-  tabSubtotal: number;
+  tabSubtotal: number | null;
   sections: TabSection[];
   next: string;
 }
@@ -194,9 +218,9 @@ export function projectTab(opts: {
     (s) => s.tab.toLowerCase() === opts.tab.toLowerCase(),
   );
 
-  let subtotal = 0;
   const sections = refs.map((ref) => projectSection(ref, opts.index));
-  for (const ref of refs) subtotal += ref.section.totalPrice ?? 0;
+  const subtotal = refs.some((ref) => ref.section.priceNotAvailable === true)
+    ? null : round(refs.reduce((sum, ref) => sum + (availablePrice(ref.section.totalPrice) ?? 0), 0));
 
   return {
     session: opts.sessionId,
@@ -204,7 +228,7 @@ export function projectTab(opts: {
     currency: opts.currency,
     tab: refs[0]?.tab ?? opts.tab,
     tabId: refs[0]?.tab ?? opts.tab,
-    tabSubtotal: round(subtotal),
+    tabSubtotal: subtotal,
     sections,
     next: `dcsc_configuration_get(session, view: "options", section: "<id>") to see the options in a section`,
   };

@@ -1,9 +1,9 @@
 import { downloadReferenceSolutionArtifact, referenceSolutions, launchReferenceSolution, customizeSid, importConfig, exportZip, summaryInsights, exportPowerReport, shareUrlFields } from '../app/importExport.js';
-import { modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setQuantity, undo, closeSession } from '../app/launch.js';
+import { modesContaining, launch, configure, loadUnconfigured, setUnconfigured, setConfigurationControls, setExpressMode, setQuantity, undo, closeSession } from '../app/launch.js';
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
-import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
+import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setFloorPreferences, setLayoutControls, setRackColor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
 import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
 
@@ -71,6 +71,10 @@ export class DcscService extends Runtime {
 
   setConfigurationControls(...args: AppArgs<typeof setConfigurationControls>): ReturnType<typeof setConfigurationControls> {
     return setConfigurationControls(this, ...args);
+  }
+
+  setExpressMode(...args: AppArgs<typeof setExpressMode>): ReturnType<typeof setExpressMode> {
+    return setExpressMode(this, ...args);
   }
 
   setQuantity(...args: AppArgs<typeof setQuantity>): ReturnType<typeof setQuantity> {
@@ -195,6 +199,18 @@ export class DcscService extends Runtime {
 
   placeOnFloor(...args: AppArgs<typeof placeOnFloor>): ReturnType<typeof placeOnFloor> {
     return placeOnFloor(this, ...args);
+  }
+
+  setFloorPreferences(...args: AppArgs<typeof setFloorPreferences>): ReturnType<typeof setFloorPreferences> {
+    return setFloorPreferences(this, ...args);
+  }
+
+  setLayoutControls(...args: AppArgs<typeof setLayoutControls>): ReturnType<typeof setLayoutControls> {
+    return setLayoutControls(this, ...args);
+  }
+
+  setRackColor(...args: AppArgs<typeof setRackColor>): ReturnType<typeof setRackColor> {
+    return setRackColor(this, ...args);
   }
 
   setRackLock(...args: AppArgs<typeof setRackLock>): ReturnType<typeof setRackLock> {

@@ -9,6 +9,7 @@ import {
   customizeLayout,
   fetchRackCabinets,
   fetchEnvelopes,
+  openRackLaunch,
   type LayoutResult,
   type RackObject,
 } from '../domain/rack.js';
@@ -18,7 +19,7 @@ import { projectConnectionGraph } from '../domain/cabling.js';
 import { detachPhysicalItem, physicalIds, removeWorkspaceReferences } from '../domain/workspaceReferences.js';
 import { buildFloorState } from '../domain/floorWire.js';
 import { stageRackItemLock, stageRackSpaceLock } from '../domain/rackLocks.js';
-import { placeRackOnFloor, type FloorPlacementResult } from '../domain/floor.js';
+import { applyFloorPreference, colourRackCell, placeRackOnFloor, type FloorPlacementResult, type FloorPreferenceChange } from '../domain/floor.js';
 import {
   listPduCatalog,
   resolvePowerChange,
@@ -191,11 +192,9 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
     workspaceId: ws.id,
   });
 
-  const envelopes = await fetchEnvelopes(
-    rt.http,
-    { ...ctx, locale: ws.locale, solution: ws.solution },
-    [{ code: rackCode, type: 'rack' }],
-  );
+  const rackCtx = { ...ctx, locale: ws.locale, solution: ws.solution };
+  await openRackLaunch(rt.http, rackCtx, rackCode, ws.solution.solutionMode);
+  const envelopes = await fetchEnvelopes(rt.http, rackCtx, [{ code: rackCode, type: 'rack' }]);
   const envelope = envelopes.get(rackCode.toUpperCase());
   if (!envelope) {
     throw new Error(
@@ -553,7 +552,7 @@ export async function editLayout(rt: Runtime, handle: string, opts: LayoutEditOp
     const { deletedLinkedRootConfigurations, nestedPhysicalEdit } = staged;
     const expectedNestedLayout = nestedPhysicalEdit
       ? structuredClone({ rackArea: draft.rackArea, nonRackArea: draft.nonRackArea }) : undefined;
-    const result = await syncLayout(rt, draft, draft.rackArea, opts.ctx, { autoArrange: opts.action === 'arrange' || nestedPhysicalEdit !== undefined,
+    const result = await syncLayout(rt, draft, draft.rackArea, opts.ctx, { autoArrange: opts.action === 'arrange' || nestedPhysicalEdit !== undefined, forceArrange: opts.action === 'arrange',
       ...(nestedPhysicalEdit ? { nestedPhysicalEdit } : {}),
       ...(deletedLinkedRootConfigurations ? { deletedLinkedRootConfigurations } : {}) });
     if (expectedNestedLayout) assertAcceptedNestedEdit(expectedNestedLayout, draft);
@@ -586,6 +585,38 @@ export async function placeOnFloor(rt: Runtime, sessionHandle: string, rackId: s
       floorGrid: grid.filter((item) => item.id !== rackId && !(item.row === y && item.col === x)).concat(cell),
     };
     return result;
+  });
+}
+
+/** Floor Preference modal: grid size and distances, stored as client-side workspace state. */
+export async function setFloorPreferences(rt: Runtime, sessionHandle: string, change: FloorPreferenceChange,
+  expectedRevision?: number): Promise<Record<string, unknown>> {
+  return rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
+    workspace.serverState.floorInformation = applyFloorPreference(
+      (workspace.serverState.floorInformation ?? {}) as Record<string, unknown>, change);
+    return (workspace.serverState.floorInformation as Record<string, unknown>)['floorPreference'] as Record<string, unknown>;
+  });
+}
+
+/** Workspace Auto Arrange and COG Validation switches; every later layout request carries them. */
+export async function setLayoutControls(rt: Runtime, sessionHandle: string, controls: { autoArrange?: boolean | undefined; cogValidation?: boolean | undefined },
+  expectedRevision?: number): Promise<{ autoArrange: boolean; cogValidation: boolean }> {
+  return rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
+    const chosen = { ...(workspace.serverState.layoutControls as Record<string, unknown> | undefined) };
+    if (controls.autoArrange !== undefined) chosen['autoArrange'] = controls.autoArrange;
+    if (controls.cogValidation !== undefined) chosen['cogValidation'] = controls.cogValidation;
+    workspace.serverState.layoutControls = chosen;
+    workspace.serverState.customizingFlags = { ...(workspace.serverState.customizingFlags as Record<string, unknown> | undefined), ...chosen };
+    return { autoArrange: chosen['autoArrange'] !== false, cogValidation: chosen['cogValidation'] !== false };
+  });
+}
+
+/** Rack colour from the rack header menu, stored on the floor grid cell. */
+export async function setRackColor(rt: Runtime, sessionHandle: string, rackId: string, color: string,
+  expectedRevision?: number): Promise<void> {
+  await rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
+    if (!workspace.rackArea.some(rack => rack['id'] === rackId)) throw new Error(`Rack ${rackId} is not in this workspace.`);
+    workspace.serverState.floorInformation = colourRackCell((workspace.serverState.floorInformation ?? {}) as Record<string, unknown>, rackId, color);
   });
 }
 
