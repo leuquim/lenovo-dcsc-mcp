@@ -5,7 +5,7 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { chromium } from 'playwright';
-import { selectBrowserSolutionMode } from './lib/browser-solution-mode.js';
+import { selectBrowserSolutionMode } from './parity/browser.js';
 import { assertGroupedCommercialParity } from './lib/groupedRackParity.js';
 import { assertNativeConnectionsRetained } from '../src/domain/nativeManualCabling.js';
 type Obj = Record<string, unknown>;

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, type Page, type Response } from 'playwright';
-import { openBrowserImportHome } from './lib/browser-solution-mode.js';
+import { openBrowserImportHome } from './parity/browser.js';
 
 type Obj = Record<string, unknown>;
 type Action = 'remove-chassis' | 'remove-node' | 'unplace-node';
