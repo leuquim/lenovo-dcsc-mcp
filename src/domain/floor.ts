@@ -114,7 +114,7 @@ export function applyFloorPreference(info: Record<string, unknown>, change: Floo
 
 /** Workspace Auto Arrange / COG Validation switches override the per-call defaults of every layout request. */
 export function layoutToggleOverrides(serverState: Record<string, unknown>, forceArrange = false): { autoArrange?: false; cogValidation?: boolean } {
-  const flags = (serverState['customizingFlags'] ?? {}) as Record<string, unknown>;
+  const flags = (serverState['layoutControls'] ?? {}) as Record<string, unknown>;
   return {
     ...(flags['autoArrange'] === false && !forceArrange ? { autoArrange: false as const } : {}),
     ...(typeof flags['cogValidation'] === 'boolean' ? { cogValidation: flags['cogValidation'] } : {}),

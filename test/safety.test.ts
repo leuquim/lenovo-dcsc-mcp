@@ -18,6 +18,7 @@ import { RequestBudget } from '../src/http/resilience/pacer.js';
 import { sanitiseFileName } from '../src/files/artifactStore.js';
 import { diffConfigurations } from '../src/model/diff.js';
 import { launchQuery, rackLaunchQuery } from '../src/domain/endpoints.js';
+import { applyFloorPreference, colourRackCell, layoutToggleOverrides } from '../src/domain/floor.js';
 
 const locale = { country: 'US', geo: 'NA', language: 'en', currency: 'USD' };
 const solution = { solutionMode: 'General Purpose', masterSlices: ['GP', 'HPCGPALL'] };
@@ -456,5 +457,24 @@ describe('launch queries match the website captures', () => {
     expect(launchQuery('HPC and AI - Systems')).toEqual({ serviceCto: true, serviceType: 'servicecto', controlExpressModal: false });
     expect(launchQuery('General Purpose', 'SW')).toEqual({ serviceCto: true, serviceType: 'servicecto', controlExpressModal: true, scope: 'SW' });
     expect(rackLaunchQuery('HPC and AI - Systems')).toEqual({ controlExpressModal: false, serviceCto: true });
+  });
+});
+
+describe('floor preferences and layout switches', () => {
+  it('keeps the unchanged preference defaults and sets only the given fields', () => {
+    const info = applyFloorPreference({ floorGridSettings: { colCount: 5 } }, { rowCount: 6, rackDist: 0.5, useTrayCabling: true });
+    expect(info['floorPreference']).toMatchObject({ rackDist: 0.5, useTrayCabling: true, vertDist: 0.5, growthRatioHorizontal: 1 });
+    expect(info['floorGridSettings']).toEqual({ colCount: 5, rowCount: 6 });
+  });
+
+  it('overrides layout requests only for switches the user set', () => {
+    expect(layoutToggleOverrides({})).toEqual({});
+    expect(layoutToggleOverrides({ layoutControls: { autoArrange: false, cogValidation: false } })).toEqual({ autoArrange: false, cogValidation: false });
+    expect(layoutToggleOverrides({ layoutControls: { autoArrange: false } }, true)).toEqual({});
+  });
+
+  it('colours one rack cell and leaves the others', () => {
+    const info = colourRackCell({ floorGrid: [{ id: 'a', row: 0, color: '#000000' }, { id: 'b', color: '#111111' }] }, 'a', '#21bbbb');
+    expect(info['floorGrid']).toEqual([{ id: 'b', color: '#111111' }, { id: 'a', row: 0, color: '#21bbbb' }]);
   });
 });

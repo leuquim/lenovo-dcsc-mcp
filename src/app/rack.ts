@@ -602,11 +602,12 @@ export async function setFloorPreferences(rt: Runtime, sessionHandle: string, ch
 export async function setLayoutControls(rt: Runtime, sessionHandle: string, controls: { autoArrange?: boolean | undefined; cogValidation?: boolean | undefined },
   expectedRevision?: number): Promise<{ autoArrange: boolean; cogValidation: boolean }> {
   return rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
-    const flags = { ...(workspace.serverState.customizingFlags as Record<string, unknown> | undefined) };
-    if (controls.autoArrange !== undefined) flags['autoArrange'] = controls.autoArrange;
-    if (controls.cogValidation !== undefined) flags['cogValidation'] = controls.cogValidation;
-    workspace.serverState.customizingFlags = flags;
-    return { autoArrange: flags['autoArrange'] !== false, cogValidation: flags['cogValidation'] !== false };
+    const chosen = { ...(workspace.serverState.layoutControls as Record<string, unknown> | undefined) };
+    if (controls.autoArrange !== undefined) chosen['autoArrange'] = controls.autoArrange;
+    if (controls.cogValidation !== undefined) chosen['cogValidation'] = controls.cogValidation;
+    workspace.serverState.layoutControls = chosen;
+    workspace.serverState.customizingFlags = { ...(workspace.serverState.customizingFlags as Record<string, unknown> | undefined), ...chosen };
+    return { autoArrange: chosen['autoArrange'] !== false, cogValidation: chosen['cogValidation'] !== false };
   });
 }
 
