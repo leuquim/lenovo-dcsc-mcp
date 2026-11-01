@@ -115,23 +115,20 @@ async function openSwitch(value: ReturnType<typeof setup>) {
   });
 }
 
-describe('dcsc_customize_storage_switch', () => {
+describe('dcsc_storage_set customize switch', () => {
   it('opens a managed SAN switch once with stable identity, nonphysical export and valid continuations', async () => {
     const { service, server, workspace, requests, handlers } = setup();
     const beforeRevision = workspace.revision;
-    const reply = await handlers.get('dcsc_customize_storage_switch')!({
-      session: workspace.id, name: 'Primary SAN', expectedRevision: beforeRevision,
+    const reply = await handlers.get('dcsc_storage_set')!({
+      session: workspace.id, change: { action: 'customize', name: 'Primary SAN', component: 'switch' }, expectedRevision: beforeRevision,
     });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result).toMatchObject({ workspace: workspace.id, revision: beforeRevision + 1,
       storageName: 'Primary SAN', switchId: 'switch-id', created: true,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: result.session } },
-      next: { tool: 'dcsc_list_options', arguments: { session: result.session } },
-      configure: { tool: 'dcsc_configure', session: result.session },
+      inspect: { tool: 'dcsc_storage_get', arguments: { session: workspace.id } },
     });
-    expect(result.configure).not.toHaveProperty('arguments');
-    const opened = service.sessions.get(result.session)!;
+    const opened = service.sessions.get(result.configuration)!;
     expect(opened.configurationId).toBe('switch-id');
     expect(opened.raw).toMatchObject({ id: 'switch-id', code: '7DHNCTO1WW', type: 'switch', name: 'Switch' });
     expect(workspace.rackArea).toEqual([]);
@@ -155,17 +152,17 @@ describe('dcsc_customize_storage_switch', () => {
       tool: 'dcsc_session_info', arguments: { session: workspace.id },
     });
     expect(summary).toMatchObject({ totalPrice: 100, configurations: expect.arrayContaining([
-      expect.objectContaining({ id: result.session, quantity: 0, configurationQuantity: 1,
+      expect.objectContaining({ id: result.configuration, quantity: 0, configurationQuantity: 1,
         managedStorageTemplate: true, extendedPrice: 0 }),
     ]) });
     expect(workspaceDetailSource(workspace)).toMatchObject({
       unracked: [expect.objectContaining({ session: server.id })],
     });
-    const workspacePower = JSON.parse((await handlers.get('dcsc_power')!({ session: workspace.id })).content[0]!.text);
+    const workspacePower = JSON.parse((await handlers.get('dcsc_power_get')!({ session: workspace.id })).content[0]!.text);
     expect(workspacePower).toMatchObject({ total: { maxKW: 1 }, perConfiguration: expect.arrayContaining([
-      expect.objectContaining({ session: result.session, salesQuantity: 0, managedStorageTemplate: true }),
+      expect.objectContaining({ session: result.configuration, salesQuantity: 0, managedStorageTemplate: true }),
     ]) });
-    const switchPower = JSON.parse((await handlers.get('dcsc_power')!({ session: result.session })).content[0]!.text);
+    const switchPower = JSON.parse((await handlers.get('dcsc_power_get')!({ session: result.configuration })).content[0]!.text);
     expect(switchPower).toMatchObject({ total: { maxKW: 2.5 } });
     expect(requests.map(request => request['endpoint'])).toEqual(['storage_switch_launch', 'racks_customize']);
     const customize = requests[1]!['body'] as { kind: string; value: { configurations: Obj[] } };
@@ -179,11 +176,11 @@ describe('dcsc_customize_storage_switch', () => {
     const reopened = await service.openStorageSwitch(workspace.id, {
       name: 'Primary SAN', expectedRevision: workspace.revision, ctx: service.newCtx(),
     });
-    expect(reopened).toMatchObject({ session: result.session, switchId: 'switch-id', created: false });
+    expect(reopened).toMatchObject({ session: result.configuration, switchId: 'switch-id', created: false });
     expect(requests).toHaveLength(2);
 
-    await expect(service.closeSession(result.session)).rejects.toThrow(/dcsc_edit_storage_network/);
-    expect(service.sessions.get(result.session)?.configurationId).toBe('switch-id');
+    await expect(service.closeSession(result.configuration)).rejects.toThrow(/dcsc_(edit_storage_network|storage_set)/);
+    expect(service.sessions.get(result.configuration)?.configurationId).toBe('switch-id');
   });
 
   it('requires a selected feature and rolls back malformed or rejected remote state', async () => {

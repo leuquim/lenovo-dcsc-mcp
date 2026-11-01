@@ -306,7 +306,7 @@ describe('bounded discovery tool projections', () => {
     const { service, handlers } = setup();
     let fabric = fabricItems();
     vi.spyOn(service, 'fabricOptions').mockImplementation(async () => fabric);
-    const browse = handler(handlers, 'dcsc_fabric_options');
+    const browse = handler(handlers, 'dcsc_network_get');
     const initial = { solutionMode: 'General Purpose', collection: 'topologies',
       offset: 0, limit: 50 };
     const result = await enumerate(browse, initial, 'items');

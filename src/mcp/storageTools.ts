@@ -1,183 +1,90 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { applyStorageChange, inspectStorageNetworks } from '../app/storage.js';
 import { STORAGE_LAYOUTS, STORAGE_TYPES } from '../domain/storagePreferences.js';
+import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
 import { guard } from './toolSupport.js';
 
+const storageName = z.string().trim().min(1).max(200);
+
+const definitionFields = {
+  controllerId: z.string().optional().describe('Controller ID from dcsc_network_get; defaults to the first catalog controller.'),
+  expansionId: z.string().optional(),
+  expansionQuantity: z.number().int().min(0).optional(),
+  switchId: z.string().optional().describe('SAN switch ID from dcsc_network_get, or direct-attached for none.'),
+  type: z.enum(STORAGE_TYPES).optional(),
+  layout: z.enum(STORAGE_LAYOUTS).optional(),
+};
+
+const storageChangeSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('add'), name: storageName, ...definitionFields }),
+  z.object({
+    action: z.literal('update'),
+    name: storageName,
+    changes: z.object({ ...definitionFields }).strict()
+      .describe('The controller locks after customize, and the storage type locks while racked.'),
+    autoConnect: z.boolean().optional().describe('Run Auto-Connect after the update.'),
+  }),
+  z.object({ action: z.literal('rename'), name: storageName, newName: storageName }),
+  z.object({
+    action: z.literal('remove'),
+    name: storageName,
+    clearAssignments: z.boolean().optional().describe('Required when configurations are assigned to this storage network.'),
+  }),
+  z.object({
+    action: z.literal('assign'),
+    networkName: storageName.nullable().describe('Storage network to assign to the configuration; null clears the assignment.'),
+    autoConnect: z.boolean().optional().describe('Run Auto-Connect after the assignment.'),
+  }),
+  z.object({ action: z.literal('place'), name: storageName, rackId: z.string().trim().min(1).describe('Target rack ID.') }),
+  z.object({
+    action: z.literal('customize'),
+    name: storageName,
+    component: z.enum(['controller', 'switch']).describe('Opens the controller or SAN switch template for configuring.'),
+  }),
+]);
+
 export function registerStorageTools(server: McpServer, service: DcscService): void {
-  server.registerTool('dcsc_place_storage_network', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    title: 'Place a storage network in a rack',
-    description: 'Places physical controller and SAN-switch instances for an existing HPC & AI storage definition into the target rack and connects the workspace. Disable Automated Rack PDU when no PDU preference is configured.',
+  server.registerTool('dcsc_storage_get', {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    title: 'Storage networks',
+    description: 'Reads the workspace storage network definitions, which configurations are assigned to them, and storage hardware left detached by edits.',
     inputSchema: {
-      session: z.string().describe('Workspace handle containing the storage definition and target rack.'),
-      name: z.string().trim().min(1).max(200).describe('Exact storage definition name from dcsc_workspace_layout storageNetworks.'),
-      rackId: z.string().trim().min(1).describe('Exact target rack ID from dcsc_workspace_layout.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision for optimistic concurrency.'),
+      session: z.string().describe('Workspace handle.'),
+      expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; continuations carry it.'),
+      path: z.array(z.string()).default([]),
+      offset: z.number().int().min(0).default(0),
+      limit: z.number().int().min(1).max(100).default(20),
     },
-  }, async args => guard(async () => {
-    const result = await service.placeStorageNetwork(args.session, {
-      name: args.name,
-      rackId: args.rackId,
-      expectedRevision: args.expectedRevision,
-      ctx: service.newCtx(),
-    });
-    const placements = result.placements.map(({ raw: _raw, controllerExpansion: _expansion, ...placement }) => placement);
-    return {
-      ...result,
-      placements,
-      inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: result.workspace,
-        expectedRevision: result.revision,
-        path: ['rawRackArea'], offset: 0, limit: 20,
-      } },
-      export: { tool: 'dcsc_export', arguments: { session: result.workspace },
-        purpose: 'Export the accepted physical storage placement and its commercial quantities.' },
-    };
-  }, 'dcsc_place_storage_network failed'));
+  }, args => guard(async () => {
+    const snapshot = inspectStorageNetworks(service, args.session, args.expectedRevision);
+    return { session: args.session, revision: snapshot.revision,
+      ...projectJsonPage(snapshot.report, { tool: 'dcsc_storage_get',
+        arguments: { session: args.session, expectedRevision: snapshot.revision },
+        path: args.path ?? [], offset: args.offset ?? 0, limit: args.limit ?? 20 }) };
+  }, 'dcsc_storage_get failed'));
 
-  server.registerTool('dcsc_customize_storage_controller', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    title: 'Open a storage network controller for customization',
-    description: 'Opens the managed controller template for an existing storage definition (Storage > Edit Item). Reopening returns the existing configuration handle without resetting selections.',
-    inputSchema: {
-      session: z.string().describe('Workspace handle containing the storage definition.'),
-      name: z.string().trim().min(1).max(200).describe('Exact storage definition name from dcsc_workspace_layout storageNetworks.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision for optimistic concurrency.'),
-    },
-  }, async args => guard(async () => {
-    const result = await service.openStorageController(args.session, {
-      name: args.name,
-      expectedRevision: args.expectedRevision,
-      ctx: service.newCtx(),
-    });
-    return {
-      ...result,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: result.session } },
-      next: { tool: 'dcsc_list_options', arguments: { session: result.session },
-        purpose: 'Browse the controller tabs, section IDs and feature codes before configuring it.' },
-      configure: {
-        tool: 'dcsc_configure', session: result.session,
-        instruction: 'Pass one or more explicit changes from dcsc_list_options; each change needs a section, feature code and quantity.',
-      },
-    };
-  }, 'dcsc_customize_storage_controller failed'));
-
-  server.registerTool('dcsc_customize_storage_switch', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    title: 'Open a storage network SAN switch for customization',
-    description: 'Opens the managed SAN switch template for an existing storage definition (Storage > SAN Switch > Edit Item). Reopening returns the existing configuration handle without resetting selections.',
-    inputSchema: {
-      session: z.string().describe('Workspace handle containing the storage definition.'),
-      name: z.string().trim().min(1).max(200).describe('Exact storage definition name from dcsc_workspace_layout storageNetworks.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected workspace revision for optimistic concurrency.'),
-    },
-  }, async args => guard(async () => {
-    const result = await service.openStorageSwitch(args.session, {
-      name: args.name,
-      expectedRevision: args.expectedRevision,
-      ctx: service.newCtx(),
-    });
-    return {
-      ...result,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: result.session } },
-      next: { tool: 'dcsc_list_options', arguments: { session: result.session },
-        purpose: 'Browse the SAN switch tabs, section IDs and feature codes before configuring it.' },
-      configure: {
-        tool: 'dcsc_configure', session: result.session,
-        instruction: 'Pass one or more explicit changes from dcsc_list_options; each change needs a section, feature code and quantity.',
-      },
-    };
-  }, 'dcsc_customize_storage_switch failed'));
-
-  server.registerTool('dcsc_assign_storage_network', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    title: 'Assign a storage network to a server configuration',
-    description: 'Assigns a storage network definition (or null to clear) to a server configuration and re-derives in workspace context. Set autoConnect=true to regenerate cables immediately.',
-    inputSchema: {
-      session: z.string().describe('Configuration handle from dcsc_session_list, not the workspace handle.'),
-      networkName: z.string().trim().min(1).max(200).nullable(),
-      autoConnect: z.boolean().optional().describe('Also run DCSC auto-connect after accepting the assignment. Defaults to false.'),
-      expectedRevision: z.number().int().min(1).optional().describe('Expected configuration revision for optimistic concurrency.'),
-    },
-  }, async args => guard(async () => {
-    const result = await service.assignStorageNetwork(args.session, {
-      networkName: args.networkName,
-      autoConnect: args.autoConnect,
-      expectedRevision: args.expectedRevision,
-      ctx: service.newCtx(),
-    });
-    return {
-      ...result,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: result.session } },
-      ...(result.autoConnectRequired ? {
-        next: { tool: 'dcsc_add_cabling', arguments: { session: result.workspace, mode: 'auto' } },
-        reason: 'The storage assignment is saved, but cables were not regenerated because autoConnect was not true.',
-      } : {}),
-    };
-  }, 'dcsc_assign_storage_network failed'));
-
-  server.registerTool('dcsc_edit_storage_network', {
+  server.registerTool('dcsc_storage_set', {
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
-    title: 'Update, rename or remove a storage network definition',
-    description: 'Edits an existing storage definition by name. update requires changes and expectedRevision (controller locks after Edit Item; storage type locks while racked). rename updates assignment references. remove requires clearAssignments=true when assigned.',
+    title: 'Edit storage networks',
+    description: 'Adds, updates, renames or removes a storage network definition, assigns one to a server configuration, places it in a rack, or opens its controller or SAN switch for customizing.',
     inputSchema: {
-      session: z.string(), action: z.enum(['rename', 'remove', 'update']), name: z.string().min(1),
-      newName: z.string().trim().min(1).max(200).optional(), clearAssignments: z.boolean().optional(),
-      changes: z.object({ controllerId: z.string().optional(), expansionId: z.string().optional(),
-        expansionQuantity: z.number().int().min(0).optional(), switchId: z.string().optional(),
-        type: z.enum(STORAGE_TYPES).optional(), layout: z.enum(STORAGE_LAYOUTS).optional(),
-      }).strict().optional(), autoConnect: z.boolean().optional(),
-      expectedRevision: z.number().int().min(1).optional(),
+      session: z.string().describe('Workspace handle; a configuration handle for assign.'),
+      expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; required for update.'),
+      change: storageChangeSchema,
     },
-  }, async args => guard(async () => {
-    const { session, ...edit } = args;
-    if (edit.action !== 'rename' && edit.newName !== undefined) throw new Error('newName applies only to rename.');
-    if (edit.action !== 'remove' && edit.clearAssignments !== undefined) throw new Error('clearAssignments applies only to remove.');
-    if (edit.action !== 'update' && (edit.changes !== undefined || edit.autoConnect !== undefined)) throw new Error('changes and autoConnect apply only to update.');
-    if (edit.action === 'update' && (!edit.changes || edit.expectedRevision === undefined)) {
-      throw new Error('Storage update requires changes and expectedRevision from dcsc_workspace_layout.');
-    }
-    const result = edit.action === 'update'
-      ? await service.reconfigureStorageNetwork(session, { name: edit.name, changes: edit.changes!,
-        expectedRevision: edit.expectedRevision!, autoConnect: edit.autoConnect, ctx: service.newCtx() })
-      : await service.editStorageNetwork(session, { ...edit, action: edit.action });
+  }, args => guard(async () => {
+    const result = await applyStorageChange(service, args.session, args.change, args.expectedRevision, service.newCtx());
+    const retained = Array.isArray(result['retainedComponents']) && result['retainedComponents'].length > 0;
     return { ...result,
-      ...('retainedComponents' in result && result.retainedComponents.length > 0 ? {
-        retainedHardware: { tool: 'dcsc_workspace_layout', arguments: {
-          session: result.workspace, expectedRevision: result.revision,
-          path: ['detachedStorageComponents'], offset: 0, limit: 10,
-        } },
-      } : {}),
-      inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: result.workspace, expectedRevision: result.revision,
-        path: ['storageNetworks'], offset: 0, limit: 20,
-      } },
-    };
-  }, 'dcsc_edit_storage_network failed'));
-
-  server.registerTool('dcsc_add_storage_network', {
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    title: 'Create an unassigned storage network definition',
-    description: 'Creates a workspace storage network preference (Add Storage). Defaults to the first catalog controller; optionally pass controllerId and switchId from dcsc_fabric_options (or direct-attached to omit a switch).',
-    inputSchema: {
-      session: z.string(), name: z.string().trim().min(1).max(200),
-      controllerId: z.string().optional(), expansionId: z.string().optional(),
-      expansionQuantity: z.number().int().min(0).optional(), switchId: z.string().optional(),
-      type: z.enum(STORAGE_TYPES).optional(), layout: z.enum(STORAGE_LAYOUTS).optional(),
-      expectedRevision: z.number().int().min(1).optional(),
-    },
-  }, async args => guard(async () => {
-    const { session, expectedRevision, ...input } = args;
-    const result = await service.addStorageNetwork(session, {
-      input, expectedRevision, ctx: service.newCtx(),
-    });
-    return { ...result,
-      inspect: { tool: 'dcsc_workspace_layout', arguments: {
-        session: result.workspace, expectedRevision: result.revision,
-        path: ['storageNetworks'], offset: 0, limit: 20,
-      } },
-    };
-  }, 'dcsc_add_storage_network failed'));
+      ...(retained ? { retainedHardware: { tool: 'dcsc_storage_get', arguments: {
+        session: result['workspace'], expectedRevision: result['revision'],
+        path: ['detachedStorageComponents'], offset: 0, limit: 10 } } } : {}),
+      ...(args.change.action === 'assign' && result['autoConnectRequired'] === true ? {
+        next: { tool: 'dcsc_auto_connect', arguments: { session: result['workspace'] } },
+        reason: 'The storage assignment is saved, but cables were not regenerated because autoConnect was not true.' } : {}),
+      inspect: { tool: 'dcsc_storage_get', arguments: { session: result['workspace'], expectedRevision: result['revision'] } } };
+  }, 'dcsc_storage_set failed'));
 }

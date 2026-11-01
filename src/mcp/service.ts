@@ -4,7 +4,7 @@ import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from 
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
 import { scaleOut, addRack, placeInRack, editLayout, placeOnFloor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
-import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, addManualCabling, applyTopology } from '../app/cabling.js';
+import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, addManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
 
 type AppArgs<F> = F extends (rt: Runtime, ...args: infer A) => unknown ? A : never;
@@ -245,6 +245,14 @@ export class DcscService extends Runtime {
 
   addManualCabling(...args: AppArgs<typeof addManualCabling>): ReturnType<typeof addManualCabling> {
     return addManualCabling(this, ...args);
+  }
+
+  inspectCabling(...args: AppArgs<typeof inspectCabling>): ReturnType<typeof inspectCabling> {
+    return inspectCabling(this, ...args);
+  }
+
+  applyCablingChanges(...args: AppArgs<typeof applyCablingChanges>): ReturnType<typeof applyCablingChanges> {
+    return applyCablingChanges(this, ...args);
   }
 
   applyTopology(...args: AppArgs<typeof applyTopology>): ReturnType<typeof applyTopology> {

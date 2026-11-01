@@ -40,12 +40,12 @@ export function stagePowerControls(raw: RawConfiguration, changes: PowerControlC
   const draft = structuredClone(raw);
   if (changes.voltage !== undefined) {
     const matches = options.voltages.filter(choice => choice.id === changes.voltage);
-    if (matches.length !== 1) throw new Error('Voltage must be one exact unambiguous ID from dcsc_power_controls.');
+    if (matches.length !== 1) throw new Error('Voltage must be one exact unambiguous ID from dcsc_power_get.');
     draft.voltage = structuredClone(matches[0]!.voltage);
   }
   if (changes.powerPolicy !== undefined) {
     if (options.policies.filter(choice => choice.value === changes.powerPolicy).length !== 1) {
-      throw new Error('Power policy must be one exact unambiguous value from dcsc_power_controls.');
+      throw new Error('Power policy must be one exact unambiguous value from dcsc_power_get.');
     }
     draft.currentPowerPolicy = changes.powerPolicy;
   }

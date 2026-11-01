@@ -67,8 +67,8 @@ describe('storage definition creation', () => {
     workspace.nonRackArea = [{ id: 'san-alias', code: 'SAN', type: 'switch', size: 1 }];
     workspace.serverState.cloneDependency = { [raw.id]: [raw.id, 'san-alias'] };
     const before = structuredClone({ raw: san.raw, state: workspace.serverState, physical: workspace.nonRackArea });
-    const reply = await handlers.get('dcsc_edit_storage_network')!({ session: workspace.id, action: 'update',
-      name: input.name, changes: { switchId: 'direct-attached' }, expectedRevision: workspace.revision });
+    const reply = await handlers.get('dcsc_storage_set')!({ session: workspace.id, change: { action: 'update',
+      name: input.name, changes: { switchId: 'direct-attached' } }, expectedRevision: workspace.revision });
     expect(reply.isError, reply.content[0]?.text).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result.retainedComponents).toMatchObject([{ templateId: raw.id, physicalCount: 1,
@@ -94,13 +94,14 @@ describe('storage definition creation', () => {
     workspace.serverState.connections = [{ id: 'prior-connection', network: 'Management',
       from: { id: 'node', port: '1' }, to: { id: 'switch', port: '1' } }];
     const before = structuredClone(workspace.serverState);
-    const handler = handlers.get('dcsc_edit_storage_network')!;
-    const missingCas = await handler({ session: workspace.id, action: 'update', name: input.name,
-      changes: { layout: 'Minimal Cabling' } });
+    const handler = handlers.get('dcsc_storage_set')!;
+    const missingCas = await handler({ session: workspace.id,
+      change: { action: 'update', name: input.name, changes: { layout: 'Minimal Cabling' } } });
     expect(missingCas.isError).toBe(true);
     const revision = workspace.revision;
-    const reply = await handler({ session: workspace.id, action: 'update', name: input.name,
-      changes: { layout: 'Minimal Cabling', expansionQuantity: 0 }, expectedRevision: revision });
+    const reply = await handler({ session: workspace.id,
+      change: { action: 'update', name: input.name, changes: { layout: 'Minimal Cabling', expansionQuantity: 0 } },
+      expectedRevision: revision });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result).toMatchObject({ revision: revision + 1, connectionGraphStale: true, autoConnectRequired: true });
@@ -111,8 +112,8 @@ describe('storage definition creation', () => {
     expect(send).not.toHaveBeenCalled();
     expect((await handlers.get(result.inspect.tool)!(result.inspect.arguments)).isError).not.toBe(true);
     catalog.mockClear();
-    const stale = await handler({ session: workspace.id, action: 'update', name: input.name,
-      changes: { layout: 'Fully Redundant' }, expectedRevision: revision });
+    const stale = await handler({ session: workspace.id,
+      change: { action: 'update', name: input.name, changes: { layout: 'Fully Redundant' } }, expectedRevision: revision });
     expect(stale.isError).toBe(true);
     expect(catalog).not.toHaveBeenCalled();
     await service.sessions.undoWorkspace(workspace.id);
@@ -162,8 +163,8 @@ describe('storage definition creation', () => {
       draft.configurations.get(session.id)!.raw.selectedStorageNetwork = input.name;
       draft.serverState.selectedStorageNetwork = { [session.configurationId]: input.name };
     });
-    const renamed = await handlers.get('dcsc_edit_storage_network')!({ session: workspace.id,
-      action: 'rename', name: input.name, newName: 'Renamed', expectedRevision: workspace.revision });
+    const renamed = await handlers.get('dcsc_storage_set')!({ session: workspace.id,
+      change: { action: 'rename', name: input.name, newName: 'Renamed' }, expectedRevision: workspace.revision });
     expect(renamed.isError).not.toBe(true);
     expect(session.raw.selectedStorageNetwork).toBe('Renamed');
     expect(session.reduced.selectedStorageNetwork).toBe('Renamed');
@@ -171,8 +172,8 @@ describe('storage definition creation', () => {
     const revision = workspace.revision;
     await expect(service.editStorageNetwork(workspace.id, { action: 'remove', name: 'Renamed' })).rejects.toThrow(/clearAssignments/);
     expect(workspace.revision).toBe(revision);
-    const removed = await handlers.get('dcsc_edit_storage_network')!({ session: workspace.id,
-      action: 'remove', name: 'Renamed', clearAssignments: true, expectedRevision: revision });
+    const removed = await handlers.get('dcsc_storage_set')!({ session: workspace.id,
+      change: { action: 'remove', name: 'Renamed', clearAssignments: true }, expectedRevision: revision });
     expect(removed.isError).not.toBe(true);
     expect(workspace.serverState.storageConnectionNetworks).toEqual([]);
     expect(session.raw.selectedStorageNetwork).toBe('');
@@ -187,8 +188,8 @@ describe('storage definition creation', () => {
     const beforeRevision = workspace.revision;
     const write = vi.fn();
     service.sessions.setPersistenceWriter(write);
-    const reply = await handlers.get('dcsc_add_storage_network')!({ session: workspace.id,
-      name: input.name, expectedRevision: beforeRevision });
+    const reply = await handlers.get('dcsc_storage_set')!({ session: workspace.id,
+      change: { action: 'add', name: input.name }, expectedRevision: beforeRevision });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result).toMatchObject({ workspace: workspace.id, revision: beforeRevision + 1, storageNetworkCount: 1 });
@@ -243,7 +244,7 @@ describe('storage definition creation', () => {
   it('keeps malformed imported definitions inspectable while refusing destructive edits', async () => {
     const { service, workspace, handlers } = setup();
     workspace.serverState.storageConnectionNetworks = { unknownEnvelope: 'retained' };
-    const detail = await handlers.get('dcsc_workspace_layout')!({ session: workspace.id,
+    const detail = await handlers.get('dcsc_storage_get')!({ session: workspace.id,
       path: ['storageNetworks'], expectedRevision: workspace.revision, offset: 0, limit: 20 });
     expect(detail.isError).not.toBe(true);
     expect(detail.content[0]!.text).toContain('retained');
@@ -257,7 +258,7 @@ describe('storage definition creation', () => {
     catalog.mockResolvedValue({ ...fabric, storageControllers: [{ ...fabric.storageControllers[0]!,
       expansions: [{ option: 'EXPANSION', featureCode: 'E1', description: 'Expansion', maximum: 4, future: true }],
     }] });
-    const reply = await handlers.get('dcsc_fabric_options')!({ session: workspace.id,
+    const reply = await handlers.get('dcsc_network_get')!({ session: workspace.id,
       collection: 'storageControllers', offset: 0, limit: 20 });
     expect(reply.isError).not.toBe(true);
     const controller = JSON.parse(reply.content[0]!.text).items[0];

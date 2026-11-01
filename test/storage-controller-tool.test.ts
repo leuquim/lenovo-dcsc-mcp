@@ -90,7 +90,7 @@ async function openController(value: ReturnType<typeof setup>) {
   });
 }
 
-describe('dcsc_customize_storage_controller', () => {
+describe('dcsc_storage_set customize controller', () => {
   it('opens a native imported controller selection that omits hardwareType and its prior template identity', async () => {
     const value = setup();
     const imported = structuredClone(value.workspace.serverState.storageConnectionNetworks) as Obj[];
@@ -112,19 +112,16 @@ describe('dcsc_customize_storage_controller', () => {
   it('opens a managed controller once, preserves its stable identity and exposes valid continuations', async () => {
     const { service, workspace, requests, handlers } = setup();
     const beforeRevision = workspace.revision;
-    const reply = await handlers.get('dcsc_customize_storage_controller')!({
-      session: workspace.id, name: 'Primary SAN', expectedRevision: beforeRevision,
+    const reply = await handlers.get('dcsc_storage_set')!({
+      session: workspace.id, change: { action: 'customize', name: 'Primary SAN', component: 'controller' }, expectedRevision: beforeRevision,
     });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result).toMatchObject({ workspace: workspace.id, revision: beforeRevision + 1,
       storageName: 'Primary SAN', controllerId: 'controller-id', created: true,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: result.session } },
-      next: { tool: 'dcsc_list_options', arguments: { session: result.session } },
-      configure: { tool: 'dcsc_configure', session: result.session },
+      inspect: { tool: 'dcsc_storage_get', arguments: { session: workspace.id } },
     });
-    expect(result.configure).not.toHaveProperty('arguments');
-    const opened = service.sessions.get(result.session)!;
+    const opened = service.sessions.get(result.configuration)!;
     expect(opened.configurationId).toBe('controller-id');
     expect(opened.raw).toMatchObject({ id: 'controller-id', code: '7DJ0CTO1WW', type: 'storage' });
     expect(workspace.rackArea).toEqual([]);
@@ -153,13 +150,13 @@ describe('dcsc_customize_storage_controller', () => {
     const reopened = await service.openStorageController(workspace.id, {
       name: 'Primary SAN', expectedRevision: workspace.revision, ctx: service.newCtx(),
     });
-    expect(reopened).toMatchObject({ session: result.session, controllerId: 'controller-id', created: false });
+    expect(reopened).toMatchObject({ session: result.configuration, controllerId: 'controller-id', created: false });
     expect(requests).toHaveLength(2);
     await service.sessions.undoWorkspace(workspace.id);
     expect([...workspace.configurations.values()].some(value => value.configurationId === 'controller-id')).toBe(false);
     await service.sessions.redoWorkspace(workspace.id);
     const restored = [...workspace.configurations.values()].find(value => value.configurationId === 'controller-id');
-    expect(restored?.id).toBe(result.session);
+    expect(restored?.id).toBe(result.configuration);
   });
 
   it('accepts a nonempty controller feature only when launch returns it as selected', async () => {

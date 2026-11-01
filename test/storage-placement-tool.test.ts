@@ -101,12 +101,12 @@ function setup() {
   return { service, workspace, requests, send, handlers };
 }
 
-describe('dcsc_place_storage_network', () => {
+describe('dcsc_storage_set place', () => {
   it('places bounded physical aliases and exposes executable inspection and export continuations', async () => {
     const value = setup();
     const revision = value.workspace.revision;
-    const reply = await value.handlers.get('dcsc_place_storage_network')!({
-      session: value.workspace.id, name: 'Primary SAN', rackId: 'rack-id', expectedRevision: revision,
+    const reply = await value.handlers.get('dcsc_storage_set')!({
+      session: value.workspace.id, change: { action: 'place', name: 'Primary SAN', rackId: 'rack-id' }, expectedRevision: revision,
     });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text) as Obj;
@@ -114,11 +114,9 @@ describe('dcsc_place_storage_network', () => {
       storageName: 'Primary SAN',
       templates: [{ configurationId: 'controller-template', created: false },
         { configurationId: 'switch-template', created: false }],
-      inspect: { tool: 'dcsc_workspace_layout', arguments: {
+      inspect: { tool: 'dcsc_storage_get', arguments: {
         session: value.workspace.id, expectedRevision: revision + 1,
-        path: ['rawRackArea'], offset: 0, limit: 20,
       } },
-      export: { tool: 'dcsc_export', arguments: { session: value.workspace.id } },
     });
     const placements = result['placements'] as Obj[];
     expect(placements).toHaveLength(2);

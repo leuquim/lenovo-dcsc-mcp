@@ -401,7 +401,7 @@ it('counts a nested node as physically placed in configuration-scoped power resu
   registerTools({ registerTool(name: string, _definition: unknown, callback: Handler) {
     handlers.set(name, callback); return { remove() {}, update() {} };
   } } as unknown as McpServer, service);
-  const reply = await handlers.get('dcsc_power')!({ session: result.nestedPlacement!.session });
+  const reply = await handlers.get('dcsc_power_get')!({ session: result.nestedPlacement!.session });
   const report = JSON.parse(reply.content[0]!.text);
   expect(report.perRack).toMatchObject([{ rackId: 'rack-1', physicallyPlacedUnits: 1, powerContributors: 1, powerAvailable: true }]);
   expect(report.unplacedSalesUnits).toEqual([]);

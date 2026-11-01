@@ -51,7 +51,7 @@ function setup() {
   return { service, session, workspace, handlers };
 }
 
-describe('dcsc_assign_storage_network', () => {
+describe('dcsc_storage_set assign', () => {
   it('preserves a prior graph for inspection but prevents stale workspace handoff until successful recabling', async () => {
     const { service, session, workspace } = setup();
     const graph = [{ sourceId: session.configurationId, destinationId: 'controller-id',
@@ -66,7 +66,7 @@ describe('dcsc_assign_storage_network', () => {
     expect(workspace.serverState.connections).toEqual(graph);
     const exportWorkspace = () => buildExportData({ workspace, solution: workspace.solution,
       fileTypes: ['XML'], validationMode: 'guided' });
-    expect(exportWorkspace).toThrow(/dcsc_add_cabling.*mode="auto"/);
+    expect(exportWorkspace).toThrow(/dcsc_auto_connect/);
     // A single configuration export does not include the stale workspace graph.
     expect(() => buildExportData({ raw: session.raw, config: session.reduced,
       solution: workspace.solution, fileTypes: ['XML'], validationMode: 'guided' })).not.toThrow();
@@ -109,21 +109,22 @@ describe('dcsc_assign_storage_network', () => {
       } } as never;
     });
 
-    const reply = await handlers.get('dcsc_assign_storage_network')!({
+    const reply = await handlers.get('dcsc_storage_set')!({
       session: session.id,
-      networkName: 'Primary SAN',
-      expectedRevision: session.revision,
+      change: { action: 'assign', networkName: 'Primary SAN' },
+      expectedRevision: workspace.revision,
     });
     expect(reply.isError).not.toBe(true);
     const result = JSON.parse(reply.content[0]!.text);
     expect(result).toMatchObject({
       workspace: workspace.id,
       session: session.id,
+      revision: workspace.revision,
       configurationId: session.configurationId,
       selectedStorageNetwork: 'Primary SAN',
       autoConnectRequired: true,
-      inspect: { tool: 'dcsc_session_info', arguments: { session: session.id } },
-      next: { tool: 'dcsc_add_cabling', arguments: { session: workspace.id, mode: 'auto' } },
+      inspect: { tool: 'dcsc_storage_get', arguments: { session: workspace.id } },
+      next: { tool: 'dcsc_auto_connect', arguments: { session: workspace.id } },
     });
     expect(result).not.toHaveProperty('connectionCount');
     expect(result.reason).toMatch(/cables were not regenerated/i);
@@ -151,9 +152,9 @@ describe('dcsc_assign_storage_network', () => {
   it('rejects an unknown storage name before making a remote request', async () => {
     const { service, session, handlers } = setup();
     const send = vi.spyOn(service.http, 'send');
-    const reply = await handlers.get('dcsc_assign_storage_network')!({
+    const reply = await handlers.get('dcsc_storage_set')!({
       session: session.id,
-      networkName: 'Missing SAN',
+      change: { action: 'assign', networkName: 'Missing SAN' },
     });
     expect(reply.isError).toBe(true);
     expect(reply.content[0]!.text).toMatch(/Unknown storage network.*Primary SAN/i);
@@ -164,9 +165,9 @@ describe('dcsc_assign_storage_network', () => {
   it('rejects a workspace handle even when that workspace has only one configuration', async () => {
     const { service, workspace, handlers } = setup();
     const send = vi.spyOn(service.http, 'send');
-    const reply = await handlers.get('dcsc_assign_storage_network')!({
+    const reply = await handlers.get('dcsc_storage_set')!({
       session: workspace.id,
-      networkName: 'Primary SAN',
+      change: { action: 'assign', networkName: 'Primary SAN' },
     });
     expect(reply.isError).toBe(true);
     expect(reply.content[0]!.text).toMatch(/configuration handle/i);

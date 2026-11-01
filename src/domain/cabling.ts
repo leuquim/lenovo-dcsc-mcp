@@ -51,7 +51,7 @@ export function invalidateConnectionGraph(state: Obj, reason: string): void {
 
 export function assertCurrentConnectionGraph(state: Obj): void {
   if (state['connectionGraphInvalidation'] !== undefined) {
-    throw new Error('The saved connection graph predates a workspace change. Run dcsc_add_cabling with the workspace session and mode="auto" before exporting or validating the workspace.');
+    throw new Error('The saved connection graph predates a workspace change. Run dcsc_auto_connect with the workspace session before exporting or validating the workspace.');
   }
 }
 
