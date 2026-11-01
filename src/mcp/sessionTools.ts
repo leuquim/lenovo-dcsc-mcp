@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { fetchRuleVersionsInfo } from '../domain/ruleVersions.js';
 import { z } from 'zod';
 
 import { CONFIG_MODES } from '../config/constants.js';
@@ -205,7 +206,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
     async (args) =>
       guard(async () => {
         if (args.ctoCode && !args.session) {
-          const info = await service.fetchRuleVersionsInfo({
+          const info = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
             ctoCode: args.ctoCode,
             tableCode: args.ruleTableCode,
           });
@@ -277,7 +278,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
           if (args.includeRuleVersions) {
             const firstCto = args.ctoCode ?? [...workspace.configurations.values()][0]?.product.code;
             if (firstCto) {
-              const ruleVersions = await service.fetchRuleVersionsInfo({
+              const ruleVersions = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
                 ctoCode: firstCto,
                 tableCode: args.ruleTableCode,
               });
@@ -292,7 +293,7 @@ export function registerSessionTools(rawServer: McpServer, service: DcscService)
         let ruleVersions: unknown = undefined;
         if (args.includeRuleVersions) {
           const targetCto = args.ctoCode ?? session.product.code;
-          ruleVersions = await service.fetchRuleVersionsInfo({
+          ruleVersions = await fetchRuleVersionsInfo(service.http, await service.ctxEnsuringSolution(), {
             ctoCode: targetCto,
             tableCode: args.ruleTableCode,
           });

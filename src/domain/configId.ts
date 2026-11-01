@@ -76,58 +76,11 @@ export async function generateConfigId(
 }
 
 /**
- * Validates whether a Configuration ID exists and is available in DCSC's database.
- *
- * Upstream route: POST /api/restore?country_or_region=${country}&language=${language}&currency=${currency}&configuration_id=${configId}
- */
-export async function validateConfigId(
-  http: DcscHttpClient,
-  configId: string,
-  ctx: RequestCtx,
-): Promise<ValidateConfigIdResult> {
-  const trimmed = configId.trim();
-  if (!trimmed) {
-    throw new Error('A non-empty configuration ID is required for validation.');
-  }
-
-  const response = await http.send({
-    endpoint: 'validate_config_id',
-    method: 'POST',
-    path: '/restore',
-    query: {
-      configuration_id: trimmed,
-    },
-    requiresSolution: false,
-    responseKind: 'json',
-    timeoutClass: 'interactive',
-    ctx,
-  });
-
-  const raw = (typeof response.raw === 'string'
-    ? JSON.parse(response.raw)
-    : response.raw) as Record<string, unknown> | null;
-
-  if (!raw || typeof raw !== 'object') {
-    return { valid: false, message: 'Unrecognised validation response from DCSC.' };
-  }
-
-  const success = raw['success'] === true;
-  const url = typeof raw['url'] === 'string' ? raw['url'] : undefined;
-  const message = typeof raw['message'] === 'string' ? raw['message'] : undefined;
-
-  return {
-    valid: success,
-    ...(url !== undefined ? { url } : {}),
-    ...(message !== undefined ? { message } : {}),
-  };
-}
-
-/**
  * Retrieves an online configuration by ID from DCSC.
  *
  * Upstream route: POST /api/retrieve/configId?country_or_region=${country}&language=${language}&currency=${currency}&configuration_id=${configId}&currentFileType=CTO
  * Request body: multipart/form-data with existing `configurationIds` keys.
- * Returns the raw import payload array or object to be ingested by #acceptImportPayload.
+ * Returns the raw import payload array or object to be ingested by acceptImportPayload in app/importExport.ts.
  */
 export async function retrieveConfigId(
   http: DcscHttpClient,

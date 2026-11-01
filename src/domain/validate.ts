@@ -156,30 +156,6 @@ export async function fetchLmcValidationResult(
   }
 }
 
-/** Starts a job and performs exactly one result request. */
-export async function runLmcValidation(
-  http: DcscHttpClient,
-  ctx: RequestCtx,
-  exportPayload: Record<string, unknown>,
-  mode: string,
-): Promise<LmcValidationResult> {
-  let start: LmcValidationStart;
-  try {
-    start = await startLmcValidation(http, ctx, exportPayload, mode);
-  } catch (err) {
-    return {
-      raw: undefined,
-      descriptors: [],
-      status: 'unavailable',
-      terminal: false,
-      isValid: false,
-      messages: [],
-      requestError: requestError('start', err),
-    };
-  }
-  return fetchLmcValidationResult(http, ctx, start);
-}
-
 export function parseLmcValidationResult(
   start: LmcValidationStart,
   raw: unknown,
@@ -262,13 +238,6 @@ export function collectLocalDiagnostics(
     walkDiagnostics(target.raw, '$', undefined, target.configurationId, out, seen);
   }
   return out;
-}
-
-/** Backward-compatible name; now includes all known nested local diagnostics. */
-export function collectExpansionMessages(
-  targets: Array<{ configurationId: string; raw: Obj }>,
-): LocalMessage[] {
-  return collectLocalDiagnostics(targets);
 }
 
 export function summariseValidation(

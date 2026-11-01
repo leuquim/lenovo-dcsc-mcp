@@ -139,9 +139,6 @@ function combinePhysicalProducts(products: ExportGroupProduct[]): ExportGroupPro
   return combined;
 }
 
-/** Drop-in name for the existing reducer export during integration. */
-export const buildGroups = buildExportGroups;
-
 function aggregateCloneGroups(
   entries: Array<{ id: string; products: ExportGroupProduct[] }>,
   rawDependency: unknown,

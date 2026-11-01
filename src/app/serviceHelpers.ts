@@ -11,7 +11,8 @@ import {
   reduceConfiguration,
   type ReducedConfiguration,
 } from '../domain/reduce.js';
-import { readStorageConnectionNetworks } from '../domain/storagePreferences.js';
+import { resolveLinkedCloneGroup } from '../domain/linkedCloneEdit.js';
+import { configurationCloneDependency, readStorageConnectionNetworks } from '../domain/storagePreferences.js';
 import {
   clearStorageRaidSections,
   isStorageRaidModeChange,
@@ -20,6 +21,48 @@ import {
 import { buildIndex, resolveSection, suggestSections } from '../model/index.js';
 import type { RawConfiguration } from '../model/types.js';
 import type { ConfigSession, WorkspaceSession } from '../model/session.js';
+import { SessionConflictError, type SessionStore } from '../session/SessionStore.js';
+import type { SolutionContext } from '../config/schema.js';
+
+/** Resolves a configuration handle that belongs to a workspace, or fails with the caller's message. */
+export function requireConfiguration(
+  sessions: SessionStore,
+  handle: string,
+  message: string,
+): { session: ConfigSession; workspace: WorkspaceSession } {
+  const resolved = sessions.resolveHandle(handle);
+  if (resolved?.kind !== 'configuration' || !resolved.workspace) throw new Error(message);
+  return { session: resolved.session, workspace: resolved.workspace };
+}
+
+export function assertWorkspaceRevision(workspace: WorkspaceSession, expected: number | undefined): void {
+  if (expected !== undefined && expected !== workspace.revision) {
+    throw new SessionConflictError(expected, workspace.revision, 'workspace');
+  }
+}
+
+export function linkedGroup(workspace: WorkspaceSession, configurationId: string) {
+  return resolveLinkedCloneGroup(
+    configurationCloneDependency(workspace),
+    [...workspace.configurations.values()].map((session) => session.configurationId),
+    configurationId,
+  );
+}
+
+export function linkedMembers(workspace: WorkspaceSession, group: { memberIds: readonly string[] }): ConfigSession[] {
+  return [...workspace.configurations.values()].filter((session) => group.memberIds.includes(session.configurationId));
+}
+
+/** Recomputes the fields derived from `raw` after it was edited. */
+export function rebuildDerived(session: ConfigSession, owner: { solution: SolutionContext }): void {
+  session.index = buildIndex(session.raw);
+  session.reduced = reduceConfiguration(
+    session.raw,
+    session.configurationId,
+    hardwareModeFamily(session.mode),
+    owner.solution.solutionMode,
+  );
+}
 
 const CATALOG_CODE_INDEX = new WeakMap<Catalog, ReadonlySet<string>>();
 

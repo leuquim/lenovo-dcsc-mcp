@@ -1,5 +1,5 @@
 import { DEFAULT_MASTER_SLICES } from '../config/constants.js';
-import type { Locale, SolutionContext } from '../config/schema.js';
+import type { SolutionContext } from '../config/schema.js';
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import { SolutionModesSchema } from '../schemas/catalog.js';
 import { parseResponse } from '../schemas/parse.js';
@@ -77,8 +77,4 @@ export function toSolutionContext(
     };
   }
   return { solutionMode: chosen.mode, masterSlices: chosen.masterSlices };
-}
-
-export function baseCtx(corrId: string, locale: Locale): RequestCtx {
-  return { corrId, locale };
 }

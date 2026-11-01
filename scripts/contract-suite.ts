@@ -11,6 +11,9 @@
  *           floor, cabling, pdu, validate, locale, topology, services,
  *           services_cto, standalone, all
  */
+import { fetchLocales } from '../src/domain/locale.js';
+import { fetchRackCabinets } from '../src/domain/rack.js';
+import { fetchServicePortalCategories } from '../src/domain/services-catalog.js';
 import { readFileSync, rmSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { loadConfig } from '../src/config/load.js';
@@ -29,7 +32,7 @@ import {
 import {
   exportProductServiceArtifact,
   exportStandaloneSoftwareArtifact,
-} from '../src/mcp/standaloneTools.js';
+} from '../src/app/standalone.js';
 import { writeExportBundle } from '../src/files/artifactStore.js';
 import { stateFile } from '../src/session/persist.js';
 import { isolateRuntime, readStream } from './lib/isolated-runtime.js';
@@ -126,7 +129,7 @@ async function groupRack(service: DcscService): Promise<void> {
   const ctx = service.newCtx({ solution });
   console.log(`        using 7DM9CTO1WW from current ${currentMode} catalog`);
 
-  const cabinets = await service.rackCabinets(ctx, solution);
+  const cabinets = await fetchRackCabinets(service.http, { ...ctx, solution });
   check(cabinets.length > 0, 'rack cabinets listed', `${cabinets.length} cabinets`);
   check(
     cabinets.every((c) => /rack|cabinet/i.test(c.description)),
@@ -472,7 +475,7 @@ async function groupValidate(service: DcscService): Promise<void> {
 async function groupLocale(service: DcscService): Promise<void> {
   console.log('\n=== locale: /locales catalogue and cohesive override ===');
   const ctx = service.newCtx();
-  const locales = await service.listLocales(ctx);
+  const locales = await fetchLocales(service.http, ctx);
   check(locales.length > 10, 'locales listed from DCSC', `${locales.length} countries`);
   const us = locales.find((l) => l.countryCode === 'US');
   check(!!us, 'US present in catalogue');
@@ -547,7 +550,7 @@ async function groupServices(service: DcscService): Promise<void> {
   console.log('\n=== services: portal categories available anonymously ===');
   const ctx = service.newCtx();
   const solution = await service.resolveSolution(ctx, 'HPC and AI - Systems');
-  const root = await service.servicePortalCategories(ctx, solution);
+  const root = await fetchServicePortalCategories(service.http, { ...ctx, solution });
   check(!!root, 'services portal root returned');
   check((root?.children.length ?? 0) > 0, 'service categories listed', `${root?.children.length} top-level`);
   check(

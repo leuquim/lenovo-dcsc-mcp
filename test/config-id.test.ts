@@ -6,7 +6,6 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ConfigSchema } from '../src/config/schema.js';
 import {
   generateConfigId,
-  validateConfigId,
   retrieveConfigId,
   querySids,
   customizeSid,
@@ -90,45 +89,6 @@ describe('Domain: Config ID & SIDs', () => {
     } as never);
 
     await expect(generateConfigId(service.http, ctx)).rejects.toThrow('empty or invalid');
-  });
-
-  it('validateConfigId probes POST /restore and parses success or rejection', async () => {
-    const service = createService();
-    const ctx = service.newCtx({ solution });
-    const send = vi.spyOn(service.http, 'send').mockResolvedValueOnce({
-      raw: { success: true, url: 'https://dcsc.lenovo.com/#/summary/abc' },
-    } as never);
-
-    const valid = await validateConfigId(service.http, 'CIDU00CKWN', ctx);
-    expect(valid).toEqual({
-      valid: true,
-      url: 'https://dcsc.lenovo.com/#/summary/abc',
-    });
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        endpoint: 'validate_config_id',
-        method: 'POST',
-        path: '/restore',
-        query: { configuration_id: 'CIDU00CKWN' },
-        requiresSolution: false,
-      }),
-    );
-
-    vi.spyOn(service.http, 'send').mockResolvedValueOnce({
-      raw: { success: false, message: 'Invalid Config ID, Not available in DCSC database for retrieval' },
-    } as never);
-
-    const invalid = await validateConfigId(service.http, 'CIDU000000', ctx);
-    expect(invalid).toEqual({
-      valid: false,
-      message: 'Invalid Config ID, Not available in DCSC database for retrieval',
-    });
-  });
-
-  it('validateConfigId rejects empty id before HTTP', async () => {
-    const service = createService();
-    const ctx = service.newCtx({ solution });
-    await expect(validateConfigId(service.http, '   ', ctx)).rejects.toThrow('non-empty');
   });
 
   it('retrieveConfigId submits multipart form with existing configurationIds and CTO file type', async () => {
@@ -271,7 +231,7 @@ describe('Service Integration: Config ID & SIDs', () => {
     expect(ws?.serverState.userGeneratedConfigId).toBe('CIDU00CKWN');
   });
 
-  it('retrieveConfigId ingests upstream payload through #acceptImportPayload and creates workspace session', async () => {
+  it('retrieveConfigId ingests upstream payload through the import pipeline and creates workspace session', async () => {
     const service = createService();
     const importPayload = [
       {

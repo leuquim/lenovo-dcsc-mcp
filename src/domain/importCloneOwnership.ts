@@ -307,10 +307,3 @@ export function reconcileImportedCloneOwnership(opts: {
   validateCanonicalColorPartition(result, resultColors, activeConfigurationIds, storageRoots, storageAliases);
   return { dependency: result, colors: resultColors, changed };
 }
-
-/** Compatibility projection for callers that need only the canonical dependency. */
-export function reconcileImportedCloneDependency(
-  opts: Parameters<typeof reconcileImportedCloneOwnership>[0],
-): CloneDependency {
-  return reconcileImportedCloneOwnership(opts).dependency;
-}

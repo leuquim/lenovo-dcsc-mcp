@@ -109,20 +109,6 @@ export const CONFIG_MODES = ['cto', 'lfo', 'lfo-as-cto', 'lfo-add-options'] as c
 export type ConfigMode = (typeof CONFIG_MODES)[number];
 
 /**
- * Solution modes, from the bundle constant `SOLUTION_MODE`. These are the
- * human-readable strings the API expects for the `solutionMode` query param.
- *
- * verified 2026-08-07
- */
-export const SOLUTION_MODES = [
-  'General Purpose',
-  'Cluster',
-  'HPC and AI - LESI Solution',
-  'HPC and AI - Systems',
-] as const;
-export type SolutionModeName = (typeof SOLUTION_MODES)[number];
-
-/**
  * Fallback masterSlices for General Purpose. The authoritative values come
  * from /api/solution_modes at runtime; this exists only so the very first
  * bootstrap call has something valid to send.
@@ -130,15 +116,6 @@ export type SolutionModeName = (typeof SOLUTION_MODES)[number];
  * verified 2026-08-07
  */
 export const DEFAULT_MASTER_SLICES = ['GP', 'HPCGPALL', 'HPCGPRYO'] as const;
-
-/**
- * HTTP 499 is the upstream bot-mitigation verdict. The real SPA hard-redirects
- * to www.lenovo.com when it sees this on /solution_modes, /launch or
- * /autoDerive. It is client-scoped, not route-scoped.
- *
- * verified 2026-08-07 (handler present in app bundle)
- */
-export const WAF_STATUS = 499;
 
 /** Magic bytes used to detect an error masquerading as a successful download. */
 export const MAGIC_BYTES = {

@@ -556,7 +556,6 @@ function serializeWorkspace(workspace: WorkspaceSession): Record<string, unknown
     solution: workspace.solution,
     validationMode: workspace.validationMode,
     configurations: [...workspace.configurations.values()].map(serializeConfiguration),
-    racks: [...workspace.racks.entries()],
     rackArea: workspace.rackArea,
     nonRackArea: workspace.nonRackArea,
     serverState: workspace.serverState,

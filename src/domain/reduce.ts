@@ -550,8 +550,7 @@ export const EXPORT_FILE_TYPES = {
 
 export type ExportFileType = keyof typeof EXPORT_FILE_TYPES;
 
-export const ALL_EXPORT_TYPES: ExportFileType[] = Object.keys(EXPORT_FILE_TYPES) as ExportFileType[];
-export const DEFAULT_EXPORT_TYPES: ExportFileType[] = ALL_EXPORT_TYPES;
+export const DEFAULT_EXPORT_TYPES: ExportFileType[] = Object.keys(EXPORT_FILE_TYPES) as ExportFileType[];
 
 export interface ExportGroupProduct {
   id: string;
@@ -623,10 +622,6 @@ export function buildExportConfiguration(
     ...(config.selectedTceAudience !== undefined ? { selectedTceAudience: structuredClone(config.selectedTceAudience) } : {}),
   };
 }
-
-/** Export hierarchy and physical rack data are separate, never coordinate conversions. */
-export const rackToLocalExportShape = buildRackHierarchy;
-export const rackToServerExportShape = physicalRackData;
 
 type ExportValidationEntry = {
   key: string;

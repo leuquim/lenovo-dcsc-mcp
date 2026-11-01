@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { queryMemoryWizard } from '../domain/memoryWizard.js';
 import { z } from 'zod';
 import { projectJsonPage } from '../model/pagedJson.js';
 import type { DcscService } from './service.js';
@@ -49,7 +50,7 @@ export function registerPciWizardTools(rawServer: McpServer, service: DcscServic
     if (args.memoryWizardAction !== undefined) {
       const resolved = service.sessions.resolveHandle(args.session);
       const ctoCode = resolved?.session?.product.code ?? (resolved?.workspace ? [...resolved.workspace.configurations.values()][0]?.product.code : undefined);
-      return service.memoryWizard({
+      return queryMemoryWizard(service.http, service.newCtx(), {
         action: args.memoryWizardAction,
         ctoCode,
         payload: args.memoryWizardPayload,

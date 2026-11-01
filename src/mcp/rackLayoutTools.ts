@@ -1,4 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { getHardwareRuleInRack, type RackPositionRuleInput } from '../domain/rackPositionRule.js';
+import { fetchRackCabinets } from '../domain/rack.js';
 import { z } from 'zod';
 
 import { configurationListPrice } from '../domain/pricing.js';
@@ -11,7 +13,6 @@ import {
 } from '../model/workspaceProjection.js';
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
-import type { RackPositionRuleInput } from '../domain/rackPositionRule.js';
 import { requireSession } from './sessionTools.js';
 import { guard, withToolSupport } from './toolSupport.js';
 
@@ -162,7 +163,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
         const solution = session?.solution ?? await service.resolveSolution(ctx, args.solutionMode);
         if (session && args.solutionMode && (await service.resolveSolution(ctx, args.solutionMode)).solutionMode !== solution.solutionMode) throw new Error('solutionMode conflicts with the selected configuration.');
         const hardwareType = args.hardwareType ?? 'rack';
-        const racks = await service.rackCabinets(ctx, solution, masterCode, hardwareType);
+        const racks = await fetchRackCabinets(service.http, { ...ctx, solution }, masterCode, hardwareType);
         const result = projectCatalogPage({
           tool: 'dcsc_list_racks', collection: 'racks', context: ctx.locale,
           arguments: { session: args.session, productCode: args.productCode, solutionMode: solution.solutionMode, hardwareType },
@@ -638,7 +639,7 @@ export function registerRackLayoutTools(rawServer: McpServer, service: DcscServi
     },
     async (args) =>
       guard(async () => {
-        return service.rackPositionRule(args as unknown as RackPositionRuleInput);
+        return getHardwareRuleInRack(service.http, await service.ctxWithSolution(undefined, 'HPC and AI - Systems'), args as unknown as RackPositionRuleInput);
       }, 'dcsc_rack_position_rule failed'),
   );
 }

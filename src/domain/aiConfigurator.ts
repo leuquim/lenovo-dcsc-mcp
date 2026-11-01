@@ -402,3 +402,36 @@ export async function fetchAiRecommendServices(
   );
   return { action: 'recommendServices', data: res.data, raw: res.raw };
 }
+
+export async function fetchAiRecommendation(
+  http: DcscHttpClient,
+  ctx: RequestCtx,
+  input: { action: NightingaleAiAction; payload: Record<string, unknown> },
+): Promise<unknown> {
+  switch (input.action) {
+    case 'featureCompat':
+      return fetchAiFeatureCompat(http, ctx, input.payload as unknown as AiFeatureCompatInput);
+    case 'bladeRecommendation':
+      return fetchAiBladeRecommendation(http, ctx, input.payload as unknown as AiBladeRecommendInput);
+    case 'ctoCandidates':
+      return fetchAiRecommendCtos(http, ctx, input.payload as unknown as AiRecommendCtosInput);
+    case 'defaultPrompt':
+      return fetchAiDefaultPrompt(http, ctx, input.payload);
+    case 'promptTemplate':
+      return fetchAiPromptTemplate(http, ctx, input.payload);
+    case 'candidateAttributes':
+      return fetchAiCandidateAttributes(http, ctx, input.payload);
+    case 'candidateFeatures':
+      return fetchAiCandidateFeatures(http, ctx, input.payload);
+    case 'candidateFeaturesDesc':
+      return fetchAiCandidateFeaturesDesc(http, ctx, input.payload);
+    case 'configReplenishment':
+      return fetchAiConfigReplenishment(http, ctx, input.payload);
+    case 'replaceFeatures':
+      return fetchAiReplaceFeatures(http, ctx, input.payload);
+    case 'recommendConfigs':
+      return fetchAiRecommendConfigs(http, ctx, input.payload);
+    case 'recommendServices':
+      return fetchAiRecommendServices(http, ctx, input.payload);
+  }
+}

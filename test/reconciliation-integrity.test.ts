@@ -32,8 +32,6 @@ function setup() {
 
 const damageCases: Array<[string, (saved: Obj) => void]> = [
   ['missing configuration', saved => { (saved.configurations as unknown[]).push(null); }],
-  ['missing rack child', saved => { saved.racks = [['rack1', { id: 'rack1', code: 'RACK', description: 'Rack', uheight: 42, position: 1,
-    items: [{ configId: 'missing', code: 'SERVER', position: 1, height: 1 }] }]]; }],
   ['missing cable endpoint', saved => { saved.cables = [{ id: 'cable1', fromConfigId: 'US__integrity_test', toConfigId: 'missing' }]; }],
   ['missing floor rack', saved => { saved.floorItems = [{ id: 'floor1', rackId: 'missing', x: 1, y: 1 }]; }],
   ['missing PDU rack', saved => { saved.powerSelections = [{ rackId: 'missing', selections: [] }]; }],
@@ -72,7 +70,6 @@ describe('reconciliation preserves recovery trust boundaries', () => {
 
   it('reconciles current configurations without certifying a legacy physical layout', async () => {
     const { service, saved, id, raw } = setup();
-    saved.racks = [['rack1', { id: 'rack1', code: 'RACK', description: 'Rack', uheight: 42, position: 1, items: [] }]];
     saved.floorItems = [{ id: 'floor1', rackId: 'rack1', x: 1, y: 1 }];
     service.sessions.restore([saved], { provenance: 'legacy-unverified' });
     const send = vi.spyOn(service.http, 'send').mockResolvedValue({ raw: { configurations: [raw] } } as never);

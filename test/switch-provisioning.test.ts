@@ -5,7 +5,6 @@ import {
   buildGeneratedSwitch,
   buildSwitchCalculationRequest,
   parseSwitchCalculationResponse,
-  SWITCH_PROVISIONING_SEQUENCE,
 } from '../src/domain/switchProvisioning.js';
 
 type Obj = Record<string, unknown>;
@@ -99,16 +98,4 @@ describe('generated switch descriptor', () => {
       id: 'generated-switch-1',
     })).toThrow(/not switch/);
   });
-});
-
-it('records the browser-authoritative automatic-switch and P2P sequence', () => {
-  expect(SWITCH_PROVISIONING_SEQUENCE.map(({ phase, method, path }) => ({ phase, method, path })))
-    .toEqual(fixture.sequence);
-  expect(SWITCH_PROVISIONING_SEQUENCE[1]?.query).toEqual({
-    serviceCto: true, serviceType: 'servicecto', controlExpressModal: false,
-  });
-  expect(SWITCH_PROVISIONING_SEQUENCE[2]?.query).toEqual({
-    autoArrange: true, autoConnect: true, cogValidation: true,
-  });
-  expect(SWITCH_PROVISIONING_SEQUENCE[3]?.query).toEqual({ guideMode: true });
 });

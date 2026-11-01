@@ -13,7 +13,7 @@ import { DcscHttpClient } from '../../src/http/request.js';
 import { configureLogger } from '../../src/http/trace.js';
 import { DcscService } from '../../src/mcp/service.js';
 import { resolveSection } from '../../src/model/index.js';
-import { ALL_EXPORT_TYPES } from '../../src/domain/reduce.js';
+import { DEFAULT_EXPORT_TYPES } from '../../src/domain/reduce.js';
 import { aggregatePower, extractPowerReport } from '../../src/domain/power.js';
 
 const NODE = '7DJ5CTO1WW'; // ThinkSystem SR780a V3, HGX B200 liquid-cooled
@@ -151,7 +151,7 @@ async function main() {
 
   console.log('10. Export');
   const out = await service.exportZip(ws, {
-    fileTypes: [...ALL_EXPORT_TYPES],
+    fileTypes: [...DEFAULT_EXPORT_TYPES],
     fileName: 'ai-factory-b200-dwc-complete',
     ctx,
   });

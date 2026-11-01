@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigSchema } from '../src/config/schema.js';
 import { cloneConfigurationRaw } from '../src/domain/configurationIdentity.js';
-import { reconcileImportedCloneDependency } from '../src/domain/importCloneOwnership.js';
+import { reconcileImportedCloneOwnership } from '../src/domain/importCloneOwnership.js';
 import { buildExportData, reduceConfiguration } from '../src/domain/reduce.js';
 import { removeWorkspaceReferences } from '../src/domain/workspaceReferences.js';
 import { DcscService } from '../src/mcp/service.js';
@@ -65,14 +65,14 @@ function removeConfiguration(workspace: ReturnType<typeof setup>['workspace'], c
 function assertHistoricalExpansionRemainsUsable(workspace: ReturnType<typeof setup>['workspace']): void {
   const activeIds = new Set([...workspace.configurations.values()].map(session => session.configurationId));
   const dependency = workspace.serverState.cloneDependency as Record<string, string[]>;
-  expect(reconcileImportedCloneDependency({
+  expect(reconcileImportedCloneOwnership({
     dependency,
     colors: workspace.serverState.cloneDependencyColor as Record<string, unknown>,
     provenance: workspace.serverState.importCloneExpansion,
     activeConfigurationIds: activeIds,
     storageRoots: new Set(),
     configurations: [...workspace.configurations.values()],
-  })).toEqual(dependency);
+  }).dependency).toEqual(dependency);
   expect(() => buildExportData({ workspace, solution: workspace.solution,
     fileTypes: ['XML'], validationMode: 'guided' })).not.toThrow();
 }

@@ -70,7 +70,7 @@ function shape() {
 function workspaceForRemoval(source: ReturnType<typeof shape>): WorkspaceSession {
   return {
     id: 'workspace', locale: {} as WorkspaceSession['locale'], solution: {} as WorkspaceSession['solution'],
-    revision: 1, createdAt: 0, updatedAt: 0, history: [], future: [], configurations: new Map(), racks: new Map(),
+    revision: 1, createdAt: 0, updatedAt: 0, history: [], future: [], configurations: new Map(),
     rackArea: structuredClone(source.rackArea), nonRackArea: [], floorItems: [], rackSummaries: [], cables: [],
     powerSelections: [], serverState: structuredClone(source.serverState),
   } as unknown as WorkspaceSession;

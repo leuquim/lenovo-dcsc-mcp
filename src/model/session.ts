@@ -37,27 +37,6 @@ export interface ConfigSession {
   pricedAt: number;
 }
 
-/**
- * Kept for the export payload's benefit only.
- *
- * The authoritative rack state is `WorkspaceSession.rackArea`, which holds the
- * objects DCSC itself returned — see domain/rack.ts for why the layout cannot
- * be modelled locally.
- */
-export interface RackPlacement {
-  id: string;
-  code: string;
-  description: string;
-  uheight: number;
-  position: number;
-  items: Array<{
-    configId: string;
-    code: string;
-    position: number;
-    height: number;
-  }>;
-}
-
 export interface CableLink {
   id: string;
   fromConfigId: string;
@@ -100,7 +79,6 @@ export interface WorkspaceSession {
   solution: SolutionContext;
   validationMode: 'guided' | 'expert';
   configurations: Map<string, ConfigSession>;
-  racks: Map<string, RackPlacement>;
   /** DCSC's own rackArea objects, re-posted verbatim on every mutation. */
   rackArea: RackObject[];
   /** DCSC objects currently outside a physical rack. */

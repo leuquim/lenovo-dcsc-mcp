@@ -139,31 +139,3 @@ export async function fetchSmartLfoRecommendation(
 
   return (res.raw ?? {}) as SmartLfoResponse;
 }
-
-/**
- * Preloads smart recommendation data for an LFO/CTO combination.
- * Endpoint: POST /smart/recommend/lfo/preload/data
- */
-export async function fetchSmartLfoPreloadData(
-  http: DcscHttpClient,
-  ctx: RequestCtx,
-  country: string,
-  ctoCode: string,
-): Promise<unknown> {
-  const query: Record<string, string> = {
-    country_or_region: country.toUpperCase(),
-    ctoCode,
-  };
-
-  const res = await http.send({
-    endpoint: 'smart_recommend_preload',
-    method: 'POST',
-    path: '/smart/recommend/lfo/preload/data',
-    query,
-    responseKind: 'json',
-    timeoutClass: 'fast',
-    ctx,
-  });
-
-  return res.raw;
-}

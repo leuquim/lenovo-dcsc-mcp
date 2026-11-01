@@ -1,71 +1,49 @@
-import { reconcileImportedSoftwareCatalog, SERVICE_METADATA_REFRESH_WARNING } from '../domain/importStandalone.js';
-import { renderRackImage } from '../domain/rackImage.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import {
-  buildExportData,
-  buildExportForm,
-  buildGroups,
-  DEFAULT_EXPORT_TYPES,
-  type ExportFileType,
-} from '../domain/reduce.js';
-import {
   browseStandaloneSoftware,
-  buildProductServiceExportEnvelope,
-  buildStandaloneSoftwareExportEnvelope,
-  findParts,
-  launchProductServices,
-  refreshProductServiceCatalog,
-  launchStandaloneSoftware,
-  removeProductService,
-  removeStandaloneSoftware,
-  selectProductService,
-  selectStandaloneSoftware,
-  setStandaloneSoftwareQuantity,
-  summariseProductServices,
-  type ProductServiceState,
   type SoftwareCatalogPath,
   type StandaloneSoftwareState,
 } from '../domain/standalone.js';
 import {
   emptyStandaloneHardware,
-  lookupStandaloneHardwarePart,
-  removeStandaloneHardware,
-  selectStandaloneHardware,
-  setStandaloneHardwareQuantity,
-  standaloneHardwareExportItem,
-  standaloneHardwareGroupProduct,
   standaloneHardwareTotal,
-  type StandaloneHardwareState,
 } from '../domain/standaloneHardware.js';
-import { sanitiseFileName, writeExportBundle, type ExportBundle } from '../files/artifactStore.js';
+import {
+  addHardware,
+  exportProductServiceArtifact,
+  exportStandaloneSoftwareArtifact,
+  hardwareState,
+  launchServices,
+  launchSoftware,
+  lookupParts,
+  partSupplyStatus,
+  removeHardware,
+  removeService,
+  removeSoftware,
+  requireWorkspace,
+  selectService,
+  selectSoftware,
+  serviceState,
+  setHardwareQuantity,
+  setServiceProductQuantity,
+  setServiceQuantity,
+  setSoftwareQuantity,
+  softwareState,
+} from '../app/standalone.js';
+import type { ExportFileType } from '../domain/reduce.js';
+import { sanitiseFileName } from '../files/artifactStore.js';
 import type { WorkspaceSession } from '../model/session.js';
 import type { DcscService } from './service.js';
 import { projectCatalogPage } from '../model/catalogPage.js';
 import { guard, withToolSupport } from './toolSupport.js';
 import { isObject } from '../util/coerce.js';
-import { exportZipPath } from '../domain/endpoints.js';
-import { hardwareEndpointFamily } from '../domain/modeFamily.js';
 
-const SOFTWARE_STATE = 'standaloneSoftwareState';
-const SERVICE_STATE = 'standaloneServiceState';
-export const HARDWARE_STATE = 'standaloneHardwareState';
 const MAX_PAGE = 50;
-const PART_LOOKUP_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
-const MAX_PART_LOOKUP_SNAPSHOTS = 4;
-/** Captured default choices in the standalone software export dialog. */
-export const SOFTWARE_EXPORT_TYPES: ExportFileType[] = ['XML', 'QUOTE', 'QUOTE_SUPPLYINFO', 'QUOTE_GROUP', 'SUMMARY', 'POWER_REPORT', 'QUOTE_CSV', 'EPRICE_CSV'];
 
 export function registerStandaloneTools(rawServer: McpServer, service: DcscService): void {
   const server = withToolSupport(rawServer);
-  type PartLookupProjection = {
-    code: string;
-    description: string;
-    type: string;
-    nextAction: string;
-  };
-  const partLookupSnapshots = new Map<string, { at: number; items: PartLookupProjection[] }>();
 
   server.registerTool(
     'dcsc_find_parts',
@@ -89,39 +67,7 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
     },
     async (args) =>
       guard(async () => {
-        const initial = service.newCtx();
-        const solution = await service.resolveSolution(initial, args.solutionMode);
-        const ctx = service.newCtx({ solution });
-        const snapshotKey = JSON.stringify({
-          keyword: args.keyword.trim(),
-          types: args.types ?? ['SOFTWARE', 'SERVICE', 'HARDWARE'],
-          mode: args.mode,
-          locale: ctx.locale,
-          solution,
-        });
-        const now = Date.now();
-        for (const [key, snapshot] of partLookupSnapshots) {
-          if (now - snapshot.at >= PART_LOOKUP_SNAPSHOT_TTL_MS) partLookupSnapshots.delete(key);
-        }
-        let items = args.expectedCatalogFingerprint
-          ? partLookupSnapshots.get(snapshotKey)?.items
-          : undefined;
-        if (!items) {
-          const result = await findParts(service.http, ctx, {
-            keyword: args.keyword,
-            mode: args.mode,
-            ...(args.types !== undefined ? { types: args.types } : {}),
-          });
-          items = result.items.map((item) => ({ code: item.code, description: item.description,
-            type: item.type, nextAction: item.nextAction }));
-          partLookupSnapshots.delete(snapshotKey);
-          partLookupSnapshots.set(snapshotKey, { at: now, items });
-          while (partLookupSnapshots.size > MAX_PART_LOOKUP_SNAPSHOTS) {
-            const oldest = partLookupSnapshots.keys().next().value as string | undefined;
-            if (oldest === undefined) break;
-            partLookupSnapshots.delete(oldest);
-          }
-        }
+        const { ctx, solution, items } = await lookupParts(service, args);
         const projected = projectCatalogPage({
           tool: 'dcsc_find_parts', collection: 'parts',
           context: ctx.locale,
@@ -153,32 +99,10 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
 
         if (args.includeSupplyStatus) {
           const targetCode = items[0]?.code ?? args.keyword.trim();
-          try {
-            const supply = await service.fetchSupplyStatus({
-              code: targetCode,
-              type: args.supplyStatusType ?? 'Option',
-              country: ctx.locale.country,
-            }, ctx);
-            return {
-              ...projected,
-              supplyStatus: {
-                code: supply.code,
-                type: supply.type,
-                country: supply.country,
-                shippingStatus: supply.shippingStatus,
-              },
-            };
-          } catch {
-            return {
-              ...projected,
-              supplyStatus: {
-                code: targetCode,
-                type: args.supplyStatusType ?? 'Option',
-                country: ctx.locale.country,
-                shippingStatus: [],
-              },
-            };
-          }
+          return {
+            ...projected,
+            supplyStatus: await partSupplyStatus(service, ctx, targetCode, args.supplyStatusType ?? 'Option'),
+          };
         }
 
         return projected;
@@ -203,47 +127,17 @@ export function registerStandaloneTools(rawServer: McpServer, service: DcscServi
     },
     async (args) =>
       guard(async () => {
-        if (args.replace && args.refresh) throw new Error('Choose refresh or replace, not both.');
-        const existing = args.workspace ? requireWorkspace(service, args.workspace) : undefined;
-        if (existing && softwareState(existing, false) && !args.replace && !args.refresh) {
-          throw new Error('This workspace already has a software catalog. Use refresh=true to preserve selections or replace=true to reset it.');
-        }
-        const { ctx, solution } = await contextFor(service, existing, args.solutionMode);
-        const state = await launchStandaloneSoftware(service.http, ctx);
-        const result = await service.sessions.createManyAtomic([], {
-          ...(existing ? { workspaceHandle: existing.id } : {}),
-          ...(args.expectedRevision !== undefined
-            ? { expectedRevision: args.expectedRevision }
-            : {}),
-          ...(!existing
-            ? {
-                workspaceContext: {
-                  locale: ctx.locale,
-                  solution,
-                  ...(args.label !== undefined ? { label: args.label } : {}),
-                },
-              }
-            : {}),
-          prepare: (draft) => {
-            if (softwareState(draft, false) && !args.replace && !args.refresh) {
-              throw new Error('This workspace already has a software catalog. Use refresh=true to preserve selections or replace=true to reset it.');
-            }
-            if (draft.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate workspace.');
-            const current = softwareState(draft, false);
-            draft.serverState[SOFTWARE_STATE] = current && args.refresh
-              ? reconcileImportedSoftwareCatalog(current, state) : state;
-          },
-        });
+        const { workspace, state } = await launchSoftware(service, args);
         return {
-          workspace: result.workspace.id,
-          revision: result.workspace.revision,
+          workspace: workspace.id,
+          revision: workspace.revision,
           catalogItems: state.features.length,
-          selections: softwareState(result.workspace).selections.length,
-          solutionMode: result.workspace.solution.solutionMode,
-          ...pricingContext(result.workspace.locale.country, result.workspace.locale.currency),
+          selections: softwareState(workspace).selections.length,
+          solutionMode: workspace.solution.solutionMode,
+          ...pricingContext(workspace.locale.country, workspace.locale.currency),
           next: {
             tool: 'dcsc_software_browse',
-            arguments: { workspace: result.workspace.id, offset: 0, limit: 20 },
+            arguments: { workspace: workspace.id, offset: 0, limit: 20 },
           },
         };
       }),
@@ -331,23 +225,8 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const existing = args.workspace ? requireWorkspace(service, args.workspace) : undefined;
-        if (existing?.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate workspace.');
-        const { ctx, solution } = await contextFor(service, existing, args.solutionMode);
-        const part = await lookupStandaloneHardwarePart(service.http, ctx, args.code);
-        const result = await service.sessions.createManyAtomic([], {
-          ...(existing ? { workspaceHandle: existing.id } : {}),
-          ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}),
-          ...(!existing
-            ? { workspaceContext: { locale: ctx.locale, solution, ...(args.label !== undefined ? { label: args.label } : {}) } }
-            : {}),
-          prepare: (draft) => {
-            if (draft.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate workspace.');
-            draft.serverState[HARDWARE_STATE] = selectStandaloneHardware(
-              hardwareState(draft, false) ?? emptyStandaloneHardware(), part, args.quantity ?? 1);
-          },
-        });
-        return projectHardwareWorkspace(result.workspace, exportHint);
+        const workspace = await addHardware(service, { ...args, quantity: args.quantity ?? 1 });
+        return projectHardwareWorkspace(workspace, exportHint);
       }, 'dcsc_standalone_hardware_add failed'),
   );
 
@@ -365,14 +244,8 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        await service.sessions.transact(
-          args.workspace,
-          { keepEmptyWorkspace: true, ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}) },
-          (draft) => {
-            draft.serverState[HARDWARE_STATE] = setStandaloneHardwareQuantity(hardwareState(draft), args.code, args.quantity);
-          },
-        );
-        return projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint);
+        const workspace = await setHardwareQuantity(service, args);
+        return projectHardwareWorkspace(workspace, exportHint);
       }, 'dcsc_standalone_hardware_set_quantity failed'),
   );
 
@@ -389,14 +262,8 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        await service.sessions.transact(
-          args.workspace,
-          { keepEmptyWorkspace: true, ...(args.expectedRevision !== undefined ? { expectedRevision: args.expectedRevision } : {}) },
-          (draft) => {
-            draft.serverState[HARDWARE_STATE] = removeStandaloneHardware(hardwareState(draft), args.code);
-          },
-        );
-        return projectHardwareWorkspace(requireWorkspace(service, args.workspace), exportHint);
+        const workspace = await removeHardware(service, args);
+        return projectHardwareWorkspace(workspace, exportHint);
       }, 'dcsc_standalone_hardware_remove failed'),
   );
 
@@ -413,15 +280,6 @@ function registerHardwareTools(server: McpServer, service: DcscService): void {
         'dcsc_standalone_hardware_inspect failed',
       ),
   );
-}
-
-function hardwareState(workspace: WorkspaceSession): StandaloneHardwareState;
-function hardwareState(workspace: WorkspaceSession, required: false): StandaloneHardwareState | undefined;
-function hardwareState(workspace: WorkspaceSession, required = true): StandaloneHardwareState | undefined {
-  const value = workspace.serverState[HARDWARE_STATE];
-  if (isObject(value) && value['kind'] === 'standalone-hardware') return value as unknown as StandaloneHardwareState;
-  if (required) throw new Error(`Workspace ${workspace.id} has no standalone hardware. Add a part with dcsc_standalone_hardware_add.`);
-  return undefined;
 }
 
 function projectHardwareWorkspace(workspace: WorkspaceSession, next: string) {
@@ -462,22 +320,7 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
     },
     async (args) =>
       guard(async () => {
-        await service.sessions.transact(
-          args.workspace,
-          {
-            keepEmptyWorkspace: true,
-            ...(args.expectedRevision !== undefined
-              ? { expectedRevision: args.expectedRevision }
-              : {}),
-          },
-          (draft) => {
-            draft.serverState[SOFTWARE_STATE] = selectStandaloneSoftware(softwareState(draft), {
-              code: args.code,
-              quantity: args.quantity,
-            });
-          },
-        );
-        return projectSoftwareWorkspace(requireWorkspace(service, args.workspace));
+        return projectSoftwareWorkspace(await selectSoftware(service, args));
       }),
   );
 
@@ -495,23 +338,7 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
     },
     async (args) =>
       guard(async () => {
-        await service.sessions.transact(
-          args.workspace,
-          {
-            keepEmptyWorkspace: true,
-            ...(args.expectedRevision !== undefined
-              ? { expectedRevision: args.expectedRevision }
-              : {}),
-          },
-          (draft) => {
-            draft.serverState[SOFTWARE_STATE] = setStandaloneSoftwareQuantity(
-              softwareState(draft),
-              args.code,
-              args.quantity,
-            );
-          },
-        );
-        return projectSoftwareWorkspace(requireWorkspace(service, args.workspace));
+        return projectSoftwareWorkspace(await setSoftwareQuantity(service, args));
       }),
   );
 
@@ -528,23 +355,7 @@ function registerSoftwareMutationTools(server: McpServer, service: DcscService):
     },
     async (args) =>
       guard(async () => {
-        await service.sessions.transact(
-          args.workspace,
-          {
-            keepEmptyWorkspace: true,
-            ...(args.expectedRevision !== undefined
-              ? { expectedRevision: args.expectedRevision }
-              : {}),
-          },
-          (draft) => {
-            const current = softwareState(draft);
-            if (!current.selections.some((selection) => selection.code === args.code)) {
-              throw new Error(`Standalone software ${args.code} is not selected.`);
-            }
-            draft.serverState[SOFTWARE_STATE] = removeStandaloneSoftware(current, args.code);
-          },
-        );
-        return projectSoftwareWorkspace(requireWorkspace(service, args.workspace));
+        return projectSoftwareWorkspace(await removeSoftware(service, args));
       }),
   );
 
@@ -630,60 +441,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        if (args.replace && args.refresh) throw new Error('Choose refresh or replace, not both.');
-        const existing = args.workspace ? requireWorkspace(service, args.workspace) : undefined;
-        if (args.refresh) {
-          if (!existing || !serviceState(existing, false)) throw new Error('Service refresh requires an existing service workspace.');
-          if (args.productCode && args.productCode !== serviceState(existing).product.code) {
-            throw new Error('Refresh cannot change the serviced product. Launch a new workspace for another product.');
-          }
-          const { ctx } = await contextFor(service, existing, args.solutionMode);
-          await service.sessions.transact(existing.id, {
-            expectedRevision: args.expectedRevision, keepEmptyWorkspace: true, remoteApplied: true,
-          }, async (draft) => {
-            draft.serverState[SERVICE_STATE] = await refreshProductServiceCatalog(service.http, ctx, serviceState(draft));
-            draft.integrityWarnings = draft.integrityWarnings.filter(warning => warning !== SERVICE_METADATA_REFRESH_WARNING);
-          });
-          return projectServiceWorkspace(requireWorkspace(service, existing.id), 0, 20);
-        }
-        if (!args.productCode) throw new Error('productCode is required when opening or replacing a service workspace.');
-        if (existing && serviceState(existing, false) && !args.replace) {
-          throw new Error('This workspace already has a product-service graph. Use refresh=true to preserve selections or replace=true to reset it.');
-        }
-        if (existing && (existing.configurations.size > 0 || existing.serverState[SOFTWARE_STATE])) throw new Error('Independent services require a separate service-only workspace.');
-        const { ctx, solution } = await contextFor(service, existing, args.solutionMode);
-        const state = await launchProductServices(service.http, ctx, {
-          productCode: args.productCode,
-          productQuantity: args.productQuantity,
-          subCategory: args.subCategory,
-          ...(args.productDescription !== undefined
-            ? { productDescription: args.productDescription }
-            : {}),
-        });
-        const result = await service.sessions.createManyAtomic([], {
-          remoteApplied: true,
-          ...(existing ? { workspaceHandle: existing.id } : {}),
-          ...(args.expectedRevision !== undefined
-            ? { expectedRevision: args.expectedRevision }
-            : {}),
-          ...(!existing
-            ? {
-                workspaceContext: {
-                  locale: ctx.locale,
-                  solution,
-                  ...(args.label !== undefined ? { label: args.label } : {}),
-                },
-              }
-            : {}),
-          prepare: (draft) => {
-            if (serviceState(draft, false) && !args.replace) {
-              throw new Error('This workspace already has a product-service graph. Use refresh=true to preserve selections or replace=true to reset it.');
-            }
-            if (draft.configurations.size > 0 || draft.serverState[SOFTWARE_STATE]) throw new Error('Independent services require a separate service-only workspace.');
-            draft.serverState[SERVICE_STATE] = state;
-          },
-        });
-        return projectServiceWorkspace(result.workspace, 0, 20);
+        return projectServiceWorkspace(await launchServices(service, args), 0, 20);
       }),
   );
 
@@ -702,15 +460,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
-        await selectAndSummarise(
-          service,
-          workspace,
-          args.serviceCode,
-          args.quantity,
-          args.expectedRevision,
-        );
-        return projectServiceWorkspace(requireWorkspace(service, workspace.id), 0, 20);
+        return projectServiceWorkspace(await selectService(service, args), 0, 20);
       }),
   );
 
@@ -729,24 +479,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
-        const selections = serviceState(workspace).selections;
-        const selection = args.serviceCode
-          ? selections.find((candidate) => candidate.code === args.serviceCode)
-          : selections.length === 1 ? selections[0] : undefined;
-        if (!selection) throw new Error(
-          selections.length > 1 && !args.serviceCode
-            ? 'serviceCode is required when more than one product service is selected.'
-            : `Selected product service was not found${args.serviceCode ? `: ${args.serviceCode}` : '.'}`,
-        );
-        await selectAndSummarise(
-          service,
-          workspace,
-          selection.code,
-          args.quantity,
-          args.expectedRevision,
-        );
-        return projectServiceWorkspace(requireWorkspace(service, workspace.id), 0, 20);
+        return projectServiceWorkspace(await setServiceQuantity(service, args), 0, 20);
       }),
   );
 
@@ -764,31 +497,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
-        const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-        await service.sessions.transact(
-          workspace.id,
-          {
-            keepEmptyWorkspace: true,
-            remoteApplied: true,
-            ...(args.expectedRevision !== undefined
-              ? { expectedRevision: args.expectedRevision }
-              : {}),
-          },
-          async (draft) => {
-            const current = serviceState(draft);
-            let next: ProductServiceState = {
-              ...current,
-              product: { ...current.product, quantity: args.quantity },
-              summaryRaw: undefined,
-            };
-            if (next.selections.length > 0) {
-              next = await summariseProductServices(service.http, ctx, next);
-            }
-            draft.serverState[SERVICE_STATE] = next;
-          },
-        );
-        return projectServiceWorkspace(requireWorkspace(service, workspace.id), 0, 20);
+        return projectServiceWorkspace(await setServiceProductQuantity(service, args), 0, 20);
       }),
   );
 
@@ -806,34 +515,7 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
     },
     async (args) =>
       guard(async () => {
-        const workspace = requireWorkspace(service, args.workspace);
-        const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-        await service.sessions.transact(
-          workspace.id,
-          {
-            keepEmptyWorkspace: true,
-            remoteApplied: true,
-            ...(args.expectedRevision !== undefined
-              ? { expectedRevision: args.expectedRevision }
-              : {}),
-          },
-          async (draft) => {
-            const current = serviceState(draft);
-            if (current.selections.length === 0) throw new Error('This workspace has no selected product services.');
-            const selected = args.serviceCode
-              ? current.selections.find((candidate) => candidate.code === args.serviceCode)
-              : current.selections.length === 1 ? current.selections[0] : undefined;
-            if (!selected) throw new Error(
-              current.selections.length > 1 && !args.serviceCode
-                ? 'serviceCode is required when more than one product service is selected.'
-                : `Selected product service was not found${args.serviceCode ? `: ${args.serviceCode}` : '.'}`,
-            );
-            let next = await removeProductService(service.http, ctx, current, selected.code);
-            if (next.selections.length > 0) next = await summariseProductServices(service.http, ctx, next);
-            draft.serverState[SERVICE_STATE] = next;
-          },
-        );
-        return projectServiceWorkspace(requireWorkspace(service, workspace.id), 0, 20);
+        return projectServiceWorkspace(await removeService(service, args), 0, 20);
       }),
   );
 
@@ -893,196 +575,6 @@ function registerServiceTools(server: McpServer, service: DcscService): void {
         };
       }),
   );
-}
-
-async function selectAndSummarise(
-  service: DcscService,
-  workspace: WorkspaceSession,
-  serviceCode: string,
-  quantity: number,
-  expectedRevision?: number,
-): Promise<void> {
-  const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-  await service.sessions.transact(
-    workspace.id,
-    {
-      keepEmptyWorkspace: true,
-            remoteApplied: true,
-      ...(expectedRevision !== undefined ? { expectedRevision } : {}),
-    },
-    async (draft) => {
-      const current = serviceState(draft);
-      const existing = current.selections.find((selection) => selection.code === serviceCode);
-      const selected = existing?.quantity === quantity
-        ? current
-        : await selectProductService(service.http, ctx, current, { serviceCode, quantity });
-      const acceptedQuantity = selected.selections.find(
-        (selection) => selection.code === serviceCode,
-      )?.quantity ?? 0;
-      if (acceptedQuantity !== quantity) {
-        throw new Error(
-          `DCSC rejected the requested per-product service quantity for ${serviceCode}: ` +
-          `requestedQuantity=${quantity}, acceptedQuantity=${acceptedQuantity}. ` +
-          'No workspace change was saved. Use dcsc_services_set_product_quantity to change the covered-product count, or dcsc_services_remove to remove this service.',
-        );
-      }
-      draft.serverState[SERVICE_STATE] = await summariseProductServices(
-        service.http,
-        ctx,
-        selected,
-      );
-    },
-  );
-}
-
-export async function exportStandaloneSoftwareArtifact(
-  service: DcscService,
-  workspace: WorkspaceSession,
-  fileName: string,
-  options: {
-    fileTypes?: ExportFileType[] | undefined;
-    image?: string | undefined;
-  } = {},
-): Promise<ExportBundle & { contentDisposition: string | undefined }> {
-  service.assertTrustedWorkspace(workspace.id);
-  const modes = new Set([...workspace.configurations.values()].map((session) => hardwareEndpointFamily(session.mode)));
-  if (modes.size > 1) throw new Error('Mixed CTO and LFO hardware requires separate workspaces.');
-  if (workspace.serverState[SERVICE_STATE]) throw new Error('Independent services require a separate service-only export.');
-  const fileTypes = options.fileTypes ?? (workspace.configurations.size > 0 ? DEFAULT_EXPORT_TYPES : SOFTWARE_EXPORT_TYPES);
-  if (workspace.configurations.size === 0 && fileTypes.some((type) => !SOFTWARE_EXPORT_TYPES.includes(type))) {
-    throw new Error(`Standalone-only workspaces support these reports: ${SOFTWARE_EXPORT_TYPES.join(', ')}. Rack and connection reports require hardware.`);
-  }
-  const software = softwareState(workspace, false);
-  const hardware = hardwareState(workspace, false);
-  const softwareSelected = (software?.selections.length ?? 0) > 0;
-  const hardwareSelected = (hardware?.selections.length ?? 0) > 0;
-  if (!softwareSelected && !hardwareSelected) throw new Error('Select at least one standalone software or hardware item first.');
-  const base = softwareExportBase(workspace, software, fileTypes);
-  const softwareEnvelope = software && softwareSelected
-    ? buildStandaloneSoftwareExportEnvelope(software, base)
-    : undefined;
-  const hardwareRows = hardware?.selections.map(standaloneHardwareExportItem) ?? [];
-  const hardwareProducts = hardware?.selections.map((selection) => standaloneHardwareGroupProduct(selection)) ?? [];
-  const data = {
-    ...(softwareEnvelope?.data ?? base),
-    standaloneData: [...(softwareEnvelope?.data.standaloneData ?? []), ...hardwareRows],
-  };
-  const standaloneGroups = [{
-    name: 'Config 1', parent: null, index: -1,
-    products: [...(softwareEnvelope?.groups[0]?.products ?? []), ...hardwareProducts],
-  }];
-  const form = buildExportForm({
-    data,
-    groups: mergeExportGroups(buildGroups(workspace), standaloneGroups),
-  });
-  if (options.image !== undefined) form['image'] = options.image;
-  else if (workspace.rackArea.length > 0 && fileTypes.includes('RACK_REPORT')) {
-    form['image'] = renderRackImage(workspace);
-  }
-  const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-  const response = await service.http.send({
-    endpoint: 'standalone_software_export_zip',
-    method: 'POST',
-    path: exportZipPath(workspace.configurations.size > 0
-      ? hardwareEndpointFamily([...workspace.configurations.values()][0]!.mode)
-      : 'lfos'),
-    query: { fileName },
-    requiresSolution: false,
-    body: { kind: 'form', fields: form },
-    responseKind: 'stream',
-    timeoutClass: 'export',
-    ctx,
-  });
-  return {
-    ...(await writeExportBundle(response.stream, fileName, service.config)),
-    contentDisposition: response.contentDisposition,
-  };
-}
-
-export async function exportProductServiceArtifact(
-  service: DcscService,
-  workspace: WorkspaceSession,
-  fileName: string,
-): Promise<ExportBundle & { contentDisposition: string | undefined }> {
-  service.assertTrustedWorkspace(workspace.id);
-  const envelope = buildProductServiceExportEnvelope(serviceState(workspace));
-  const ctx = service.newCtx({ locale: workspace.locale, solution: workspace.solution });
-  const response = await service.http.send({
-    endpoint: 'standalone_services_export',
-    method: 'POST',
-    path: envelope.endpoint,
-    query: { fileName },
-    requiresSolution: false,
-    body: { kind: 'form', fields: envelope.fields },
-    responseKind: 'stream',
-    timeoutClass: 'export',
-    ctx,
-  });
-  return {
-    ...(await writeExportBundle(response.stream, fileName, service.config)),
-    contentDisposition: response.contentDisposition,
-  };
-}
-
-function requireWorkspace(service: DcscService, handle: string): WorkspaceSession {
-  const workspace = service.sessions.getWorkspace(handle);
-  if (!workspace) throw new Error(`Workspace ${handle} not found.`);
-  return workspace;
-}
-
-function softwareState(workspace: WorkspaceSession): StandaloneSoftwareState;
-function softwareState(
-  workspace: WorkspaceSession,
-  required: false,
-): StandaloneSoftwareState | undefined;
-function softwareState(
-  workspace: WorkspaceSession,
-  required = true,
-): StandaloneSoftwareState | undefined {
-  const value = workspace.serverState[SOFTWARE_STATE];
-  if (isObject(value) && value['kind'] === 'standalone-software') {
-    return value as unknown as StandaloneSoftwareState;
-  }
-  if (required) throw new Error(`Workspace ${workspace.id} has no standalone software catalog.`);
-  return undefined;
-}
-
-function serviceState(workspace: WorkspaceSession): ProductServiceState;
-function serviceState(
-  workspace: WorkspaceSession,
-  required: false,
-): ProductServiceState | undefined;
-function serviceState(
-  workspace: WorkspaceSession,
-  required = true,
-): ProductServiceState | undefined {
-  const value = workspace.serverState[SERVICE_STATE];
-  if (isObject(value) && value['kind'] === 'product-bound-services') {
-    return value as unknown as ProductServiceState;
-  }
-  if (required) throw new Error(`Workspace ${workspace.id} has no product-service graph.`);
-  return undefined;
-}
-
-async function contextFor(
-  service: DcscService,
-  workspace: WorkspaceSession | undefined,
-  requestedMode: string | undefined,
-) {
-  if (workspace) {
-    if (requestedMode && requestedMode !== workspace.solution.solutionMode) {
-      throw new Error(
-        `Workspace ${workspace.id} uses solution mode ${workspace.solution.solutionMode}, not ${requestedMode}.`,
-      );
-    }
-    return {
-      solution: workspace.solution,
-      ctx: service.newCtx({ locale: workspace.locale, solution: workspace.solution }),
-    };
-  }
-  const initial = service.newCtx();
-  const solution = await service.resolveSolution(initial, requestedMode);
-  return { solution, ctx: service.newCtx({ solution }) };
 }
 
 function projectSoftwareFeature(
@@ -1272,65 +764,6 @@ function projectSummary(value: unknown): unknown {
   };
 }
 
-function softwareExportBase(
-  workspace: WorkspaceSession,
-  state: StandaloneSoftwareState | undefined,
-  fileTypes: ExportFileType[],
-): Record<string, unknown> {
-  const retained = structuredClone(workspace.serverState);
-  delete retained[SOFTWARE_STATE];
-  delete retained[SERVICE_STATE];
-  delete retained[HARDWARE_STATE];
-  // Rebuilt from the typed baskets so imported rows are never sent twice.
-  delete retained['standaloneData'];
-  const launch = state && isObject(state.launchRaw) ? structuredClone(state.launchRaw) : {};
-  delete launch['standaloneData'];
-  const canonical = buildExportData({
-    workspace,
-    solution: workspace.solution,
-    fileTypes,
-    validationMode: workspace.validationMode,
-  });
-  // Import responses are not export DTOs (e.g. summary/configuration/type).
-  // Preserve their provenance in state; send only the captured export fields.
-  const source = { ...launch, ...retained };
-  const exportFields = Object.fromEntries(Object.keys(canonical)
-    .filter((key) => source[key] !== undefined).map((key) => [key, source[key]]));
-  return mergeCanonical(exportFields, canonical);
-}
-
-function mergeCanonical(
-  retained: Record<string, unknown>,
-  canonical: Record<string, unknown>,
-): Record<string, unknown> {
-  const merged = structuredClone(retained);
-  for (const [key, canonicalValue] of Object.entries(canonical)) {
-    const retainedValue = merged[key];
-    merged[key] =
-      isObject(retainedValue) && isObject(canonicalValue)
-        ? mergeCanonical(retainedValue, canonicalValue)
-        : structuredClone(canonicalValue);
-  }
-  return merged;
-}
-
-function mergeExportGroups(
-  canonical: Array<Record<string, unknown>>,
-  standalone: Array<Record<string, unknown>>,
-): Array<Record<string, unknown>> {
-  const merged = structuredClone(canonical);
-  for (const group of standalone) {
-    const existing = merged.find((candidate) => candidate['name'] === group['name']);
-    if (!existing) {
-      merged.push(structuredClone(group));
-      continue;
-    }
-    const canonicalProducts = Array.isArray(existing['products']) ? existing['products'] : [];
-    const standaloneProducts = Array.isArray(group['products']) ? group['products'] : [];
-    existing['products'] = [...canonicalProducts, ...structuredClone(standaloneProducts)];
-  }
-  return merged;
-}
 
 function pricingContext(country: string, currency: string) {
   return { country, currency, priceType: 'LIST', account: 'anonymous' };

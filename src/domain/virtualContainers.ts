@@ -60,20 +60,3 @@ export async function checkVirtualContainerRules(
   });
   return (res.raw ?? []) as unknown[];
 }
-
-/**
- * Retrieves the global blacklist of virtual container product codes.
- */
-export async function fetchVirtualBlackList(
-  http: DcscHttpClient,
-  ctx: RequestCtx,
-): Promise<string[]> {
-  const res = await http.send({
-    endpoint: 'virtualContainers.blackList',
-    method: 'GET',
-    path: '/virtual-containers/allAvailableBlackList',
-    responseKind: 'json',
-    ctx,
-  });
-  return (res.raw ?? []) as string[];
-}

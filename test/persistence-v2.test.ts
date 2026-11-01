@@ -64,14 +64,6 @@ function populatedStore(): SessionStore {
     networkingInformation: { selectedStorageNetwork: 'ethernet' },
     cloneRackMapping: { rackA: 'rackB' },
   };
-  workspace.racks.set('rack-1', {
-    id: 'rack-1',
-    code: '9307RC4',
-    description: '42U rack',
-    uheight: 42,
-    position: 1,
-    items: [],
-  });
   return store;
 }
 
@@ -156,7 +148,6 @@ describe('session persistence v2', () => {
       floorInformation: { grid: { rows: 8, columns: 12 } },
       cloneRackMapping: { rackA: 'rackB' },
     });
-    expect(workspace?.racks.get('rack-1')?.uheight).toBe(42);
     expect(session?.autoCorrect).toBe(false);
     expect(session?.configurable).toBe(false);
     expect(session?.reduced.quantity).toBe(4);

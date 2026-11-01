@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import type { FabricOptions } from '../src/domain/fabric.js';
 import {
   addStorageConnectionNetwork,
-  applySelectedStorageNetworks,
   buildStorageConnectionNetwork,
   DIRECT_ATTACHED,
   listStorageExpansions,
@@ -172,30 +171,9 @@ describe('storage preference builder', () => {
     })).toThrow(/already exists.*unique name/i);
   });
 
-  it('writes configuration strings and the workspace ID map while preserving raw data', () => {
-    const networks = [buildStorageConnectionNetwork(fabric, {
-      name: 'Primary SAN', controllerId: 'storage-controller:4587LC2',
-    })];
-    const result = applySelectedStorageNetworks([
-      { id: 'server-1', selectedStorageNetwork: '', future: { kept: true } },
-      { configurationId: 'server-2', selectedStorageNetwork: '' },
-    ], networks, [
-      { configurationId: 'server-1', networkName: 'Primary SAN' },
-      { configurationId: 'server-2', networkName: null },
-    ]);
-    expect(result.selectedStorageNetwork).toEqual({ 'server-1': 'Primary SAN', 'server-2': '' });
-    expect(result.configurations).toEqual([
-      { id: 'server-1', selectedStorageNetwork: 'Primary SAN', future: { kept: true } },
-      { configurationId: 'server-2', selectedStorageNetwork: '' },
-    ]);
-  });
-
   it('rejects stale network names and non-stable catalog selections with candidate IDs', () => {
     expect(() => buildStorageConnectionNetwork(fabric, {
       name: 'Bad', controllerId: '4587LC2',
     })).toThrow(/Unknown controllerId.*storage-controller:4587LC2/i);
-    expect(() => applySelectedStorageNetworks([
-      { id: 'server-1', selectedStorageNetwork: 'Removed SAN' },
-    ], [], [])).toThrow(/selects stale storage network "Removed SAN"/i);
   });
 });

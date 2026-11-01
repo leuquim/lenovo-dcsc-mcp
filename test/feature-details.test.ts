@@ -9,7 +9,6 @@ import {
   type UpstreamFeatureDetail,
 } from '../src/domain/featureDetails.js';
 import {
-  fetchSmartLfoPreloadData,
   fetchSmartLfoRecommendation,
   fetchSubTabRecommendations,
   fetchSummaryRecommendations,
@@ -300,23 +299,6 @@ describe('Feature Details & Smart Recommendations (R4)', () => {
       await expect(
         fetchSmartLfoRecommendation(service.http, service.newCtx(), 'US', ''),
       ).rejects.toThrow('non-empty ctoCode');
-    });
-
-    it('fetches smart LFO preload data', async () => {
-      const service = setupService();
-      const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
-        raw: { preload: true },
-      } as never);
-
-      const result = await fetchSmartLfoPreloadData(service.http, service.newCtx(), 'US', '7D73CTO1WW');
-      expect(sendSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: 'POST',
-          path: '/smart/recommend/lfo/preload/data',
-          query: { country_or_region: 'US', ctoCode: '7D73CTO1WW' },
-        }),
-      );
-      expect(result).toEqual({ preload: true });
     });
   });
 

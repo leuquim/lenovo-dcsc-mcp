@@ -1,13 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   collectLocalDiagnostics,
   parseLmcValidationResult,
-  runLmcValidation,
   summariseValidation,
   type LmcValidationStart,
 } from '../src/domain/validate.js';
-import type { DcscHttpClient, RequestCtx } from '../src/http/request.js';
+import type { RequestCtx } from '../src/http/request.js';
 
 const successfulResult = ['finish'];
 const invalidResult = [
@@ -37,39 +36,6 @@ const ctx = {
 } satisfies RequestCtx;
 
 describe('manufacturing validation job', () => {
-  it('posts the start descriptors unchanged once and accepts only terminal finish', async () => {
-    const send = vi
-      .fn()
-      .mockResolvedValueOnce({ raw: descriptors })
-      .mockResolvedValueOnce({ raw: successfulResult });
-    const result = await runLmcValidation(
-      { send } as unknown as DcscHttpClient,
-      ctx,
-      { configurations: [{ id: 'cfg' }] },
-      'cto',
-    );
-
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[0]?.[0]).toMatchObject({
-      path: '/lmc_validation',
-      body: {
-        kind: 'json',
-        value: { configurations: [{ id: 'cfg' }], mode: 'cto' },
-      },
-    });
-    expect(send.mock.calls[1]?.[0]).toMatchObject({
-      path: '/lmc_validation/result',
-      body: { kind: 'json', value: descriptors },
-    });
-    expect(result).toMatchObject({
-      status: 'valid',
-      terminal: true,
-      isValid: true,
-      descriptors,
-      resultRaw: ['finish'],
-    });
-  });
-
   it('parses the captured manufacturing report as 21 authoritative errors', () => {
     const result = parseLmcValidationResult(start(), invalidResult);
     const errors = result.messages.filter((message) => message.severity === 'error');
@@ -80,52 +46,6 @@ describe('manufacturing validation job', () => {
     expect(errors).toHaveLength(21);
     expect(errors[0]?.message).toContain('VGA_FILLER');
     expect(result.resultRaw).toEqual(invalidResult);
-  });
-
-  it('retains descriptors and failure detail when the result request fails', async () => {
-    const send = vi
-      .fn()
-      .mockResolvedValueOnce({ raw: descriptors })
-      .mockRejectedValueOnce(Object.assign(new Error('result unavailable'), { retryable: true }));
-
-    const result = await runLmcValidation(
-      { send } as unknown as DcscHttpClient,
-      ctx,
-      {},
-      'cto',
-    );
-
-    expect(result).toMatchObject({
-      status: 'pending',
-      terminal: false,
-      isValid: false,
-      descriptors,
-      requestError: {
-        phase: 'result',
-        message: 'result unavailable',
-        retryable: true,
-      },
-    });
-  });
-
-  it('returns unavailable rather than throwing when the job cannot start', async () => {
-    const send = vi.fn().mockRejectedValue(new Error('start unavailable'));
-
-    const result = await runLmcValidation(
-      { send } as unknown as DcscHttpClient,
-      ctx,
-      {},
-      'cto',
-    );
-
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({
-      status: 'unavailable',
-      terminal: false,
-      isValid: false,
-      descriptors: [],
-      requestError: { phase: 'start', message: 'start unavailable' },
-    });
   });
 
   it.each([
