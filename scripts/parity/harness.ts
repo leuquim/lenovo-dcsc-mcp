@@ -20,6 +20,17 @@ const CLIENT_QUERY_KEYS = new Set(['countryName', 'current_country_or_region', '
 /** Preamble keys the MCP client sends on every request; the website omits some per request, so they compare only where it sends them. */
 const PREAMBLE_QUERY_KEYS = new Set(['geo', 'country_or_region', 'language', 'currency', 'solutionMode', 'masterSlices', 'sbSlices']);
 
+/**
+ * A request query as compared: client-only keys dropped, values stringified, file names masked.
+ * With `webQuery` (the MCP side), preamble keys are kept only where the website sent them; without it, empty preamble values are dropped.
+ */
+function normaliseQuery(query: Record<string, unknown>, webQuery?: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(query)
+    .filter(([key, value]) => !CLIENT_QUERY_KEYS.has(key)
+      && (webQuery ? !PREAMBLE_QUERY_KEYS.has(key) || key in webQuery : !PREAMBLE_QUERY_KEYS.has(key) || value !== ''))
+    .map(([key, value]) => [key, key === 'fileName' ? '<file name>' : String(value)]));
+}
+
 /** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
 export interface CapturedRequest { method: string; path: string; query?: Record<string, unknown>; body?: unknown }
 
@@ -129,21 +140,14 @@ export async function createHarness(caseId: string, mode: McpMode = 'stdio', art
       options: { normalize?: Normalizer; expectedDifferences?: ExpectedDifference[] } = {}): void {
       const normalize = options.normalize ?? ((value: unknown) => value);
       const apiPath = (value: string) => value.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api(?=\/)/, '').split('?')[0];
-      const pathQuery = (value: string) => Object.fromEntries([...new URL(value, 'https://dcsc.lenovo.com').searchParams]
-        .filter(([key]) => !CLIENT_QUERY_KEYS.has(key)));
-      const named = (query: Record<string, unknown>) => Object.fromEntries(Object.entries(query)
-        .filter(([key]) => !CLIENT_QUERY_KEYS.has(key))
-        .map(([key, value]) => [key, key === 'fileName' ? '<file name>' : String(value)]));
-      const shape = (method: string, requestPath: string, query: Record<string, unknown> | undefined, body: unknown) =>
-        ({ method, path: apiPath(requestPath), query: named(query ?? pathQuery(requestPath)), body: normalize(body) });
+      const shape = (method: string, requestPath: string, query: Record<string, string>, body: unknown) =>
+        ({ method, path: apiPath(requestPath), query, body: normalize(body) });
       const mcpBody = mcpRequest.body?.kind === 'form' ? mcpRequest.body.fields
         : mcpRequest.body?.kind === 'json' ? mcpRequest.body.value : mcpRequest.body;
-      const web = shape(webCapture.method, webCapture.path, webCapture.query, webCapture.body);
-      const mcp = shape(mcpRequest.method, mcpRequest.path, mcpRequest.query, mcpBody);
-      for (const key of PREAMBLE_QUERY_KEYS) {
-        if (web.query[key] === '') delete web.query[key];
-        if (!(key in web.query)) delete mcp.query[key];
-      }
+      const webQuery = normaliseQuery(webCapture.query ?? Object.fromEntries(new URL(webCapture.path, 'https://dcsc.lenovo.com').searchParams));
+      const mcpQuery = normaliseQuery(mcpRequest.query ?? Object.fromEntries(new URL(mcpRequest.path, 'https://dcsc.lenovo.com').searchParams), webQuery);
+      const web = shape(webCapture.method, webCapture.path, webQuery, webCapture.body);
+      const mcp = shape(mcpRequest.method, mcpRequest.path, mcpQuery, mcpBody);
       harness.compare(name, web, mcp, options.expectedDifferences ? { expectedDifferences: options.expectedDifferences } : {});
     },
     /** Records a blocked check; `probe` re-attempts the blocked call and must still throw the upstream error. */

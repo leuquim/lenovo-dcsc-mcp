@@ -445,11 +445,14 @@ export function buildAutoDeriveRequest(
       return session && hardwareModeFamily(session.mode) === 'cto'
         ? [[session.configurationId, projectRackFiller(rack, { ...session.raw, id: session.configurationId })] as const] : [];
     }));
-    const configs = [...ws.configurations.values()].map((s) => ({
-      ...reduceConfiguration(projections.get(s.configurationId)?.configuration ?? s.raw,
-        s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode),
-      ...(projections.get(s.configurationId)?.fillerHasChanged ? { fillerHasChanged: true as const } : {}),
-    }));
+    const configs = [...ws.configurations.values()].map((s) => {
+      const projection = projections.get(s.configurationId);
+      return {
+        ...reduceConfiguration(projection?.configuration ?? s.raw,
+          s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode),
+        ...(projection?.fillerHasChanged ? { fillerHasChanged: true as const } : {}),
+      };
+    });
     const ids = configs.map((c) => c.id);
     const detachedNodes = detachedNestedNodeIds(ws);
     const managedControllers = managedStorageComponentIds(ws.serverState);

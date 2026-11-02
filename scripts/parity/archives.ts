@@ -40,9 +40,13 @@ export async function zipText(zipPath: string, suffix: string): Promise<string> 
 const DATE_IN_NAME = /\d{4}-\d{2}-\d{2}|\d{8}_\d{6}/g;
 
 /** Member names and sizes with embedded export dates removed, for comparing two exports of the same content. */
-export async function zipListing(zipPath: string): Promise<Array<{ name: string; size: number }>> {
-  return (await readZip(zipPath)).map(({ name, size }) => ({ name: name.replace(DATE_IN_NAME, '<date>'), size }))
+export function memberListing(members: ZipMember[]): Array<{ name: string; size: number }> {
+  return members.map(({ name, size }) => ({ name: name.replace(DATE_IN_NAME, '<date>'), size }))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function zipListing(zipPath: string): Promise<Array<{ name: string; size: number }>> {
+  return memberListing(await readZip(zipPath));
 }
 
 /** Archive member names with embedded dates removed, for comparing which reports two exports contain. */

@@ -8,8 +8,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { ConfigSchema } from '../../src/config/schema.js';
-import { composeQuery, withdrawnDateQuery } from '../../src/http/preamble.js';
-import type { SendInput } from '../../src/http/request.js';
+import { requestQuery, type SendInput } from '../../src/http/request.js';
 import { DcscService } from '../../src/mcp/service.js';
 import { registerTools } from '../../src/mcp/tools.js';
 import { loadSessions, serializeWorkspaces } from '../../src/session/persist.js';
@@ -56,8 +55,7 @@ const connectInProcess = (files: { sessionFile: string; artifactDir: string }, r
     service.http.send = (async (input: SendInput) => {
       const record: WireRequest = { endpoint: input.endpoint, method: input.method, path: input.path };
       // The query as sent, preamble included, so solution and locale take part in request compares.
-      record.query = Object.fromEntries(composeQuery({ locale: input.ctx.locale, solution: input.ctx.solution,
-        query: { ...withdrawnDateQuery(input.path, input.ctx.withdrawnSince), ...input.query } }));
+      record.query = Object.fromEntries(requestQuery(input));
       if (input.body !== undefined) record.body = structuredClone(input.body);
       requests.push(record);
       try {

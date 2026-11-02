@@ -9,27 +9,33 @@ export { openBrowserImportHome, selectBrowserSolutionMode } from './browser.js';
 export const DCSC_HOME = 'https://dcsc.lenovo.com/';
 const CFXML_IMPORT_PATH = '/multiple/cfxml_import';
 
-/** Reads the body through CDP: Playwright discards it when the SPA navigates away right after the import. */
-async function watchImportResponse(page: Page): Promise<{ response: Promise<{ status: number; raw: unknown }> }> {
+/** Reads the import response body through CDP: Playwright discards it when the SPA navigates away, and Chromium's default buffer truncates large ones. */
+export async function watchImportResponse(page: Page): Promise<{ response: Promise<{ status: number; raw: unknown }> }> {
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Network.enable', { maxTotalBufferSize: 100_000_000, maxResourceBufferSize: 50_000_000 });
+  await cdp.send('Network.enable', { maxTotalBufferSize: 256 * 1024 * 1024, maxResourceBufferSize: 128 * 1024 * 1024 });
+  let timer: NodeJS.Timeout | undefined;
   const response = new Promise<{ status: number; raw: unknown }>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Browser import response timed out.')), 180_000);
-    const imports = new Map<string, number>();
+    timer = setTimeout(() => reject(new Error('Browser import response timed out.')), 180_000);
+    const imports = new Set<string>();
     cdp.on('Network.responseReceived', event => {
       if (!event.response.url.includes(CFXML_IMPORT_PATH)) return;
-      if (event.response.status === 200) imports.set(event.requestId, 200);
-      else { clearTimeout(timer); resolve({ status: event.response.status, raw: undefined }); }
+      if (event.response.status === 200) imports.add(event.requestId);
+      else resolve({ status: event.response.status, raw: undefined });
     });
     cdp.on('Network.loadingFinished', event => {
-      const status = imports.get(event.requestId);
-      if (status === undefined) return;
-      (status === 200 ? cdp.send('Network.getResponseBody', { requestId: event.requestId }).then(({ body }) => JSON.parse(body) as unknown) : Promise.resolve(undefined))
-        .then(raw => resolve({ status, raw }), reject).finally(() => clearTimeout(timer));
+      if (!imports.has(event.requestId)) return;
+      cdp.send('Network.getResponseBody', { requestId: event.requestId })
+        .then(({ body, base64Encoded }) => resolve({ status: 200, raw: JSON.parse(base64Encoded ? Buffer.from(body, 'base64').toString('utf8') : body) as unknown }), reject);
+    });
+    cdp.on('Network.loadingFailed', event => {
+      if (imports.has(event.requestId)) reject(new Error(`Browser import failed: ${event.errorText}`));
     });
   });
   // Handled here too, so a failed upload that never awaits the response leaves no unhandled rejection.
-  response.catch(() => undefined).finally(() => void cdp.detach().catch(() => undefined));
+  response.catch(() => undefined).finally(() => {
+    clearTimeout(timer);
+    void cdp.detach().catch(() => undefined);
+  });
   return { response };
 }
 

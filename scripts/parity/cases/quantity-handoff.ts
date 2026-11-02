@@ -8,6 +8,7 @@ import { CAPTURE_EXPORT_FORMS } from '../exportUi.js';
 import { normalizers, type Harness, type Json, type ParityCase } from '../harness.js';
 import { rows } from '../rackUi.js';
 import { array, captureBrowserExport, money, object, importInBrowser, SOFTWARE_CODE } from '../softwareSummaryUi.js';
+import { watchImportResponse } from '../web.js';
 
 const SERVER = '7D73CTO1WW';
 const QUANTITY_FIXTURE = JSON.parse(readFileSync('test/fixtures/parity/browser-quantity-matrix.json', 'utf8')) as Json;
@@ -66,27 +67,12 @@ async function importLarge(page: Page, file: string): Promise<Json> {
   await page.goto('https://dcsc.lenovo.com/', { waitUntil: 'domcontentloaded', timeout: 90_000 });
   const input = page.locator('input[type="file"]').first();
   await input.waitFor({ state: 'attached', timeout: 60_000 });
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Network.enable', { maxTotalBufferSize: 256 * 1024 * 1024, maxResourceBufferSize: 128 * 1024 * 1024 });
-  const body = new Promise<unknown>((resolve, reject) => {
-    let requestId: string | undefined;
-    const timer = setTimeout(() => reject(new Error('Timed out capturing the complete browser import response.')), 120_000);
-    cdp.on('Network.responseReceived', event => { if (new URL(event.response.url).pathname.endsWith('/multiple/cfxml_import')) requestId = event.requestId; });
-    cdp.on('Network.loadingFinished', event => {
-      if (event.requestId !== requestId) return;
-      void cdp.send('Network.getResponseBody', { requestId }).then(result => {
-        clearTimeout(timer);
-        resolve(JSON.parse(result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body) as unknown);
-      }).catch(reject);
-    });
-    cdp.on('Network.loadingFailed', event => { if (event.requestId === requestId) reject(new Error(`Browser import failed: ${event.errorText}`)); });
-  });
-  void body.catch(() => undefined);
+  const { response } = await watchImportResponse(page);
   await input.setInputFiles(file);
-  const payload = await body;
-  await cdp.detach();
+  const { status, raw } = await response;
+  assert.equal(status, 200, `Browser import returned HTTP ${status}.`);
   await page.waitForURL(url => SUMMARY_ROUTE.test(url.href), { timeout: 60_000 });
-  return object(array(payload)[0]);
+  return object(array(raw)[0]);
 }
 
 const importedFacts = (envelope: Json, quantity: number) => {

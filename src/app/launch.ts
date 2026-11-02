@@ -139,13 +139,11 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     ctx: { ...ctx, solution },
   });
   // The website requests the HW scope, which carries the configurable tree, then the SW scope.
-  let softwareScope: RawConfiguration | undefined;
-  const res = await (mode === 'lfo'
-    ? send('HW').then(async hardware => {
-      softwareScope = (await send('SW')).raw as RawConfiguration;
-      return { ...hardware, raw: mergeLfoSoftwareTab(hardware.raw as RawConfiguration, softwareScope) };
-    })
-    : send()).catch((err: unknown) => {
+  const { hardware, software } = await (async () => {
+    if (mode !== 'lfo') return { hardware: await send(), software: undefined };
+    const hardwareResponse = await send('HW');
+    return { hardware: hardwareResponse, software: (await send('SW')).raw as RawConfiguration };
+  })().catch((err: unknown) => {
     // Verified 2026-08-08: /lfos/{code}/add_options_launch is 404 across
     // models ("No static resource"). The route is gone from this release;
     // lfo-as-cto is the mode that actually yields a configurable tree.
@@ -159,7 +157,9 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     throw err;
   });
 
-  let raw = res.raw as RawConfiguration;
+  const withSoftwareTab = (configuration: RawConfiguration): RawConfiguration =>
+    software ? mergeLfoSoftwareTab(configuration, software) : configuration;
+  let raw = withSoftwareTab(hardware.raw as RawConfiguration);
   if (typeof raw !== 'object' || raw === null || !Array.isArray(raw.tabs)) {
     throw new Error(
       `DCSC returned no configuration tree for ${productCode}. The product code may not be configurable in this solution mode.`,
@@ -196,7 +196,7 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     });
     if (derived) {
       raw = {
-        ...(softwareScope ? mergeLfoSoftwareTab({ ...derived, needLaunchSwTab: raw['needLaunchSwTab'], swTabIsAfter: raw['swTabIsAfter'] }, softwareScope) : derived),
+        ...withSoftwareTab(software ? { ...derived, needLaunchSwTab: raw['needLaunchSwTab'], swTabIsAfter: raw['swTabIsAfter'] } : derived),
         hipoDerivedItems: derived.hipoDerivedItems ?? raw.hipoDerivedItems,
         hipoServiceCtoServices: derived.hipoServiceCtoServices ?? raw.hipoServiceCtoServices,
       };

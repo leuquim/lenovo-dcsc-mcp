@@ -267,11 +267,7 @@ export class DcscHttpClient {
     attempt: number,
   ): Promise<JsonResponse | StreamResponse> {
     const requiresSolution = input.requiresSolution ?? true;
-    const params = composeQuery({
-      locale: input.ctx.locale,
-      solution: input.ctx.solution,
-      query: { ...withdrawnDateQuery(input.path, input.ctx.withdrawnSince), ...input.query },
-    });
+    const params = requestQuery(input);
     assertPreamble(params, {
       endpoint: input.endpoint,
       corrId: input.ctx.corrId,
@@ -420,6 +416,15 @@ export class DcscHttpClient {
 }
 
 // ---------------------------------------------------------------------------
+
+/** The query string as sent: preamble, withdrawn-date setting, then the call's own params. */
+export function requestQuery(input: SendInput): URLSearchParams {
+  return composeQuery({
+    locale: input.ctx.locale,
+    solution: input.ctx.solution,
+    query: { ...withdrawnDateQuery(input.path, input.ctx.withdrawnSince), ...input.query },
+  });
+}
 
 /**
  * Builds a multipart/form-data body byte-for-byte the way the SPA does.

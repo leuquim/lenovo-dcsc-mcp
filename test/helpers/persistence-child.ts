@@ -20,16 +20,27 @@ import type * as StandaloneTools from '../../src/mcp/standaloneTools.js';
 
 // Runs on the compiled build (built by test/setup/build-dist.ts): a TypeScript loader costs about a second per child.
 const built = <T>(path: string): Promise<T> => import(new URL(`../../dist/${path}`, import.meta.url).href) as Promise<T>;
-const { ConfigSchema } = await built<typeof Schema>('config/schema.js');
-const { selectStandaloneSoftware } = await built<typeof Standalone>('domain/standalone.js');
-const { RECONCILIATION_HISTORY_STATE_KEY, RECONCILIATION_PROPOSALS_STATE_KEY } =
-  await built<typeof Reconciliation>('domain/reconciliation.js');
-const { VALIDATION_JOBS_STATE_KEY } = await built<typeof ValidationJobs>('domain/validationJobs.js');
-const { reduceConfiguration } = await built<typeof Reduce>('domain/reduce.js');
-const { DcscService } = await built<typeof ServiceModule>('mcp/service.js');
-const { saveSessions } = await built<typeof Persist>('session/persist.js');
-const { registerSessionTools } = await built<typeof SessionTools>('mcp/sessionTools.js');
-const { registerStandaloneTools } = await built<typeof StandaloneTools>('mcp/standaloneTools.js');
+const [
+  { ConfigSchema },
+  { selectStandaloneSoftware },
+  { RECONCILIATION_HISTORY_STATE_KEY, RECONCILIATION_PROPOSALS_STATE_KEY },
+  { VALIDATION_JOBS_STATE_KEY },
+  { reduceConfiguration },
+  { DcscService },
+  { saveSessions },
+  { registerSessionTools },
+  { registerStandaloneTools },
+] = await Promise.all([
+  built<typeof Schema>('config/schema.js'),
+  built<typeof Standalone>('domain/standalone.js'),
+  built<typeof Reconciliation>('domain/reconciliation.js'),
+  built<typeof ValidationJobs>('domain/validationJobs.js'),
+  built<typeof Reduce>('domain/reduce.js'),
+  built<typeof ServiceModule>('mcp/service.js'),
+  built<typeof Persist>('session/persist.js'),
+  built<typeof SessionTools>('mcp/sessionTools.js'),
+  built<typeof StandaloneTools>('mcp/standaloneTools.js'),
+]);
 
 type Scenario =
   | 'quantity'

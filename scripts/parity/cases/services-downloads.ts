@@ -1,29 +1,28 @@
 /** Services page product search, Export (one product's catalog) and Download Catalog (country catalog). */
-import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { readZip, zipNames } from '../archives.js';
+import { memberListing, readZip } from '../archives.js';
 import { array, object, pages } from '../continuations.js';
-import type { ParityCase } from '../harness.js';
+import { sha256, type ParityCase } from '../harness.js';
 import { openHome, settle } from '../settingsUi.js';
 import { downloadByClick, openServiceProduct, SERVICE_PRODUCT } from '../serviceUi.js';
 import { DCSC_HOME } from '../web.js';
 
 const SEARCH_TEXT = '7D73';
 
-/** The catalog workbooks' parts by content hash; docProps carry the generation time, so they are left out. */
-async function workbookParts(zipPath: string, out: string, label: string): Promise<Array<{ name: string; sha256: string }>> {
+/** The archive's member names and its catalog workbooks' parts by content hash; docProps carry the generation time, so they are left out. */
+async function readExport(zipPath: string, out: string, label: string): Promise<{ names: string[]; parts: Array<{ name: string; sha256: string }> }> {
   const workbooks = await readZip(zipPath);
   const parts: Array<{ name: string; sha256: string }> = [];
   for (const [index, workbook] of workbooks.entries()) {
     const inner = path.join(out, `${label}-${index}.xlsx`);
     await writeFile(inner, workbook.bytes);
     for (const part of await readZip(inner)) {
-      if (!part.name.startsWith('docProps/')) parts.push({ name: part.name, sha256: createHash('sha256').update(part.bytes).digest('hex') });
+      if (!part.name.startsWith('docProps/')) parts.push({ name: part.name, sha256: sha256(part.bytes) });
     }
   }
-  return parts.sort((left, right) => left.name.localeCompare(right.name));
+  return { names: memberListing(workbooks).map(member => member.name), parts: parts.sort((left, right) => left.name.localeCompare(right.name)) };
 }
 const SEARCH_PAGE_SIZE = 50;
 
@@ -57,13 +56,14 @@ export default {
       compare('product-search', native.productSearch, [...new Set(codes)].sort());
 
       const exported = await mcp.call('dcsc_export', { kind: 'servicesCatalog', productCode: SERVICE_PRODUCT, fileName: 'mcp-service-export' });
-      compare('export-archive', await zipNames(native.exportPath), await zipNames(String(exported['zipPath'])));
-      compare('export-content', await workbookParts(native.exportPath, out, 'web-export'), await workbookParts(String(exported['zipPath']), out, 'mcp-export'));
+      const [webExport, mcpExport] = [await readExport(native.exportPath, out, 'web-export'), await readExport(String(exported['zipPath']), out, 'mcp-export')];
+      compare('export-archive', webExport.names, mcpExport.names);
+      compare('export-content', webExport.parts, mcpExport.parts);
 
       const catalog = await mcp.call('dcsc_export', { kind: 'servicesCatalog', fileName: 'mcp-service-catalog' });
-      compare('download-catalog-archive', await zipNames(native.catalogPath), await zipNames(String(catalog['zipPath'])));
-      compare('download-catalog-content', await workbookParts(native.catalogPath, out, 'web-catalog'),
-        await workbookParts(String(catalog['zipPath']), out, 'mcp-catalog'));
+      const [webCatalog, mcpCatalog] = [await readExport(native.catalogPath, out, 'web-catalog'), await readExport(String(catalog['zipPath']), out, 'mcp-catalog')];
+      compare('download-catalog-archive', webCatalog.names, mcpCatalog.names);
+      compare('download-catalog-content', webCatalog.parts, mcpCatalog.parts);
     });
   },
 } satisfies ParityCase;
