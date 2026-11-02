@@ -1,4 +1,5 @@
 import { cloneConfigurationRaw } from './configurationIdentity.js';
+import { isObject } from '../util/coerce.js';
 /**
  * Resolves the one clone group containing an edited configuration.
  *
@@ -94,7 +95,46 @@ function assertIdentity(value, label) {
     if (!value || value.trim() !== value)
         throw new Error(`${label} must be a non-empty, trimmed identity.`);
 }
-function isObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+/** Native HPC applies repeated shared-root records in response order. */
+export function projectHpcLinkedResponses(responses, current, dependency, requiredRoot, allowedRoots, rootOnlyDependentRoots = new Set()) {
+    const ids = current.map(c => {
+        if (typeof c.id !== 'string')
+            throw new Error('Current HPC configuration has no identity.');
+        return c.id;
+    });
+    const last = new Map();
+    const targets = new Map();
+    for (const response of responses) {
+        const root = response?.id;
+        const original = current.find(c => c.id === root);
+        if (typeof root !== 'string' || !original || !allowedRoots.has(root) || !Array.isArray(response.tabs) ||
+            response.type !== original.type || (response.code || response.sliceCtoCode) !== (original.code || original.sliceCtoCode)) {
+            throw new Error('Unexpected HPC linked response identity or product.');
+        }
+        const group = resolveLinkedCloneGroup(dependency, ids, root);
+        if (group.rootId !== root)
+            throw new Error('HPC response must identify the shared clone root.');
+        const updateIds = response.updateConfigurationIds;
+        if (!Array.isArray(updateIds) || !updateIds.length || new Set(updateIds).size !== updateIds.length ||
+            updateIds.some(id => typeof id !== 'string' || !group.memberIds.includes(id))) {
+            throw new Error('HPC response has invalid or foreign update targets.');
+        }
+        const union = targets.get(root) ?? new Set();
+        for (const id of updateIds)
+            union.add(id);
+        targets.set(root, union);
+        last.set(root, response);
+    }
+    if (!last.has(requiredRoot))
+        throw new Error('HPC response omitted the edited clone root.');
+    return [...last].flatMap(([root, response]) => {
+        const group = resolveLinkedCloneGroup(dependency, ids, root);
+        const nativeSharedChild = root !== requiredRoot && rootOnlyDependentRoots.has(root) &&
+            sameSet(targets.get(root), new Set([root]));
+        if (!nativeSharedChild && !sameSet(targets.get(root), new Set(group.memberIds))) {
+            throw new Error('HPC response target union does not cover the clone group.');
+        }
+        return projectLinkedCloneResponse({ ...response, updateConfigurationIds: [...group.memberIds] }, group);
+    });
 }
 //# sourceMappingURL=linkedCloneEdit.js.map

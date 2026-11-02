@@ -6,6 +6,8 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import yauzl from 'yauzl';
 import { MAGIC_BYTES } from '../config/constants.js';
+import { parseCfxml } from '../domain/import.js';
+import { errorMessage } from '../util/coerce.js';
 const OWNED_ARTIFACT = 'lenovo-dcsc-export';
 const OWNED_ARTIFACT_VERSION = 1;
 const PREVIEW_BYTES = 200;
@@ -27,7 +29,7 @@ export function sanitiseFileName(name) {
     const cleaned = name
         .replace(/[\\/]/g, '-')
         .replace(/\.\./g, '-')
-        // eslint-disable-next-line no-control-regex
+        // oxlint-disable-next-line no-control-regex
         .replace(/[\x00-\x1f\x7f]/g, '')
         .replace(/[^A-Za-z0-9._-]/g, '-')
         .replace(/^[-.]+/, '')
@@ -216,42 +218,88 @@ export async function writeRecoveryArtifact(json, fileName, config) {
 export async function writeRecoverySourceArtifact(bytes, fileName, config) {
     return writeRecoveryContent(bytes, fileName, config, 'lenovo-dcsc-session-source-bytes', 'bin');
 }
+export async function writeCfxmlArtifact(bytes, fileName, config) {
+    if (bytes.length > config.files.maxDownloadBytes)
+        throw new Error('CFXML artifact exceeded the configured download limit.');
+    parseCfxml(bytes.toString('utf8'));
+    return writeRecoveryContent(bytes, fileName.replace(/\.xml$/i, ''), config, 'lenovo-cfxml', 'xml');
+}
 async function writeRecoveryContent(bytes, fileName, config, format, extension) {
     if (bytes.length > config.files.maxDownloadBytes) {
         throw new Error(`Recovery artifact exceeded the configured download limit of ${config.files.maxDownloadBytes} bytes.`);
     }
+    const published = await publishSingleFile(Readable.from([bytes]), {
+        fileName: fileName.replace(/\.json$/i, ''),
+        extension,
+        kind: extension === 'json' ? 'recovery-json' : 'recovery-source',
+        subject: 'Recovery artifact',
+        config,
+    });
+    return { ...published, format };
+}
+/** Streams a DCSC .xlsx download into the artifact store, rejecting bodies that are not a ZIP container. */
+export async function writeSpreadsheetArtifact(stream, fileName, config) {
+    return publishSingleFile(stream, {
+        fileName: fileName.replace(/\.xlsx$/i, ''),
+        extension: 'xlsx',
+        kind: 'export-spreadsheet',
+        subject: 'DCSC export',
+        config,
+        assertHead: (preview) => {
+            if (!preview.subarray(0, 4).equals(MAGIC_BYTES.zip)) {
+                throw new Error(`DCSC returned HTTP 200 but the body is not an .xlsx workbook (starts with ${JSON.stringify(preview.toString('utf8').slice(0, 80))}). This is an error response disguised as a download.`);
+            }
+        },
+    });
+}
+/** Streams a DCSC VLH item export (XML) into the artifact store, rejecting bodies that are not a VLHData document. */
+export async function writeVlhArtifact(stream, fileName, config) {
+    return publishSingleFile(stream, {
+        fileName: fileName.replace(/\.vlh$/i, ''),
+        extension: 'vlh',
+        kind: 'export-vlh',
+        subject: 'VLH export',
+        config,
+        assertHead: (preview) => {
+            if (!preview.toString('utf8').includes('<VLHData>')) {
+                throw new Error(`DCSC returned HTTP 200 but the body is not a VLHData document (starts with ${JSON.stringify(preview.toString('utf8').slice(0, 80))}). This is an error response disguised as a download.`);
+            }
+        },
+    });
+}
+async function publishSingleFile(source, opts) {
+    const { config } = opts;
     const cleanup = cleanupExpiredArtifacts(config);
     const root = resolve(artifactDir(config));
     const day = new Date().toISOString().slice(0, 10);
     const dayDir = join(root, day);
-    const safeName = sanitiseFileName(fileName.replace(/\.json$/i, ''));
+    const safeName = sanitiseFileName(opts.fileName);
     const artifactName = `${safeName}-${randomUUID()}`;
     const finalDir = resolve(dayDir, artifactName);
     const stagingDir = resolve(dayDir, `.${artifactName}.tmp`);
     if (!isInside(root, finalDir) || !isInside(root, stagingDir)) {
-        throw new Error('Refusing to write a recovery artifact outside the configured artifact directory.');
+        throw new Error(`Refusing to write a ${opts.subject.toLowerCase()} outside the configured artifact directory.`);
     }
     mkdirSync(dayDir, { recursive: true });
     mkdirSync(stagingDir);
     activeArtifacts.add(finalDir);
     try {
-        const outputName = `${safeName}.${extension}`;
+        const outputName = `${safeName}.${opts.extension}`;
         const stagedPath = join(stagingDir, outputName);
-        const finalPath = join(finalDir, outputName);
-        const inspection = new DownloadInspector(config.files.maxDownloadBytes, 'Recovery artifact');
-        await pipeline(Readable.from([bytes]), inspection, createWriteStream(stagedPath, { flags: 'wx' }));
+        const inspection = new DownloadInspector(config.files.maxDownloadBytes, opts.subject);
+        await pipeline(source, inspection, createWriteStream(stagedPath, { flags: 'wx' }));
+        opts.assertHead?.(inspection.preview);
         const artifact = {
-            path: finalPath,
+            path: join(finalDir, outputName),
             bytes: inspection.bytes,
             sha256: inspection.digest(),
-            format,
             warnings: [...cleanup.warnings],
         };
         writeFileSync(join(stagingDir, 'manifest.json'), JSON.stringify({
             owner: OWNED_ARTIFACT,
             version: OWNED_ARTIFACT_VERSION,
             status: 'complete',
-            kind: extension === 'json' ? 'recovery-json' : 'recovery-source',
+            kind: opts.kind,
             ...artifact,
             createdAt: new Date().toISOString(),
         }, null, 2), { encoding: 'utf8', flush: true });
@@ -373,8 +421,5 @@ async function unzip(zipPath, dir, config) {
 }
 function isInside(root, candidate) {
     return candidate.startsWith(root + sep);
-}
-function errorMessage(err) {
-    return err instanceof Error ? err.message : String(err);
 }
 //# sourceMappingURL=artifactStore.js.map

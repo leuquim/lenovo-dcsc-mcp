@@ -1,3 +1,4 @@
+import { configurationListPrice } from '../domain/pricing.js';
 import { projectConstraints } from './project.js';
 function describe(index, code) {
     const hit = index.byCode.get(code)?.[0];
@@ -80,17 +81,17 @@ export function diffConfigurations(opts) {
         removed.splice(i, 1);
         added.splice(replacementIdx, 1);
     }
-    const priceBefore = opts.beforeRaw.totalPrice ?? 0;
-    const priceAfter = opts.afterRaw.totalPrice ?? 0;
+    const priceBefore = configurationListPrice(opts.beforeRaw);
+    const priceAfter = configurationListPrice(opts.afterRaw);
     return {
         added,
         removed,
         replaced,
         quantityChanged,
         price: {
-            before: round(priceBefore),
-            after: round(priceAfter),
-            delta: round(priceAfter - priceBefore),
+            before: priceBefore,
+            after: priceAfter,
+            delta: priceBefore === null || priceAfter === null ? null : round(priceAfter - priceBefore),
             currency: opts.currency,
         },
         constraints: projectConstraints(opts.afterRaw),

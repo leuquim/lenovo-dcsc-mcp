@@ -1,0 +1,132 @@
+import { z } from 'zod';
+import { categoryInfo, searchCatalog, settingsGet, settingsSet, } from '../app/catalog.js';
+import { guard } from './toolSupport.js';
+const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
+const solutionMode = z.string().optional();
+const fingerprint = z.string().optional();
+const pageOffset = z.number().int().min(0).optional();
+const rowLimit = z.number().int().min(1).max(50).optional();
+const detailPath = z.array(z.string()).optional();
+/** Offset, limit and path that page a large raw result; continuations carry them. */
+const rawPaging = { offset: pageOffset, limit: z.number().int().min(1).max(50).optional(), path: detailPath };
+const searchSchema = z.discriminatedUnion('kind', [
+    z.object({
+        kind: z.literal('products'),
+        query: z.string().min(1).describe('Name, model or part number.'),
+        type: z.enum(['CTO', 'LFO']).optional().describe('Configure-to-order or preconfigured only.'),
+        solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+    }),
+    z.object({
+        kind: z.literal('tree'),
+        categoryPath: z.array(z.string()).optional().describe('Breadcrumb, e.g. ["Servers", "Rack Server"]; omit for the top level.'),
+        categoryOffset: pageOffset.describe('Category cursor from a continuation.'),
+        detailPath,
+        solutionMode, offset: pageOffset, limit: rowLimit, expectedCatalogFingerprint: fingerprint,
+    }),
+    z.object({
+        kind: z.literal('parts'),
+        query: z.string().min(1).describe('Part number or keyword.'),
+        types: z.array(z.enum(['SOFTWARE', 'SERVICE', 'HARDWARE'])).min(1).optional().describe('Restrict part types.'),
+        mode: z.enum(['CTO', 'LFO']).optional().describe('Lookup mode, default CTO.'),
+        includeSupplyStatus: z.boolean().optional().describe('Add shipping lead times for the first match.'),
+        supplyStatusType: z.string().optional().describe('Option (default), CTO or LFO.'),
+        solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+    }),
+    z.object({ kind: z.literal('preconfigured'), offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint }),
+    z.object({
+        kind: z.literal('sids'),
+        categoryId: z.string().min(1).describe('SID category id.'),
+        query: z.string().optional().describe('SID number.'),
+        tceFlag: z.boolean().optional(),
+        offset: pageOffset, limit: z.number().int().min(1).max(25).optional().describe('Rows per page (default 10).'),
+    }),
+    z.object({
+        kind: z.literal('serviceProducts'),
+        query: z.string().describe('Code or name text; "" lists all.'),
+        solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+    }),
+    z.object({
+        kind: z.literal('software'),
+        productCode: z.string().min(1).describe('MT, CTO or LFO ID.'),
+        mode: z.enum(['CTO', 'LFO']).optional().describe('Default CTO.'),
+        solutionMode, offset: pageOffset, limit: rowLimit, path: detailPath, expectedCatalogFingerprint: fingerprint,
+    }),
+    z.object({
+        kind: z.literal('specialty'),
+        catalog: z.enum(['lvr', 'converged', 'promotion']).optional().describe('Default lvr.'),
+        categoryId: z.string().optional().describe('converged: category detail. promotion: filter.'),
+        subType: z.enum(['hierarchies', 'sid', 'lfo', 'option']).optional().describe('promotion only.'),
+        query: z.string().optional().describe('Text filter for lvr and converged lists.'),
+        solutionMode, ...rawPaging,
+    }),
+]);
+const categoryId = z.string().min(1).describe('e.g. "STG@Servers@Rack Server".');
+const ctoCode = z.string().min(1).describe('Product code.');
+const categorySchema = z.discriminatedUnion('kind', [
+    z.object({
+        kind: z.literal('detail'), categoryId,
+        isTruScale: z.boolean().optional().describe('Use TruScale reference solution routing.'),
+        offset: pageOffset, limit: z.number().int().min(1).max(50).optional().describe('Maximum children, products or categories to return.'), path: detailPath,
+    }),
+    z.object({ kind: z.literal('services'), solutionMode, ...rawPaging }),
+    z.object({ kind: z.literal('caseStudies'), caseStudyId: z.string().optional().describe('Default all.'), ...rawPaging }),
+    z.object({ kind: z.literal('conditions'), categoryId, ...rawPaging }),
+    z.object({
+        kind: z.literal('products'), categoryId,
+        conditions: z.string().optional().describe('Filter conditions as the JSON string from kind conditions.'),
+        pageNumber: z.number().int().min(1).optional().describe('1-based upstream page.'),
+        pageSize: z.number().int().min(1).max(50).optional().describe('Upstream page size.'),
+        topChoice: z.boolean().optional().describe('Top choices only.'),
+        ...rawPaging,
+    }),
+    z.object({ kind: z.literal('topChoiceCountry'), ...rawPaging }),
+    z.object({ kind: z.literal('productFunctions'), ctoCode, ...rawPaging }),
+    z.object({ kind: z.literal('displayOrders'), ctoCode, ...rawPaging }),
+    z.object({ kind: z.literal('staticFeatures'), ctoCode, tab: z.string().min(1).describe('Tab name.'), ...rawPaging }),
+]);
+/** Continuations built by the app functions carry flat arguments; the tools take them under one property. */
+function nestContinuations(value, tool, property) {
+    if (Array.isArray(value))
+        return value.map((entry) => nestContinuations(entry, tool, property));
+    if (value === null || typeof value !== 'object')
+        return value;
+    const record = value;
+    if (record['tool'] === tool && typeof record['arguments'] === 'object' && record['arguments'] !== null) {
+        return { ...record, arguments: { [property]: record['arguments'] } };
+    }
+    return Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, nestContinuations(entry, tool, property)]));
+}
+export function registerCatalogTools(server, service) {
+    server.registerTool('dcsc_settings_get', {
+        annotations: READ_ONLY,
+        title: 'Get DCSC settings',
+        description: 'Returns the current country/language/currency and the available solution modes. Pass localeQuery (a country name, code or currency; empty for all) to list countries you can switch to.',
+        inputSchema: {
+            localeQuery: z.string().optional().describe('Filter countries, e.g. "Germany" or "EUR"; "" lists all.'),
+            limit: z.number().int().min(1).max(50).optional().describe('Maximum countries to list (default 20).'),
+        },
+    }, async (args) => guard(() => settingsGet(service, args), 'dcsc_settings_get failed'));
+    server.registerTool('dcsc_settings_set', {
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+        title: 'Set DCSC country, language and withdrawn-since date',
+        description: 'Sets the default country, language and currency for later launches and searches, and the withdrawn-since catalog date. Existing workspaces keep their own locale.',
+        inputSchema: {
+            country: z.string().optional().describe('ISO country code, e.g. "US", "DE".'),
+            language: z.string().optional().describe('Language code; defaults to the country default.'),
+            withdrawnSince: z.string().optional().describe('YYYY-MM-DD: also list products withdrawn since then. "" lists available products only.'),
+        },
+    }, async (args) => guard(() => settingsSet(service, args), 'dcsc_settings_set failed'));
+    server.registerTool('dcsc_search', {
+        annotations: READ_ONLY,
+        title: 'Search the DCSC catalog',
+        description: 'Searches the catalog by kind: tree browses categories, preconfigured lists CTO/LFO codes, serviceProducts lists products that take service packs, software lists software for a product ID. Pass path, offset and expectedCatalogFingerprint from continuations unchanged.',
+        inputSchema: { search: searchSchema },
+    }, async (args) => guard(async () => nestContinuations(await searchCatalog(service, args.search), 'dcsc_search', 'search'), 'dcsc_search failed'));
+    server.registerTool('dcsc_category', {
+        annotations: READ_ONLY,
+        title: 'Open a DCSC category page',
+        description: 'Reads a category page. Pass path from continuations unchanged.',
+        inputSchema: { category: categorySchema },
+    }, async (args) => guard(async () => nestContinuations(await categoryInfo(service, args.category), 'dcsc_category', 'category'), 'dcsc_category failed'));
+}
+//# sourceMappingURL=catalogTools.js.map

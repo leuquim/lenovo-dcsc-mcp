@@ -1,5 +1,5 @@
 import type { FabricOptions, NetworkType } from './fabric.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 export interface ConnectorChoice {
     /** Stable key accepted by `connectorIds`. */
     id: string;
@@ -70,7 +70,7 @@ export declare function listTopologyConnectors(rawConfiguration: Obj, fabric: Fa
  * Builds one configuration's SPA `selectedTopologies` map. Existing network entries and every
  * field of selected connector DTOs are preserved.
  */
-export declare function buildSelectedTopologies(rawConfiguration: Obj, fabric: FabricOptions, input: TopologySelectionInput): Obj;
+export declare function buildSelectedTopologies(rawConfiguration: Obj, fabric: FabricOptions, input: TopologySelectionInput, storageNetworkNames?: readonly string[]): Obj;
 export declare const EXISTING_CUSTOMER_SWITCH_ID = "existing-customer-switch";
 export declare const MANUAL_CABLE_ID = "manual-cable";
 export interface NetworkLeafCablingChoice extends Record<string, unknown> {
@@ -84,4 +84,3 @@ export declare function listNetworkLeafCablingChoices(fabric: FabricOptions): Ne
  * auto-connect. Defaults are accepted only when they still identify one available catalog option.
  */
 export declare function buildWorkspaceNetworkPreferences(fabric: FabricOptions, requested: readonly WorkspaceNetworkSelection[]): WorkspaceNetworkPreferences;
-export {};

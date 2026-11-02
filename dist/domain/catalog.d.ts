@@ -1,5 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-import { type CategoryNode } from '../schemas/catalog.js';
+import { type CategoryNode, type Product } from '../schemas/catalog.js';
 export interface CatalogEntry {
     /** Product code passed to launch, e.g. "7D73CTO1WW". */
     code: string;
@@ -77,3 +77,5 @@ export interface BrowseOptions {
 }
 /** Walks one level of the tree, for the rare case structure matters. */
 export declare function browseCatalog(catalog: Catalog, path?: string[], includeWithdrawnOrOptions?: boolean | BrowseOptions): BrowseResult;
+/** The raw catalog product, exactly as the website posts it when it picks one. */
+export declare function findCatalogProduct(catalog: Catalog, code: string): Product | undefined;

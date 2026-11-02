@@ -1,4 +1,4 @@
-import type { Locale, SolutionContext } from '../config/schema.js';
+import type { SolutionContext } from '../config/schema.js';
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 export interface SolutionModeInfo {
     mode: string;
@@ -18,4 +18,3 @@ export interface SolutionModeInfo {
 export declare function fetchSolutionModes(http: DcscHttpClient, ctx: RequestCtx): Promise<SolutionModeInfo[]>;
 /** Picks the requested mode, or the first available, and builds the context. */
 export declare function toSolutionContext(modes: SolutionModeInfo[], preferred?: string): SolutionContext;
-export declare function baseCtx(corrId: string, locale: Locale): RequestCtx;

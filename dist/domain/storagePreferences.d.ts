@@ -1,8 +1,8 @@
 import type { FabricOptions, StorageController } from './fabric.js';
-type Obj = Record<string, unknown>;
-export declare const STORAGE_TYPES: readonly ["Balance Warehouse", "General Storage"];
-export declare const STORAGE_LAYOUTS: readonly ["Fully Redundant", "Minimal Cabling"];
-export declare const DIRECT_ATTACHED: "direct-attached";
+import { type Obj } from '../util/coerce.js';
+export declare const STORAGE_TYPES: readonly ['Balance Warehouse', 'General Storage'];
+export declare const STORAGE_LAYOUTS: readonly ['Fully Redundant', 'Minimal Cabling'];
+export declare const DIRECT_ATTACHED: 'direct-attached';
 export type StorageType = typeof STORAGE_TYPES[number];
 export type StorageLayout = typeof STORAGE_LAYOUTS[number];
 export interface StorageExpansionChoice {
@@ -104,9 +104,3 @@ export declare function editStorageConnectionNetwork(existing: readonly StorageC
 }): StorageConnectionNetwork[];
 /** Website preference controls update only the selected fields, preserving managed identities. */
 export declare function reconfigureStorageConnectionNetwork(existing: readonly StorageConnectionNetwork[], fabric: FabricOptions, name: string, changes: StorageNetworkChanges, rackedTemplateIds?: ReadonlySet<string>): StorageConnectionNetwork[];
-/**
- * Applies the configuration-side storage dropdown. DCSC stores only the selected network name on
- * each configuration and mirrors those strings in a workspace map keyed by configuration ID.
- */
-export declare function applySelectedStorageNetworks(configurations: readonly Obj[], storageConnectionNetworks: readonly StorageConnectionNetwork[], assignments: readonly StorageAssignment[]): SelectedStorageNetworks;
-export {};

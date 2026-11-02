@@ -1,5 +1,5 @@
 import { type RackConfigurationWire, type RackObject } from './rack.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 export interface SwitchCalculationRequest extends Obj {
     rackArea: RackObject[];
     nonRackArea: RackObject[];
@@ -73,49 +73,3 @@ export declare function parseSwitchCalculationResponse(raw: unknown, request?: S
  * launches a new configuration and uses its new id in all three records.
  */
 export declare function buildGeneratedSwitch(requirement: SwitchRequirement, launch: RackObject, options: BuildGeneratedSwitchOptions): GeneratedSwitch;
-/** The browser-authoritative endpoint order for a populated automatic-switch run. */
-export declare const SWITCH_PROVISIONING_SEQUENCE: readonly [{
-    readonly phase: "calculate";
-    readonly method: "POST";
-    readonly path: "/switch_calculation";
-    readonly query: {
-        readonly autoArrange: true;
-        readonly autoConnect: true;
-        readonly cogValidation: true;
-    };
-}, {
-    readonly phase: "launch-each-generated-switch";
-    readonly method: "POST";
-    readonly path: "/ctos/{code}/launch";
-    readonly query: {
-        readonly serviceCto: true;
-        readonly serviceType: "servicecto";
-        readonly controlExpressModal: false;
-    };
-}, {
-    readonly phase: "customize-generated-layout";
-    readonly method: "POST";
-    readonly path: "/ctos/racks/customize";
-    readonly query: {
-        readonly autoArrange: true;
-        readonly autoConnect: true;
-        readonly cogValidation: true;
-    };
-}, {
-    readonly phase: "derive-generated-configuration";
-    readonly method: "POST";
-    readonly path: "/ctos/autoDerive";
-    readonly query: {
-        readonly guideMode: true;
-    };
-}, {
-    readonly phase: "connect-p2p";
-    readonly method: "POST";
-    readonly path: "/auto_connect";
-    readonly query: {
-        readonly autoArrange: true;
-        readonly autoConnect: true;
-        readonly cogValidation: true;
-    };
-}];
-export {};

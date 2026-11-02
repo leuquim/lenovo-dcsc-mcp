@@ -1,9 +1,10 @@
 import type { RawConfiguration } from '../model/types.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
+import { type AutoDerivePath } from './endpoints.js';
 export interface StorageAssignmentRequest {
     endpoint: 'storage_assignment';
     method: 'POST';
-    path: '/ctos/autoDerive';
+    path: AutoDerivePath;
     query: {
         configurationId: string;
         guideMode: boolean;

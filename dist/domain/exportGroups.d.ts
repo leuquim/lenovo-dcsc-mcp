@@ -1,6 +1,6 @@
 import type { ConfigMode } from '../config/constants.js';
 import type { RawConfiguration } from '../model/types.js';
-type Obj = Record<string, unknown>;
+import type { Obj } from '../util/coerce.js';
 export interface ExportGroup {
     name: string;
     parent: null;
@@ -14,7 +14,7 @@ export interface ExportGroupProduct extends Obj {
     quantity: number;
     price: number | null;
     unitPrice: number | null;
-    type: 'hardware' | 'hipo' | 'service' | 'servicectohipo' | 'added-options';
+    type: 'hardware' | 'hipo' | 'service' | 'servicectohipo' | 'added-options' | 'unconfigured';
     groupId: string;
     priceNotAvailable?: boolean | undefined;
     showPrice: boolean;
@@ -43,6 +43,15 @@ export interface ExportGroupWorkspace {
  * duplicates thousands of dollars in Quote/Quote Group exports.
  */
 export declare function buildExportGroups(source: RawConfiguration | ExportGroupWorkspace, configurationId?: string, mode?: ConfigMode): ExportGroup[];
-/** Drop-in name for the existing reducer export during integration. */
-export declare const buildGroups: typeof buildExportGroups;
-export {};
+export interface LogicalGroup {
+    name: string;
+    parent?: string | undefined;
+    products: string[];
+}
+/**
+ * Logical Groups are client state on the website; they reach DCSC only as the export form's `groups` field.
+ * Product lines move out of the default group by code; index is the position among siblings, with the
+ * default group counted as the first top-level sibling. An imported workspace already holds its groups,
+ * and the website counts them in front of the new top-level groups.
+ */
+export declare function applyLogicalGroups(base: ReadonlyArray<Record<string, unknown>>, logical: readonly LogicalGroup[], importedGroupCount?: number): Array<Record<string, unknown>>;

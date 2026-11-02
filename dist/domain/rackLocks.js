@@ -1,11 +1,4 @@
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
-function objects(value) {
-    return Array.isArray(value) ? value.filter((entry) => object(entry) !== undefined) : [];
-}
+import { objectItems } from '../util/coerce.js';
 function identity(value, label) {
     const id = typeof value['id'] === 'string' && value['id'].trim() ? value['id'] : undefined;
     const configurationId = typeof value['configurationId'] === 'string' && value['configurationId'].trim()
@@ -60,7 +53,7 @@ export function stageRackItemLock(rackArea, itemId, locked) {
     const next = structuredClone(rackArea);
     const matches = [];
     for (const rack of next) {
-        for (const item of objects(rack['rackItems'])) {
+        for (const item of objectItems(rack['rackItems'])) {
             if (identity(item, 'Rack item') === itemId)
                 matches.push({ rack, item });
         }
@@ -80,7 +73,7 @@ export function stageRackSpaceLock(rackArea, rackId, position, locked) {
     const rack = findRack(next, rackId);
     const size = rackSize(rack);
     const canonical = canonicalPosition(position, size, 'Rack lock position');
-    const occupied = objects(rack['rackItems']).some(item => {
+    const occupied = objectItems(rack['rackItems']).some(item => {
         const start = canonicalPosition(item['position'], size, `Rack item ${identity(item, 'Rack item')} position`);
         const itemSize = item['size'];
         if (typeof itemSize !== 'number' || !Number.isSafeInteger(itemSize) || itemSize < 1 || start + itemSize - 1 > size) {

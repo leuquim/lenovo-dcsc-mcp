@@ -1,18 +1,21 @@
+import { numericValue } from '../util/coerce.js';
+/** The website exports the saved report's load factor, including zero. */
+export function powerLoadFactor(raw) {
+    const container = raw.powerReportResponse;
+    const report = container && typeof container === 'object' ? container['powerReport'] : undefined;
+    return numericValue(report && typeof report === 'object' ? report['loadFactor'] : undefined) ?? numericValue(raw.loadFactor);
+}
 function band(v) {
     if (typeof v !== 'object' || v === null || Array.isArray(v))
         return undefined;
     const o = v;
-    const idle = num(o['idle']);
-    const max = num(o['max']);
-    const loadFactor = num(o['loadFactorResult']);
-    const worst = num(o['worst']);
+    const idle = numericValue(o['idle']);
+    const max = numericValue(o['max']);
+    const loadFactor = numericValue(o['loadFactorResult']);
+    const worst = numericValue(o['worst']);
     if (idle === undefined || max === undefined || loadFactor === undefined || worst === undefined)
         return undefined;
     return { idle, max, loadFactor, worst };
-}
-function num(v) {
-    const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
-    return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
 }
 /** Pulls the power report out of a raw configuration, if DCSC supplied one. */
 export function extractPowerReport(raw) {
@@ -43,7 +46,7 @@ export function extractPowerReport(raw) {
         apparentPowerVA,
         heatBtuHr,
         operatingVoltage: typeof r['operatingVoltage'] === 'string' ? r['operatingVoltage'] : undefined,
-        loadFactorPct: num(r['loadFactor']),
+        loadFactorPct: numericValue(r['loadFactor']),
         powerPolicy: typeof policy === 'object' && policy !== null
             ? {
                 key: typeof policy['key'] === 'string' ? policy['key'] : undefined,
@@ -52,7 +55,7 @@ export function extractPowerReport(raw) {
                     : undefined,
             }
             : undefined,
-        powerUtilizationPct: num(r['powerUtilization']),
+        powerUtilizationPct: numericValue(r['powerUtilization']),
         warnings,
     };
 }

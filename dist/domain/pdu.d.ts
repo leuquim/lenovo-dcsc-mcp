@@ -1,7 +1,7 @@
 /**
  * PDU selection for rack cabinets.
  *
- * A rack added via dcsc_add_rack is launched as a full configuration. Its
+ * A rack added via dcsc_rack_add is launched as a full configuration. Its
  * Power tab carries PDU, RACK_POWERCABLE and LINECORD sections. Selecting a
  * PDU is the same operation as any other feature change: put it in the
  * reduced model and round-trip through /ctos/autoDerive. DCSC's response is

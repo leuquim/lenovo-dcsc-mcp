@@ -1,4 +1,4 @@
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 /** Older recovery records have no scope. They cannot establish that only history was lost. */
 export declare function hasUnrepairedRecoveryData(workspace: WorkspaceSession): boolean;
 export declare function assertConfigurationReconciliationAllowed(workspace: WorkspaceSession): void;

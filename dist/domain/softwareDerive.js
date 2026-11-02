@@ -1,6 +1,4 @@
-function isObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+import { isObject } from '../util/coerce.js';
 function isPrice(value) {
     return isObject(value)
         && (value.priceTypeId === undefined || typeof value.priceTypeId === 'number')

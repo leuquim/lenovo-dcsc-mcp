@@ -1,6 +1,7 @@
 import { usesCtoWire } from './modeFamily.js';
 import { buildAutoDeriveRequest } from './reduce.js';
 import { readStorageConnectionNetworks } from './storagePreferences.js';
+import { autoDerivePath } from './endpoints.js';
 function selectedName(name) {
     if (name === null)
         return '';
@@ -51,7 +52,7 @@ export function buildStorageAssignmentRequest(workspace, targetConfigurationId, 
     return {
         endpoint: 'storage_assignment',
         method: 'POST',
-        path: '/ctos/autoDerive',
+        path: autoDerivePath('ctos'),
         query: {
             configurationId: targetConfigurationId,
             guideMode: workspace.validationMode === 'guided',

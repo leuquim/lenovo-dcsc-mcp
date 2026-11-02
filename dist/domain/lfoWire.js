@@ -1,4 +1,11 @@
 import { buildAutoDeriveRequest } from './reduce.js';
+/** The website appends the SW-scope "OS & Software" tab to the HW tree when the HW response asks for it. */
+export function mergeLfoSoftwareTab(hardware, software) {
+    if (hardware['needLaunchSwTab'] !== true || !Array.isArray(software.tabs))
+        return hardware;
+    const tabs = hardware.tabs ?? [];
+    return { ...hardware, tabs: hardware['swTabIsAfter'] === false ? [...software.tabs, ...tabs] : [...tabs, ...software.tabs] };
+}
 /** Captured LFO hardware DTO: the CTO-only configuration fields are rejected. */
 export function buildLfoHardwareDeriveRequest(configuration, workspace) {
     const base = buildAutoDeriveRequest(configuration, { validationMode: 'guided', autoCorrect: false });

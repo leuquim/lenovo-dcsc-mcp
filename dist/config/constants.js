@@ -26,8 +26,6 @@ export const DEFAULT_HOST = 'dcsc.lenovo.com';
  * verified 2026-08-07
  */
 export const API_PREFIX = '/api';
-/** The AI configurator ("nightingale") lives under a different prefix. */
-export const AI_PREFIX = '/ai-acceler';
 /**
  * Pinned browser User-Agent.
  *
@@ -92,18 +90,7 @@ export const REQUEST_SOURCE = 'web';
  * verified 2026-08-07
  */
 export const CONFIG_MODES = ['cto', 'lfo', 'lfo-as-cto', 'lfo-add-options'];
-/**
- * Solution modes, from the bundle constant `SOLUTION_MODE`. These are the
- * human-readable strings the API expects for the `solutionMode` query param.
- *
- * verified 2026-08-07
- */
-export const SOLUTION_MODES = [
-    'General Purpose',
-    'Cluster',
-    'HPC and AI - LESI Solution',
-    'HPC and AI - Systems',
-];
+export const HPC_SOLUTION_MODE = 'HPC and AI - Systems';
 /**
  * Fallback masterSlices for General Purpose. The authoritative values come
  * from /api/solution_modes at runtime; this exists only so the very first
@@ -112,14 +99,6 @@ export const SOLUTION_MODES = [
  * verified 2026-08-07
  */
 export const DEFAULT_MASTER_SLICES = ['GP', 'HPCGPALL', 'HPCGPRYO'];
-/**
- * HTTP 499 is the upstream bot-mitigation verdict. The real SPA hard-redirects
- * to www.lenovo.com when it sees this on /solution_modes, /launch or
- * /autoDerive. It is client-scoped, not route-scoped.
- *
- * verified 2026-08-07 (handler present in app bundle)
- */
-export const WAF_STATUS = 499;
 /** Magic bytes used to detect an error masquerading as a successful download. */
 export const MAGIC_BYTES = {
     zip: Buffer.from([0x50, 0x4b, 0x03, 0x04]), // PK\x03\x04
@@ -127,4 +106,10 @@ export const MAGIC_BYTES = {
     ole2: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]), // legacy .xls
     xml: Buffer.from('<?xml', 'utf8'),
 };
+/** Largest tool response, in bytes of compact JSON. */
+export const RESPONSE_BYTE_BUDGET = 8000;
+/** Room kept for the fields a handler adds around a paged or trimmed payload. */
+export const RESPONSE_ENVELOPE_RESERVE_BYTES = 1000;
+/** Budget for the payload that pagers and projections trim to fit. */
+export const PAGE_BYTE_BUDGET = RESPONSE_BYTE_BUDGET - RESPONSE_ENVELOPE_RESERVE_BYTES;
 //# sourceMappingURL=constants.js.map

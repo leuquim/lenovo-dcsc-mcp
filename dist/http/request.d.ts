@@ -13,7 +13,7 @@ export type MultipartPart = {
     name: string;
     filename: string;
     contentType: string;
-    content: string;
+    content: string | Uint8Array;
 };
 export type ReqBody = {
     kind: 'json';
@@ -24,7 +24,7 @@ export type ReqBody = {
     kind: 'form';
     fields: Record<string, string>;
 }
-/** Reproduces the SPA's file upload used for CFXML import. */
+/** Reproduces the SPA's file uploads, including CFXML and binary Excel workbooks. */
  | {
     kind: 'multipart';
     parts: MultipartPart[];
@@ -35,6 +35,8 @@ export interface RequestCtx {
     solution?: SolutionContext | undefined;
     signal?: AbortSignal | undefined;
     budget?: RequestBudget | undefined;
+    /** Website "withdrawn since" setting (YYYY-MM-DD); sent to the catalog endpoints that honour it. */
+    withdrawnSince?: string | undefined;
 }
 export interface SendInput {
     /** Stable logical id, used for logging, fixtures and fingerprints. */
@@ -44,7 +46,8 @@ export interface SendInput {
     path: string;
     query?: Record<string, QueryValue> | undefined;
     body?: ReqBody | undefined;
-    responseKind: 'json' | 'stream';
+    /** 'json' requires a JSON body; 'text' accepts a bare string and returns it as `raw` when the body is not JSON. */
+    responseKind: 'json' | 'text' | 'stream';
     timeoutClass?: TimeoutClass | undefined;
     /** Bootstrap endpoints (/locales, /currencies) do not need solution context. */
     requiresSolution?: boolean | undefined;
@@ -91,7 +94,20 @@ export declare class DcscHttpClient {
         responseKind: 'json';
     }): Promise<JsonResponse>;
     send(input: SendInput & {
+        responseKind: 'text';
+    }): Promise<JsonResponse>;
+    send(input: SendInput & {
         responseKind: 'stream';
     }): Promise<StreamResponse>;
+    send(input: SendInput): Promise<JsonResponse | StreamResponse>;
 }
+/** The query string as sent: preamble, withdrawn-date setting, then the call's own params. */
+export declare function requestQuery(input: SendInput): URLSearchParams;
+/**
+ * Builds a multipart/form-data body byte-for-byte the way the SPA does.
+ *
+ * DCSC's import endpoint is strict about CRLF line endings and about the file
+ * part carrying an explicit Content-Type; omitting either yields an HTTP 500.
+ */
+export declare function serialiseMultipart(boundary: string, parts: MultipartPart[]): Buffer;
 export { RequestBudget, logger };

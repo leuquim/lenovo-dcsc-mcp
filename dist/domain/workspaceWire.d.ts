@@ -1,5 +1,5 @@
 import type { ConfigMode } from '../config/constants.js';
-type Obj = Record<string, unknown>;
+import type { Obj } from '../util/coerce.js';
 /** Export hierarchy, distinct from the physical one-based rackData contract. */
 export declare function buildItemHierarchy(item: Obj, rackIndex?: number): Obj;
 /** Current SPA _buildStructure contract, captured with a rack and SR630 V3. */
@@ -9,4 +9,3 @@ export declare function physicalRackData(rack: Obj): Obj;
 export declare function workspaceHardwareMode(configurations: Iterable<{
     mode: ConfigMode;
 }>): 'cto' | 'lfo';
-export {};

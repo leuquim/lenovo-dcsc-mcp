@@ -2,8 +2,7 @@ import type { ConfigMode } from '../config/constants.js';
 import type { SolutionContext } from '../config/schema.js';
 import type { RawConfiguration } from '../model/types.js';
 import { type WireResult, type WireSection } from './dcscWire.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
-import { buildRackHierarchy, physicalRackData } from './workspaceWire.js';
+import type { WorkspaceSession } from '../model/session.js';
 /**
  * Builds the *reduced* configuration model DCSC expects on mutation and export.
  *
@@ -68,10 +67,13 @@ export interface ReducedConfiguration {
     showExpressMode: boolean;
     expressModeAvailable: boolean;
     showExpressT2Mode: boolean;
+    selectedTceAudience?: unknown;
     serviceCtoFlag: unknown;
-    storageWizardOption: null;
+    storageWizardOption: Record<string, unknown> | null;
     operationHistories: unknown[];
     pinnedList: unknown[];
+    /** The SPA marks a rack whose packed filler differs from its selection so DCSC reprices the filler. */
+    fillerHasChanged?: true;
     delta?: ConfigDelta;
 }
 /**
@@ -100,23 +102,26 @@ export declare function buildAutoDeriveRequest(input: ReducedConfiguration | Wor
     autoCorrect?: boolean;
 }): Record<string, unknown>;
 export declare const EXPORT_FILE_TYPES: {
-    readonly XML: "XML";
-    readonly QUOTE: "QUOTE";
-    readonly QUOTE_CSV: "QUOTE_CSV";
-    readonly EPRICE_CSV: "EPRICE_CSV";
-    readonly QUOTE_SUPPLYINFO: "QUOTE_SUPPLYINFO";
-    readonly QUOTE_GROUP: "QUOTE_GROUP";
-    readonly SUMMARY: "SUMMARY";
-    readonly POWER_REPORT: "POWER_REPORT";
-    readonly RACK_REPORT: "RACK_REPORT";
-    readonly RACK_DIAGRAM: "RACK_DIAGRAM";
-    readonly FLOOR: "FLOOR";
-    readonly MESSAGE_HISTORY: "MESSAGE_HISTORY";
-    readonly P2P_REPORT: "P2P_REPORT";
+    readonly XML: 'XML';
+    readonly QUOTE: 'QUOTE';
+    readonly QUOTE_CSV: 'QUOTE_CSV';
+    readonly EPRICE_CSV: 'EPRICE_CSV';
+    readonly QUOTE_SUPPLYINFO: 'QUOTE_SUPPLYINFO';
+    readonly QUOTE_GROUP: 'QUOTE_GROUP';
+    readonly SUMMARY: 'SUMMARY';
+    readonly POWER_REPORT: 'POWER_REPORT';
+    readonly RACK_REPORT: 'RACK_REPORT';
+    readonly RACK_DIAGRAM: 'RACK_DIAGRAM';
+    readonly FLOOR: 'FLOOR';
+    readonly MESSAGE_HISTORY: 'MESSAGE_HISTORY';
+    readonly P2P_REPORT: 'P2P_REPORT';
+    readonly QUOTE_REFERENCE: 'QUOTE_REFERENCE';
+    readonly P2P_BY_RACK: 'P2P_BY_RACK';
+    readonly VLH: 'VLH';
 };
 export type ExportFileType = keyof typeof EXPORT_FILE_TYPES;
-export declare const ALL_EXPORT_TYPES: ExportFileType[];
-export declare const DEFAULT_EXPORT_TYPES: ExportFileType[];
+/** The solution mode's exports as the website's export popover lists them; QUOTE_CSV and EPRICE_CSV are software-only. */
+export declare function defaultExportTypes(functions?: Record<string, boolean> | undefined): ExportFileType[];
 export interface ExportGroupProduct {
     id: string;
     code: string;
@@ -133,9 +138,6 @@ export interface ExportGroupProduct {
 /** Shared complete browser-equivalent grouping for both scopes. */
 export declare function buildGroups(raw: RawConfiguration | WorkspaceSession, configurationId?: string, mode?: ConfigMode): Array<Record<string, unknown>>;
 export declare function buildExportConfiguration(config: ReducedConfiguration, raw: RawConfiguration): Record<string, unknown>;
-/** Export hierarchy and physical rack data are separate, never coordinate conversions. */
-export declare const rackToLocalExportShape: typeof buildRackHierarchy;
-export declare const rackToServerExportShape: typeof physicalRackData;
 /**
  * Builds the `data` field of the export form POST.
  * Supports single configuration or full WorkspaceSession with racks & cabling.

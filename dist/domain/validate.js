@@ -1,3 +1,4 @@
+import { nonBlankString } from '../util/coerce.js';
 const DIAGNOSTIC_ARRAYS = {
     expansionMessages: 'info',
     errors: 'error',
@@ -9,12 +10,25 @@ const DIAGNOSTIC_ARRAYS = {
     notices: 'info',
     serviceValidationMessages: 'error',
 };
-function str(v) {
-    return typeof v === 'string' && v.trim() !== '' ? v : undefined;
+const LMC_VALIDATION_KEYS = [
+    'toggle7116On', 'workspace', 'configurations', 'crnId', 'cloneDependencyColor', 'virtualContainerIdMapping',
+    'virtualContainerRule2ConfigMapping', 'virtualContainerInvalidRuleIdMapping', 'statusRelatedResult',
+    'workspaceInformation', 'autoDerivedResults', 'crossSystemConfigs', 'standaloneData',
+    'standaloneSwSubcategorySelections', 'ruleConditionIdMapping', 'instanceIdMapping', 'controllerExpansionMap',
+    'controllerIndexMap', 'autoConnectResults', 'floorInformation', 'networkingInformation', 'customizingFlags',
+    'operationMode', 'messageHistory', 'solutionMode',
+];
+/** The website's /lmc_validation body: the export payload narrowed to the keys it posts, plus the mode. */
+export function lmcValidationBody(exportPayload, mode) {
+    return {
+        ...Object.fromEntries(LMC_VALIDATION_KEYS.map(key => [key, exportPayload[key] ?? (key === 'standaloneSwSubcategorySelections' ? [] : undefined)])
+            .filter(([, value]) => value !== undefined)),
+        mode,
+    };
 }
 /** Starts a manufacturing-validation job and retains the exact descriptor array. */
 export async function startLmcValidation(http, ctx, exportPayload, mode) {
-    const body = { ...exportPayload, mode };
+    const body = lmcValidationBody(exportPayload, mode);
     const res = await http.send({
         endpoint: 'lmc_validation',
         method: 'POST',
@@ -32,9 +46,9 @@ export async function startLmcValidation(http, ctx, exportPayload, mode) {
     const entry = descriptors[0];
     const first = (typeof entry === 'object' && entry !== null ? entry : {});
     return {
-        buildEntityNumber: str(first['buildEntityNumber']),
-        uuid: str(first['uuid']),
-        lmcURL: str(first['lmcURL']),
+        buildEntityNumber: nonBlankString(first['buildEntityNumber']),
+        uuid: nonBlankString(first['uuid']),
+        lmcURL: nonBlankString(first['lmcURL']),
         raw: res.raw,
         descriptors,
     };
@@ -76,25 +90,6 @@ export async function fetchLmcValidationResult(http, ctx, start) {
             requestError: requestError('result', err),
         };
     }
-}
-/** Starts a job and performs exactly one result request. */
-export async function runLmcValidation(http, ctx, exportPayload, mode) {
-    let start;
-    try {
-        start = await startLmcValidation(http, ctx, exportPayload, mode);
-    }
-    catch (err) {
-        return {
-            raw: undefined,
-            descriptors: [],
-            status: 'unavailable',
-            terminal: false,
-            isValid: false,
-            messages: [],
-            requestError: requestError('start', err),
-        };
-    }
-    return fetchLmcValidationResult(http, ctx, start);
 }
 export function parseLmcValidationResult(start, raw) {
     const values = Array.isArray(raw) ? raw : [raw];
@@ -167,10 +162,6 @@ export function collectLocalDiagnostics(targets) {
         walkDiagnostics(target.raw, '$', undefined, target.configurationId, out, seen);
     }
     return out;
-}
-/** Backward-compatible name; now includes all known nested local diagnostics. */
-export function collectExpansionMessages(targets) {
-    return collectLocalDiagnostics(targets);
 }
 export function summariseValidation(server, localDiagnostics) {
     const messages = server?.messages ?? [];
@@ -246,14 +237,14 @@ function toLocalMessage(value, fallback, sourcePath, section, configurationId) {
         : type === 'warn' || type === 'warning' || type.includes('warn')
             ? 'warning'
             : fallback;
-    const message = str(obj['text']) ?? str(obj['message']) ?? str(obj['description']) ?? str(obj['messageKey']);
+    const message = nonBlankString(obj['text']) ?? nonBlankString(obj['message']) ?? nonBlankString(obj['description']) ?? nonBlankString(obj['messageKey']);
     if (!message)
         return undefined;
     return {
         severity,
-        code: str(obj['code']) ?? str(obj['messageKey']),
+        code: nonBlankString(obj['code']) ?? nonBlankString(obj['messageKey']),
         message,
-        section: str(obj['sectionName']) ?? str(obj['section']) ?? section,
+        section: nonBlankString(obj['sectionName']) ?? nonBlankString(obj['section']) ?? section,
         configurationId,
         sourcePath,
     };
@@ -267,7 +258,7 @@ function countMessages(messages) {
 }
 function requestError(phase, err) {
     const obj = (typeof err === 'object' && err !== null ? err : {});
-    const userMessage = str(obj['userMessage']);
+    const userMessage = nonBlankString(obj['userMessage']);
     const ordinaryMessage = err instanceof Error ? err.message : undefined;
     const status = typeof obj['status'] === 'number' ? obj['status'] : undefined;
     const retryable = typeof obj['retryable'] === 'boolean' ? obj['retryable'] : undefined;

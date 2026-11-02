@@ -19,3 +19,5 @@ export declare function resolveLinkedCloneGroup(value: unknown, configurationIds
  * set while the accepted dependency order controls the returned projections.
  */
 export declare function projectLinkedCloneResponse(response: RawConfiguration, group: LinkedCloneGroup): RawConfiguration[];
+/** Native HPC applies repeated shared-root records in response order. */
+export declare function projectHpcLinkedResponses(responses: RawConfiguration[], current: RawConfiguration[], dependency: unknown, requiredRoot: string, allowedRoots: ReadonlySet<string>, rootOnlyDependentRoots?: ReadonlySet<string>): RawConfiguration[];

@@ -9,7 +9,7 @@
  * fortnightly. Treat every value here as a fact with an expiry date.
  */
 /** Hosts known to serve the DCSC application. */
-export declare const KNOWN_HOSTS: readonly ["dcsc.lenovo.com", "us-dcsc.lenovo.com", "emea-dcsc.lenovo.com", "cn-dcsc.lenovo.com", "dcsc-api.lenovo.com", "us-dcsc-api.lenovo.com"];
+export declare const KNOWN_HOSTS: readonly ['dcsc.lenovo.com', 'us-dcsc.lenovo.com', 'emea-dcsc.lenovo.com', 'cn-dcsc.lenovo.com', 'dcsc-api.lenovo.com', 'us-dcsc-api.lenovo.com'];
 export type KnownHost = (typeof KNOWN_HOSTS)[number];
 export declare const DEFAULT_HOST: KnownHost;
 /**
@@ -20,8 +20,6 @@ export declare const DEFAULT_HOST: KnownHost;
  * verified 2026-08-07
  */
 export declare const API_PREFIX = "/api";
-/** The AI configurator ("nightingale") lives under a different prefix. */
-export declare const AI_PREFIX = "/ai-acceler";
 /**
  * Pinned browser User-Agent.
  *
@@ -61,7 +59,7 @@ export declare const REQUIRED_HEADERS: Readonly<Record<string, string>>;
  *
  * verified 2026-08-07
  */
-export declare const REQUIRED_QUERY_PARAMS: readonly ["country_or_region", "geo", "language", "currency", "solutionMode", "masterSlices", "_request"];
+export declare const REQUIRED_QUERY_PARAMS: readonly ['country_or_region', 'geo', 'language', 'currency', 'solutionMode', 'masterSlices', '_request'];
 export type RequiredQueryParam = (typeof REQUIRED_QUERY_PARAMS)[number];
 /** The SPA appends this to every request; some endpoints behave differently without it. */
 export declare const REQUEST_SOURCE = "web";
@@ -71,16 +69,9 @@ export declare const REQUEST_SOURCE = "web";
  *
  * verified 2026-08-07
  */
-export declare const CONFIG_MODES: readonly ["cto", "lfo", "lfo-as-cto", "lfo-add-options"];
+export declare const CONFIG_MODES: readonly ['cto', 'lfo', 'lfo-as-cto', 'lfo-add-options'];
 export type ConfigMode = (typeof CONFIG_MODES)[number];
-/**
- * Solution modes, from the bundle constant `SOLUTION_MODE`. These are the
- * human-readable strings the API expects for the `solutionMode` query param.
- *
- * verified 2026-08-07
- */
-export declare const SOLUTION_MODES: readonly ["General Purpose", "Cluster", "HPC and AI - LESI Solution", "HPC and AI - Systems"];
-export type SolutionModeName = (typeof SOLUTION_MODES)[number];
+export declare const HPC_SOLUTION_MODE = "HPC and AI - Systems";
 /**
  * Fallback masterSlices for General Purpose. The authoritative values come
  * from /api/solution_modes at runtime; this exists only so the very first
@@ -88,15 +79,7 @@ export type SolutionModeName = (typeof SOLUTION_MODES)[number];
  *
  * verified 2026-08-07
  */
-export declare const DEFAULT_MASTER_SLICES: readonly ["GP", "HPCGPALL", "HPCGPRYO"];
-/**
- * HTTP 499 is the upstream bot-mitigation verdict. The real SPA hard-redirects
- * to www.lenovo.com when it sees this on /solution_modes, /launch or
- * /autoDerive. It is client-scoped, not route-scoped.
- *
- * verified 2026-08-07 (handler present in app bundle)
- */
-export declare const WAF_STATUS = 499;
+export declare const DEFAULT_MASTER_SLICES: readonly ['GP', 'HPCGPALL', 'HPCGPRYO'];
 /** Magic bytes used to detect an error masquerading as a successful download. */
 export declare const MAGIC_BYTES: {
     readonly zip: Buffer<ArrayBuffer>;
@@ -104,3 +87,9 @@ export declare const MAGIC_BYTES: {
     readonly ole2: Buffer<ArrayBuffer>;
     readonly xml: Buffer<ArrayBuffer>;
 };
+/** Largest tool response, in bytes of compact JSON. */
+export declare const RESPONSE_BYTE_BUDGET = 8000;
+/** Room kept for the fields a handler adds around a paged or trimmed payload. */
+export declare const RESPONSE_ENVELOPE_RESERVE_BYTES = 1000;
+/** Budget for the payload that pagers and projections trim to fit. */
+export declare const PAGE_BYTE_BUDGET: number;

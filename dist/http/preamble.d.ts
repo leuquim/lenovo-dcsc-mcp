@@ -15,6 +15,8 @@ export declare function localeParams(locale: Locale): Record<string, string>;
  * error, which is a particularly nasty failure mode.
  */
 export declare function solutionParams(solution: SolutionContext): Record<string, string>;
+/** The website's "withdrawn since" setting, for the catalog endpoints that honour it. */
+export declare function withdrawnDateQuery(path: string, withdrawnSince: string | undefined): Record<string, string>;
 export interface ComposeInput {
     locale: Locale;
     solution?: SolutionContext | undefined;

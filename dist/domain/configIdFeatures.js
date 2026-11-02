@@ -1,3 +1,4 @@
+import { stringOrEmpty } from '../util/coerce.js';
 /**
  * Applies DCSC's client-held configuration-ID metadata to physical workspace
  * items. The server only supplies the ordered feature catalog through
@@ -11,7 +12,7 @@ export function assignConfigIdFeatures(input) {
     const rackData = structuredClone(input.rackData);
     const nonRackData = structuredClone(input.nonRackData);
     const configurations = new Map(input.configurations.flatMap(configuration => {
-        const id = string(configuration['id']) || string(configuration['configurationId']);
+        const id = stringOrEmpty(configuration['id']) || stringOrEmpty(configuration['configurationId']);
         return id === '' ? [] : [[id, configuration]];
     }));
     const catalog = configIdCatalog(input.mipCatalog);
@@ -19,8 +20,8 @@ export function assignConfigIdFeatures(input) {
     let cursor = 0;
     let assignedPhysicalItems = 0;
     for (const item of physicalItems(rackData, nonRackData)) {
-        const itemId = string(item['id']);
-        const originalId = string(array(item['originalIds'])[0]);
+        const itemId = stringOrEmpty(item['id']);
+        const originalId = stringOrEmpty(array(item['originalIds'])[0]);
         const rootId = input.cloneRoots?.[itemId] ?? (originalId || itemId);
         const configuration = configurations.get(rootId) ?? configurations.get(itemId);
         const targetCodes = configIdTargetCodes(configuration);
@@ -60,10 +61,10 @@ export function configIdCatalog(value) {
     const source = object(value)['5374'];
     return array(source).flatMap(entry => {
         const feature = object(entry);
-        const featureCode = string(feature['featureCode']);
+        const featureCode = stringOrEmpty(feature['featureCode']);
         if (featureCode === '')
             return [];
-        return [{ featureCode, quantity: 1, description: string(feature['description']) }];
+        return [{ featureCode, quantity: 1, description: stringOrEmpty(feature['description']) }];
     });
 }
 function physicalItems(racks, loose) {
@@ -88,7 +89,7 @@ export function configIdTargetCodes(configuration) {
     const seen = new Set();
     for (const raw of array(configuration['hipoDerivedItems'])) {
         const hipo = object(raw);
-        const targetCode = string(hipo['targetCtoCode']);
+        const targetCode = stringOrEmpty(hipo['targetCtoCode']);
         if (!targetCode.startsWith('5374') || !Array.isArray(hipo['features']) || seen.has(targetCode))
             continue;
         seen.add(targetCode);
@@ -106,8 +107,5 @@ function array(value) {
 }
 function object(value) {
     return typeof value === 'object' && value !== null ? value : {};
-}
-function string(value) {
-    return typeof value === 'string' ? value : '';
 }
 //# sourceMappingURL=configIdFeatures.js.map

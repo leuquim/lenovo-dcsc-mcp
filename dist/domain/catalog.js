@@ -5,6 +5,7 @@ export async function fetchCatalog(http, ctx) {
         endpoint: 'category_hierarchies',
         method: 'GET',
         path: '/category_hierarchies',
+        query: { serviceCto: true },
         responseKind: 'json',
         timeoutClass: 'fast',
         ctx,
@@ -155,5 +156,18 @@ function pagination(requestedOffset, requestedLimit, defaultLimit) {
         throw new RangeError('Catalog limit must be a positive integer.');
     }
     return { offset, limit };
+}
+/** The raw catalog product, exactly as the website posts it when it picks one. */
+export function findCatalogProduct(catalog, code) {
+    const wanted = code.toUpperCase();
+    const walk = (nodes) => {
+        for (const node of nodes) {
+            const found = node.products?.find(product => product.code.toUpperCase() === wanted) ?? walk(node.children ?? []);
+            if (found)
+                return found;
+        }
+        return undefined;
+    };
+    return walk(catalog.tree);
 }
 //# sourceMappingURL=catalog.js.map

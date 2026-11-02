@@ -1,91 +1,119 @@
 import { z } from 'zod';
-import { toToolError } from '../http/errors.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 import { projectJsonPage } from '../model/pagedJson.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { guard } from './toolSupport.js';
+const MAX_CABLING_CHANGES = 10;
 const endpointSchema = z.object({
-    configurationId: z.string().min(1).describe('Physical endpoint ID returned by dcsc_cabling_connections.'),
+    configurationId: z.string().min(1).describe('Endpoint ID from dcsc_cabling_get.'),
     portName: z.string().min(1),
     portNumber: z.string().min(1),
 }).strict();
+const distanceSchema = z.object({
+    from: z.string().min(1).describe('Source endpoint ID.'),
+    to: z.string().min(1).describe('Destination endpoint ID.'),
+    topology: z.string().min(1),
+}).strict();
+const candidateSchema = z.object({
+    network: z.string().min(1), topology: z.string().min(1),
+    source: endpointSchema, destination: endpointSchema,
+    connectionType: z.enum(['point-to-point', 'breakout-4']).optional()
+        .describe('breakout-4: one 25GbE branch of a 100GbE DAC breakout.'),
+});
+const changeSchema = z.discriminatedUnion('action', [
+    candidateSchema.extend({
+        action: z.literal('create'),
+        cablePart: z.string().min(1).describe('Part from the cable choices.'),
+        pinExistingRoutes: z.boolean().optional().default(false).describe('Convert AUTO rows to MANUAL so their routes are kept.'),
+    }),
+    z.object({
+        action: z.literal('edit'),
+        connectionId: z.string().regex(/^connection_[0-9a-f]{20}$/),
+        source: endpointSchema.optional(),
+        destination: endpointSchema.optional(),
+        cablePart: z.string().min(1).optional().describe('compatibleCables[].part of this connection.'),
+        cableQuantities: z.object({ oldPart: z.number().int().min(0), newPart: z.number().int().min(1) }).optional()
+            .describe('Quantities after replacement, including spares.'),
+    }),
+]);
+function withoutCableChoices(view) {
+    const { compatibleCables: _choices, ...row } = view;
+    return row;
+}
+function projectChangeResult(entry) {
+    const { result } = entry;
+    return {
+        action: entry.action,
+        connection: withoutCableChoices(result.connection),
+        ...(entry.action === 'create' ? {
+            pinnedConnectionCount: result.pinnedConnectionCount ?? 0,
+            sourceConfigurationIds: result.sourceConfigurationIds,
+            destinationConfigurationIds: result.destinationConfigurationIds,
+            additionalConnectionCount: result.additionalConnectionCount ?? 0,
+        } : {}),
+        ...(result.swappedConnections?.length ? { swappedConnections: result.swappedConnections.map(withoutCableChoices) } : {}),
+        ...(result.updatedConnections?.length ? { updatedConnections: result.updatedConnections.map(withoutCableChoices) } : {}),
+        ...(result.configurationChange ? { configurationChange: result.configurationChange } : {}),
+    };
+}
 export function registerManualCablingTools(server, service) {
-    server.registerTool('dcsc_cabling_connections', {
-        title: 'Inspect editable DCSC cable connections',
-        description: 'Lists the authoritative current connection graph, stable row IDs, physical endpoint/port choices and compatible cable parts. Follow returned continuations unchanged. This is the discovery step for dcsc_edit_cabling_connection; it does not create or delete rows.',
+    server.registerTool('dcsc_cabling_get', {
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+        title: 'Cable configuration panel',
+        description: 'Lists the connections with stable row IDs. Pass refreshConnectionId for one connection\'s cable choices, candidate for the cables of a new connection, or distance for the cable run between two endpoints.',
         inputSchema: {
             session: z.string().describe('Workspace or configuration handle.'),
-            expectedWorkspaceRevision: z.number().int().min(1).optional()
-                .describe('Optional read guard. A mismatch rejects stale navigation.'),
+            expectedRevision: z.number().int().min(1).optional().describe('Workspace revision; required with refreshConnectionId or candidate.'),
+            refreshConnectionId: z.string().min(1).optional(),
+            candidate: candidateSchema.optional().describe('Needs an assigned network and topology.'),
+            distance: distanceSchema.optional().describe('Distance calculator.'),
             path: z.array(z.string()).optional().default([]),
             offset: z.number().int().min(0).optional().default(0),
             limit: z.number().int().min(1).max(1000).optional().default(20),
         },
-    }, async (args) => {
-        try {
-            const snapshot = await service.inspectManualCabling(args.session, args.expectedWorkspaceRevision);
-            const page = projectJsonPage(snapshot.report, {
-                tool: 'dcsc_cabling_connections',
-                arguments: { session: args.session, expectedWorkspaceRevision: snapshot.revision },
-                path: args.path, offset: args.offset, limit: args.limit,
-            });
-            return { content: [{ type: 'text', text: JSON.stringify({
-                            workspace: snapshot.workspace, workspaceRevision: snapshot.revision,
-                            revisionScope: 'workspace', ...page,
-                        }, null, 2) }] };
-        }
-        catch (error) {
-            return { isError: true,
-                content: [{ type: 'text', text: JSON.stringify(toToolError(error), null, 2) }] };
-        }
-    });
-    server.registerTool('dcsc_edit_cabling_connection', {
-        title: 'Edit one existing DCSC cable connection',
-        description: 'Edits the source, destination, or compatible cable part of one authoritative existing connection row selected by the stable ID from dcsc_cabling_connections. Endpoint values and cablePart must be exact identifiers from that inspection. Selecting an occupied destination port on the same component swaps the other connection to the original port; both accepted rows are returned. A cable-part replacement runs its coupled hardware-selection derive before the complete accepted graph commits atomically. Edit endpoints and cablePart in separate revision-bound calls. The website exposes Edit for existing rows; this tool does not claim Add/Delete semantics.',
+    }, async (args) => guard(async () => {
+        const snapshot = await service.inspectCabling(args.session, {
+            expectedRevision: args.expectedRevision, refreshConnectionId: args.refreshConnectionId,
+            candidate: args.candidate, distance: args.distance, ctx: service.newCtx(),
+        });
+        const page = projectJsonPage(snapshot.report, {
+            tool: 'dcsc_cabling_get',
+            arguments: { session: args.session, expectedRevision: snapshot.revision,
+                ...(args.refreshConnectionId ? { refreshConnectionId: args.refreshConnectionId } : {}),
+                ...(args.candidate ? { candidate: args.candidate } : {}),
+                ...(args.distance ? { distance: args.distance } : {}) },
+            path: args.path ?? [], offset: args.offset ?? 0, limit: args.limit ?? 20,
+        });
+        return { session: args.session, revision: snapshot.revision, ...page };
+    }, 'dcsc_cabling_get failed'));
+    server.registerTool('dcsc_cabling_set', {
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+        title: 'Create or edit cable connections',
+        description: `Creates or edits manual connections, up to ${MAX_CABLING_CHANGES} changes in order. Selecting an occupied port on the same component swaps the two connections.`,
         inputSchema: {
             session: z.string().describe('Workspace or configuration handle.'),
-            connectionId: z.string().regex(/^connection_[0-9a-f]{20}$/),
-            source: endpointSchema.optional(),
-            destination: endpointSchema.optional(),
-            cablePart: z.string().min(1).optional()
-                .describe('Exact compatibleCables[].part value returned for this row.'),
-            expectedRevision: z.number().int().min(1)
-                .describe('Required workspace revision returned by dcsc_cabling_connections.'),
+            expectedRevision: z.number().int().min(1).describe('Workspace revision.'),
+            changes: z.array(changeSchema).min(1).max(MAX_CABLING_CHANGES),
         },
-    }, async (args) => {
-        try {
-            if (!args.source && !args.destination && !args.cablePart) {
-                throw new Error('Supply a source, destination or cable-part change.');
+    }, async (args) => guard(async () => {
+        args.changes.forEach((change, index) => {
+            if (change.action === 'edit' && !change.source && !change.destination && !change.cablePart) {
+                throw new Error(`Change ${index + 1}: supply a source, destination or cable-part change.`);
             }
-            const result = await service.editManualCabling(args.session, {
-                connectionId: args.connectionId,
-                ...(args.source ? { source: args.source } : {}),
-                ...(args.destination ? { destination: args.destination } : {}),
-                ...(args.cablePart ? { cablePart: args.cablePart } : {}),
-                expectedRevision: args.expectedRevision,
-                ctx: service.newCtx(),
-            });
-            // Compatible choices can contain dozens of opaque upstream records.
-            // Mutation output carries the accepted row identity/state; callers use
-            // the bounded inspection continuation to retrieve choices.
-            const { compatibleCables: _compatibleCables, ...connection } = result.connection;
-            return { content: [{ type: 'text', text: JSON.stringify({
-                            workspace: result.workspace,
-                            workspaceRevision: result.revision,
-                            revisionScope: 'workspace',
-                            connection,
-                            ...(result.swappedConnections?.length ? {
-                                swappedConnections: result.swappedConnections.map(({ compatibleCables: _choices, ...row }) => row),
-                            } : {}),
-                            ...(result.configurationChange ? { configurationChange: result.configurationChange } : {}),
-                            inspect: { tool: 'dcsc_cabling_connections', arguments: {
-                                    session: result.workspace,
-                                    expectedWorkspaceRevision: result.revision,
-                                    path: ['connections'], offset: 0, limit: 20,
-                                } },
-                        }, null, 2) }] };
+        });
+        const applied = await service.applyCablingChanges(args.session, args.changes, args.expectedRevision, service.newCtx());
+        const response = {
+            session: args.session, revision: applied.revision,
+            results: applied.results.map(projectChangeResult),
+            inspect: { tool: 'dcsc_cabling_get', arguments: {
+                    session: applied.workspace, expectedRevision: applied.revision, path: ['connections'], offset: 0, limit: 20,
+                } },
+        };
+        if (jsonBytes(response) > PAGE_BYTE_BUDGET) {
+            response['results'] = applied.results.map(({ action, result }) => ({ action, connection: { id: result.connection.id, type: result.connection.type } }));
+            response['compacted'] = true;
         }
-        catch (error) {
-            return { isError: true,
-                content: [{ type: 'text', text: JSON.stringify(toToolError(error), null, 2) }] };
-        }
-    });
+        return response;
+    }, 'dcsc_cabling_set failed'));
 }
 //# sourceMappingURL=manualCablingTools.js.map

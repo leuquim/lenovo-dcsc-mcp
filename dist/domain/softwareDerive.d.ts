@@ -1,5 +1,5 @@
 import type { RawConfiguration, RawPrice, RawTab } from '../model/types.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 /**
  * The new software engine returns a partial configuration response rather
  * than the normal `{ configurations: [...] }` auto-derive envelope.
@@ -29,4 +29,3 @@ export declare function isSoftwareDerivePatch(value: unknown): value is Software
  * configuration.
  */
 export declare function applySoftwareDerivePatch(current: RawConfiguration, value: unknown): RawConfiguration;
-export {};

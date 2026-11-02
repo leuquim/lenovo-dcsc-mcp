@@ -1,5 +1,6 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
+import { type ExportZipPath } from './endpoints.js';
 export type PartLookupType = 'SOFTWARE' | 'SERVICE' | 'HARDWARE';
 export type PartLookupMode = 'CTO' | 'LFO';
 export type PartNextAction = 'launch_configuration' | 'browse_software_catalog' | 'select_on_product_services' | 'inspect_hardware_catalog';
@@ -82,7 +83,7 @@ export interface SelectSoftwareInput {
     id?: string | undefined;
 }
 export interface StandaloneSoftwareExportEnvelope {
-    endpoint: '/lfos/export_zip';
+    endpoint: ExportZipPath;
     data: Obj & {
         standaloneData: Obj[];
     };
@@ -194,6 +195,8 @@ export interface ProductServiceExportEnvelope {
 export declare function findParts(http: DcscHttpClient, ctx: RequestCtx, input: FindPartsInput): Promise<FindPartsResult>;
 /** Fetches both software launch contracts concurrently and retains both complete responses. */
 export declare function launchStandaloneSoftware(http: DcscHttpClient, ctx: RequestCtx): Promise<StandaloneSoftwareState>;
+/** The Software page's MT/CTO/LFO ID search: the software offered for one product (GET /software/portal/search/:code). */
+export declare function searchSoftwareForProduct(http: DcscHttpClient, ctx: RequestCtx, productCode: string, mode: 'CTO' | 'LFO'): Promise<StandaloneSoftwareFeature[]>;
 /** Local browse over the complete response already fetched from DCSC. */
 export declare function browseStandaloneSoftware(state: StandaloneSoftwareState, input?: BrowseSoftwareInput): BrowseSoftwareResult;
 /** Selects a software SKU locally. DCSC exposes no repricing call for this observed workflow. */
@@ -218,4 +221,28 @@ export declare function summariseProductServices(http: DcscHttpClient, ctx: Requ
  * The XML is restored through the typed standalone service import adapter.
  */
 export declare function buildProductServiceExportEnvelope(state: ProductServiceState): ProductServiceExportEnvelope;
-export {};
+export interface ServiceCatalogDownloadRequest {
+    path: string;
+    query: Record<string, string>;
+    fields: Record<string, string>;
+}
+/**
+ * The Services page Export button (one product's service catalog) and Download Catalog button
+ * (the whole country catalog, which posts no service list).
+ */
+export declare function buildServiceCatalogDownload(input: {
+    productCode?: string | undefined;
+    serviceCodes: string[];
+    country: string;
+    downloadToken: number;
+}): ServiceCatalogDownloadRequest;
+/** Service codes of one product's catalog, from GET /service_pacs/:productCode. */
+export declare function serviceCatalogCodes(catalogRaw: unknown): string[];
+export interface ServiceProduct {
+    code: string;
+    type: string;
+    description: string;
+    withdrawn: boolean;
+}
+/** Products the Services page can attach service packs to (GET /service_pacs_product), filtered by code or description. */
+export declare function searchServiceProducts(http: DcscHttpClient, ctx: RequestCtx, query: string): Promise<ServiceProduct[]>;

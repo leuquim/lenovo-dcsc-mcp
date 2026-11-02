@@ -1,6 +1,4 @@
-function objects(value) {
-    return Array.isArray(value) ? value.filter((item) => item !== null && typeof item === 'object' && !Array.isArray(item)) : [];
-}
+import { objectItems } from '../util/coerce.js';
 /**
  * The SPA's deriveGroupIdToConfiguration adds catalog-backed MI_P selections
  * locally before export. Group ordinals restart per rack (and loose area),
@@ -22,14 +20,14 @@ export function projectChassisManufacturing(input) {
     const memberships = new Map();
     const physical = new Map();
     const rootOf = (item) => roots.get(String(item.id)) ?? String(item.id);
-    for (const area of [...input.rackArea.map(rack => objects(rack.rackItems)), input.nonRackArea]) {
+    for (const area of [...input.rackArea.map(rack => objectItems(rack.rackItems)), input.nonRackArea]) {
         const counters = new Map();
         const groups = new Map();
         for (const item of [...area].sort((a, b) => Number(a.position ?? Infinity) - Number(b.position ?? Infinity))) {
             physical.set(String(item.id), item);
             if (item.type !== 'chassis')
                 continue;
-            const nodes = objects(item.nodes);
+            const nodes = objectItems(item.nodes);
             for (const node of nodes)
                 physical.set(String(node.id), node);
             const model = String(item.chassisModel ?? '');
@@ -55,17 +53,17 @@ export function projectChassisManufacturing(input) {
         if (!item || item.type !== 'chassis' && item.type !== 'node')
             return source;
         const configuration = structuredClone(source);
-        const sections = objects(configuration.unSelectableCharacters);
+        const sections = objectItems(configuration.unSelectableCharacters);
         const section = sections.find(value => value.name === 'MI_P');
         if (!section)
             return configuration;
         const membership = memberships.get(String(source.id));
         const prefix = membership?.code.slice(0, 2) ?? (item.chassisModel === 'flex' ? '33' : '75');
-        section.results = objects(section.results).filter(result => !String(result.code).startsWith(prefix));
-        if (membership && objects(section.features).some(feature => feature.code === membership.code)) {
+        section.results = objectItems(section.results).filter(result => !String(result.code).startsWith(prefix));
+        if (membership && objectItems(section.features).some(feature => feature.code === membership.code)) {
             section.results.push({ code: membership.code, quantity: membership.quantity });
         }
-        const selected = objects(configuration.unSelectableCharacterResults).find(value => value.characterName === 'MI_P');
+        const selected = objectItems(configuration.unSelectableCharacterResults).find(value => value.characterName === 'MI_P');
         if (selected)
             selected.results = structuredClone(section.results);
         return configuration;

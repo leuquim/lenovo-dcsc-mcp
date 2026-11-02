@@ -14,7 +14,7 @@ export function assertConfigurationReconciliationAllowed(workspace) {
 }
 /** Configuration derive does not verify placements, floor plans, cords or connections. */
 export function hasPhysicalState(workspace) {
-    return workspace.racks.size > 0 || workspace.rackArea.length > 0 ||
+    return workspace.rackArea.length > 0 ||
         workspace.nonRackArea.length > 0 || workspace.floorItems.length > 0 ||
         workspace.cables.length > 0 || workspace.powerSelections.length > 0;
 }

@@ -1,8 +1,8 @@
 import type { RackObject } from './rack.js';
 import { type AdditionalStorageManagedTemplate, type StoragePlacementRole } from './storagePlacement.js';
 import type { StorageConnectionNetwork } from './storagePreferences.js';
-type Obj = Record<string, unknown>;
-export declare const NATIVE_DETACHED_STORAGE_COMMERCIAL_DIFFERENCE: "website-counts-detached-template";
+import { type Obj } from '../util/coerce.js';
+export declare const NATIVE_DETACHED_STORAGE_COMMERCIAL_DIFFERENCE: 'website-counts-detached-template';
 export interface DetachedStorageComponent extends AdditionalStorageManagedTemplate {
     roles: [StoragePlacementRole];
     physicalIds: string[];

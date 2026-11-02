@@ -1,15 +1,15 @@
-const object = (value) => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+import { objectOrEmpty } from '../util/coerce.js';
 /** Current workspace choices include the SPA's imported cluster-preference form.
  * Native convertClusterPreference2NetworkType restores these fields before editing. */
 export function workspaceNetworkTypes(fabric, state) {
     const result = structuredClone(fabric.networkTypes);
-    const networking = object(state.networkingInformation);
-    const previous = object(state.autoConnectState);
+    const networking = objectOrEmpty(state.networkingInformation);
+    const previous = objectOrEmpty(state.autoConnectState);
     const cluster = state.clusterPreference ?? previous.clusterPreference ?? networking.clusterPreference;
     if (cluster !== undefined && !Array.isArray(cluster))
         throw new Error('Saved cluster preferences must be an array.');
     for (const value of (cluster ?? [])) {
-        const entry = object(value);
+        const entry = objectOrEmpty(value);
         if (typeof entry.name !== 'string' || !entry.name)
             throw new Error('Saved network preference has no name.');
         const matches = result.filter(network => network.name === entry.name);
@@ -32,7 +32,7 @@ export function workspaceNetworkTypes(fabric, state) {
         }
         for (const role of ['main', 'leaf']) {
             if (entry[`${role}Switch`] !== undefined) {
-                const device = object(entry[`${role}Switch`]);
+                const device = objectOrEmpty(entry[`${role}Switch`]);
                 restored[role === 'main' ? 'defaultMainSwitch' : 'defaultLeafSwitch'] = device.feature ?? '';
                 restored[role === 'main' ? 'defaultMainSwitchOption' : 'defaultLeafSwitchOption'] = device.option ?? '';
             }
@@ -45,7 +45,7 @@ export function workspaceNetworkTypes(fabric, state) {
     if (state.networkTypes !== undefined && !Array.isArray(state.networkTypes))
         throw new Error('Saved network types must be an array.');
     for (const value of (state.networkTypes ?? [])) {
-        const entry = object(value);
+        const entry = objectOrEmpty(value);
         if (!['id', 'name', 'defaultNetworkTechnology', 'defaultLayout'].every(key => typeof entry[key] === 'string')) {
             throw new Error('Saved network type is malformed. Inspect the recovery snapshot before editing it.');
         }

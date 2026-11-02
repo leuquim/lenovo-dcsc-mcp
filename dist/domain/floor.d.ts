@@ -11,7 +11,7 @@
  * this workspace, and we surface an explicit warning so callers do not
  * confuse a local tile with a server-accepted layout.
  */
-import type { FloorItem } from '../session/SessionStore.js';
+import type { FloorItem } from '../model/session.js';
 import type { RackObject } from './rack.js';
 export interface FloorPlacementResult {
     item: FloorItem;
@@ -44,3 +44,25 @@ export declare function placeRackOnFloor(opts: {
     existing: FloorItem[];
     newId: string;
 }): FloorPlacementResult;
+export declare const FLOOR_PREFERENCE_KEYS: readonly ['growthRatioHorizontal', 'growthRatioVertical', 'rackDist', 'vertDist', 'coldDist', 'hotDist', 'slackDist', 'useTrayCabling'];
+export interface FloorPreferenceChange {
+    rowCount?: number | undefined;
+    colCount?: number | undefined;
+    growthRatioHorizontal?: number | undefined;
+    growthRatioVertical?: number | undefined;
+    rackDist?: number | undefined;
+    vertDist?: number | undefined;
+    coldDist?: number | undefined;
+    hotDist?: number | undefined;
+    slackDist?: number | undefined;
+    useTrayCabling?: boolean | undefined;
+}
+/** Applies the Floor Preference modal fields to the stored floor information. */
+export declare function applyFloorPreference(info: Record<string, unknown>, change: FloorPreferenceChange): Record<string, unknown>;
+/** Workspace Auto Arrange / COG Validation switches override the per-call defaults of every layout request. */
+export declare function layoutToggleOverrides(serverState: Record<string, unknown>, forceArrange?: boolean): {
+    autoArrange?: false;
+    cogValidation?: boolean;
+};
+/** Sets the colour of one rack item, as the website's item Color action does; returns undefined when no rack holds the item. */
+export declare function colourRackItem(rackArea: Array<Record<string, unknown>>, itemId: string, color: string): Array<Record<string, unknown>> | undefined;

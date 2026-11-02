@@ -9,6 +9,8 @@ export interface StageRackedCloneMultipleOptions {
     nonRackArea: RackObject[];
     sourceId: string;
     cloneIds: string[];
+    /** Each cloned chassis maps every source node ID to its new identity. */
+    childCloneIds?: Record<string, Record<string, string>>;
     /**
      * The complete workspace mapping that will be sent in
      * `workspaceInformation.cloneDependency` on auto-derive.
@@ -23,11 +25,12 @@ export interface StagedRackedCloneMultiple {
 }
 /**
  * Stages the browser's captured `Clone Multiple` physical operation for a
- * direct, rule-free rack item. The returned clone has a new identity,
+ * direct rack item with supported capacity bounds. The returned clone has a new identity,
  * `newHardware: true`, and the first free contiguous rack position. DCSC must
  * still accept the staged layout through rack customize/auto-derive.
  *
- * Copy, non-rack items, nested chassis/VLH, and rule-governed placements are
+ * Populated chassis require explicit per-parent child identity mappings.
+ * Copy, non-rack items, VLH, and complex placement rules are
  * deliberately rejected because their current browser contracts are not yet
  * verified.
  */

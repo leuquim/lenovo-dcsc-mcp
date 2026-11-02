@@ -1,5 +1,5 @@
-import { redactUnknown } from './redact.js';
-import { SessionPersistenceError } from '../session/persistenceError.js';
+import { redactBody, redactUnknown } from './redact.js';
+import { SessionPersistenceError } from './persistenceError.js';
 export class DcscError extends Error {
     kind;
     endpoint;
@@ -149,6 +149,11 @@ export function serverErrorMessage(status, requestId, traceId, corrId) {
         ? `References: ${references.join(', ')}.`
         : 'No correlation reference was returned.'}`;
 }
+const MAX_TOOL_DETAIL_CHARS = 300;
+function boundedDetail(detail) {
+    const { text } = redactBody(detail);
+    return text.length > MAX_TOOL_DETAIL_CHARS ? `${text.slice(0, MAX_TOOL_DETAIL_CHARS)}…` : text;
+}
 /** Maps an HTTP failure response onto the right DcscError subclass. */
 export function buildHttpError(input) {
     const { status, method, endpoint, contentType, body, requestId, traceId, corrId } = input;
@@ -168,9 +173,8 @@ export function buildHttpError(input) {
     if (status >= 400 && status < 500) {
         const problem = isProblemJson(contentType) ? body : undefined;
         const parsed = parseProblemDetail(problem?.detail);
-        // A 4xx detail is short and names a parameter — safe to show verbatim.
-        const userMessage = problem?.detail
-            ? `DCSC rejected the request (HTTP ${status}): ${problem.detail}`
+        const userMessage = typeof problem?.detail === 'string' && problem.detail
+            ? `DCSC rejected the request (HTTP ${status}): ${boundedDetail(problem.detail)}`
             : `DCSC rejected the request (HTTP ${status}).`;
         return new DcscValidationError({
             ...base,

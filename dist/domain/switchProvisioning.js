@@ -1,4 +1,5 @@
 import { buildRackConfigurations } from './rack.js';
+import { isObject } from '../util/coerce.js';
 /** Fields the browser posts to `/switch_calculation`, in captured wire order. */
 const SWITCH_CALCULATION_ARRAY_FIELDS = [
     'rackArea',
@@ -168,46 +169,10 @@ export function buildGeneratedSwitch(requirement, launch, options) {
         cloneDependency: { [id]: [id] },
     };
 }
-/** The browser-authoritative endpoint order for a populated automatic-switch run. */
-export const SWITCH_PROVISIONING_SEQUENCE = [
-    {
-        phase: 'calculate',
-        method: 'POST',
-        path: '/switch_calculation',
-        query: { autoArrange: true, autoConnect: true, cogValidation: true },
-    },
-    {
-        phase: 'launch-each-generated-switch',
-        method: 'POST',
-        path: '/ctos/{code}/launch',
-        query: { serviceCto: true, serviceType: 'servicecto', controlExpressModal: false },
-    },
-    {
-        phase: 'customize-generated-layout',
-        method: 'POST',
-        path: '/ctos/racks/customize',
-        query: { autoArrange: true, autoConnect: true, cogValidation: true },
-    },
-    {
-        phase: 'derive-generated-configuration',
-        method: 'POST',
-        path: '/ctos/autoDerive',
-        query: { guideMode: true },
-    },
-    {
-        phase: 'connect-p2p',
-        method: 'POST',
-        path: '/auto_connect',
-        query: { autoArrange: true, autoConnect: true, cogValidation: true },
-    },
-];
 function requiredObject(value, label) {
     if (!isObject(value))
         throw new Error(`${label} must be an object.`);
     return value;
-}
-function isObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 function requiredString(value, label) {
     if (typeof value !== 'string' || value.trim() === '')

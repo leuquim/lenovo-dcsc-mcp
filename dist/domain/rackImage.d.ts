@@ -1,4 +1,4 @@
-type Obj = Record<string, unknown>;
+import type { Obj } from '../util/coerce.js';
 export interface RackImageWorkspace {
     rackArea: Obj[];
     configurations?: ReadonlyMap<string, {
@@ -14,4 +14,3 @@ export interface RackImageWorkspace {
  * DCSC requires this image form field before it emits the Rack Report sheet.
  */
 export declare function renderRackImage(workspace: RackImageWorkspace): string;
-export {};

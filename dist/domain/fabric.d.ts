@@ -1,5 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 /** Every option retains the fields DCSC returned; `id` is a stable client key. */
 export interface FabricOption extends Obj {
     id: string;
@@ -69,9 +69,4 @@ export interface FabricPage<T> {
     limit: number;
     nextOffset?: number | undefined;
 }
-export declare function paginateFabric<T>(items: readonly T[], opts?: {
-    offset?: number | undefined;
-    limit?: number | undefined;
-}): FabricPage<T>;
 export declare function fetchFabricOptions(http: DcscHttpClient, ctx: RequestCtx): Promise<FabricOptions>;
-export {};

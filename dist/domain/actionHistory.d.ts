@@ -1,4 +1,4 @@
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
 export declare const ACTION_HISTORY_SESSION_TIMESTAMP_KEY = "actionHistorySessionTimestamp";
 export type NativeHistoryCommand = 'ADD' | 'UPDATE' | 'MOVE' | 'REMOVE' | 'CHANGE' | 'COPY' | 'CLONE' | 'UNCLONE' | 'IMPORT' | 'LOCK';
 /** Semantic fields accepted by the website's Message History command builder. */

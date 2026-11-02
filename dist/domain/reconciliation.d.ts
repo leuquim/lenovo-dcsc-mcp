@@ -1,7 +1,7 @@
 import { type ExportGroupProduct } from './exportGroups.js';
 import type { RawConfiguration } from '../model/types.js';
-import type { WorkspaceSession } from '../session/SessionStore.js';
-type Obj = Record<string, unknown>;
+import type { WorkspaceSession } from '../model/session.js';
+import { type Obj } from '../util/coerce.js';
 export declare const RECONCILIATION_HISTORY_STATE_KEY = "reconciliationHistory";
 /** Pending proposals are metadata and must not invalidate their own source hash. */
 export declare const RECONCILIATION_PROPOSALS_STATE_KEY = "reconciliationProposals";

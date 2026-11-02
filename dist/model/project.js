@@ -1,4 +1,6 @@
 import { availablePrice, configurationListPrice } from '../domain/pricing.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 /**
  * Progressive disclosure.
  *
@@ -13,7 +15,6 @@ import { availablePrice, configurationListPrice } from '../domain/pricing.js';
  * Every projection is byte-budgeted. Silently exceeding the budget would blow
  * the context window the whole design exists to protect.
  */
-export const DEFAULT_MAX_BYTES = 6_000;
 /** Descriptions carry markup and boilerplate; list views get a short form. */
 function shortDesc(text, max = 90) {
     const clean = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -66,6 +67,20 @@ function findResource(tracker, labelPattern) {
     }
     return undefined;
 }
+/** The configurator's Resource Tracker panel: slot and bay occupancy exactly as DCSC reports it. */
+export function projectResourceTrackers(raw) {
+    return (raw.resourceTrackers ?? []).map((tracker) => ({
+        name: tracker.description ?? tracker.key ?? 'resource',
+        ...(tracker.unit != null ? { unit: tracker.unit } : {}),
+        resources: (tracker.resources ?? []).map((entry) => ({ label: entry.label ?? '', value: entry.value ?? '' })),
+    }));
+}
+/** The configurator's Show Errors list: rule errors DCSC attached to sections. */
+export function projectConfigurationErrors(index) {
+    return index.sections
+        .filter((ref) => (ref.section.errors ?? []).length > 0)
+        .map((ref) => ({ tab: ref.tab, subTab: ref.subTab, section: ref.title, errors: ref.section.errors }));
+}
 const LIST_PRICE_DISCLAIMER = 'List price for the stated country and currency. Not a quote; partner and bid pricing require a Lenovo login.';
 /** L0 — what every tool returns as its header. */
 export function projectSummary(opts) {
@@ -103,19 +118,18 @@ export function projectSummary(opts) {
 /** L1 — sections with current selections inlined, but no feature lists. */
 export function projectTab(opts) {
     const refs = opts.index.sections.filter((s) => s.tab.toLowerCase() === opts.tab.toLowerCase());
-    let subtotal = 0;
     const sections = refs.map((ref) => projectSection(ref, opts.index));
-    for (const ref of refs)
-        subtotal += ref.section.totalPrice ?? 0;
+    const subtotal = refs.some((ref) => ref.section.priceNotAvailable === true)
+        ? null : round(refs.reduce((sum, ref) => sum + (availablePrice(ref.section.totalPrice) ?? 0), 0));
     return {
         session: opts.sessionId,
         revision: opts.revision,
         currency: opts.currency,
         tab: refs[0]?.tab ?? opts.tab,
         tabId: refs[0]?.tab ?? opts.tab,
-        tabSubtotal: round(subtotal),
+        tabSubtotal: subtotal,
         sections,
-        next: `dcsc_list_options(session, section: "<id>") to see the options in a section`,
+        next: `dcsc_configuration_get(session, view: "options", section: "<id>") to see the options in a section`,
     };
 }
 function projectSection(ref, index) {
@@ -196,7 +210,7 @@ export function projectOptions(opts) {
     // budget. enforceBudget recalculates its offset from the options retained.
     if (opts.offset < opts.total && items.length > 0)
         view.next = continuation(view);
-    return enforceBudget(view, opts.maxBytes ?? DEFAULT_MAX_BYTES);
+    return enforceBudget(view, opts.maxBytes ?? PAGE_BYTE_BUDGET);
 }
 /**
  * Degrades a view that exceeds its byte budget rather than letting it through.
@@ -204,7 +218,7 @@ export function projectOptions(opts) {
  */
 export function enforceBudget(view, maxBytes) {
     let current = withContinuation(view);
-    while (Buffer.byteLength(JSON.stringify(current, null, 2), 'utf8') > maxBytes &&
+    while (jsonBytes(current) > maxBytes &&
         current.options.length > 1) {
         const keep = Math.max(1, Math.floor(current.options.length * 0.75));
         current = {
@@ -225,8 +239,9 @@ function withContinuation(view) {
     return { ...view, next: continuation(view) };
 }
 function continuation(view) {
-    return { tool: 'dcsc_list_options', arguments: {
+    return { tool: 'dcsc_configuration_get', arguments: {
             session: view.session,
+            view: 'options',
             ...(view.query !== undefined ? { query: view.query } : {}),
             ...(view.tab !== undefined ? { tab: view.tab } : {}),
             ...(view.section !== undefined ? { section: view.section } : {}),

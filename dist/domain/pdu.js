@@ -1,7 +1,7 @@
 /**
  * PDU selection for rack cabinets.
  *
- * A rack added via dcsc_add_rack is launched as a full configuration. Its
+ * A rack added via dcsc_rack_add is launched as a full configuration. Its
  * Power tab carries PDU, RACK_POWERCABLE and LINECORD sections. Selecting a
  * PDU is the same operation as any other feature change: put it in the
  * reduced model and round-trip through /ctos/autoDerive. DCSC's response is
@@ -96,8 +96,8 @@ export function resolvePowerChange(index, code, quantity) {
         return s === 'PDU' || s === 'RACK_POWERCABLE' || s === 'LINECORD';
     }) ?? hits[0];
     if (!hit) {
-        throw new Error(`Unknown power feature "${code}". Use dcsc_configure_pdu without a code to list options, ` +
-            'or dcsc_list_options(session, query: "PDU") on the rack configuration.');
+        throw new Error(`Unknown power feature "${code}". Use dcsc_rack_get with the rack id to list options, ` +
+            'or dcsc_configuration_get(session, view: "options", query: "PDU") on the rack configuration.');
     }
     return {
         section: hit.sectionName ?? 'PDU',

@@ -1,4 +1,5 @@
 import { physicalIds } from './workspaceReferences.js';
+import { objectItems, positiveSafeInteger } from '../util/coerce.js';
 /** Explicit native Delete Node intent, distinct from a freshly launched loose product. */
 export function detachedNestedNodeIds(workspace) {
     const marked = workspace.serverState.detachedNestedNodeIds;
@@ -43,26 +44,18 @@ export function assertAcceptedNestedEdit(expected, accepted) {
         throw new Error('DCSC did not accept the requested nested containment or non-rack placement. Workspace was not committed.');
     }
 }
-function objects(value) {
-    return Array.isArray(value)
-        ? value.filter((entry) => entry !== null && typeof entry === 'object' && !Array.isArray(entry))
-        : [];
-}
 function identity(value) {
     const raw = value['id'] ?? value['configurationId'];
     return typeof raw === 'string' && raw.trim() !== '' ? raw : undefined;
 }
-function positiveInteger(value) {
-    return Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : undefined;
-}
 function visitPhysical(racks, loose, visitor) {
     const visit = (item) => {
         visitor(item);
-        for (const node of objects(item['nodes']))
+        for (const node of objectItems(item['nodes']))
             visit(node);
-        for (const child of objects(item['children']))
+        for (const child of objectItems(item['children']))
             visit(child);
-        for (const rackItem of objects(item['rackItems']))
+        for (const rackItem of objectItems(item['rackItems']))
             visit(rackItem);
     };
     for (const item of racks)
@@ -98,12 +91,12 @@ export function stageConfiguredNodeCopy(options) {
     const source = sourceMatches[0];
     if (source['type'] !== 'node')
         throw new Error(`Nested node copy source ${sourceNodeId} is not a node.`);
-    if (objects(source['nodes']).length > 0 || objects(source['children']).length > 0) {
+    if (objectItems(source['nodes']).length > 0 || objectItems(source['children']).length > 0) {
         throw new Error(`Nested node copy source ${sourceNodeId} has an unsupported child hierarchy.`);
     }
     const chassisMatches = [];
     for (const rack of rackArea) {
-        for (const item of objects(rack['rackItems'])) {
+        for (const item of objectItems(rack['rackItems'])) {
             if (identity(item) === chassisId)
                 chassisMatches.push({ rack, chassis: item });
         }
@@ -114,14 +107,14 @@ export function stageConfiguredNodeCopy(options) {
     const { rack, chassis } = chassisMatches[0];
     if (chassis['type'] !== 'chassis')
         throw new Error(`Nested node copy target ${chassisId} is not a chassis.`);
-    const occupiedBay = positiveInteger(source['occupiedBay']);
+    const occupiedBay = positiveSafeInteger(source['occupiedBay']);
     if (!occupiedBay)
         throw new Error(`Nested node copy source ${sourceNodeId} has no authoritative occupiedBay.`);
-    const capacity = positiveInteger(chassis['capacity']);
+    const capacity = positiveSafeInteger(chassis['capacity']);
     if (!capacity)
         throw new Error(`Nested node copy chassis ${chassisId} has no authoritative capacity.`);
-    const nodes = objects(chassis['nodes']);
-    const used = nodes.reduce((total, node) => total + (positiveInteger(node['occupiedBay']) ?? 0), 0);
+    const nodes = objectItems(chassis['nodes']);
+    const used = nodes.reduce((total, node) => total + (positiveSafeInteger(node['occupiedBay']) ?? 0), 0);
     if (used + occupiedBay > capacity)
         throw new Error(`Nested node copy exceeds chassis ${chassisId} capacity.`);
     const copy = structuredClone(source);

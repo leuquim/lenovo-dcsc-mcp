@@ -5,6 +5,7 @@ import { reduceConfiguration } from './reduce.js';
 import { VALIDATION_JOBS_STATE_KEY } from './validationJobs.js';
 import { assertConfigurationReconciliationAllowed, hasPhysicalState } from './workspaceIntegrity.js';
 import { buildIndex } from '../model/index.js';
+import { objectOrEmpty, stringOrEmpty } from '../util/coerce.js';
 export const RECONCILIATION_HISTORY_STATE_KEY = 'reconciliationHistory';
 /** Pending proposals are metadata and must not invalidate their own source hash. */
 export const RECONCILIATION_PROPOSALS_STATE_KEY = 'reconciliationProposals';
@@ -28,7 +29,6 @@ export function canonicalWorkspaceHash(workspace) {
         integrity: workspace.integrity,
         integrityWarnings: workspace.integrityWarnings,
         recoveryData: workspace.recoveryData,
-        racks: [...workspace.racks].sort(([left], [right]) => left.localeCompare(right)),
         rackArea: workspace.rackArea,
         nonRackArea: workspace.nonRackArea,
         serverState,
@@ -254,7 +254,7 @@ function assertCompleteDerivedRaw(raw, session) {
     if (typeof raw.quantity !== 'number' || !Number.isFinite(raw.quantity) || raw.quantity <= 0) {
         throw new Error(`Derived configuration ${session.id} has no valid sales quantity.`);
     }
-    const rawId = string(raw.id);
+    const rawId = stringOrEmpty(raw.id);
     if (rawId && rawId !== session.configurationId) {
         throw new Error(`Derived configuration ${session.id} has a mismatched canonical id.`);
     }
@@ -286,28 +286,28 @@ function compareConfiguration(session, targetRaw, currency) {
 function selectionSnapshot(raw) {
     const lines = [];
     for (const tabValue of array(raw.tabs)) {
-        const tab = object(tabValue);
+        const tab = objectOrEmpty(tabValue);
         for (const subTabValue of array(tab['subTabs'])) {
-            const subTab = object(subTabValue);
+            const subTab = objectOrEmpty(subTabValue);
             for (const sectionValue of array(subTab['sections'])) {
-                const section = object(sectionValue);
+                const section = objectOrEmpty(sectionValue);
                 for (const resultValue of array(section['results'])) {
-                    const result = object(resultValue);
-                    const code = string(result['code']);
+                    const result = objectOrEmpty(resultValue);
+                    const code = stringOrEmpty(result['code']);
                     if (!code)
                         continue;
                     lines.push({
                         path: {
-                            tabType: string(tab['type']),
-                            tabTitle: string(tab['title']),
-                            subTab: string(subTab['title']),
-                            source: string(subTab['source']),
-                            section: string(section['name']) || string(section['title']),
-                            sectionCode: string(section['code']),
+                            tabType: stringOrEmpty(tab['type']),
+                            tabTitle: stringOrEmpty(tab['title']),
+                            subTab: stringOrEmpty(subTab['title']),
+                            source: stringOrEmpty(subTab['source']),
+                            section: stringOrEmpty(section['name']) || stringOrEmpty(section['title']),
+                            sectionCode: stringOrEmpty(section['code']),
                         },
                         code,
                         quantity: finiteNumber(result['quantity'], 1),
-                        type: string(result['type']),
+                        type: stringOrEmpty(result['type']),
                         result: structuredClone(result),
                     });
                 }
@@ -371,14 +371,13 @@ function collectIntentWarnings(workspace, session, targetRaw, diff, warnings) {
     }
 }
 function cloneWorkspace(workspace) {
-    const clone = structuredClone({ ...workspace, configurations: undefined, racks: undefined });
+    const clone = structuredClone({ ...workspace, configurations: undefined });
     return {
         ...clone,
         configurations: new Map([...workspace.configurations].map(([id, session]) => {
             const sessionClone = structuredClone({ ...session, index: undefined });
             return [id, { ...sessionClone, index: buildIndex(sessionClone.raw) }];
         })),
-        racks: new Map([...workspace.racks].map(([id, rack]) => [id, structuredClone(rack)])),
     };
 }
 function productIdentity(raw) {
@@ -422,16 +421,8 @@ function stableStringify(value) {
 function sortCanonical(values) {
     return structuredClone(values).sort((left, right) => stableStringify(left).localeCompare(stableStringify(right)));
 }
-function object(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-        ? value
-        : {};
-}
 function array(value) {
     return Array.isArray(value) ? value : [];
-}
-function string(value) {
-    return typeof value === 'string' ? value : '';
 }
 function finiteNumber(value, fallback) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;

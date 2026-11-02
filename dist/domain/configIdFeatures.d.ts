@@ -1,4 +1,4 @@
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 export interface ConfigIdFeature {
     featureCode: string;
     quantity: 1;
@@ -32,4 +32,3 @@ export declare function assignConfigIdFeatures(input: ConfigIdAssignmentInput): 
 /** Extracts the exact 5374 family consumed by the current DCSC SPA. */
 export declare function configIdCatalog(value: unknown): ConfigIdFeature[];
 export declare function configIdTargetCodes(configuration: Obj | undefined): string[];
-export {};

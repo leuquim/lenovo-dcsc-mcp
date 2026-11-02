@@ -1,4 +1,4 @@
-import type { WorkspaceSession } from '../session/SessionStore.js';
+import type { WorkspaceSession } from './session.js';
 export interface WorkspaceProjectionOptions {
     tool: string;
     arguments: Record<string, unknown>;
@@ -42,9 +42,9 @@ export declare function workspaceDetailSource(workspace: WorkspaceSession): Reco
 export declare function workspaceProjectionTotals(source: ReturnType<typeof workspaceDetailSource>): WorkspaceProjectionTotals;
 /** Bounded integrity fragment reusable by single-configuration and standalone summaries. */
 export declare function projectWorkspaceIntegrity(workspace: WorkspaceSession, options: WorkspaceProjectionOptions): Record<string, unknown>;
-/** Compact replacement for the multi-configuration dcsc_session_info body. */
+/** Compact replacement for the multi-configuration dcsc_workspace_get summary. */
 export declare function projectWorkspaceSummary(workspace: WorkspaceSession, options: WorkspaceProjectionOptions): Record<string, unknown>;
-/** Compact replacement for the default dcsc_workspace_layout response. */
+/** Compact replacement for the dcsc_workspace_get layout view. */
 export declare function projectWorkspaceLayout(workspace: WorkspaceSession, options: WorkspaceProjectionOptions): Record<string, unknown>;
 /** Lossless bounded detail page used when a projection tool receives path. */
 export declare function projectWorkspacePage(workspace: WorkspaceSession, options: WorkspacePageOptions): Record<string, unknown>;

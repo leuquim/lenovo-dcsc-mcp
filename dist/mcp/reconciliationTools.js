@@ -1,9 +1,12 @@
 import { z } from 'zod';
-import { toToolError } from '../http/errors.js';
+import { guard } from './toolSupport.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 export function registerReconciliationTools(server, service) {
     server.registerTool('dcsc_reconcile_workspace', {
-        title: 'Review and accept a saved design reconciliation',
-        description: 'propose derives the current configurations and durably stores a reviewable comparison without changing selections or design revision. inspect pages through all proposal differences and warnings; use nextPath to expand a large field. apply explicitly accepts the identified proposal only while its original revision and content still match. Missing legacy intent remains an acknowledged uncertainty. Damaged or quarantined design data requires repair or re-import. Configuration reconciliation does not certify legacy physical layout; export and validation remain gated for that state.',
+        annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+        title: 'Reconcile a saved design',
+        description: 'For damaged or legacy workspaces: propose stores a reviewable comparison, inspect pages through it, apply accepts it while the workspace is unchanged.',
         inputSchema: {
             session: z.string(),
             action: z.enum(['propose', 'inspect', 'apply']),
@@ -12,33 +15,25 @@ export function registerReconciliationTools(server, service) {
             offset: z.number().int().min(0).optional().default(0),
             limit: z.number().int().min(1).max(1000).optional().default(20),
         },
-    }, async (args) => {
-        try {
-            let result;
-            if (args.action === 'propose') {
-                const proposal = await service.proposeReconciliation(args.session, service.newCtx());
-                result = { workspace: proposal.workspaceId, proposalId: proposal.id, sourceRevision: proposal.sourceRevision,
-                    sourceHash: proposal.sourceHash, status: proposal.status, configurations: proposal.diffs.length,
-                    changedConfigurations: proposal.diffs.filter(diff => diff.changed).length,
-                    warningCount: proposal.warnings.length,
-                    note: 'Review differences and warnings before explicitly applying. Reconciliation cannot recover omitted legacy intent.',
-                    next: { tool: 'dcsc_reconcile_workspace', arguments: { session: proposal.workspaceId,
-                            action: 'inspect', proposalId: proposal.id, path: [], offset: 0, limit: 20 } } };
-            }
-            else {
-                if (!args.proposalId)
-                    throw new Error('proposalId is required for inspect or apply.');
-                if (args.action === 'apply')
-                    result = await service.acceptReconciliation(args.session, args.proposalId);
-                else
-                    result = projectProposal(service.reconciliationProposal(args.session, args.proposalId), args.path, args.offset, args.limit);
-            }
-            return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }, async (args) => guard(async () => {
+        if (args.action === 'propose') {
+            const proposal = await service.proposeReconciliation(args.session, service.newCtx());
+            return { session: proposal.workspaceId, revision: service.sessions.getWorkspace(proposal.workspaceId)?.revision, proposalId: proposal.id, sourceRevision: proposal.sourceRevision,
+                sourceHash: proposal.sourceHash, status: proposal.status, configurations: proposal.diffs.length,
+                changedConfigurations: proposal.diffs.filter(diff => diff.changed).length,
+                warningCount: proposal.warnings.length,
+                note: 'Review differences and warnings before explicitly applying. Reconciliation cannot recover omitted legacy intent.',
+                next: { tool: 'dcsc_reconcile_workspace', arguments: { session: proposal.workspaceId,
+                        action: 'inspect', proposalId: proposal.id, path: [], offset: 0, limit: 20 } } };
         }
-        catch (error) {
-            return { isError: true, content: [{ type: 'text', text: JSON.stringify(toToolError(error), null, 2) }] };
+        if (!args.proposalId)
+            throw new Error('proposalId is required for inspect or apply.');
+        if (args.action === 'apply') {
+            const accepted = await service.acceptReconciliation(args.session, args.proposalId);
+            return { session: accepted.workspace, revision: accepted.revision, integrity: accepted.integrity };
         }
-    });
+        return projectProposal(service.reconciliationProposal(args.session, args.proposalId), args.path, args.offset, args.limit);
+    }, 'dcsc_reconcile_workspace failed'));
 }
 /** Lossless navigation of large comparisons; internal replacement trees are never exposed. */
 export function projectProposal(proposal, path, offset, limit) {
@@ -68,11 +63,11 @@ export function projectProposal(proposal, path, offset, limit) {
         offset, returned: page.length, items: page,
         ...(offset + page.length < entries.length ? { next: { tool: 'dcsc_reconcile_workspace', arguments: { ...args, offset: offset + page.length } } } : {}) });
     let result = build();
-    while (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500 && page.length > 1) {
+    while (jsonBytes(result) > PAGE_BYTE_BUDGET && page.length > 1) {
         page.pop();
         result = build();
     }
-    if (Buffer.byteLength(JSON.stringify(result, null, 2)) > 7500)
+    if (jsonBytes(result) > PAGE_BYTE_BUDGET)
         throw new Error('Review path exceeds the response budget. Use a shorter path or inspect the parent field.');
     return result;
 }

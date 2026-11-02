@@ -1,10 +1,6 @@
 import { resolveStoragePhysicalAliases, } from './storagePlacement.js';
+import { objectOrUndefined } from '../util/coerce.js';
 export const NATIVE_DETACHED_STORAGE_COMMERCIAL_DIFFERENCE = 'website-counts-detached-template';
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
 function requiredString(value, label) {
     if (typeof value !== 'string' || value.trim() === '')
         throw new Error(`${label} is required.`);
@@ -29,7 +25,7 @@ export function readDetachedStorageComponents(state) {
     }
     const seen = new Set();
     return source.map((raw, index) => {
-        const value = object(raw);
+        const value = objectOrUndefined(raw);
         if (!value)
             throw new Error(`Detached storage component ${index} must be an object.`);
         const templateId = requiredString(value['templateId'], `Detached storage component ${index} templateId`);
@@ -75,12 +71,12 @@ export function detachedStorageTemplateIds(state) {
     if (!Array.isArray(source))
         return new Set();
     return new Set(source.flatMap((raw) => {
-        const id = object(raw)?.['templateId'];
+        const id = objectOrUndefined(raw)?.['templateId'];
         return typeof id === 'string' && id.trim() ? [id] : [];
     }));
 }
 function selectedId(network, role) {
-    const id = object(network[role])?.['id'];
+    const id = objectOrUndefined(network[role])?.['id'];
     return typeof id === 'string' ? id.trim() : '';
 }
 function activeTemplateIds(networks) {
@@ -112,7 +108,7 @@ export function retainReplacedStorageComponents(options) {
     });
     const retained = [];
     for (const role of ['controller', 'mainSwitch']) {
-        const before = object(previousMatches[0][role]);
+        const before = objectOrUndefined(previousMatches[0][role]);
         const oldId = selectedId(previousMatches[0], role);
         const newId = selectedId(nextMatches[0], role);
         if (!oldId || oldId === newId || activeAfter.has(oldId))

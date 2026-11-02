@@ -31,7 +31,7 @@ export const DEFAULT_FLOOR_PREFERENCE = {
 export function placeRackOnFloor(opts) {
     const rack = opts.rackArea.find((r) => String(r['id']) === opts.rackId);
     if (!rack) {
-        throw new Error(`Rack ${opts.rackId} is not in this workspace. Add one with dcsc_add_rack first.`);
+        throw new Error(`Rack ${opts.rackId} is not in this workspace. Add one with dcsc_rack_add first.`);
     }
     if (!Number.isInteger(opts.x) || opts.x < 0 || !Number.isInteger(opts.y) || opts.y < 0) {
         throw new Error('Floor coordinates must be non-negative integers (tile indices).');
@@ -54,5 +54,38 @@ export function placeRackOnFloor(opts) {
             'and does not validate tile coordinates. The web UI behaves the same. ' +
             'FLOOR export remains blocked (export endpoint rejects the rack payload shape).',
     };
+}
+export const FLOOR_PREFERENCE_KEYS = [
+    'growthRatioHorizontal', 'growthRatioVertical', 'rackDist', 'vertDist', 'coldDist', 'hotDist', 'slackDist', 'useTrayCabling',
+];
+/** Applies the Floor Preference modal fields to the stored floor information. */
+export function applyFloorPreference(info, change) {
+    const preference = { ...DEFAULT_FLOOR_PREFERENCE, ...info['floorPreference'] };
+    for (const key of FLOOR_PREFERENCE_KEYS)
+        if (change[key] !== undefined)
+            preference[key] = change[key];
+    const settings = { ...info['floorGridSettings'] };
+    if (change.rowCount !== undefined)
+        settings['rowCount'] = change.rowCount;
+    if (change.colCount !== undefined)
+        settings['colCount'] = change.colCount;
+    return { ...info, floorPreference: preference, floorGridSettings: settings };
+}
+/** Workspace Auto Arrange / COG Validation switches override the per-call defaults of every layout request. */
+export function layoutToggleOverrides(serverState, forceArrange = false) {
+    const flags = (serverState['layoutControls'] ?? {});
+    return {
+        ...(flags['autoArrange'] === false && !forceArrange ? { autoArrange: false } : {}),
+        ...(typeof flags['cogValidation'] === 'boolean' ? { cogValidation: flags['cogValidation'] } : {}),
+    };
+}
+/** Sets the colour of one rack item, as the website's item Color action does; returns undefined when no rack holds the item. */
+export function colourRackItem(rackArea, itemId, color) {
+    const holdsItem = (rack) => Array.isArray(rack['rackItems']) && rack['rackItems'].some(item => item['id'] === itemId);
+    if (!rackArea.some(holdsItem))
+        return undefined;
+    return rackArea.map(rack => holdsItem(rack)
+        ? { ...rack, rackItems: rack['rackItems'].map(item => item['id'] === itemId ? { ...item, color } : item) }
+        : rack);
 }
 //# sourceMappingURL=floor.js.map

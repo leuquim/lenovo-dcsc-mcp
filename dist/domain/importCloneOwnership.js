@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { cloneConfigurationRaw } from './configurationIdentity.js';
 import { serializeSections } from './dcscWire.js';
 import { buildExportGroups } from './exportGroups.js';
+import { powerLoadFactor } from './power.js';
 function objectValue(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value)
         ? value
@@ -135,7 +136,7 @@ function semanticCloneState(raw, identity, mode) {
         nodeRole: raw.nodeRole ?? '',
         voltage: structuredClone(raw.voltage ?? {}),
         currentPowerPolicy: raw.currentPowerPolicy ?? 5,
-        loadFactor: raw.loadFactor ?? 70,
+        loadFactor: powerLoadFactor(raw) ?? 70,
         serviceCtoFlag: structuredClone(raw.serviceCtoFlag ?? {}),
     };
 }
@@ -173,10 +174,13 @@ export function reconcileImportedCloneOwnership(opts) {
         const original = objectValue(evidence?.['original']);
         const originalId = original?.['configurationId'] ?? original?.['id'];
         const originalIds = original?.['originalIds'];
+        const parentQuantity = evidence?.['parentQuantity'] ?? 1;
         if (typeof sourceId !== 'string' || !Array.isArray(ids) || ids.length < 2 ||
             ids.some(id => typeof id !== 'string' || id.trim() === '') ||
             new Set(ids).size !== ids.length || !ids.includes(sourceId) || originalId !== sourceId ||
-            Number(original?.['quantity']) !== ids.length || !Array.isArray(originalIds) ||
+            typeof parentQuantity !== 'number' || !Number.isSafeInteger(parentQuantity) || parentQuantity < 1 ||
+            parentQuantity > 1 && original?.['type'] !== 'node' ||
+            Number(original?.['quantity']) * parentQuantity !== ids.length || !Array.isArray(originalIds) ||
             originalIds.some(id => typeof id !== 'string') || !sameIdentitySet(originalIds, ids)) {
             throw new Error('Imported clone expansion provenance is malformed; reimport the source XML before exporting.');
         }
@@ -221,7 +225,7 @@ export function reconcileImportedCloneOwnership(opts) {
             throw new Error(`Clone dependency color ${sourceId} conflicts with the imported clone group.`);
         }
         const rootColor = objectValue(resultColors[sourceId]);
-        if (rootColor && retainedNativeMembers && !isDeepStrictEqual(retainedNativeMembers, members)) {
+        if (rootColor && retainedNativeMembers && !sameIdentitySet(retainedNativeMembers, members)) {
             resultColors[sourceId] = { ...rootColor, dependBy: [...members] };
             changed = true;
         }
@@ -246,9 +250,5 @@ export function reconcileImportedCloneOwnership(opts) {
     validateDependencyPartition(result);
     validateCanonicalColorPartition(result, resultColors, activeConfigurationIds, storageRoots, storageAliases);
     return { dependency: result, colors: resultColors, changed };
-}
-/** Compatibility projection for callers that need only the canonical dependency. */
-export function reconcileImportedCloneDependency(opts) {
-    return reconcileImportedCloneOwnership(opts).dependency;
 }
 //# sourceMappingURL=importCloneOwnership.js.map

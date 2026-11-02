@@ -1,7 +1,10 @@
 import type { Config } from '../config/schema.js';
-import type { PersistenceWriter, RestoreRecoveryArchive, SessionStore, WorkspaceSession } from './SessionStore.js';
-/** Current on-disk envelope. Derived reduced/index data is deliberately absent. */
+import type { PersistenceWriter, RestoreRecoveryArchive, SessionStore } from './SessionStore.js';
+import type { WorkspaceSession } from '../model/session.js';
+/** Self-contained envelope of recovery exports and archives. Derived reduced/index data is deliberately absent. */
 export declare const SNAPSHOT_VERSION = 2;
+/** Envelope of a workspace's doc.json, whose large values are references into blobs/. */
+export declare const WORKSPACE_DOC_VERSION = 3;
 export declare function stateFile(config: Config): string;
 /**
  * Lists immutable source snapshots retained when persisted state could not be
@@ -13,9 +16,18 @@ export declare function listSessionRecoveryArchives(config: Config): RestoreReco
 export declare function readSessionRecoveryArchive(config: Config, id: string): Buffer;
 /** Writer suitable for SessionStore.setPersistenceWriter. */
 export declare function createPersistenceWriter(config: Config): PersistenceWriter | undefined;
-/** Compatibility entry point for callers that persist outside a transaction. */
+/** Writes every loaded workspace through the same path the store's writer uses. */
 export declare function saveSessions(store: SessionStore, config: Config): void;
+/** Self-contained JSON of workspaces with every value inline, for recovery export and archives. */
 export declare function serializeWorkspaces(workspaces: readonly WorkspaceSession[]): string;
-/** Writes and synchronizes a complete candidate before replacing the live file. */
-export declare function saveWorkspaceSnapshot(workspaces: readonly WorkspaceSession[], config: Config): void;
+/**
+ * Registers the persisted workspaces with the store without reading them; each
+ * is parsed and restored when first accessed. The legacy single-file state is
+ * set aside once and ignored.
+ */
 export declare function loadSessions(store: SessionStore, config: Config): number;
+export declare function workspacesDirectory(config: Config): string;
+export declare function workspaceDirectory(config: Config, id: string): string;
+/** The document of one workspace; its large values live next to it under blobs/. */
+export declare function workspaceFile(config: Config, id: string): string;
+export declare function workspaceBlobsDirectory(config: Config, id: string): string;

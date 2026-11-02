@@ -1,6 +1,6 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
 import { type LmcValidationResult, type ValidationRequestError, type ValidationStatus, type LocalMessage } from './validate.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 export declare const VALIDATION_JOBS_STATE_KEY = "validationJobs";
 export declare const DEFAULT_VALIDATION_DEADLINE_MS: number;
 /** JSON-safe, persistence-ready state for one manufacturing validation attempt. */
@@ -79,4 +79,3 @@ export declare function loadValidationJobs(serverState: Obj, now?: number): Vali
 export declare function readValidationJobs(serverState: Obj): ValidationJob[];
 /** Returns a cloned workspace-state object with the job upserted and bounded. */
 export declare function saveValidationJob(serverState: Obj, job: ValidationJob, maxJobs?: number): Obj;
-export {};

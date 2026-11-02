@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { fetchLmcValidationResult, parseLmcValidationResult, startLmcValidation, } from './validate.js';
+import { fetchLmcValidationResult, parseLmcValidationResult, lmcValidationBody, startLmcValidation, } from './validate.js';
+import { errorMessage, isObject } from '../util/coerce.js';
 export const VALIDATION_JOBS_STATE_KEY = 'validationJobs';
 export const DEFAULT_VALIDATION_DEADLINE_MS = 5 * 60_000;
 /** Hashes the exact semantic start body, independent of object key insertion order. */
 export function validationPayloadSha256(payload, mode) {
-    return createHash('sha256').update(canonicalJson({ ...payload, mode })).digest('hex');
+    return createHash('sha256').update(canonicalJson(lmcValidationBody(payload, mode))).digest('hex');
 }
 /**
  * Starts and completes one job under one deadline. There is exactly one result
@@ -35,7 +36,7 @@ export async function runValidationJob(http, ctx, exportPayload, mode, options) 
             start = await bounded.race(startLmcValidation(http, bounded.ctx, exportPayload, mode));
         }
         catch (error) {
-            job = unavailable(job, 'start', error, now(), false);
+            job = unavailable(job, 'start', error, now(), true);
             await publish();
             return job;
         }
@@ -245,7 +246,7 @@ function toRequestError(phase, error) {
     const value = isObject(error) ? error : {};
     const message = typeof value['userMessage'] === 'string'
         ? value['userMessage']
-        : error instanceof Error ? error.message : String(error);
+        : errorMessage(error);
     return {
         phase,
         message,
@@ -268,9 +269,6 @@ function normalize(value) {
             out[key] = normalized;
     }
     return out;
-}
-function isObject(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 function isStatus(value) {
     return value === 'pending' || value === 'valid' || value === 'invalid' ||

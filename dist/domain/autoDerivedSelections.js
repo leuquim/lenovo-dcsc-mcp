@@ -1,16 +1,12 @@
-function objects(value) {
-    return Array.isArray(value)
-        ? value.filter((item) => item !== null && typeof item === 'object' && !Array.isArray(item))
-        : [];
-}
+import { objectItems } from '../util/coerce.js';
 function configurationId(configuration) {
     return String(configuration.id ?? configuration.configurationId ?? '');
 }
 function sections(configuration) {
     return [
-        ...objects(configuration.unSelectableCharacters),
-        ...objects(configuration.tabs).flatMap((tab) => objects(tab['subTabs']))
-            .flatMap((subTab) => objects(subTab['sections'])),
+        ...objectItems(configuration.unSelectableCharacters),
+        ...objectItems(configuration.tabs).flatMap((tab) => objectItems(tab['subTabs']))
+            .flatMap((subTab) => objectItems(subTab['sections'])),
     ];
 }
 /**
@@ -28,7 +24,7 @@ export function projectAutoDerivedSelections(source, recordsValue) {
     const id = configurationId(configuration);
     const availableSections = sections(configuration);
     const applied = [];
-    for (const record of objects(records)) {
+    for (const record of objectItems(records)) {
         const derivePart = record['derivePart'];
         const feature = record['feature'];
         if (record['derivePartType'] !== 'FC' || record['invalid'] === true || record['override'] === true ||
@@ -47,7 +43,7 @@ export function projectAutoDerivedSelections(source, recordsValue) {
             typeof quantity !== 'number' || !Number.isSafeInteger(quantity) || quantity <= 0)
             continue;
         const section = availableSections.find((candidate) => candidate['name'] === sectionName);
-        const result = objects(section?.['results']).find((candidate) => candidate['code'] === code);
+        const result = objectItems(section?.['results']).find((candidate) => candidate['code'] === code);
         if (!result)
             continue;
         result['derived'] = true;

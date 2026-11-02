@@ -1,14 +1,5 @@
 import { buildRackConfigurations } from './rack.js';
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
-function objects(value) {
-    return Array.isArray(value)
-        ? value.filter((entry) => object(entry) !== undefined)
-        : [];
-}
+import { objectItems, objectOrUndefined } from '../util/coerce.js';
 function requiredString(value, label) {
     if (typeof value !== 'string' || value.trim() === '')
         throw new Error(`${label} is required.`);
@@ -30,7 +21,7 @@ function productCode(value, label) {
 function normalizeDependency(value) {
     if (value === undefined)
         return {};
-    const source = object(value);
+    const source = objectOrUndefined(value);
     if (!source)
         throw new Error('cloneDependency must be an object of identity arrays.');
     const output = {};
@@ -82,7 +73,7 @@ function allPhysicalIds(rackArea, nonRackArea) {
     };
     for (const rack of rackArea) {
         add(rack, 'Rack');
-        for (const item of objects(rack['rackItems']))
+        for (const item of objectItems(rack['rackItems']))
             add(item, 'Rack item');
     }
     for (const item of nonRackArea)
@@ -90,13 +81,13 @@ function allPhysicalIds(rackArea, nonRackArea) {
     return ids;
 }
 function selectedComponents(network) {
-    const expansion = object(network.expansion);
+    const expansion = objectOrUndefined(network.expansion);
     if (typeof expansion?.['option'] === 'string' && expansion['option'].trim()) {
         throw new Error('Physical storage expansion placement is not captured yet. Choose a definition with no expansion.');
     }
     const selected = [];
     for (const [role, type] of [['controller', 'storage'], ['mainSwitch', 'switch']]) {
-        const component = object(network[role]);
+        const component = objectOrUndefined(network[role]);
         const option = typeof component?.['option'] === 'string' ? component['option'].trim() : '';
         if (!option) {
             if (role === 'controller')
@@ -114,7 +105,7 @@ function physicalMetadata(value) {
     const originalId = typeof value['originalId'] === 'string' && value['originalId'].trim()
         ? value['originalId']
         : undefined;
-    const controllerExpansion = object(value['controllerExpansion']);
+    const controllerExpansion = objectOrUndefined(value['controllerExpansion']);
     return {
         ...(originalId ? { originalId } : {}),
         ...(controllerExpansion ? { controllerExpansion: structuredClone(controllerExpansion) } : {}),
@@ -149,7 +140,7 @@ export function stageStorageNetworkPlacement(options) {
     const physicalToTemplate = {};
     const wireConfigurations = [];
     const target = rackMatches[0];
-    const existing = objects(target['rackItems']);
+    const existing = objectItems(target['rackItems']);
     for (const input of options.components) {
         if (seenRoles.has(input.role))
             throw new Error(`Storage placement repeats component role ${input.role}.`);
@@ -214,22 +205,22 @@ export function stageStorageNetworkPlacement(options) {
 }
 /** Validates DCSC's accepted layout and reports its authoritative placement metadata. */
 export function parseStoragePlacementResponse(raw, staged) {
-    const state = object(raw);
+    const state = objectOrUndefined(raw);
     if (!state || !Array.isArray(state['rackArea']) || !Array.isArray(state['nonRackArea']) ||
         !Array.isArray(state['connections'])) {
         throw new Error('DCSC returned an incomplete storage placement layout.');
     }
     const found = new Map();
-    for (const rack of objects(state['rackArea'])) {
+    for (const rack of objectItems(state['rackArea'])) {
         const rackId = identity(rack, 'Returned rack');
-        for (const item of objects(rack['rackItems'])) {
+        for (const item of objectItems(rack['rackItems'])) {
             const id = identity(item, 'Returned rack item');
             const values = found.get(id) ?? [];
             values.push({ rackId, item });
             found.set(id, values);
         }
     }
-    for (const item of objects(state['nonRackArea'])) {
+    for (const item of objectItems(state['nonRackArea'])) {
         const id = identity(item, 'Returned non-rack item');
         const values = found.get(id) ?? [];
         values.push({ rackId: '', item });
@@ -276,7 +267,7 @@ export function resolveStoragePhysicalAliases(options) {
     };
     for (const rack of options.rackArea) {
         const rackId = identity(rack, 'Rack');
-        for (const item of objects(rack['rackItems']))
+        for (const item of objectItems(rack['rackItems']))
             add(item, 'rack', rackId);
     }
     for (const item of options.nonRackArea)
@@ -284,7 +275,7 @@ export function resolveStoragePhysicalAliases(options) {
     const templates = new Map();
     for (const network of options.storageConnectionNetworks) {
         for (const role of ['controller', 'mainSwitch']) {
-            const selected = object(network[role]);
+            const selected = objectOrUndefined(network[role]);
             const id = typeof selected?.['id'] === 'string' && selected['id'].trim() ? selected['id'] : undefined;
             const code = typeof selected?.['option'] === 'string' && selected['option'].trim() ? selected['option'] : undefined;
             if (!id || !code)

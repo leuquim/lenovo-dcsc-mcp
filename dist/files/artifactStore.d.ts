@@ -56,3 +56,16 @@ export declare function writeExportBundle(stream: NodeJS.ReadableStream, fileNam
 export declare function writeRecoveryArtifact(json: string, fileName: string, config: Config): Promise<RecoveryArtifact>;
 /** Corrupt source files must remain recoverable without decoding or JSON normalization. */
 export declare function writeRecoverySourceArtifact(bytes: Buffer, fileName: string, config: Config): Promise<RecoveryArtifact>;
+export declare function writeCfxmlArtifact(bytes: Buffer, fileName: string, config: Config): Promise<Omit<RecoveryArtifact, "format"> & {
+    format: "lenovo-cfxml";
+}>;
+export interface SpreadsheetArtifact {
+    path: string;
+    bytes: number;
+    sha256: string;
+    warnings: string[];
+}
+/** Streams a DCSC .xlsx download into the artifact store, rejecting bodies that are not a ZIP container. */
+export declare function writeSpreadsheetArtifact(stream: NodeJS.ReadableStream, fileName: string, config: Config): Promise<SpreadsheetArtifact>;
+/** Streams a DCSC VLH item export (XML) into the artifact store, rejecting bodies that are not a VLHData document. */
+export declare function writeVlhArtifact(stream: NodeJS.ReadableStream, fileName: string, config: Config): Promise<SpreadsheetArtifact>;

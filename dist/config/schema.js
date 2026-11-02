@@ -87,7 +87,7 @@ const FilesSchema = z.object({
     exportEncoding: z.enum(['urlencoded', 'multipart']).default('urlencoded'),
     /** Sessions survive a restart unless this is turned off. */
     persistSessions: z.boolean().default(true),
-    /** Overrides the default XDG state path for the session snapshot. */
+    /** Overrides the default XDG state path; workspaces persist under a `workspaces` directory beside it. */
     sessionFile: z.string().optional(),
 });
 export const ConfigSchema = z.object({
@@ -108,12 +108,14 @@ export const ConfigSchema = z.object({
      * model OAuth/JWT until credentials actually exist.
      */
     credentials: z.null().default(null),
-    pacing: PacingSchema.default({}),
-    timeouts: TimeoutsSchema.default({}),
-    retry: RetrySchema.default({}),
-    breaker: BreakerSchema.default({}),
-    waf: WafSchema.default({}),
-    files: FilesSchema.default({}),
+    // Parse omitted sections so their field defaults are populated. Zod 4's
+    // default({}) would return the empty object without parsing its children.
+    pacing: PacingSchema.prefault({}),
+    timeouts: TimeoutsSchema.prefault({}),
+    retry: RetrySchema.prefault({}),
+    breaker: BreakerSchema.prefault({}),
+    waf: WafSchema.prefault({}),
+    files: FilesSchema.prefault({}),
     /** `lenient` in production; `strict` only in the contract-test suite. */
     schemaMode: z.enum(['lenient', 'strict']).default('lenient'),
     logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'silent']).default('info'),
@@ -127,7 +129,7 @@ export const ConfigSchema = z.object({
     /** Writes redacted responses to fixtures/ for the offline test corpus. */
     record: z.boolean().default(false),
 });
-/** Masks anything sensitive before config is logged or returned by dcsc_health. */
+/** Masks anything sensitive before config is logged or returned to clients. */
 export function redactConfig(config) {
     return { ...config, credentials: config.credentials ? '[redacted]' : null };
 }

@@ -1,1 +1,1 @@
-Built release of lenovo-dcsc from b96632af793ad4f31f0724f2f8486ff411d1611d. Do not edit; regenerate with lenovo-architect/tools/release-plugin.mjs.
+Built release of lenovo-dcsc from f4f44d1736f6c0df77aac870dd57893f1a3e0017. Do not edit; regenerate with lenovo-architect/tools/release-plugin.mjs.

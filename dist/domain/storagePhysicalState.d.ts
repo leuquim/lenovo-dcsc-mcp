@@ -1,5 +1,5 @@
 import type { RawConfiguration } from '../model/types.js';
-type Obj = Record<string, unknown>;
+import type { Obj } from '../util/coerce.js';
 export interface StoragePhysicalWorkspace {
     serverState?: Obj;
     rackArea?: Obj[];
@@ -10,4 +10,3 @@ export declare function storagePhysicalConfigurations(workspace: StoragePhysical
     physicalId: string;
     raw: RawConfiguration;
 }>;
-export {};

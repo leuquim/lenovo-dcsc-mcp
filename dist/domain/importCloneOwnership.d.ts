@@ -36,5 +36,3 @@ export declare function reconcileImportedCloneOwnership(opts: {
     colors: Record<string, unknown>;
     changed: boolean;
 };
-/** Compatibility projection for callers that need only the canonical dependency. */
-export declare function reconcileImportedCloneDependency(opts: Parameters<typeof reconcileImportedCloneOwnership>[0]): CloneDependency;

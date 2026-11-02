@@ -27,6 +27,15 @@ export function solutionParams(solution) {
         masterSlices: solution.masterSlices.join(','),
     };
 }
+const WITHDRAWN_DATE_PATHS = new Set([
+    '/category_hierarchies', '/lfos/cto_filter_lfo', '/multiprod_category_hierarchies',
+    '/reference_solution/category_drs', '/service/portal/categories', '/promotion/hierarchies',
+    '/categories/getProductListBySubCategory',
+]);
+/** The website's "withdrawn since" setting, for the catalog endpoints that honour it. */
+export function withdrawnDateQuery(path, withdrawnSince) {
+    return withdrawnSince !== undefined && WITHDRAWN_DATE_PATHS.has(path) ? { withdrawnDate: withdrawnSince } : {};
+}
 export function composeQuery(input) {
     const merged = {
         ...localeParams(input.locale),

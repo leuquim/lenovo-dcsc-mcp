@@ -1,3 +1,5 @@
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 /** Lossless, bounded navigation for retained upstream reports and recovery state. */
 export function projectJsonPage(source, options) {
     let value = source;
@@ -25,9 +27,9 @@ export function projectJsonPage(source, options) {
     });
     const result = () => ({ path: options.path, offset: options.offset, total: entries.length, returned: page.length,
         items: page, ...(options.offset + page.length < entries.length ? { next: next(options.offset + page.length) } : {}) });
-    while (Buffer.byteLength(JSON.stringify(result(), null, 2)) > 7500 && page.length > 1)
+    while (jsonBytes(result()) > PAGE_BYTE_BUDGET && page.length > 1)
         page.pop();
-    if (Buffer.byteLength(JSON.stringify(result(), null, 2)) > 7500)
+    if (jsonBytes(result()) > PAGE_BYTE_BUDGET)
         throw new Error('Report path exceeds the response budget. Inspect a parent path.');
     return result();
 }

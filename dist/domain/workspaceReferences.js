@@ -1,3 +1,4 @@
+import { objectOrUndefined } from '../util/coerce.js';
 /** Removes an existing physical instance without cloning it or changing its metadata. */
 export function detachPhysicalItem(workspace, id) {
     let found;
@@ -50,18 +51,13 @@ function prune(value, removed) {
     return Object.fromEntries(Object.entries(object).filter(([key]) => !removed.has(key))
         .map(([key, item]) => [key, prune(item, removed)]).filter(([, item]) => item !== undefined));
 }
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
 /**
  * The DCSC SPA promotes the first surviving member when a Clone Multiple root is
  * removed. Compute that promotion before mutating the workspace so an identity
  * collision cannot leave a partially detached layout.
  */
 function rebaseCloneReferences(serverState, removed) {
-    const source = object(serverState.cloneDependency);
+    const source = objectOrUndefined(serverState.cloneDependency);
     if (!source)
         return { dependency: undefined, colors: undefined, affectedRoots: new Set() };
     const dependency = {};
@@ -87,7 +83,7 @@ function rebaseCloneReferences(serverState, removed) {
         dependency[promotedRoot] = affected ? members : structuredClone(rawMembers);
         promotions.set(root, { root: promotedRoot, members });
     }
-    const sourceColors = object(serverState.cloneDependencyColor);
+    const sourceColors = objectOrUndefined(serverState.cloneDependencyColor);
     if (!sourceColors)
         return { dependency, colors: undefined, affectedRoots };
     const colors = prune(sourceColors, removed);
@@ -99,7 +95,7 @@ function rebaseCloneReferences(serverState, removed) {
         if (Object.hasOwn(colors, promotion.root)) {
             throw new Error(`Cannot remove configuration ${root}; promoted clone color ${promotion.root} conflicts with an existing clone group.`);
         }
-        const sourceColor = object(sourceColors[root]);
+        const sourceColor = objectOrUndefined(sourceColors[root]);
         if (sourceColor)
             colors[promotion.root] = { ...structuredClone(sourceColor), dependBy: [...promotion.members] };
     }
@@ -110,7 +106,7 @@ export function removeWorkspaceReferences(workspace, removed) {
     const detached = workspace.serverState.detachedStorageComponents;
     if (Array.isArray(detached)) {
         for (const raw of detached) {
-            const value = object(raw);
+            const value = objectOrUndefined(raw);
             if (typeof value?.templateId !== 'string' || !removedIds.has(value.templateId) ||
                 !Array.isArray(value.physicalIds))
                 continue;
@@ -122,7 +118,6 @@ export function removeWorkspaceReferences(workspace, removed) {
     const cloneReferences = rebaseCloneReferences(workspace.serverState, removedIds);
     for (const id of removedIds) {
         detachPhysicalItem(workspace, id);
-        workspace.racks.delete(id);
     }
     workspace.cables = workspace.cables.filter((item) => !removedIds.has(item.fromConfigId) && !removedIds.has(item.toConfigId));
     workspace.floorItems = workspace.floorItems.filter((item) => !removedIds.has(item.rackId));
@@ -144,7 +139,7 @@ export function removeWorkspaceReferences(workspace, removed) {
         workspace.serverState.cloneDependency = cloneReferences.dependency;
     if (cloneReferences.colors !== undefined)
         workspace.serverState.cloneDependencyColor = cloneReferences.colors;
-    const linkedEdits = object(workspace.serverState.linkedConfigurationEdits);
+    const linkedEdits = objectOrUndefined(workspace.serverState.linkedConfigurationEdits);
     if (linkedEdits && cloneReferences.affectedRoots.size > 0) {
         for (const root of cloneReferences.affectedRoots)
             delete linkedEdits[root];

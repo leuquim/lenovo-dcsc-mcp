@@ -1,5 +1,6 @@
 import { usesCtoWire } from './modeFamily.js';
 import { buildAutoDeriveRequest } from './reduce.js';
+import { autoDerivePath } from './endpoints.js';
 /**
  * Builds the derive the SPA sends when the user chooses Rack > Customize.
  *
@@ -27,7 +28,7 @@ export function buildRackRecustomizePlan(workspace, rackConfigurationId) {
     return {
         endpoint: 'rack_recustomize',
         method: 'POST',
-        path: '/ctos/autoDerive',
+        path: autoDerivePath('ctos'),
         query: {
             configurationId: rackConfigurationId,
             entranceFlag: 'customize',

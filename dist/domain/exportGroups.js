@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { hardwareModeFamily } from './modeFamily.js';
 import { storageComponentQuantities } from './storagePreferences.js';
 import { storagePhysicalConfigurations } from './storagePhysicalState.js';
+import { adjustUnconfiguredPrices, unconfiguredProducts } from './unconfigured.js';
 const GROUP_NAME = 'Config 1';
 const SINGLE_USE = 'Single-use';
 /**
@@ -81,8 +82,6 @@ function combinePhysicalProducts(products) {
     }
     return combined;
 }
-/** Drop-in name for the existing reducer export during integration. */
-export const buildGroups = buildExportGroups;
 function aggregateCloneGroups(entries, rawDependency, unplacedControllers) {
     const dependency = object(rawDependency);
     const byId = new Map(entries.map(entry => [entry.id, entry]));
@@ -151,26 +150,38 @@ function aggregateCloneGroups(entries, rawDependency, unplacedControllers) {
  */
 function commercialCloneComparable(product) {
     const { shippingStatus: _shippingStatus, ...commercial } = product;
+    // Native linked references may omit this false flag on a priced root service
+    // and emit it on its copies. Keep true/unknown-price differences significant.
+    if (commercial.priceNotAvailable === undefined && typeof commercial.price === 'number' && Number.isFinite(commercial.price)) {
+        commercial.priceNotAvailable = false;
+    }
     return commercial;
 }
 function productsForConfiguration(configuration) {
     const { id, raw } = configuration;
     const quantity = positiveQuantity(raw.quantity, 1);
     const showPrice = raw.showPrice !== false;
+    const unconfigured = unconfiguredProducts(raw);
     const priceNotAvailable = raw.priceNotAvailable === true ||
-        typeof raw.totalPrice !== 'number' || !Number.isFinite(raw.totalPrice);
+        typeof raw.totalPrice !== 'number' || !Number.isFinite(raw.totalPrice) || unconfigured.some(p => p.price === null);
     let hardwareUnitPrice = number(raw.totalPrice);
+    // Restore the priced core before applying the existing native HIPO/service
+    // deductions. Subtracting this later introduces a floating-point cent drift.
+    if (unconfigured.length > 0)
+        hardwareUnitPrice = money(hardwareUnitPrice -
+            unconfigured.reduce((sum, product) => sum + (product.price ?? 0), 0));
     const isLfo = configuration.mode !== undefined
         ? hardwareModeFamily(configuration.mode) === 'lfo'
         : isLfoConfiguration(raw);
     const hipoProducts = [];
+    let hipoDeduction = 0;
     for (const value of array(raw.hipoDerivedItems)) {
         const hipo = object(value);
         const targetQuantity = positiveQuantity(hipo['targetCtoQuantity'], 1);
         const targetPrice = number(hipo['targetCtoPrice']);
         const targetUnitPrice = number(hipo['targetCtoUnitPrice']);
         const deductedPrice = money(targetPrice * targetQuantity + targetUnitPrice);
-        hardwareUnitPrice -= deductedPrice;
+        hipoDeduction += deductedPrice;
         hipoProducts.push(...buildHipoProducts({
             id,
             hipo,
@@ -181,8 +192,12 @@ function productsForConfiguration(configuration) {
             showPrice,
         }));
     }
+    hardwareUnitPrice -= hipoDeduction;
     const selectedServices = selectedServiceProducts(raw, id, quantity, showPrice, isLfo);
     hardwareUnitPrice -= selectedServices.deduction;
+    const unconfiguredRows = unconfigured.map(product => ({ ...product, id,
+        quantity: product.quantity * quantity, price: product.price === null ? null : money(product.price * quantity),
+        type: 'unconfigured', showPrice, asMultiProd: false, groupId: GROUP_NAME }));
     const serviceCtoProducts = [];
     for (const value of array(raw.hipoServiceCtoServices)) {
         const service = object(value);
@@ -213,7 +228,7 @@ function productsForConfiguration(configuration) {
         id,
         quantity,
         price: priceNotAvailable ? null : money(hardwareUnitPrice * quantity),
-        prices: array(raw.totalPrices),
+        prices: array(adjustUnconfiguredPrices(raw.totalPrices, raw, -1)),
         type: 'hardware',
         description: string(raw.description),
         shippingStatus: array(raw.shippingStatus),
@@ -225,7 +240,7 @@ function productsForConfiguration(configuration) {
         specialBid: raw['specialBid'] === true,
         groupId: GROUP_NAME,
     };
-    return [hardware, ...hipoProducts, ...serviceCtoProducts, ...selectedServices.products];
+    return [hardware, ...hipoProducts, ...serviceCtoProducts, ...selectedServices.products, ...unconfiguredRows];
 }
 function buildHipoProducts(opts) {
     const features = array(opts.hipo['features']).map(object);
@@ -376,5 +391,39 @@ function money(value) {
 /** Browser groups truncate the inclusive-price remainder at two decimals. */
 function browserMoney(value) {
     return Math.floor((value + Number.EPSILON) * 100) / 100;
+}
+/**
+ * Logical Groups are client state on the website; they reach DCSC only as the export form's `groups` field.
+ * Product lines move out of the default group by code; index is the position among siblings, with the
+ * default group counted as the first top-level sibling. An imported workspace already holds its groups,
+ * and the website counts them in front of the new top-level groups.
+ */
+export function applyLogicalGroups(base, logical, importedGroupCount = 0) {
+    const [fallback, ...rest] = base;
+    if (!fallback || rest.length > 0)
+        throw new Error('Logical groups need exactly one default export group.');
+    const names = new Set([fallback.name]);
+    const siblings = new Map([[undefined, 1 + importedGroupCount]]);
+    const claimed = new Set();
+    const groups = logical.map(group => {
+        if (names.has(group.name))
+            throw new Error(`Group name "${group.name}" is duplicated or reserved.`);
+        if (group.parent !== undefined && !names.has(group.parent))
+            throw new Error(`Group "${group.name}" needs its parent "${group.parent}" listed before it.`);
+        names.add(group.name);
+        const index = siblings.get(group.parent) ?? 0;
+        siblings.set(group.parent, index + 1);
+        const products = group.products.flatMap(code => {
+            if (claimed.has(code))
+                throw new Error(`Product ${code} is assigned to more than one group.`);
+            claimed.add(code);
+            const lines = fallback.products.filter(product => product['code'] === code);
+            if (lines.length === 0)
+                throw new Error(`Product ${code} is not in this export.`);
+            return lines.map(line => ({ ...line, groupId: group.name }));
+        });
+        return { name: group.name, ...(group.parent !== undefined ? { parent: group.parent } : {}), index, products };
+    });
+    return [{ ...fallback, products: fallback.products.filter(product => !claimed.has(String(product['code']))) }, ...groups];
 }
 //# sourceMappingURL=exportGroups.js.map

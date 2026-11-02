@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { objectOrUndefined } from '../util/coerce.js';
 export const ACTION_HISTORY_SESSION_TIMESTAMP_KEY = 'actionHistorySessionTimestamp';
 /** Reproduces the native builder's spacing and capitalization. */
 export function buildNativeHistoryDescription(input) {
@@ -59,7 +60,7 @@ export function appendActionHistory(before, after, events, dependencies = {}) {
 function existingHistoryRows(serverState) {
     if (Array.isArray(serverState.historyInformation))
         return serverState.historyInformation;
-    const messageHistory = asRecord(serverState.messageHistory);
+    const messageHistory = objectOrUndefined(serverState.messageHistory);
     return Array.isArray(messageHistory?.history) ? messageHistory.history : undefined;
 }
 function resolveSessionTimestamp(before, after, rows, fallback) {
@@ -71,7 +72,7 @@ function resolveSessionTimestamp(before, after, rows, fallback) {
         return beforeValue;
     let latestImport;
     for (const value of rows) {
-        const row = asRecord(value);
+        const row = objectOrUndefined(value);
         if (nonemptyString(row?.command)?.toUpperCase() !== 'IMPORT')
             continue;
         const timestamp = nonemptyString(row?.timestamp);
@@ -118,10 +119,5 @@ function upperFirst(value) {
 }
 function nonemptyString(value) {
     return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-function asRecord(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
 }
 //# sourceMappingURL=actionHistory.js.map

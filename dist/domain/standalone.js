@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { finiteNumber, nonBlankString, objectOrUndefined, requirePositiveSafeInteger } from '../util/coerce.js';
+import { exportZipPath } from './endpoints.js';
 /** Global part lookup. The result is intentionally not assigned a synthetic cursor or total. */
 export async function findParts(http, ctx, input) {
     const keyword = input.keyword.trim();
@@ -24,15 +26,15 @@ export async function findParts(http, ctx, input) {
     });
     const items = Array.isArray(response.raw)
         ? response.raw.flatMap((value) => {
-            const raw = object(value);
-            const code = string(raw?.['code']);
+            const raw = objectOrUndefined(value);
+            const code = nonBlankString(raw?.['code']);
             if (!raw || !code)
                 return [];
             const type = String(raw['type'] ?? 'UNKNOWN').toUpperCase();
             return [
                 {
                     code,
-                    description: string(raw['description']) ?? '',
+                    description: nonBlankString(raw['description']) ?? '',
                     type,
                     nextAction: nextAction(type),
                     raw,
@@ -72,10 +74,23 @@ export async function launchStandaloneSoftware(http, ctx) {
         selections: [],
     };
 }
+/** The Software page's MT/CTO/LFO ID search: the software offered for one product (GET /software/portal/search/:code). */
+export async function searchSoftwareForProduct(http, ctx, productCode, mode) {
+    const response = await http.send({
+        endpoint: 'software_portal_search',
+        method: 'GET',
+        path: `/software/portal/search/${encodeURIComponent(productCode)}`,
+        query: { mode: mode.toLowerCase(), serviceCto: true },
+        responseKind: 'json',
+        timeoutClass: 'heavy',
+        ctx,
+    });
+    return indexSoftwareFeatures(response.raw);
+}
 /** Local browse over the complete response already fetched from DCSC. */
 export function browseStandaloneSoftware(state, input = {}) {
     const offset = nonNegativeInteger(input.offset ?? 0, 'offset');
-    const limit = positiveInteger(input.limit ?? 50, 'limit');
+    const limit = requirePositiveSafeInteger(input.limit ?? 50, 'limit');
     const query = input.query?.trim().toLowerCase() ?? '';
     const path = input.path ?? {};
     const matches = state.features.filter((feature) => {
@@ -97,7 +112,7 @@ export function browseStandaloneSoftware(state, input = {}) {
 }
 /** Selects a software SKU locally. DCSC exposes no repricing call for this observed workflow. */
 export function selectStandaloneSoftware(state, input) {
-    const quantity = positiveInteger(input.quantity, 'quantity');
+    const quantity = requirePositiveSafeInteger(input.quantity, 'quantity');
     const feature = uniqueByCode(state.features, input.code, 'software feature');
     const existing = state.selections.find((selection) => selection.code === input.code);
     const selection = softwareSelection(feature, quantity, existing?.id ?? input.id ?? randomUUID());
@@ -129,7 +144,7 @@ export function buildStandaloneSoftwareExportEnvelope(state, baseData, groupName
         groupId: groupName,
     }));
     return {
-        endpoint: '/lfos/export_zip',
+        endpoint: exportZipPath('lfos'),
         data: { ...baseData, standaloneData },
         groups: [{ name: groupName, parent: null, index: -1, products }],
     };
@@ -138,7 +153,7 @@ export function buildStandaloneSoftwareExportEnvelope(state, baseData, groupName
 export async function launchProductServices(http, ctx, input) {
     const code = required(input.productCode, 'productCode');
     const subCategory = required(input.subCategory, 'subCategory');
-    const quantity = positiveInteger(input.productQuantity ?? 1, 'productQuantity');
+    const quantity = requirePositiveSafeInteger(input.productQuantity ?? 1, 'productQuantity');
     const [derive, catalog] = await Promise.all([
         http.send({
             endpoint: 'standalone_services_launch',
@@ -190,7 +205,7 @@ export async function refreshProductServiceCatalog(http, ctx, state) {
 }
 /** Posts the exact typed servicesAndor selection shape captured from the website. */
 export async function selectProductService(http, ctx, state, input) {
-    const quantity = positiveInteger(input.quantity, 'quantity');
+    const quantity = requirePositiveSafeInteger(input.quantity, 'quantity');
     const matches = state.options.filter((option) => option.code === input.serviceCode);
     if (matches.length === 0) {
         throw new Error(`Service ${input.serviceCode} is not in the current option graph.`);
@@ -301,6 +316,15 @@ export function buildProductServiceExportEnvelope(state) {
         throw new Error('A product service must be selected before export.');
     }
     const data = buildProductServiceSummaryRequest(state);
+    return {
+        endpoint: '/service_pacs/export',
+        data,
+        serviceAndorRequest: state.lastDeriveRequest,
+        fields: serviceExportFields(data, JSON.stringify(state.lastDeriveRequest)),
+    };
+}
+/** The 14 form fields every Services export button posts. */
+function serviceExportFields(data, serviceAndorRequest) {
     const integrationParams = {
         returnUrl: null,
         site: '',
@@ -311,29 +335,50 @@ export function buildProductServiceExportEnvelope(state) {
         serviceWithProductNumber: false,
     };
     return {
-        endpoint: '/service_pacs/export',
-        data,
-        serviceAndorRequest: state.lastDeriveRequest,
-        fields: {
-            data: JSON.stringify(data),
-            crnId: '',
-            userGeneratedConfigId: '',
-            lfoCode: '',
-            cancelDownload: 'false',
-            multipleProductData: '',
-            excelData: 'null',
-            groups: '',
-            integrationParams: JSON.stringify(integrationParams),
-            image: '',
-            user: '',
-            'dcsc-isFromIntegration': 'false',
-            serviceAndorRequest: JSON.stringify(state.lastDeriveRequest),
-            uuid: '',
-        },
+        data: JSON.stringify(data),
+        crnId: '',
+        userGeneratedConfigId: '',
+        lfoCode: '',
+        cancelDownload: 'false',
+        multipleProductData: '',
+        excelData: 'null',
+        groups: '',
+        integrationParams: JSON.stringify(integrationParams),
+        image: '',
+        user: '',
+        'dcsc-isFromIntegration': 'false',
+        serviceAndorRequest,
+        uuid: '',
     };
 }
+/**
+ * The Services page Export button (one product's service catalog) and Download Catalog button
+ * (the whole country catalog, which posts no service list).
+ */
+export function buildServiceCatalogDownload(input) {
+    if (input.productCode !== undefined) {
+        const services = input.serviceCodes.map((serviceCode) => ({ serviceCode, facets: '' }));
+        return {
+            path: `/service_pacs_download/${encodeURIComponent(input.productCode)}`,
+            query: {},
+            fields: serviceExportFields({ services }, ''),
+        };
+    }
+    return {
+        path: '/service_pacs_downloadV2',
+        query: { download: input.country, country_or_regions: input.country, downloadToken: String(input.downloadToken) },
+        fields: serviceExportFields({ services: [] }, ''),
+    };
+}
+/** Service codes of one product's catalog, from GET /service_pacs/:productCode. */
+export function serviceCatalogCodes(catalogRaw) {
+    const services = objectOrUndefined(catalogRaw)?.['services'];
+    return Array.isArray(services)
+        ? services.flatMap((service) => nonBlankString(objectOrUndefined(service)?.['code']) ?? [])
+        : [];
+}
 function indexSoftwareFeatures(raw) {
-    const root = object(raw);
+    const root = objectOrUndefined(raw);
     const out = [];
     for (const tab of objectArray(root?.['tabs'])) {
         for (const subTab of objectArray(tab['subTabs'])) {
@@ -354,20 +399,20 @@ function indexSoftwareFeatures(raw) {
 }
 function appendSoftwareFeatures(out, features, tab, subTab, section, subCategory) {
     for (const feature of features) {
-        const code = string(feature['code']);
+        const code = nonBlankString(feature['code']);
         if (!code)
             continue;
-        const unitPrice = number(feature['unitPrice']);
+        const unitPrice = finiteNumber(feature['unitPrice']);
         const showPrice = boolean(feature['showPrice']);
         out.push({
             code,
-            ...(string(feature['softwareCode']) ? { softwareCode: string(feature['softwareCode']) } : {}),
-            description: string(feature['description']) ?? '',
+            ...(nonBlankString(feature['softwareCode']) ? { softwareCode: nonBlankString(feature['softwareCode']) } : {}),
+            description: nonBlankString(feature['description']) ?? '',
             ...(unitPrice !== undefined ? { unitPrice } : {}),
             priceNotAvailable: boolean(feature['priceNotAvailable']) ?? false,
             ...(showPrice !== undefined ? { showPrice } : {}),
             prices: Array.isArray(feature['prices']) ? feature['prices'] : [],
-            attributes: object(feature['optionAttributes']) ?? {},
+            attributes: objectOrUndefined(feature['optionAttributes']) ?? {},
             path: {
                 tab: label(tab),
                 subTab: label(subTab),
@@ -410,32 +455,32 @@ function softwareExportItem(selection) {
     };
 }
 function indexServiceOptions(raw) {
-    const root = object(raw);
+    const root = objectOrUndefined(raw);
     const out = [];
     for (const tab of objectArray(root?.['tabs'])) {
         for (const subTab of objectArray(tab['subTabs'])) {
             const subTabName = label(subTab);
             for (const section of objectArray(subTab['sections'])) {
-                const name = string(section['name']) ?? label(section);
-                const description = subTabName || string(section['description']) || name;
+                const name = nonBlankString(section['name']) ?? label(section);
+                const description = subTabName || nonBlankString(section['description']) || name;
                 const source = description.split('|')[0]?.trim() || description;
                 const seen = new Set();
                 for (const feature of [
                     ...objectArray(section['features']),
                     ...objectArray(section['results']),
                 ]) {
-                    const code = string(feature['code']);
+                    const code = nonBlankString(feature['code']);
                     if (!code || seen.has(code))
                         continue;
                     seen.add(code);
-                    const unitPrice = number(feature['unitPrice']);
-                    const preSelectedQuantity = number(feature['preSelectedQuantity']);
-                    const type = string(feature['type']) ?? '';
+                    const unitPrice = finiteNumber(feature['unitPrice']);
+                    const preSelectedQuantity = finiteNumber(feature['preSelectedQuantity']);
+                    const type = nonBlankString(feature['type']) ?? '';
                     out.push({
                         code,
-                        description: string(feature['description']) ?? '',
+                        description: nonBlankString(feature['description']) ?? '',
                         type,
-                        characterName: string(feature['characterName']) ?? type,
+                        characterName: nonBlankString(feature['characterName']) ?? type,
                         ...(unitPrice !== undefined ? { unitPrice } : {}),
                         ...(preSelectedQuantity !== undefined ? { preSelectedQuantity } : {}),
                         section: source,
@@ -451,28 +496,28 @@ function indexServiceOptions(raw) {
 }
 /** Rebuilds selected service state from DCSC's authoritative derived section results. */
 function indexServiceSelections(raw) {
-    const root = object(raw);
+    const root = objectOrUndefined(raw);
     const out = [];
     for (const tab of objectArray(root?.['tabs'])) {
         for (const subTab of objectArray(tab['subTabs'])) {
             const subTabName = label(subTab);
             for (const section of objectArray(subTab['sections'])) {
-                const sectionName = string(section['name']) ?? label(section);
-                const sectionDescription = subTabName || string(section['description']) || sectionName;
+                const sectionName = nonBlankString(section['name']) ?? label(section);
+                const sectionDescription = subTabName || nonBlankString(section['description']) || sectionName;
                 const source = sectionDescription.split('|')[0]?.trim() || sectionDescription;
                 for (const result of objectArray(section['results'])) {
-                    const code = string(result['code']);
-                    const quantity = number(result['quantity']);
+                    const code = nonBlankString(result['code']);
+                    const quantity = finiteNumber(result['quantity']);
                     if (!code || quantity === undefined || quantity <= 0)
                         continue;
-                    const type = string(result['type']) ?? '';
-                    const ctoCode = string(result['ctoCode']);
+                    const type = nonBlankString(result['type']) ?? '';
+                    const ctoCode = nonBlankString(result['ctoCode']);
                     out.push({
                         code,
                         quantity,
-                        description: string(result['description']) ?? '',
+                        description: nonBlankString(result['description']) ?? '',
                         type,
-                        characterName: string(result['characterName']) ?? type,
+                        characterName: nonBlankString(result['characterName']) ?? type,
                         section: source,
                         sectionName,
                         sectionDescription,
@@ -557,38 +602,44 @@ function uniqueByCode(items, code, kind) {
         throw new Error(`Ambiguous ${kind} code: ${code}`);
     return matches[0];
 }
-function object(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-        ? value
-        : undefined;
+/** Products the Services page can attach service packs to (GET /service_pacs_product), filtered by code or description. */
+export async function searchServiceProducts(http, ctx, query) {
+    const response = await http.send({
+        endpoint: 'service_pacs_product',
+        method: 'GET',
+        path: '/service_pacs_product',
+        query: { serviceCto: true },
+        responseKind: 'json',
+        timeoutClass: 'heavy',
+        ctx,
+    });
+    const needle = query.trim().toLowerCase();
+    return objectArray(response.raw).flatMap((raw) => {
+        const code = nonBlankString(raw['code']);
+        if (!code)
+            return [];
+        const description = nonBlankString(raw['description']) ?? '';
+        if (!`${code} ${description}`.toLowerCase().includes(needle))
+            return [];
+        return [{ code, type: String(raw['type'] ?? ''), description, withdrawn: raw['withdrawn'] === true }];
+    });
 }
 function objectArray(value) {
     return Array.isArray(value)
-        ? value.map((item) => object(item)).filter((item) => item !== undefined)
+        ? value.map((item) => objectOrUndefined(item)).filter((item) => item !== undefined)
         : [];
-}
-function string(value) {
-    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-function number(value) {
-    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 function boolean(value) {
     return typeof value === 'boolean' ? value : undefined;
 }
 function label(value) {
-    return string(value['title']) ?? string(value['description']) ?? string(value['name']) ?? '';
+    return nonBlankString(value['title']) ?? nonBlankString(value['description']) ?? nonBlankString(value['name']) ?? '';
 }
 function required(value, name) {
     const trimmed = value.trim();
     if (trimmed === '')
         throw new Error(`${name} must not be empty.`);
     return trimmed;
-}
-function positiveInteger(value, name) {
-    if (!Number.isSafeInteger(value) || value <= 0)
-        throw new Error(`${name} must be a positive integer.`);
-    return value;
 }
 function nonNegativeInteger(value, name) {
     if (!Number.isSafeInteger(value) || value < 0) {

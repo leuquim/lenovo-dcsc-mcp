@@ -1,3 +1,6 @@
+import { rackLaunchPath, rackLaunchQuery, racksCustomizePath, racksHardwarePath } from './endpoints.js';
+import { hardwareEndpointFamily } from './modeFamily.js';
+import { nonEmptyString, numericValueBlankAsZero, objectOrEmpty } from '../util/coerce.js';
 /** Rack hardware available in the current solution mode or compatible-parent catalog. */
 export async function fetchRackCabinets(http, ctx, masterCode, hardwareType = 'rack') {
     const res = await http.send({
@@ -37,6 +40,18 @@ export async function fetchRackCabinets(http, ctx, masterCode, hardwareType = 'r
     walk(res.raw ?? []);
     return out;
 }
+/** The website's rack-add handshake after the CTO launch: the rack launch and the PDU preference lookup. */
+export async function openRackLaunch(http, ctx, rackCode, solutionMode) {
+    await http.send({
+        endpoint: 'racks_launch', method: 'POST', path: rackLaunchPath(rackCode),
+        query: rackLaunchQuery(solutionMode), body: { kind: 'json', value: {} },
+        responseKind: 'json', timeoutClass: 'interactive', ctx,
+    });
+    await http.send({
+        endpoint: 'pdu_preference', method: 'GET', path: '/pdu/pduPreference', query: { codes: rackCode },
+        responseKind: 'json', timeoutClass: 'fast', ctx,
+    });
+}
 /**
  * Physical envelope for each product code.
  *
@@ -66,10 +81,10 @@ export async function fetchEnvelopes(http, ctx, items) {
         out.set(code.toUpperCase(), {
             code,
             type: String(entry['type'] ?? 'server'),
-            sizeU: num(entry['size']) ?? 1,
-            weightKg: num(entry['weight']) ?? 0,
-            widthMm: num(entry['width']),
-            depthMm: num(entry['depth']),
+            sizeU: numericValueBlankAsZero(entry['size']) ?? 1,
+            weightKg: numericValueBlankAsZero(entry['weight']) ?? 0,
+            widthMm: numericValueBlankAsZero(entry['width']),
+            depthMm: numericValueBlankAsZero(entry['depth']),
             raw: entry,
         });
     }
@@ -77,7 +92,7 @@ export async function fetchEnvelopes(http, ctx, items) {
 }
 /** Uses DCSC's own product classification when requesting a physical envelope. */
 export function buildEnvelopeRequest(raw) {
-    const code = str(raw['sliceCtoCode']) ?? str(raw['code']) ?? str(raw['lfoCode']);
+    const code = nonEmptyString(raw['sliceCtoCode']) ?? nonEmptyString(raw['code']) ?? nonEmptyString(raw['lfoCode']);
     if (!code)
         throw new Error('Cannot request a physical envelope without a product code.');
     return { code, type: classifyRackHardware(raw), asVLH: raw['asVLH'] === true };
@@ -92,7 +107,7 @@ export function classifyRackHardware(...sources) {
     for (const source of sources) {
         if (!source)
             continue;
-        const value = str(source['hardwareType']) ?? str(source['type']);
+        const value = nonEmptyString(source['hardwareType']) ?? nonEmptyString(source['type']);
         if (value)
             return value.toLowerCase();
     }
@@ -101,13 +116,13 @@ export function classifyRackHardware(...sources) {
 /** Projects full configuration trees into the compact shape posted by the SPA. */
 export function buildRackConfigurations(configurations) {
     return configurations.map((configuration) => {
-        const id = str(configuration['id']) ?? str(configuration['configurationId']);
-        const code = str(configuration['code']) ?? str(configuration['sliceCtoCode']) ?? str(configuration['lfoCode']);
+        const id = nonEmptyString(configuration['id']) ?? nonEmptyString(configuration['configurationId']);
+        const code = nonEmptyString(configuration['code']) ?? nonEmptyString(configuration['sliceCtoCode']) ?? nonEmptyString(configuration['lfoCode']);
         if (!id || !code)
             throw new Error('Rack configuration requires both an id and product code.');
         const sections = [];
         for (const tab of rows(configuration['tabs'])) {
-            const tabType = str(tab['type']);
+            const tabType = nonEmptyString(tab['type']);
             for (const subTab of rows(tab['subTabs'])) {
                 for (const section of rows(subTab['sections']))
                     appendSection(sections, section, tabType);
@@ -120,12 +135,12 @@ export function buildRackConfigurations(configurations) {
             id,
             code,
             sections,
-            name: str(configuration['name']) ?? '',
-            description: str(configuration['description']) ?? '',
+            name: nonEmptyString(configuration['name']) ?? '',
+            description: nonEmptyString(configuration['description']) ?? '',
             connectors: Array.isArray(configuration['connectors']) ? configuration['connectors'] : [],
-            selectedTopologies: object(configuration['selectedTopologies']),
+            selectedTopologies: objectOrEmpty(configuration['selectedTopologies']),
             selectedStorageNetwork: configuration['selectedStorageNetwork'],
-            sliceCtoCode: str(configuration['sliceCtoCode']) ?? code,
+            sliceCtoCode: nonEmptyString(configuration['sliceCtoCode']) ?? code,
             slice: configuration['slice'],
             asVLH: configuration['asVLH'] === true,
             vlhId: configuration['vlhId'],
@@ -137,14 +152,14 @@ export function buildRackCustomizePayload(state, configurations) {
     const compact = buildRackConfigurations(configurations);
     const byId = new Map(compact.map(configuration => [configuration.id, configuration]));
     const roots = new Map();
-    for (const [root, value] of Object.entries(object(state['cloneDependency']))) {
+    for (const [root, value] of Object.entries(objectOrEmpty(state['cloneDependency']))) {
         if (Array.isArray(value))
             for (const id of value)
                 if (typeof id === 'string')
                     roots.set(id, root);
     }
-    for (const [root, value] of Object.entries(object(state['cloneDependencyColor']))) {
-        const members = object(value)['dependBy'];
+    for (const [root, value] of Object.entries(objectOrEmpty(state['cloneDependencyColor']))) {
+        const members = objectOrEmpty(value)['dependBy'];
         if (Array.isArray(members))
             for (const id of members)
                 if (typeof id === 'string')
@@ -155,13 +170,13 @@ export function buildRackCustomizePayload(state, configurations) {
         // customizePrepareData unwraps the node bay-size object returned by the
         // layout service. Sending that response object back fails deserialization.
         if (item['type'] === 'node' && item['size'] !== null && typeof item['size'] === 'object') {
-            const value = object(item['size'])['value'];
+            const value = objectOrEmpty(item['size'])['value'];
             if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
                 throw new Error('DCSC node physical size has no usable numeric value.');
             }
             item['size'] = value;
         }
-        const id = str(item['id']);
+        const id = nonEmptyString(item['id']);
         const configuration = id ? byId.get(roots.get(id) ?? id) : undefined;
         if (configuration) {
             const previous = rows(item['features']);
@@ -197,11 +212,11 @@ export function buildRackCustomizePayload(state, configurations) {
 }
 /** The SPA applies derive placement metadata to selected results before preparing rack requests. */
 export function withDerivedPlacements(configuration, response) {
-    const id = str(configuration['workspaceId']) ?? str(configuration['id']) ?? str(configuration['configurationId']);
+    const id = nonEmptyString(configuration['workspaceId']) ?? nonEmptyString(configuration['id']) ?? nonEmptyString(configuration['configurationId']);
     const targets = configuration['updateConfigurationIds'];
     if (Array.isArray(targets) && !targets.includes(configuration['id']))
         return configuration;
-    const placements = rows(object(response)['placementResults']).filter(value => value['workspaceId'] === id);
+    const placements = rows(objectOrEmpty(response)['placementResults']).filter(value => value['workspaceId'] === id);
     if (placements.length === 0)
         return configuration;
     if (placements.length > 1)
@@ -236,7 +251,7 @@ export function mergeDerivedConfigurations(current, response) {
         }
         currentById.set(id, configuration);
     }
-    const wrapper = object(response);
+    const wrapper = objectOrEmpty(response);
     if (!Array.isArray(wrapper['configurations'])) {
         throw new Error('Auto-derive response is missing its configurations array.');
     }
@@ -275,7 +290,7 @@ export async function customizeLayout(http, ctx, payload, opts = {}) {
     const res = await http.send({
         endpoint: 'racks_customize',
         method: 'POST',
-        path: opts.mode === 'lfo' ? '/lfos/racks/customize' : '/ctos/racks/customize',
+        path: racksCustomizePath(hardwareEndpointFamily(opts.mode ?? 'cto')),
         query: {
             autoArrange: opts.autoArrange ?? false,
             autoConnect: opts.autoConnect ?? false,
@@ -286,18 +301,18 @@ export async function customizeLayout(http, ctx, payload, opts = {}) {
         timeoutClass: 'heavy',
         ctx,
     });
-    const raw = object(res.raw);
+    const raw = objectOrEmpty(res.raw);
     const rackArea = Array.isArray(raw['rackArea']) ? raw['rackArea'] : [];
     const nonRackArea = Array.isArray(raw['nonRackArea']) ? raw['nonRackArea'] : [];
     const allErrors = [];
     const racks = rackArea.map((r) => {
         const items = (r['rackItems'] ?? []).map((it) => {
-            const sizeU = num(it['size']) ?? 1;
-            const position = num(it['position']) ?? 0;
+            const sizeU = numericValueBlankAsZero(it['size']) ?? 1;
+            const position = numericValueBlankAsZero(it['position']) ?? 0;
             return {
                 id: String(it['id'] ?? ''),
                 code: String(it['code'] ?? ''),
-                description: str(it['description']),
+                description: nonEmptyString(it['description']),
                 position,
                 // DCSC raw endPosition is exclusive; the public U range is inclusive.
                 endPosition: position + sizeU - 1,
@@ -306,18 +321,18 @@ export async function customizeLayout(http, ctx, payload, opts = {}) {
         });
         const errors = toErrors(r['errors']);
         allErrors.push(...errors);
-        const sizeU = num(r['size']) ?? 0;
+        const sizeU = numericValueBlankAsZero(r['size']) ?? 0;
         const usedU = items.reduce((acc, i) => acc + i.sizeU, 0);
         return {
             id: String(r['id'] ?? ''),
             code: String(r['code'] ?? ''),
-            description: str(r['description']),
+            description: nonEmptyString(r['description']),
             sizeU,
             usedU,
             freeU: Math.max(0, sizeU - usedU),
-            emptyWeightKg: num(r['emptyRackWeight']),
-            totalWeightKg: num(r['totalWeight']),
-            stableStatus: str(r['stableStatus']),
+            emptyWeightKg: numericValueBlankAsZero(r['emptyRackWeight']),
+            totalWeightKg: numericValueBlankAsZero(r['totalWeight']),
+            stableStatus: nonEmptyString(r['stableStatus']),
             items,
             errors,
         };
@@ -325,9 +340,9 @@ export async function customizeLayout(http, ctx, payload, opts = {}) {
     return {
         racks,
         unplaced: nonRackArea.map((n) => ({
-            id: str(n['id']),
+            id: nonEmptyString(n['id']),
             code: String(n['code'] ?? ''),
-            description: str(n['description']),
+            description: nonEmptyString(n['description']),
         })),
         errors: allErrors,
         rawRackArea: rackArea,
@@ -361,44 +376,34 @@ export function buildRackObject(envelope, rackId, items = []) {
         rackItems: items,
     };
 }
-function num(v) {
-    const n = typeof v === 'string' ? Number(v) : v;
-    return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
-}
-function str(v) {
-    return typeof v === 'string' && v !== '' ? v : undefined;
-}
-function object(v) {
-    return typeof v === 'object' && v !== null && !Array.isArray(v) ? v : {};
-}
 function rows(v) {
     return Array.isArray(v)
         ? v.filter((item) => typeof item === 'object' && item !== null)
         : [];
 }
 function configurationId(configuration, source) {
-    const id = str(configuration['id']) ?? str(configuration['configurationId']);
+    const id = nonEmptyString(configuration['id']) ?? nonEmptyString(configuration['configurationId']);
     if (!id)
         throw new Error(`${source === 'current' ? 'Current' : 'Derived'} rack configuration is missing its id.`);
     return id;
 }
 function configurationCode(configuration) {
-    return str(configuration['code']) ?? str(configuration['sliceCtoCode']) ?? str(configuration['lfoCode']);
+    return nonEmptyString(configuration['code']) ?? nonEmptyString(configuration['sliceCtoCode']) ?? nonEmptyString(configuration['lfoCode']);
 }
 function appendSection(target, section, defaultType) {
-    const name = str(section['name']) ?? str(section['sectionName']);
+    const name = nonEmptyString(section['name']) ?? nonEmptyString(section['sectionName']);
     if (!name)
         return;
     const features = rows(section['results']).flatMap((result) => {
-        const code = str(result['code']);
+        const code = nonEmptyString(result['code']);
         if (!code)
             return [];
         const feature = {
             code,
-            quantity: num(result['quantity']) ?? 0,
+            quantity: numericValueBlankAsZero(result['quantity']) ?? 0,
             installations: Array.isArray(result['installations']) ? result['installations'] : [],
-            description: str(result['description']),
-            type: defaultType ?? str(result['type']),
+            description: nonEmptyString(result['description']),
+            type: defaultType ?? nonEmptyString(result['type']),
             ...(typeof result['forAutoConnect'] === 'boolean'
                 ? { forAutoConnect: result['forAutoConnect'] }
                 : {}),
@@ -423,8 +428,34 @@ function toErrors(v) {
         const message = o['message'];
         if (typeof message !== 'string')
             continue;
-        out.push({ code: str(o['code']), message });
+        out.push({ code: nonEmptyString(o['code']), message });
     }
     return out;
+}
+/** Website Add Hardware: DCSC places the catalog product in the rack and returns the item without an id. */
+export async function addRackHardware(http, ctx, input, opts = {}) {
+    const res = await http.send({
+        endpoint: 'racks_hardware',
+        method: 'POST',
+        path: racksHardwarePath(hardwareEndpointFamily('cto')),
+        query: {
+            autoArrange: opts.autoArrange ?? false,
+            autoConnect: opts.autoConnect ?? true,
+            cogValidation: opts.cogValidation ?? true,
+        },
+        body: { kind: 'json', value: { rack: input.rack, newHardware: [input.product], workspace: input.workspace } },
+        responseKind: 'json',
+        timeoutClass: 'heavy',
+        ctx,
+    });
+    const rackArea = objectOrEmpty(res.raw)['rackArea'];
+    const rack = Array.isArray(rackArea) ? rows(rackArea).find(candidate => candidate['id'] === input.rack['id']) : undefined;
+    if (!rack)
+        throw new Error('DCSC returned no rack for the added hardware.');
+    const known = new Set(rows(input.rack['rackItems']).map(item => item['id']));
+    const added = rows(rack['rackItems']).filter(item => !known.has(item['id']));
+    if (added.length !== 1)
+        throw new Error('DCSC did not place the hardware in the rack.');
+    return { rack, item: added[0] };
 }
 //# sourceMappingURL=rack.js.map

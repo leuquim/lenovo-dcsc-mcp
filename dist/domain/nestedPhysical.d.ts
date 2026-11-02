@@ -1,5 +1,5 @@
 import type { RackObject } from './rack.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 /** Explicit native Delete Node intent, distinct from a freshly launched loose product. */
 export declare function detachedNestedNodeIds(workspace: {
     serverState: Obj;
@@ -42,4 +42,3 @@ export interface StagedConfiguredNodeCopy {
  * customization.
  */
 export declare function stageConfiguredNodeCopy(options: StageConfiguredNodeCopyOptions): StagedConfiguredNodeCopy;
-export {};

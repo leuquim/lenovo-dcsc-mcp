@@ -33,9 +33,9 @@ export interface ConfigDiff {
     replaced: Replacement[];
     quantityChanged: PartChange[];
     price: {
-        before: number;
-        after: number;
-        delta: number;
+        before: number | null;
+        after: number | null;
+        delta: number | null;
         currency: string;
     };
     constraints: Constraint[];

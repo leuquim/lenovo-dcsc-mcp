@@ -1,18 +1,17 @@
 import { z } from 'zod';
-import { toToolError } from '../http/errors.js';
-import { projectJsonPage } from '../model/pagedJson.js';
-const jsonBytes = (value) => Buffer.byteLength(JSON.stringify(value, null, 2));
+import { verifyMandatorySoftware } from '../app/validation.js';
+import { guard } from './toolSupport.js';
+import { objectOrEmpty } from '../util/coerce.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
+import { jsonBytes } from '../util/jsonBytes.js';
 function clipText(value, limit) {
     const characters = [...value];
     return characters.length <= limit
         ? { value, truncated: false }
         : { value: `${characters.slice(0, limit).join('')}…`, truncated: true };
 }
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
-}
 function messagePreview(value) {
-    const source = object(value);
+    const source = objectOrEmpty(value);
     const message = typeof source['message'] === 'string' ? source.message : '';
     const clip = (candidate, limit) => {
         if (typeof candidate !== 'string')
@@ -29,15 +28,15 @@ function messagePreview(value) {
 }
 /** Keeps ordinary validation results intact and makes oversized reports losslessly navigable. */
 export function projectValidationToolResult(full, options) {
-    const maxBytes = options.maxBytes ?? 7_500;
-    if (jsonBytes(full) <= Math.min(7_000, maxBytes))
+    const maxBytes = options.maxBytes ?? PAGE_BYTE_BUDGET;
+    if (jsonBytes(full) <= Math.min(PAGE_BYTE_BUDGET, maxBytes))
         return full;
     const messages = Array.isArray(full['messages']) ? full.messages : [];
     const localDiagnostics = Array.isArray(full['localDiagnostics']) ? full.localDiagnostics : [];
     const headroom = Array.isArray(full['headroom']) ? full.headroom : [];
     const inspect = (path) => ({
-        tool: 'dcsc_validation_jobs',
-        arguments: { session: options.session, jobId: options.jobId, path, offset: 0, limit: 20 },
+        tool: 'dcsc_workspace_get',
+        arguments: { session: options.session, view: 'validation', jobId: options.jobId, path, offset: 0, limit: 20 },
     });
     const pages = {
         savedJob: { inspect: inspect([]) },
@@ -46,7 +45,7 @@ export function projectValidationToolResult(full, options) {
         headroom: { total: headroom.length, inspect: inspect(['projection', 'headroom']) },
     };
     const headroomSummary = headroom.slice(0, 3).map(value => {
-        const entry = object(value);
+        const entry = objectOrEmpty(value);
         return {
             configuration: entry['configuration'],
             productCode: entry['productCode'],
@@ -55,7 +54,7 @@ export function projectValidationToolResult(full, options) {
         };
     });
     const { messages: _messages, localDiagnostics: _localDiagnostics, headroom: _headroom, warning, lmc: rawLmc, ...base } = full;
-    const lmc = object(rawLmc);
+    const lmc = objectOrEmpty(rawLmc);
     const compactLmc = {};
     const lmcPages = {};
     for (const key of ['buildEntityNumber', 'uuid', 'lmcURL']) {
@@ -171,38 +170,64 @@ export function projectValidationToolResult(full, options) {
     return compact;
 }
 export function registerValidationTools(server, service) {
-    server.registerTool('dcsc_validation_jobs', {
-        title: 'Inspect saved manufacturing validation jobs',
-        description: 'Lists saved validation jobs in the containing workspace and recomputes staleness from the current target revision and payload. Pass jobId to inspect all recorded descriptors, messages, local diagnostics, headroom and raw report through executable continuations. This is read-only and never repeats the result request. Interrupted or unscoped legacy jobs require fresh validation.',
+    server.registerTool('dcsc_validate', {
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+        title: 'Validate for manufacturing',
+        description: 'Runs DCSC manufacturing validation on a configuration or workspace and saves the job. Optionally also checks mandatory OS and hypervisor selections.',
         inputSchema: {
-            session: z.string(), jobId: z.string().optional(),
-            path: z.array(z.string()).optional().default([]),
-            offset: z.number().int().min(0).optional().default(0),
-            limit: z.number().int().min(1).max(1000).optional().default(20),
+            session: z.string(),
+            deadlineMs: z.number().int().min(1000).max(300000).optional().describe('Total validation deadline, at most five minutes.'),
+            includeMandatorySoftware: z.boolean().optional().describe('Also verify mandatory software (configuration handles only).'),
         },
-    }, async (args) => {
-        try {
-            const jobs = service.validationJobs(args.session);
-            let source;
-            if (args.jobId) {
-                source = jobs.find(job => job.id === args.jobId);
-                if (!source)
-                    throw new Error(`Validation job ${args.jobId} is not stored in this workspace.`);
-            }
-            else {
-                source = jobs.map(job => ({ jobId: job.id, target: job.target, status: job.currentStatus,
-                    isValid: job.isValid, stale: job.stale, validatedRevision: job.validatedRevision,
-                    startedAt: job.startedAt, terminal: job.terminal, freshValidationRequired: job.freshValidationRequired,
-                    next: { tool: 'dcsc_validation_jobs', arguments: { session: args.session, jobId: job.id } } }));
-            }
-            const result = projectJsonPage(source, { tool: 'dcsc_validation_jobs',
-                arguments: { session: args.session, ...(args.jobId ? { jobId: args.jobId } : {}) },
-                path: args.path, offset: args.offset, limit: args.limit });
-            return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-        }
-        catch (error) {
-            return { isError: true, content: [{ type: 'text', text: JSON.stringify(toToolError(error), null, 2) }] };
-        }
-    });
+    }, async (args) => guard(async () => {
+        const session = service.sessions.get(args.session);
+        const ws = service.sessions.getWorkspace(args.session);
+        if (!session && !ws)
+            throw new Error(`No such session/workspace: ${args.session}`);
+        const ctx = service.newCtx({
+            locale: session?.locale ?? ws.locale,
+            solution: session?.solution ?? ws.solution,
+        });
+        const report = await service.validate(args.session, ctx, { deadlineMs: args.deadlineMs });
+        const mandatory = args.includeMandatorySoftware
+            ? await verifyMandatorySoftware(service, args.session, ctx) : undefined;
+        const workspace = service.sessions.resolveHandle(args.session)?.workspace;
+        const result = {
+            session: args.session,
+            revision: workspace?.revision,
+            workspaceId: report.workspaceId,
+            source: report.source,
+            isValid: report.isValid,
+            status: report.status,
+            jobId: report.jobId,
+            payloadSha256: report.payloadSha256,
+            validatedRevision: report.validatedRevision,
+            stale: report.stale,
+            freshValidationRequired: report.freshValidationRequired,
+            validatedScope: report.validatedScope,
+            localDiagnostics: report.localDiagnostics,
+            localErrorCount: report.localErrorCount,
+            localWarningCount: report.localWarningCount,
+            localInfoCount: report.localInfoCount,
+            errorCount: report.errorCount,
+            warningCount: report.warningCount,
+            infoCount: report.infoCount,
+            messages: report.messages,
+            lmc: report.server
+                ? { buildEntityNumber: report.server.buildEntityNumber, uuid: report.server.uuid, lmcURL: report.server.lmcURL }
+                : undefined,
+            rackDataOmitted: report.rackDataOmitted,
+            ...(report.warning !== undefined ? { warning: report.warning } : {}),
+            headroom: report.headroom,
+            ...(mandatory ? { mandatorySoftware: { ok: mandatory.status, message: mandatory.message,
+                    tabs: mandatory.tabs.map(tab => tab.description) } } : {}),
+            next: report.isValid
+                ? 'dcsc_export for deliverables.'
+                : report.freshValidationRequired
+                    ? 'Run dcsc_validate again for a fresh validation job.'
+                    : 'Inspect the server and local diagnostics, correct the configuration, then validate again.',
+        };
+        return projectValidationToolResult(result, { session: args.session, jobId: report.jobId });
+    }, 'dcsc_validate failed'));
 }
 //# sourceMappingURL=validationTools.js.map

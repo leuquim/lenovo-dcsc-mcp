@@ -3,10 +3,8 @@ import { nonemptyCode } from './dcscWire.js';
 import { readConnectionGraph, projectConnectionGraph } from './cabling.js';
 import { fetchEnvelopes } from './rack.js';
 import { hydrateLockedSpaceFromSpa } from './rackLocks.js';
-const object = (value) => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-const objects = (value) => Array.isArray(value)
-    ? value.filter((entry) => entry !== null && typeof entry === 'object' && !Array.isArray(entry))
-    : [];
+import { buildFloorState } from './floorWire.js';
+import { isObject, objectItems, objectOrEmpty } from '../util/coerce.js';
 /** Retains the complete import envelope without replacing canonical workspace identity/settings. */
 export function mergeImportedState(workspace, payload) {
     assertImportContext(workspace, payload);
@@ -15,7 +13,7 @@ export function mergeImportedState(workspace, payload) {
     // Normalize both sides before merging; a previous live graph must not hide an
     // incoming graph stored only in the browser's export envelope.
     const hasGraph = (state) => ['connections', 'autoConnectResults'].some(key => Array.isArray(state[key])) ||
-        Array.isArray(object(state['networkingInformation'])['autoConnectResults']);
+        Array.isArray(objectOrEmpty(state['networkingInformation'])['autoConnectResults']);
     const previous = structuredClone(workspace.serverState);
     if (hasGraph(previous))
         previous['connections'] = readConnectionGraph(previous);
@@ -27,19 +25,20 @@ export function mergeImportedState(workspace, payload) {
 }
 /** Hydrates the import's slim physical hierarchy from DCSC envelope data. */
 export async function hydrateImportedLayout(http, ctx, workspace, payload) {
-    const imported = object(payload['workspace']);
-    const racks = objects(imported['rackArea']);
-    const loose = objects(imported['nonRackArea']);
+    const imported = objectOrEmpty(payload['workspace']);
+    const racks = objectItems(imported['rackArea']);
+    const loose = objectItems(imported['nonRackArea']);
     if (racks.length === 0 && loose.length === 0)
         return;
     const configurations = new Map([...workspace.configurations.values()].map((session) => [session.configurationId, session]));
-    const floorGrid = objects(object(payload['floorInformation'])['floorGrid']);
-    const workspaceFloorItems = objects(imported['floorItems']);
+    const floorGrid = objectItems(objectOrEmpty(payload['floorInformation'])['floorGrid']);
+    const workspaceFloorItems = objectItems(imported['floorItems']);
+    const initializeFloor = payload['floorInformation'] == null && workspaceFloorItems.length === 0;
     const hierarchyItems = [];
     const collect = (item, depth) => {
         assertSupportedPhysicalShape(item, depth);
         hierarchyItems.push(item);
-        for (const child of objects(item['children']))
+        for (const child of objectItems(item['children']))
             collect(child, depth + 1);
     };
     for (const rack of racks)
@@ -75,13 +74,18 @@ export async function hydrateImportedLayout(http, ctx, workspace, payload) {
     const stagedLoose = [];
     const stagedFloor = [];
     const incomingRackIds = new Set();
+    // The SPA's buildWorkspaceImportData decodes U_POSITION results, then
+    // constructFloorGrid initializes client-side cells when no floor was supplied.
+    const initializedCells = initializeFloor ? objectItems(buildFloorState({ ...workspace,
+        rackArea: [...workspace.rackArea, ...racks.map(rack => ({ ...rack, id: hierarchyId(rack) }))],
+    }).information['floorGrid']) : [];
     for (const rack of racks) {
         const { id, envelope } = envelopeFor(rack);
         if (incomingRackIds.has(id) || layoutHasId(workspace, id)) {
             throw new Error(`Imported layout identity ${id} already exists in this workspace.`);
         }
         incomingRackIds.add(id);
-        const cell = uniqueByIdentity(floorGrid, id, 'floor-grid rack');
+        const cell = uniqueByIdentity(initializeFloor ? initializedCells : floorGrid, id, 'floor-grid rack');
         const cellId = nonemptyString(cell['id']);
         if (!cellId)
             throw new Error(`Imported rack ${id} has no floor-grid identity.`);
@@ -100,8 +104,9 @@ export async function hydrateImportedLayout(http, ctx, workspace, payload) {
         if ([...workspace.floorItems, ...stagedFloor].some((item) => item.x === col && item.y === row)) {
             throw new Error(`Imported rack ${id} conflicts with an occupied floor cell (${col}, ${row}).`);
         }
-        const children = objects(rack['children']);
-        const locations = objects(cell['items']);
+        const children = objectItems(rack['children']);
+        const locations = initializeFloor ? children.map(child => ({ id: hierarchyId(child), position: importedHierarchyPosition(child) }))
+            : objectItems(cell['items']);
         const rackItems = children.map((child) => restoreRackItem(child, locations, envelopeFor));
         assertNoUnknownLocations(locations, children, id);
         stagedRacks.push({
@@ -120,7 +125,7 @@ export async function hydrateImportedLayout(http, ctx, workspace, payload) {
         if (layoutHasId(workspace, id) || stagedLoose.some((entry) => entry['id'] === id)) {
             throw new Error(`Imported layout identity ${id} already exists in this workspace.`);
         }
-        const hierarchyNodes = objects(item['children']);
+        const hierarchyNodes = objectItems(item['children']);
         const parentType = hardwareType(item, envelope.raw);
         if (hierarchyNodes.length > 0 && parentType !== 'chassis') {
             throw new Error(`Imported container ${id} with nested nodes is not a chassis.`);
@@ -141,7 +146,7 @@ export async function hydrateImportedLayout(http, ctx, workspace, payload) {
 }
 function restoreLooseNestedNode(item, envelopeFor, chassisId) {
     const { id, envelope } = envelopeFor(item);
-    if (objects(item['children']).length > 0)
+    if (objectItems(item['children']).length > 0)
         unsupportedContainer(id);
     const occupiedBay = positiveInteger(envelope.raw['occupiedBay']) ?? positiveInteger(item['size']);
     if (occupiedBay === undefined) {
@@ -159,14 +164,26 @@ function restoreLooseNestedNode(item, envelopeFor, chassisId) {
     restored['nodes'] = [];
     return restored;
 }
+/** Inverse of buildItemHierarchy's native 32xx placement code, in wire U units. */
+function importedHierarchyPosition(item) {
+    const placements = objectItems(item['derivedResults']).filter(result => /^32\d{2}$/.test(String(result['featureCode'])));
+    if (placements.length !== 1 || Number(placements[0]['quantity'] ?? 1) !== 1 ||
+        Array.isArray(item['originalIds']) && item['originalIds'].length > 1) {
+        throw new Error(`Imported item ${hierarchyId(item)} has no unambiguous native U-position; grouped positions require expansion.`);
+    }
+    const position = Number(String(placements[0]['featureCode']).slice(2));
+    if (!Number.isInteger(position) || position < 1)
+        throw new Error(`Imported item ${hierarchyId(item)} has no usable physical position.`);
+    return position;
+}
 function restoreRackItem(item, locations, envelopeFor) {
     const { id, envelope } = envelopeFor(item);
     const location = uniqueByIdentity(locations, id, 'rack item');
     const position = positiveInteger(location['position']);
     if (position === undefined)
         throw new Error(`Imported item ${id} has no usable physical position.`);
-    const hierarchyNodes = objects(item['children']);
-    const physicalNodes = objects(location['nodes']);
+    const hierarchyNodes = objectItems(item['children']);
+    const physicalNodes = objectItems(location['nodes']);
     const parentType = hardwareType(item, location, envelope.raw);
     if ((hierarchyNodes.length > 0 || physicalNodes.length > 0) && parentType !== 'chassis') {
         throw new Error(`Imported container ${id} with nested nodes is not a chassis.`);
@@ -185,7 +202,7 @@ function restoreRackItem(item, locations, envelopeFor) {
 }
 function restoreNestedNode(item, locations, envelopeFor, chassisId) {
     const { id, envelope } = envelopeFor(item);
-    if (objects(item['children']).length > 0)
+    if (objectItems(item['children']).length > 0)
         unsupportedContainer(id);
     // Native CFXML import can omit the chassis `nodes` placement collection
     // entirely even though its canonical workspace hierarchy contains the node.
@@ -195,7 +212,7 @@ function restoreNestedNode(item, locations, envelopeFor, chassisId) {
     const location = locations.length === 0
         ? {}
         : uniqueByIdentity(locations, id, `node in chassis ${chassisId}`);
-    if (objects(location['nodes']).length > 0)
+    if (objectItems(location['nodes']).length > 0)
         unsupportedContainer(id);
     const occupiedBay = positiveInteger(location['occupiedBay']) ?? positiveInteger(envelope.raw['occupiedBay']) ??
         positiveInteger(item['size']);
@@ -219,7 +236,7 @@ function assertSupportedPhysicalShape(item, depth) {
     if (item['asVLH'] === true || nonemptyString(item['vlhId'])) {
         throw new Error(`Imported VLH item ${id} requires a captured VLH hydration contract.`);
     }
-    if (depth >= 2 && objects(item['children']).length > 0)
+    if (depth >= 2 && objectItems(item['children']).length > 0)
         unsupportedContainer(id);
 }
 function unsupportedContainer(id) {
@@ -244,7 +261,7 @@ function uniqueByIdentity(entries, id, label) {
     return matches[0];
 }
 function matchingWorkspaceFloorItem(entries, id) {
-    const matches = entries.filter((entry) => object(entry['rackItem'])['id'] === id);
+    const matches = entries.filter((entry) => objectOrEmpty(entry['rackItem'])['id'] === id);
     if (matches.length > 1)
         throw new Error(`Imported rack ${id} has ambiguous workspace floor metadata.`);
     return matches[0];
@@ -254,7 +271,7 @@ function assertNoUnknownLocations(locations, children, containerId, childKind = 
     for (const location of locations) {
         const id = nonemptyString(location['id']);
         if (!id || !childIds.has(id)) {
-            throw new Error(`Imported container ${containerId} contains placement metadata for an unknown ${childKind}.`);
+            throw new Error(`Imported container ${containerId} contains placement metadata for an unknown ${childKind} "${id}".`);
         }
     }
 }
@@ -262,8 +279,8 @@ function layoutHasId(workspace, id) {
     const visit = (entry) => {
         if (entry['id'] === id || entry['configurationId'] === id)
             return true;
-        return objects(entry['rackItems']).some(visit) || objects(entry['children']).some(visit) ||
-            objects(entry['nodes']).some(visit);
+        return objectItems(entry['rackItems']).some(visit) || objectItems(entry['children']).some(visit) ||
+            objectItems(entry['nodes']).some(visit);
     };
     return workspace.rackArea.some(visit) || workspace.nonRackArea.some(visit);
 }
@@ -278,12 +295,15 @@ function assertImportContext(workspace, payload) {
             throw new Error(`Imported ${name} ${String(imported)} conflicts with workspace ${String(actual)}.`);
         }
     }
-    const mode = object(payload['configurationMode']);
+    const mode = objectOrEmpty(payload['configurationMode']);
     const importedMode = nonemptyString(mode['mode']);
     if (importedMode && importedMode !== workspace.solution.solutionMode) {
         throw new Error(`Imported solution mode ${importedMode} conflicts with workspace ${workspace.solution.solutionMode}.`);
     }
-    if (Array.isArray(mode['masterSlices']) && !isDeepStrictEqual(mode['masterSlices'], workspace.solution.masterSlices)) {
+    // Native Excel imports return the selected mode with an empty slices list.
+    // That omits catalog metadata; it does not contradict the resolved mode.
+    if (Array.isArray(mode['masterSlices']) && mode['masterSlices'].length > 0 &&
+        !mode['masterSlices'].every((slice) => typeof slice === 'string' && workspace.solution.masterSlices.includes(slice))) {
         throw new Error('Imported master slices conflict with the workspace solution context.');
     }
 }
@@ -292,7 +312,7 @@ function assertConfigurationIdentities(workspace, payload) {
     if (payload['type'] === 'service')
         return;
     const byId = new Map([...workspace.configurations.values()].map((session) => [session.configurationId, session]));
-    for (const imported of objects(payload['configuration'])) {
+    for (const imported of objectItems(payload['configuration'])) {
         const id = nonemptyString(imported['id']) ?? nonemptyString(imported['configurationId']);
         if (!id)
             throw new Error('Imported configuration has no identity.');
@@ -351,7 +371,7 @@ function recordIdentity(value, path) {
             'destinationId', 'destinationPortName', 'destinationPortNumber'].map(key => value[key] ?? null));
     }
     if (path.at(-1) === 'floorItems')
-        return nonemptyString(object(value['rackItem'])['id']);
+        return nonemptyString(objectOrEmpty(value['rackItem'])['id']);
     if (path.at(-1) === 'powerSelection')
         return nonemptyString(value['rack']);
     if (path.at(-1) === 'floorGrid') {
@@ -389,8 +409,5 @@ function positiveInteger(value) {
 }
 function nonnegativeInteger(value) {
     return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
-}
-function isObject(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 //# sourceMappingURL=importLayout.js.map

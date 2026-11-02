@@ -1,24 +1,7 @@
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
-function objects(value) {
-    return Array.isArray(value)
-        ? value.filter((entry) => object(entry) !== undefined)
-        : [];
-}
-function nonempty(value) {
-    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-function positiveInteger(value) {
-    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
-        ? value
-        : undefined;
-}
+import { nonBlankString, objectItems, objectOrUndefined, positiveSafeInteger } from '../util/coerce.js';
 function identity(item, label) {
-    const id = nonempty(item['id']);
-    const configurationId = nonempty(item['configurationId']);
+    const id = nonBlankString(item['id']);
+    const configurationId = nonBlankString(item['configurationId']);
     if (id && configurationId && id !== configurationId) {
         throw new Error(`${label} has conflicting id and configurationId values.`);
     }
@@ -27,32 +10,53 @@ function identity(item, label) {
         throw new Error(`${label} has no configuration identity.`);
     return resolved;
 }
-function assertSimpleRackItem(item, sourceId) {
+function assertSimpleRackItem(item, sourceId, rack, additionalCount) {
     for (const key of ['nodes', 'children', 'rackItems']) {
-        if (objects(item[key]).length > 0) {
+        if (objectItems(item[key]).length > 0) {
             throw new Error(`Racked clone source ${sourceId} contains ${key}; nested physical cloning requires an authoritative contract.`);
         }
     }
-    if (item['asVLH'] === true || nonempty(item['vlhId'])) {
+    if (item['asVLH'] === true || nonBlankString(item['vlhId'])) {
         throw new Error(`Racked clone source ${sourceId} is a VLH item; VLH cloning requires an authoritative contract.`);
     }
-    if (object(item['controllerExpansion']) || nonempty(item['controllerId'])) {
+    if (objectOrUndefined(item['controllerExpansion']) || nonBlankString(item['controllerId'])) {
         throw new Error(`Racked clone source ${sourceId} has controller expansion metadata; controller cloning requires an authoritative contract.`);
     }
-    if (nonempty(item['originalId'])) {
+    if (nonBlankString(item['originalId'])) {
         throw new Error(`Racked clone source ${sourceId} already has originalId metadata; its identity semantics are not captured.`);
     }
-    const rule = object(item['rule']);
+    const rule = objectOrUndefined(item['rule']);
     if (rule && (rule['mtMinMaxRule'] != null || rule['productMinMaxRule'] != null)) {
-        throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+        if (!rack || additionalCount === undefined) {
+            throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+        }
+        for (const [key, identityKey] of [['mtMinMaxRule', 'machineType'], ['productMinMaxRule', 'code']]) {
+            if (rule[key] == null)
+                continue;
+            const bounds = objectOrUndefined(rule[key]);
+            const min = bounds?.['min'];
+            const max = bounds?.['max'];
+            const value = nonBlankString(item[identityKey]);
+            if (!value || typeof min !== 'number' || !Number.isSafeInteger(min) || min < 0 ||
+                typeof max !== 'number' || !Number.isSafeInteger(max) || max < min) {
+                throw new Error(`Racked clone source ${sourceId} has placement rules that require authoritative placement.`);
+            }
+            // The website treats a lone product 0..0 rule as unrestricted.
+            if (key === 'productMinMaxRule' && !rule['mtMinMaxRule'] && min === 0 && max === 0)
+                continue;
+            const existing = objectItems(rack['rackItems']).filter(candidate => candidate[identityKey] === value).length;
+            if (existing + additionalCount > max) {
+                throw new Error(`Clone Multiple exceeds the rack ${identityKey} limit for ${value}: ${existing} existing + ${additionalCount} requested > ${max}.`);
+            }
+        }
     }
 }
 function occupiedPositions(rack, rackSize) {
     const occupied = new Set();
-    for (const raw of objects(rack['rackItems'])) {
+    for (const raw of objectItems(rack['rackItems'])) {
         const itemId = identity(raw, 'Rack item');
-        const position = positiveInteger(raw['position']);
-        const size = positiveInteger(raw['size']);
+        const position = positiveSafeInteger(raw['position']);
+        const size = positiveSafeInteger(raw['size']);
         if (!position || !size || position + size - 1 > rackSize) {
             throw new Error(`Rack item ${itemId} has incomplete or invalid placement metadata.`);
         }
@@ -66,7 +70,7 @@ function occupiedPositions(rack, rackSize) {
     if (!Array.isArray(locked))
         throw new Error(`Rack ${String(rack['id'])} has invalid lockedSpace metadata.`);
     for (const raw of locked) {
-        const position = positiveInteger(raw);
+        const position = positiveSafeInteger(raw);
         if (!position || position > rackSize) {
             throw new Error(`Rack ${String(rack['id'])} has unsupported locked-space metadata.`);
         }
@@ -86,18 +90,18 @@ function firstFreePosition(occupied, size, lowest, highest) {
 function normalizeDependency(value) {
     if (value === undefined)
         return {};
-    const source = object(value);
+    const source = objectOrUndefined(value);
     if (!source)
         throw new Error('cloneDependency must be an object of identity arrays.');
     const normalized = {};
     const owners = new Map();
     for (const [root, rawMembers] of Object.entries(source)) {
-        if (!nonempty(root) || !Array.isArray(rawMembers) || rawMembers.length === 0) {
+        if (!nonBlankString(root) || !Array.isArray(rawMembers) || rawMembers.length === 0) {
             throw new Error('cloneDependency contains an invalid identity group.');
         }
         const members = [];
         for (const raw of rawMembers) {
-            const member = nonempty(raw);
+            const member = nonBlankString(raw);
             if (!member)
                 throw new Error(`cloneDependency group ${root} contains an invalid identity.`);
             const owner = owners.get(member);
@@ -134,22 +138,23 @@ function extendDependency(value, sourceId, cloneIds, rackId) {
 }
 /**
  * Stages the browser's captured `Clone Multiple` physical operation for a
- * direct, rule-free rack item. The returned clone has a new identity,
+ * direct rack item with supported capacity bounds. The returned clone has a new identity,
  * `newHardware: true`, and the first free contiguous rack position. DCSC must
  * still accept the staged layout through rack customize/auto-derive.
  *
- * Copy, non-rack items, nested chassis/VLH, and rule-governed placements are
+ * Populated chassis require explicit per-parent child identity mappings.
+ * Copy, non-rack items, VLH, and complex placement rules are
  * deliberately rejected because their current browser contracts are not yet
  * verified.
  */
 export function stageRackedCloneMultiple(options) {
-    const sourceId = nonempty(options.sourceId);
+    const sourceId = nonBlankString(options.sourceId);
     if (!sourceId)
         throw new Error('Racked clone sourceId is required.');
     if (options.cloneIds.length === 0)
         throw new Error('Clone Multiple requires at least one clone identity.');
     const cloneIds = options.cloneIds.map((id) => {
-        const normalized = nonempty(id);
+        const normalized = nonBlankString(id);
         if (!normalized)
             throw new Error('Clone Multiple received an empty clone identity.');
         return normalized;
@@ -171,7 +176,7 @@ export function stageRackedCloneMultiple(options) {
         allIdentities.add(rackId);
         if (rackId === sourceId)
             throw new Error('Rack cabinets cannot be cloned with the captured item contract.');
-        for (const item of objects(rack['rackItems'])) {
+        for (const item of objectItems(rack['rackItems'])) {
             const itemId = identity(item, 'Rack item');
             if (allIdentities.has(itemId))
                 throw new Error(`Physical identity ${itemId} is duplicated.`);
@@ -195,17 +200,56 @@ export function stageRackedCloneMultiple(options) {
         if (allIdentities.has(cloneId))
             throw new Error(`Clone identity ${cloneId} already exists in the physical layout.`);
     }
-    assertSimpleRackItem(match.item, sourceId);
+    const sourceNodes = objectItems(match.item['nodes']);
+    if (sourceNodes.length > 0 && match.item['type'] === 'chassis') {
+        assertSimpleRackItem({ ...match.item, nodes: [] }, sourceId, match.rack, cloneIds.length);
+        for (const node of sourceNodes) {
+            if (node['type'] !== 'node')
+                throw new Error('Chassis cloning requires direct node children.');
+            assertSimpleRackItem(node, identity(node, 'Chassis node'));
+        }
+    }
+    else
+        assertSimpleRackItem(match.item, sourceId, match.rack, cloneIds.length);
+    const allNodeIds = new Set();
+    for (const item of [...rackArea.flatMap(rack => objectItems(rack['rackItems'])), ...nonRackArea]) {
+        for (const node of objectItems(item['nodes'])) {
+            const id = identity(node, 'Chassis node');
+            if (allIdentities.has(id) || allNodeIds.has(id))
+                throw new Error(`Physical identity ${id} is duplicated.`);
+            allNodeIds.add(id);
+        }
+    }
+    for (const id of cloneIds)
+        if (allNodeIds.has(id))
+            throw new Error(`Clone identity ${id} already exists in the physical layout.`);
+    const sourceNodeIds = sourceNodes.map(node => identity(node, 'Chassis node'));
+    const childCloneIds = options.childCloneIds ?? {};
+    if (Object.keys(childCloneIds).some(id => !cloneIds.includes(id)))
+        throw new Error('Child mapping references an unknown chassis clone.');
+    const generatedChildren = new Set();
+    for (const parent of cloneIds) {
+        const mapping = childCloneIds[parent] ?? {};
+        if (Object.keys(mapping).length !== sourceNodeIds.length || sourceNodeIds.some(id => !nonBlankString(mapping[id]))) {
+            throw new Error('Every cloned chassis requires exactly one new identity for every source node.');
+        }
+        for (const childId of Object.values(mapping)) {
+            if (allIdentities.has(childId) || allNodeIds.has(childId) || cloneIds.includes(childId) || generatedChildren.has(childId)) {
+                throw new Error(`Clone child identity ${childId} already exists or is duplicated.`);
+            }
+            generatedChildren.add(childId);
+        }
+    }
     const rackId = identity(match.rack, 'Rack');
-    const rackSize = positiveInteger(match.rack['size']);
-    const itemSize = positiveInteger(match.item['size']);
-    const lowest = positiveInteger(match.item['lowestPosition']);
-    const highest = positiveInteger(match.item['highestPosition']);
+    const rackSize = positiveSafeInteger(match.rack['size']);
+    const itemSize = positiveSafeInteger(match.item['size']);
+    const lowest = positiveSafeInteger(match.item['lowestPosition']);
+    const highest = positiveSafeInteger(match.item['highestPosition']);
     if (!rackSize || !itemSize || !lowest || !highest || lowest > highest || highest > rackSize) {
         throw new Error(`Racked clone source ${sourceId} has incomplete placement bounds.`);
     }
     const occupied = occupiedPositions(match.rack, rackSize);
-    const items = objects(match.rack['rackItems']);
+    const items = objectItems(match.rack['rackItems']);
     const placements = [];
     for (const cloneId of cloneIds) {
         const position = firstFreePosition(occupied, itemSize, lowest, highest);
@@ -217,6 +261,15 @@ export function stageRackedCloneMultiple(options) {
         if (Object.hasOwn(clone, 'configurationId'))
             clone['configurationId'] = cloneId;
         delete clone['originalId'];
+        if (sourceNodes.length > 0)
+            clone['nodes'] = sourceNodes.map(node => {
+                const child = structuredClone(node);
+                const childId = childCloneIds[cloneId][identity(node, 'Chassis node')];
+                child['id'] = childId;
+                if (Object.hasOwn(child, 'configurationId'))
+                    child['configurationId'] = childId;
+                return child;
+            });
         clone['position'] = position;
         clone['lock'] = false;
         clone['newHardware'] = true;
@@ -226,10 +279,14 @@ export function stageRackedCloneMultiple(options) {
         placements.push({ configurationId: cloneId, rackId, position });
     }
     match.rack['rackItems'] = items;
+    let dependency = extendDependency(options.cloneDependency, sourceId, cloneIds, rackId);
+    for (const childId of sourceNodeIds) {
+        dependency = extendDependency(dependency, childId, cloneIds.map(parent => childCloneIds[parent][childId]), rackId);
+    }
     return {
         rackArea,
         nonRackArea,
-        cloneDependency: extendDependency(options.cloneDependency, sourceId, cloneIds, rackId),
+        cloneDependency: dependency,
         placements,
     };
 }

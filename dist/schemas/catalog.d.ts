@@ -6,15 +6,16 @@ import { z } from 'zod';
  * the same fixtures in strict mode, where the goal is *detection*.
  */
 /** Accepts a known member, but lets unknown ones through as opaque strings. */
-export declare const openEnum: <T extends readonly [string, ...string[]]>(values: T) => z.ZodUnion<[z.ZodEnum<z.Writeable<T>>, z.ZodString]>;
+export declare const openEnum: <T extends readonly [string, ...string[]]>(values: T) => z.ZodUnion<readonly [z.ZodEnum<{ [k in T[number]]: k; } extends infer T_1 ? { [k in keyof T_1]: T_1[k]; } : never>, z.ZodString]>;
 export declare const ProductSchema: z.ZodObject<{
-    /** The code passed to /ctos/{code}/launch, e.g. "7D73CTO1WW". */
     code: z.ZodString;
     ctoCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     machineType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     model: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodEnum<[string, string]>, z.ZodString]>>>;
+    type: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodEnum<{
+        [x: string]: string;
+    }>, z.ZodString]>>>;
     hardwareType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     price: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     showPrice: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -28,49 +29,7 @@ export declare const ProductSchema: z.ZodObject<{
     lfo: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     cto: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     rackless: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    /** The code passed to /ctos/{code}/launch, e.g. "7D73CTO1WW". */
-    code: z.ZodString;
-    ctoCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machineType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    model: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodEnum<[string, string]>, z.ZodString]>>>;
-    hardwareType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    price: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    showPrice: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    announceDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    withdrawnDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    eosDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    shipStatus: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    slice: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    isExpress: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    eccnRestricted: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    lfo: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    cto: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    rackless: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    /** The code passed to /ctos/{code}/launch, e.g. "7D73CTO1WW". */
-    code: z.ZodString;
-    ctoCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machineType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    model: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodEnum<[string, string]>, z.ZodString]>>>;
-    hardwareType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    price: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    showPrice: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    announceDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    withdrawnDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    eosDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    shipStatus: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    slice: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    isExpress: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    eccnRestricted: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    lfo: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    cto: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    rackless: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-}, z.ZodTypeAny, "passthrough">>;
+}, z.core.$loose>;
 export type Product = z.infer<typeof ProductSchema>;
 export interface CategoryNode {
     id: string;
@@ -82,67 +41,25 @@ export interface CategoryNode {
     children?: CategoryNode[] | null | undefined;
 }
 export declare const CategoryNodeSchema: z.ZodType<CategoryNode>;
-export declare const CategoryHierarchySchema: z.ZodArray<z.ZodType<CategoryNode, z.ZodTypeDef, CategoryNode>, "many">;
+export declare const CategoryHierarchySchema: z.ZodArray<z.ZodType<CategoryNode, unknown, z.core.$ZodTypeInternals<CategoryNode, unknown>>>;
 export declare const SolutionModeSchema: z.ZodObject<{
-    /** The human-readable string the API expects for `solutionMode`. */
     mode: z.ZodString;
     modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
+    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    /** The human-readable string the API expects for `solutionMode`. */
-    mode: z.ZodString;
-    modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    /** The human-readable string the API expects for `solutionMode`. */
-    mode: z.ZodString;
-    modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">>;
+}, z.core.$loose>;
 export declare const SolutionModesSchema: z.ZodArray<z.ZodObject<{
-    /** The human-readable string the API expects for `solutionMode`. */
     mode: z.ZodString;
     modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
+    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    /** The human-readable string the API expects for `solutionMode`. */
-    mode: z.ZodString;
-    modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    /** The human-readable string the API expects for `solutionMode`. */
-    mode: z.ZodString;
-    modeDescription: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    systemFunctionList: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodBoolean>>>;
-    masterSlices: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
-    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">>, "many">;
+}, z.core.$loose>>;
 export declare const LocaleEntrySchema: z.ZodObject<{
     country: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     countryName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     geo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     language: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     currency: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    country: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    countryName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    geo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    language: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    currency: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    country: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    countryName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    geo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    language: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    currency: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.ZodTypeAny, "passthrough">>;
+}, z.core.$loose>;

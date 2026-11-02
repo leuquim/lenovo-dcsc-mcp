@@ -14,10 +14,8 @@ export interface RackFillerProjection {
         quantity: number;
         derived: true;
     }>;
-}
-export declare class RackFillerCatalogError extends Error {
-    readonly missingCodes: string[];
-    constructor(missingCodes: string[]);
+    /** True when the packed filler differs from the filler already selected on the rack configuration. */
+    fillerHasChanged: boolean;
 }
 /**
  * Reproduces the SPA `buildFiller` packing used before rack derives.
@@ -31,3 +29,5 @@ export declare function buildRackFiller(rack: RackObject, force?: boolean): Rack
  * workspace derive: physical `rackData` and the compact rack configuration.
  */
 export declare function projectRackFiller(sourceRack: RackObject, sourceConfiguration: RawConfiguration): RackFillerProjection;
+/** Native chassis cloning reprices changed filler selections locally. */
+export declare function repriceRackFillers(source: RawConfiguration, next: RawConfiguration): RawConfiguration;

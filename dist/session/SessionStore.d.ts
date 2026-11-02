@@ -1,132 +1,15 @@
 import type { ConfigMode } from '../config/constants.js';
 import { type Locale, type SolutionContext } from '../config/schema.js';
-import { type ReducedConfiguration } from '../domain/reduce.js';
 import { type ActionHistoryFactory } from '../domain/actionHistory.js';
-import { type ReconciliationProposal } from '../domain/reconciliation.js';
 import type { RackObject, RackSummary } from '../domain/rack.js';
+import { type ReconciliationProposal } from '../domain/reconciliation.js';
+import { type ReducedConfiguration } from '../domain/reduce.js';
 import { type ValidationJob } from '../domain/validationJobs.js';
-import { type ConfigIndex } from '../model/index.js';
+import type { CableLink, ConfigSession, FloorItem, PduSelection, WorkspaceSession } from '../model/session.js';
 import type { RawConfiguration } from '../model/types.js';
-import { type PersistenceFailureContext } from './persistenceError.js';
-export interface ConfigIntent {
-    at: number;
-    changes: Array<{
-        section: string;
-        code: string;
-        quantity: number;
-    }>;
-}
-export interface ConfigSession {
-    id: string;
-    workspaceId: string;
-    label?: string | undefined;
-    locale: Locale;
-    solution: SolutionContext;
-    product: {
-        code: string;
-        description: string;
-        type: string;
-    };
-    mode: ConfigMode;
-    validationMode: 'guided' | 'expert';
-    /** Independent from guided/expert mode, matching the website checkbox. */
-    autoCorrect: boolean;
-    raw: RawConfiguration;
-    configurationId: string;
-    reduced: ReducedConfiguration;
-    primed: boolean;
-    /** False for preconfigured models: the tree has no sections to change. */
-    configurable: boolean;
-    index: ConfigIndex;
-    revision: number;
-    intents: ConfigIntent[];
-    snapshots: Array<{
-        revision: number;
-        raw: RawConfiguration;
-        reduced: ReducedConfiguration;
-    }>;
-    createdAt: number;
-    lastAccessAt: number;
-    pricedAt: number;
-}
-/**
- * Kept for the export payload's benefit only.
- *
- * The authoritative rack state is `WorkspaceSession.rackArea`, which holds the
- * objects DCSC itself returned — see domain/rack.ts for why the layout cannot
- * be modelled locally.
- */
-export interface RackPlacement {
-    id: string;
-    code: string;
-    description: string;
-    uheight: number;
-    position: number;
-    items: Array<{
-        configId: string;
-        code: string;
-        position: number;
-        height: number;
-    }>;
-}
-export interface CableLink {
-    id: string;
-    fromConfigId: string;
-    fromPort: string;
-    toConfigId: string;
-    toPort: string;
-    cableCode?: string;
-    description?: string;
-}
-export interface FloorItem {
-    id: string;
-    rackId: string;
-    x: number;
-    y: number;
-}
-export interface PduSelection {
-    rackId: string;
-    pduCode?: string | undefined;
-    cordCode?: string | undefined;
-    voltage?: string | undefined;
-}
-export interface WorkspaceHistoryEntry {
-    revision: number;
-    /** JSON-safe canonical workspace state; derived configuration views are omitted. */
-    state: Record<string, unknown>;
-}
-export interface WorkspaceHistory {
-    undo: WorkspaceHistoryEntry[];
-    redo: WorkspaceHistoryEntry[];
-}
-export interface WorkspaceSession {
-    id: string;
-    label?: string | undefined;
-    locale: Locale;
-    solution: SolutionContext;
-    validationMode: 'guided' | 'expert';
-    configurations: Map<string, ConfigSession>;
-    racks: Map<string, RackPlacement>;
-    /** DCSC's own rackArea objects, re-posted verbatim on every mutation. */
-    rackArea: RackObject[];
-    /** DCSC objects currently outside a physical rack. */
-    nonRackArea: RackObject[];
-    /** Lossless original import/export envelope and client-held workspace metadata. */
-    serverState: Record<string, unknown>;
-    /** Reduced view of the last layout DCSC validated. */
-    rackSummaries: RackSummary[];
-    cables: CableLink[];
-    floorItems: FloorItem[];
-    powerSelections: PduSelection[];
-    integrity: 'verified' | 'legacy-unverified' | 'damaged';
-    integrityWarnings: string[];
-    recoveryData?: unknown[] | undefined;
-    history?: WorkspaceHistory | undefined;
-    revision: number;
-    createdAt: number;
-    lastAccessAt: number;
-    pricedAt: number;
-}
+import { type PersistenceFailureContext } from '../http/persistenceError.js';
+import { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET } from './sessionSnapshots.js';
+export { stageConfiguration, trimHistoryToBudget, WORKSPACE_HISTORY_BYTE_BUDGET };
 export interface CreateSessionInput {
     locale: Locale;
     solution: SolutionContext;
@@ -144,7 +27,6 @@ export interface CreateSessionInput {
 export interface WorkspaceStateInput {
     label?: string | undefined;
     validationMode?: 'guided' | 'expert' | undefined;
-    racks?: ReadonlyMap<string, RackPlacement> | undefined;
     rackArea?: RackObject[] | undefined;
     nonRackArea?: RackObject[] | undefined;
     serverState?: Record<string, unknown> | undefined;
@@ -197,7 +79,15 @@ export interface TransactionOptions {
     /** Diagnostics to attach if durable publication fails after the callback succeeds. */
     persistenceFailure?: Omit<PersistenceFailureContext, 'remoteApplied'> | undefined;
 }
-export type PersistenceWriter = (candidateWorkspaces: readonly WorkspaceSession[]) => void | Promise<void>;
+/** What the store needs to find a workspace and its configurations without loading it. */
+export interface WorkspaceIndexEntry {
+    id: string;
+    lastAccessAt: number;
+    configurationIds: string[];
+}
+/** Receives only the workspaces that changed or were removed, plus the index after the change. */
+export type PersistenceWriter = (changedWorkspaces: readonly WorkspaceSession[], removedWorkspaceIds: readonly string[], indexAfterChange: readonly WorkspaceIndexEntry[]) => void | Promise<void>;
+export type WorkspaceHydrator = (workspaceId: string) => void;
 export declare class SessionConflictError extends Error {
     readonly expectedRevision: number;
     readonly actualRevision: number;
@@ -229,13 +119,21 @@ export interface RestoreDiagnostics {
     warnings?: string[] | undefined;
     quarantined?: unknown[] | undefined;
     recoveryArchives?: RestoreRecoveryArchive[] | undefined;
+    evictedWorkspaceIds?: string[] | undefined;
+}
+export interface RestoreOptions {
+    provenance?: 'current' | 'legacy-unverified';
 }
 export declare const CLONE_OWNERSHIP_RECOVERY_STATE_KEY = "unresolvedCloneOwnership";
 export declare class SessionStore {
     #private;
-    private readonly maxSessions;
+    readonly maxSessions: number;
     constructor(maxSessions?: number);
     setPersistenceWriter(writer: PersistenceWriter | undefined): void;
+    /** Registers persisted workspaces that are parsed and restored on first access. */
+    registerUnloaded(entries: readonly WorkspaceIndexEntry[], hydrate: WorkspaceHydrator): void;
+    /** Index of every known workspace, loaded or not. */
+    workspaceIndex(): WorkspaceIndexEntry[];
     get lastRestoreReport(): RestoreReport;
     /** Adds persistence-layer diagnostics that can occur before workspace restore. */
     recordRestoreDiagnostics(diagnostics: RestoreDiagnostics): void;
@@ -251,15 +149,6 @@ export declare class SessionStore {
     undoWorkspace(handle: string, expectedRevision?: number): Promise<boolean>;
     redoWorkspace(handle: string, expectedRevision?: number): Promise<boolean>;
     get(id: string): ConfigSession | undefined;
-    /**
-     * Distinguishes "the caller named a workspace" from "the caller named one
-     * configuration that happens to live in a workspace".
-     *
-     * `get` and `getWorkspace` both accept either kind of id and quietly widen or
-     * narrow, which is convenient for reads and wrong for export: asking to
-     * export one node in a seven-product workspace used to export all seven.
-     * Anything that acts on a scope must resolve the handle here first.
-     */
     resolveHandle(id: string): {
         kind: 'workspace';
         workspace: WorkspaceSession;
@@ -269,60 +158,20 @@ export declare class SessionStore {
         session: ConfigSession;
         workspace: WorkspaceSession | undefined;
     } | undefined;
+    /** Reads a loaded workspace without counting as access, so eviction order is kept. */
+    peekWorkspace(id: string): WorkspaceSession | undefined;
     getWorkspace(id: string): WorkspaceSession | undefined;
     list(): ConfigSession[];
     listWorkspaces(): WorkspaceSession[];
     delete(id: string): boolean;
-    /**
-     * Durably removes an entire workspace, including every configuration handle.
-     * Publication happens only after the complete replacement snapshot succeeds.
-     */
     deleteWorkspace(handle: string, expectedRevision?: number, persistenceFailure?: PersistenceFailureContext): Promise<boolean>;
-    /** Waits for queued workspace mutations and complete-snapshot writes. */
     drain(): Promise<void>;
-    /** All mutations for a session or workspace serialise through here. */
-    withLock<T>(id: string, fn: () => Promise<T>): Promise<T>;
-    /**
-     * Applies one workspace mutation atomically.
-     *
-     * The callback only sees detached data. A durable writer, when configured,
-     * receives the complete candidate store before any live object is changed.
-     * This keeps callback, validation and filesystem failures invisible to
-     * readers while retaining the object references held by legacy callers.
-     */
     transact<T>(handle: string, options: TransactionOptions, fn: (draftWorkspace: WorkspaceSession, targetSession?: ConfigSession) => T | Promise<T>): Promise<T>;
-    /**
-     * Durably records validation metadata without changing canonical revisions,
-     * undo history, access timestamps, or configuration object identities.
-     */
     recordValidationJob(handle: string, job: ValidationJob, persistenceFailure?: PersistenceFailureContext): Promise<void>;
-    /**
-     * Durably records a bounded reconciliation proposal without changing design
-     * revisions or undo history. The proposal must still match the exact source
-     * after this call has acquired the workspace lock.
-     */
     recordReconciliationProposal(handle: string, proposal: ReconciliationProposal, persistenceFailure?: PersistenceFailureContext): Promise<void>;
-    /** Commits a new raw payload, bumping the revision and rebuilding the index. */
-    commit(session: ConfigSession, raw: RawConfiguration, reduced: ReducedConfiguration, intent?: ConfigIntent): ConfigSession;
-    /** Restores the previous snapshot. Returns false when there is nothing to undo. */
-    undo(session: ConfigSession): boolean;
-    addRack(workspaceId: string, rackCode: string, description?: string, uheight?: number, position?: number): RackPlacement;
-    placeInRack(workspaceId: string, configId: string, rackId: string, uPosition: number, height?: number): boolean;
-    /** Replaces the workspace cable list (used after DCSC auto-connect). */
-    setCables(workspaceId: string, cables: CableLink[]): void;
-    addCabling(workspaceId: string, cable: Omit<CableLink, 'id'>): CableLink;
-    setFloorItem(workspaceId: string, item: FloorItem): FloorItem;
-    /** @deprecated Prefer service.placeOnFloor, which validates the rack exists. */
-    placeOnFloor(workspaceId: string, rackId: string, x: number, y: number): FloorItem;
-    setPowerSelection(workspaceId: string, selection: PduSelection): PduSelection;
-    /** @deprecated Prefer service.configurePdu, which selects features via DCSC. */
-    configurePdu(workspaceId: string, rackId: string, pduSelection: Omit<PduSelection, 'rackId'>): PduSelection;
-    /** Finds a configuration in this workspace by DCSC configuration id. */
     findByConfigurationId(workspaceId: string, configurationId: string): ConfigSession | undefined;
     /** Rebuilds canonical workspaces while retaining diagnostics for recovery. */
-    restore(workspaces: unknown[], options?: {
-        provenance?: 'current' | 'legacy-unverified';
-    }): number;
+    restore(workspaces: unknown[], options?: RestoreOptions): number;
+    /** Restores workspaces on first access and merges the outcome into lastRestoreReport. */
+    restoreLazily(workspaces: unknown[]): RestoreReport;
 }
-/** Adds a validated configuration to a detached transaction candidate only. */
-export declare function stageConfiguration(workspace: WorkspaceSession, input: CreateSessionInput): ConfigSession;

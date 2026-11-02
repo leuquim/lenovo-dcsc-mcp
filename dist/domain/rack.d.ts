@@ -100,6 +100,8 @@ export interface LayoutResult {
 }
 /** Rack hardware available in the current solution mode or compatible-parent catalog. */
 export declare function fetchRackCabinets(http: DcscHttpClient, ctx: RequestCtx, masterCode?: string, hardwareType?: 'rack' | 'chassis' | 'node'): Promise<RackCabinet[]>;
+/** The website's rack-add handshake after the CTO launch: the rack launch and the PDU preference lookup. */
+export declare function openRackLaunch(http: DcscHttpClient, ctx: RequestCtx, rackCode: string, solutionMode: string): Promise<void>;
 /**
  * Physical envelope for each product code.
  *
@@ -156,3 +158,14 @@ export declare function customizeLayout(http: DcscHttpClient, ctx: RequestCtx, p
 export declare function buildRackItem(envelope: PhysicalEnvelope, configurationId: string, position: number, quantity?: number): RackObject;
 /** Builds a rackArea entry for an empty rack cabinet. */
 export declare function buildRackObject(envelope: PhysicalEnvelope, rackId: string, items?: RackObject[]): RackObject;
+export interface AddedRackHardware {
+    /** The rack after DCSC placed the product; the new item carries no id yet. */
+    rack: RackObject;
+    item: RackObject;
+}
+/** Website Add Hardware: DCSC places the catalog product in the rack and returns the item without an id. */
+export declare function addRackHardware(http: DcscHttpClient, ctx: RequestCtx, input: {
+    rack: RackObject;
+    product: RackObject;
+    workspace: RackObject;
+}, opts?: CustomizeOptions): Promise<AddedRackHardware>;

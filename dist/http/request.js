@@ -1,8 +1,9 @@
 import { Agent, request as undiciRequest } from 'undici';
 import { randomBytes } from 'node:crypto';
 import { API_PREFIX } from '../config/constants.js';
-import { DcscBudgetExceededError, DcscError, DcscThrottledError, DcscTransportError, buildHttpError, } from './errors.js';
-import { assertPreamble, composeHeaders, composeQuery } from './preamble.js';
+import { DcscBudgetExceededError, DcscError, DcscThrottledError, DcscServerError, DcscTransportError, buildHttpError, } from './errors.js';
+import { redactBody } from './redact.js';
+import { assertPreamble, composeHeaders, composeQuery, withdrawnDateQuery } from './preamble.js';
 import { CircuitBreaker } from './resilience/breaker.js';
 import { RequestBudget, Semaphore, TokenBucket, sleep } from './resilience/pacer.js';
 import { backoffDelay, isRetryableTransportError, shouldRetry } from './resilience/retry.js';
@@ -157,11 +158,7 @@ export class DcscHttpClient {
     }
     async #execute(input, timeoutClass, attempt) {
         const requiresSolution = input.requiresSolution ?? true;
-        const params = composeQuery({
-            locale: input.ctx.locale,
-            solution: input.ctx.solution,
-            query: input.query,
-        });
+        const params = requestQuery(input);
         assertPreamble(params, {
             endpoint: input.endpoint,
             corrId: input.ctx.corrId,
@@ -222,7 +219,7 @@ export class DcscHttpClient {
         const contentType = headerMap['content-type'];
         if (res.statusCode >= 400) {
             // Errors are always small; safe to buffer even in stream mode.
-            const text = await res.body.text();
+            const text = await this.#readBodyText(res, input);
             const parsed = tryParseJson(text, contentType);
             const error = buildHttpError({
                 status: res.statusCode,
@@ -260,35 +257,80 @@ export class DcscHttpClient {
                 contentDisposition: headerMap['content-disposition'],
             };
         }
-        const text = await res.body.text();
+        const text = await this.#readBodyText(res, input);
         log.info({ status: res.statusCode, durationMs, requestId, bytes: text.length }, 'DCSC request ok');
-        return { ...base, raw: tryParseJson(text, contentType) ?? text };
+        if (input.responseKind === 'text')
+            return { ...base, raw: tryParseJson(text, contentType) ?? text };
+        if (text === '')
+            return { ...base, raw: text };
+        try {
+            return { ...base, raw: JSON.parse(text) };
+        }
+        catch {
+            const redacted = redactBody(text);
+            throw new DcscServerError({
+                endpoint: input.endpoint,
+                status: res.statusCode,
+                requestId,
+                traceId,
+                corrId: input.ctx.corrId,
+                userMessage: 'DCSC returned a response that is not valid JSON.',
+                internal: redacted.text,
+                bodyHash: redacted.hash,
+                retryable: false,
+            });
+        }
+    }
+    async #readBodyText(res, input) {
+        try {
+            return await res.body.text();
+        }
+        catch (err) {
+            throw new DcscTransportError({
+                endpoint: input.endpoint,
+                corrId: input.ctx.corrId,
+                userMessage: 'Could not read the DCSC response (network error). This is usually transient.',
+                internal: describe(err),
+                retryable: isRetryableTransportError(err),
+            });
+        }
     }
 }
 // ---------------------------------------------------------------------------
+/** The query string as sent: preamble, withdrawn-date setting, then the call's own params. */
+export function requestQuery(input) {
+    return composeQuery({
+        locale: input.ctx.locale,
+        solution: input.ctx.solution,
+        query: { ...withdrawnDateQuery(input.path, input.ctx.withdrawnSince), ...input.query },
+    });
+}
 /**
  * Builds a multipart/form-data body byte-for-byte the way the SPA does.
  *
  * DCSC's import endpoint is strict about CRLF line endings and about the file
  * part carrying an explicit Content-Type; omitting either yields an HTTP 500.
  */
-function serialiseMultipart(boundary, parts) {
-    let out = '';
+export function serialiseMultipart(boundary, parts) {
+    const chunks = [];
+    const append = (value) => {
+        chunks.push(typeof value === 'string' ? Buffer.from(value, 'utf8') : value);
+    };
     for (const part of parts) {
-        out += `--${boundary}\r\n`;
+        append(`--${boundary}\r\n`);
         if ('filename' in part) {
-            out += `Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n`;
-            out += `Content-Type: ${part.contentType}\r\n\r\n`;
-            out += part.content;
+            append(`Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n`);
+            append(`Content-Type: ${part.contentType}\r\n\r\n`);
+            append(part.content);
         }
         else {
-            out += `Content-Disposition: form-data; name="${part.name}"\r\n\r\n`;
-            out += part.value;
+            append(`Content-Disposition: form-data; name="${part.name}"\r\n\r\n`);
+            append(part.value);
         }
-        out += '\r\n';
+        append('\r\n');
     }
-    out += `--${boundary}--\r\n`;
-    return out;
+    append(`--${boundary}--\r\n`);
+    return Buffer.concat(chunks);
 }
 function flattenHeaders(headers) {
     const out = {};

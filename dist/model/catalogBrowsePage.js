@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { projectJsonPage } from './pagedJson.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET } from '../config/constants.js';
 /**
  * Bound both collections returned by hierarchical catalog browsing while
  * advancing each cursor by the number that survived byte trimming.
@@ -66,14 +68,14 @@ export function projectCatalogBrowsePage(options) {
         },
         ...(continuation() ? { next: continuation() } : {}),
     });
-    const size = () => Buffer.byteLength(JSON.stringify(result(), null, 2));
-    while (size() > 7_500 && categories.length + products.length > 1) {
+    const size = () => jsonBytes(result());
+    while (size() > PAGE_BYTE_BUDGET && categories.length + products.length > 1) {
         if (products.length >= categories.length && products.length > 0)
             products.pop();
         else
             categories.pop();
     }
-    if (size() > 7_500) {
+    if (size() > PAGE_BYTE_BUDGET) {
         if (products.length === 1) {
             const row = products[0];
             products[0] = compact(row, 'code', {
@@ -89,7 +91,7 @@ export function projectCatalogBrowsePage(options) {
             });
         }
     }
-    if (size() > 7_500)
+    if (size() > PAGE_BYTE_BUDGET)
         throw new Error('Catalog browse context exceeds the response budget. Inspect a narrower breadcrumb.');
     return result();
 }

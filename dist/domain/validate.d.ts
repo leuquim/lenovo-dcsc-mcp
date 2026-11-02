@@ -1,4 +1,5 @@
 import type { DcscHttpClient, RequestCtx } from '../http/request.js';
+import { type Obj } from '../util/coerce.js';
 /**
  * DCSC manufacturing validation is a two-request job.
  *
@@ -57,13 +58,12 @@ export interface ValidationReport {
     /** True only for a terminal server success with no local error diagnostics. */
     isValid: boolean;
 }
-type Obj = Record<string, unknown>;
+/** The website's /lmc_validation body: the export payload narrowed to the keys it posts, plus the mode. */
+export declare function lmcValidationBody(exportPayload: Record<string, unknown>, mode: string): Record<string, unknown>;
 /** Starts a manufacturing-validation job and retains the exact descriptor array. */
 export declare function startLmcValidation(http: DcscHttpClient, ctx: RequestCtx, exportPayload: Record<string, unknown>, mode: string): Promise<LmcValidationStart>;
 /** Makes one bounded result request. The caller decides whether a later retry is supported. */
 export declare function fetchLmcValidationResult(http: DcscHttpClient, ctx: RequestCtx, start: LmcValidationStart): Promise<LmcValidationResult>;
-/** Starts a job and performs exactly one result request. */
-export declare function runLmcValidation(http: DcscHttpClient, ctx: RequestCtx, exportPayload: Record<string, unknown>, mode: string): Promise<LmcValidationResult>;
 export declare function parseLmcValidationResult(start: LmcValidationStart, raw: unknown): LmcValidationResult;
 /**
  * Collects local diagnostics from the configuration tree. This includes the
@@ -73,10 +73,4 @@ export declare function collectLocalDiagnostics(targets: Array<{
     configurationId: string;
     raw: Obj;
 }>): LocalMessage[];
-/** Backward-compatible name; now includes all known nested local diagnostics. */
-export declare function collectExpansionMessages(targets: Array<{
-    configurationId: string;
-    raw: Obj;
-}>): LocalMessage[];
 export declare function summariseValidation(server: LmcValidationResult | undefined, localDiagnostics: LocalMessage[]): ValidationReport;
-export {};

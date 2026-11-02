@@ -1,14 +1,7 @@
 import { stageRackedCloneMultiple } from './physicalClone.js';
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? value
-        : undefined;
-}
-function nonempty(value) {
-    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
+import { nonBlankString, objectOrUndefined } from '../util/coerce.js';
 function sourceDependency(value, sourceId) {
-    const dependency = object(value);
+    const dependency = objectOrUndefined(value);
     if (!dependency)
         return undefined;
     const matches = [];
@@ -29,23 +22,20 @@ function sourceDependency(value, sourceId) {
  * Multiple it does not remain commercially linked to its source.
  */
 export function stageRackedCopy(options) {
-    const sourceId = nonempty(options.sourceId);
-    const copyId = nonempty(options.copyId);
+    const sourceId = nonBlankString(options.sourceId);
+    const copyId = nonBlankString(options.copyId);
     if (!sourceId)
         throw new Error('Racked copy sourceId is required.');
     if (!copyId)
         throw new Error('Racked copy copyId is required.');
     const existingGroup = sourceDependency(options.cloneDependency, sourceId);
-    if (existingGroup && (existingGroup.root !== sourceId ||
-        new Set(existingGroup.members).size !== 1 || existingGroup.members[0] !== sourceId)) {
-        throw new Error(`Copy source ${sourceId} is linked by Clone Multiple; linked Copy semantics are not captured.`);
-    }
     const staged = stageRackedCloneMultiple({
         rackArea: options.rackArea,
         nonRackArea: options.nonRackArea,
         sourceId,
         cloneIds: [copyId],
         cloneDependency: options.cloneDependency,
+        ...(options.childCloneIds ? { childCloneIds: options.childCloneIds } : {}),
     });
     const placement = staged.placements[0];
     if (!placement)
@@ -55,7 +45,7 @@ export function stageRackedCopy(options) {
     const items = Array.isArray(rack?.['rackItems']) ? rack['rackItems'] : [];
     const source = items.find(item => item['id'] === sourceId || item['configurationId'] === sourceId);
     const copy = items.find(item => item['id'] === copyId || item['configurationId'] === copyId);
-    const sourceName = nonempty(options.sourceName) ?? nonempty(source?.['name']);
+    const sourceName = nonBlankString(options.sourceName) ?? nonBlankString(source?.['name']);
     if (!sourceName) {
         throw new Error(`Racked copy source ${sourceId} has no configuration name; fallback hardware-label naming is not captured.`);
     }
@@ -64,10 +54,25 @@ export function stageRackedCopy(options) {
     const copyName = `Copy_${sourceName}`;
     copy['name'] = copyName;
     // stageRackedCloneMultiple supplies the shared placement/identity checks.
-    // Copy then breaks the temporary linked group into browser-authoritative
-    // singleton commercial identities.
-    staged.cloneDependency[sourceId] = [sourceId];
+    // Remove the temporary link to the copy without splitting the source group.
+    staged.cloneDependency[existingGroup?.root ?? sourceId] = existingGroup ? [...existingGroup.members] : [sourceId];
     staged.cloneDependency[copyId] = [copyId];
+    const sourceNodes = Array.isArray(source?.['nodes']) ? source['nodes'] : [];
+    const copiedNodes = Array.isArray(copy['nodes']) ? copy['nodes'] : [];
+    for (const node of sourceNodes) {
+        const nodeId = nonBlankString(node['id']) ?? nonBlankString(node['configurationId']);
+        if (!nodeId)
+            throw new Error('Copy source node has no identity.');
+        const group = sourceDependency(options.cloneDependency, nodeId);
+        const childId = options.childCloneIds?.[copyId]?.[nodeId];
+        const child = copiedNodes.find(n => n['id'] === childId || n['configurationId'] === childId);
+        const name = nonBlankString(node['name']);
+        if (!childId || !child || !name)
+            throw new Error(`Copy source node ${nodeId} requires a mapped identity and configuration name.`);
+        child['name'] = `Copy_${name}`;
+        staged.cloneDependency[group?.root ?? nodeId] = group ? [...group.members] : [nodeId];
+        staged.cloneDependency[childId] = [childId];
+    }
     return {
         rackArea: staged.rackArea,
         nonRackArea: staged.nonRackArea,

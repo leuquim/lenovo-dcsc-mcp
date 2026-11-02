@@ -1,0 +1,599 @@
+import { storageWizardOptions, storageWizardOption, stageStorageWizardChange, } from '../domain/storageWizard.js';
+import { pciWizardOptions, stagePciWizardChange, acceptPciWizardValidation, withPciWizardOption, } from '../domain/pciWizard.js';
+import { serializeSections } from '../domain/dcscWire.js';
+import { reconfigureStorageConnectionNetwork } from '../domain/storagePreferences.js';
+import { usesCtoWire } from '../domain/modeFamily.js';
+import { newConfigurationId, reduceConfiguration } from '../domain/reduce.js';
+import { customizeLayout } from '../domain/rack.js';
+import { extractPowerReport } from '../domain/power.js';
+import { acceptPowerCalculation, buildPowerCalculationRequest, inspectPowerControls, stagePowerControls, } from '../domain/powerControls.js';
+import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js';
+import { buildWorkspaceNetworkPreferences } from '../domain/networkPreferences.js';
+import { workspaceNetworkTypes } from '../domain/workspaceNetworkPreferences.js';
+import { retainReplacedStorageComponents } from '../domain/storageComponentLifecycle.js';
+import { addStorageConnectionNetwork, editStorageConnectionNetwork, readStorageConnectionNetworks, storageConnectionNetworkSource, storagePhysicalTemplateIds, storageDependencyColors, } from '../domain/storagePreferences.js';
+import { buildClusterPreferences, readAutoConnectSettings, readConnectionGraph, projectConnectionGraph, invalidateConnectionGraph, } from '../domain/cabling.js';
+import { physicalIds, removeWorkspaceReferences } from '../domain/workspaceReferences.js';
+import { buildFloorState } from '../domain/floorWire.js';
+import { buildStorageAssignmentRequest, parseStorageAssignmentResponse } from '../domain/storageAssignment.js';
+import { stageStorageNetworkPlacement, parseStoragePlacementResponse, } from '../domain/storagePlacement.js';
+import {} from '../http/request.js';
+import { stageConfiguration } from '../session/SessionStore.js';
+import { networkChangeHistoryFactory, storageChangeHistoryFactory, summariseRackArea, updateHistoryFactory, requireConfiguration, assertWorkspaceRevision, linkedGroup, linkedMembers, rebuildDerived, } from './serviceHelpers.js';
+import { layoutToggleOverrides } from '../domain/floor.js';
+import { ctoLaunchPath, launchQuery } from '../domain/endpoints.js';
+import { configureDraft } from './launch.js';
+import { acceptDerivedWorkspaceConfigurations, autoConnectDraft, prepareConfigIdsDraft, provisionSwitchesDraft, refreshRackMetadata, refreshStorageLayoutDraft, workspaceCablingPayload, workspaceNetworkState } from './workspaceRefresh.js';
+export function inspectStorageWizard(rt, handle, expectedWorkspaceRevision) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'Storage wizard requires one configuration handle.');
+    assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+    const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
+    const options = storageWizardOptions(resolved.session.raw);
+    const wizard = resolved.session.raw['storageWizard'];
+    return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+        configurationRevision: resolved.session.revision, available: options.length > 0,
+        affectedConfigurationIds: group.memberIds, options,
+        errors: structuredClone(wizard?.['errors'] ?? []), warnings: structuredClone(wizard?.['warnings'] ?? []),
+        notices: structuredClone(wizard?.['notices'] ?? []) };
+}
+export async function setStorageWizard(rt, handle, change, expectedWorkspaceRevision, ctx) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'Storage wizard requires one configuration handle.');
+    const id = resolved.session.configurationId;
+    await rt.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
+        actionHistory: updateHistoryFactory(id) }, async (workspace) => {
+        const group = linkedGroup(workspace, id);
+        const members = linkedMembers(workspace, group);
+        const staged = members.map(session => ({ session, raw: stageStorageWizardChange(session.raw, change) }));
+        for (const item of staged) {
+            item.session.raw = item.raw;
+            rebuildDerived(item.session, workspace);
+        }
+        await configureDraft(rt, members.find(s => s.configurationId === id), [], { ...ctx, locale: workspace.locale, solution: workspace.solution }, workspace);
+        for (const member of members) {
+            const option = storageWizardOption(member.raw);
+            if (change.optionId === null ? option?.['activate'] !== false
+                : option?.['configId'] !== change.optionId || option?.['userSelected'] !== true) {
+                throw new Error('Lenovo did not retain the explicit storage wizard selection; the local edit was not committed.');
+            }
+        }
+    });
+    return inspectStorageWizard(rt, handle);
+}
+export function inspectPciWizard(rt, handle, expectedWorkspaceRevision) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'PCI wizard requires one configuration handle.');
+    assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+    const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
+    const options = pciWizardOptions(resolved.session.raw);
+    return { session: resolved.session.id, workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+        configurationRevision: resolved.session.revision, available: options.length > 0,
+        affectedConfigurationIds: group.memberIds, options };
+}
+export async function setPciWizard(rt, handle, change, expectedWorkspaceRevision, ctx) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'PCI wizard requires one configuration handle.');
+    const id = resolved.session.configurationId;
+    await rt.sessions.transact(resolved.workspace.id, { expectedRevision: expectedWorkspaceRevision, remoteApplied: true,
+        actionHistory: updateHistoryFactory(id) }, async (workspace) => {
+        const group = linkedGroup(workspace, id);
+        const members = linkedMembers(workspace, group);
+        const staged = members.map(session => ({ session, ...stagePciWizardChange(session.raw, change) }));
+        const requestCtx = { ...ctx, locale: workspace.locale, solution: workspace.solution };
+        await Promise.all(staged.map(async (item) => {
+            let option = item.option;
+            if (item.operate) {
+                const response = await rt.http.send({ endpoint: 'pci_wizard_validate_slot', method: 'POST',
+                    path: '/pci_wizard/validate/additional/slot',
+                    query: { ctoCode: String(item.session.raw.sliceCtoCode ?? item.session.raw.ctoCode ?? item.session.raw.code), _request: 'web' },
+                    body: { kind: 'json', value: { pciWizardOption: option,
+                            sections: serializeSections(item.session.raw).filter(section => section.subTabTitle !== 'Riser Card'),
+                            operate: item.operate, language: workspace.locale.language } },
+                    responseKind: 'json', timeoutClass: 'interactive', ctx: requestCtx });
+                option = acceptPciWizardValidation(option, response.raw, item.operate);
+            }
+            item.session.raw = withPciWizardOption(item.session.raw, item.options, option);
+            rebuildDerived(item.session, workspace);
+        }));
+        await configureDraft(rt, members.find(s => s.configurationId === id), [], requestCtx, workspace);
+        for (const member of members) {
+            const active = pciWizardOptions(member.raw).filter(option => option['activate'] === true);
+            if (active.length !== 1 || active[0]['configId'] !== change.optionId) {
+                throw new Error('Lenovo did not retain the selected PCI wizard option; the local edit was not committed.');
+            }
+        }
+    });
+    return inspectPciWizard(rt, handle);
+}
+export function inspectWorkspacePowerControls(rt, handle, expectedWorkspaceRevision) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'Power controls require one configuration handle from dcsc_session_list.');
+    assertWorkspaceRevision(resolved.workspace, expectedWorkspaceRevision);
+    const group = linkedGroup(resolved.workspace, resolved.session.configurationId);
+    return { workspace: resolved.workspace.id, workspaceRevision: resolved.workspace.revision,
+        session: resolved.session.id, configurationRevision: resolved.session.revision,
+        affectedConfigurationIds: group.memberIds, ...inspectPowerControls(resolved.session.raw) };
+}
+/** Mirrors the Engineering Power Report dialog's calculate + Save, in one durable transaction. */
+export async function setPowerControls(rt, handle, changes, expectedWorkspaceRevision, ctx) {
+    const resolved = requireConfiguration(rt.sessions, handle, 'Power controls require one configuration handle from dcsc_session_list.');
+    const configurationId = resolved.session.configurationId;
+    const transaction = { expectedRevision: expectedWorkspaceRevision, remoteApplied: false };
+    await rt.sessions.transact(resolved.workspace.id, transaction, async (workspace) => {
+        const group = linkedGroup(workspace, configurationId);
+        const members = linkedMembers(workspace, group);
+        const staged = members.map(session => ({ session, raw: stagePowerControls(session.raw, changes),
+            physical: storagePhysicalConfigurations(workspace, session.configurationId, session.raw)
+                .map(item => ({ ...item, raw: stagePowerControls(item.raw, changes) })),
+        }));
+        const calculate = async (raw) => {
+            const response = await rt.http.send({ endpoint: 'power_calculate', method: 'POST',
+                path: '/powercalculation/powercalculate', body: { kind: 'json', value: buildPowerCalculationRequest(raw) },
+                responseKind: 'json', timeoutClass: 'interactive', ctx: { ...ctx, locale: workspace.locale, solution: workspace.solution } });
+            transaction.remoteApplied = true;
+            return acceptPowerCalculation(raw, response.raw);
+        };
+        for (const item of staged) {
+            item.session.raw = await calculate(item.raw);
+            rebuildDerived(item.session, workspace);
+            for (const physical of item.physical) {
+                const accepted = await calculate(physical.raw);
+                workspace.serverState.storagePhysicalConfigurations = {
+                    ...workspace.serverState.storagePhysicalConfigurations,
+                    [physical.physicalId]: accepted,
+                };
+            }
+        }
+        refreshRackMetadata(workspace, true);
+    });
+    return { ...inspectWorkspacePowerControls(rt, handle), report: extractPowerReport(rt.sessions.get(handle).raw) };
+}
+/** The rack + Storage Network action installs physical instances of managed templates. */
+export async function placeStorageNetwork(rt, handle, opts) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    const transaction = { expectedRevision: opts.expectedRevision, remoteApplied: false };
+    const result = await rt.sessions.transact(workspace.id, transaction, async (draft) => {
+        if (draft.solution.solutionMode !== 'HPC and AI - Systems') {
+            throw new Error('Physical storage network placement currently requires HPC and AI - Systems; General Purpose placement has a separate configuration-copy contract.');
+        }
+        if (!draft.rackArea.some(rack => rack.id === opts.rackId))
+            throw new Error(`Rack ${opts.rackId} does not belong to this workspace.`);
+        const networks = readStorageConnectionNetworks(draft.serverState);
+        const matches = networks.filter(network => network.name === opts.name);
+        if (matches.length !== 1)
+            throw new Error('Choose an existing storage definition by its exact name.');
+        const selected = matches[0];
+        if (typeof selected.expansion?.option === 'string' && selected.expansion.option.trim()) {
+            throw new Error('Physical expansion placement requires a currently available expansion catalog contract.');
+        }
+        const networkState = workspaceNetworkState(draft);
+        if (readAutoConnectSettings(draft.serverState).autoAddPDU === true &&
+            (!Array.isArray(networkState.powerPreference) || networkState.powerPreference.length === 0)) {
+            throw new Error('Automated Rack PDU is enabled without a PDU preference. Set dcsc_auto_connect settings.autoAddPDU=false before placing storage, or configure a PDU preference.');
+        }
+        const components = [];
+        const templates = [];
+        for (const role of ['controller', 'mainSwitch']) {
+            if (role === 'mainSwitch' && !selected.mainSwitch?.option)
+                continue;
+            const opened = await ensureStorageComponentDraft(rt, draft, opts, role, transaction);
+            const session = draft.configurations.get(opened.session);
+            components.push({ role, physicalId: newConfigurationId(draft.locale.country), configuration: session.raw });
+            templates.push({ session: session.id, configurationId: session.configurationId, created: opened.created });
+        }
+        const staged = stageStorageNetworkPlacement({ rackArea: draft.rackArea, nonRackArea: draft.nonRackArea,
+            storageConnectionNetworks: readStorageConnectionNetworks(draft.serverState),
+            cloneDependency: workspaceNetworkState(draft).cloneDependency, rackId: opts.rackId,
+            networkName: opts.name, components });
+        draft.rackArea = staged.rackArea;
+        draft.nonRackArea = staged.nonRackArea;
+        draft.serverState.cloneDependency = staged.cloneDependency;
+        transaction.remoteApplied = true;
+        const layout = await customizeLayout(rt.http, { ...opts.ctx, locale: draft.locale, solution: draft.solution }, workspaceCablingPayload(draft), { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(draft.serverState) });
+        const placements = parseStoragePlacementResponse(layout.rawState, staged);
+        const errors = layout.rawState.errors;
+        if (layout.errors.length > 0 || errors && (!Array.isArray(errors) || errors.length > 0)) {
+            throw new Error(`DCSC rejected the storage placement: ${JSON.stringify(errors ?? layout.errors).slice(0, 1500)}`);
+        }
+        draft.rackArea = layout.rawRackArea;
+        draft.nonRackArea = layout.rawNonRackArea;
+        draft.rackSummaries = layout.racks;
+        draft.serverState.storagePlacementState = structuredClone(layout.rawState);
+        draft.serverState.cloneDependencyColor = storageDependencyColors(draft);
+        draft.serverState.connections = structuredClone(layout.connections);
+        draft.serverState.layoutErrors = structuredClone(layout.errors);
+        draft.serverState.floorInformation = buildFloorState(draft).information;
+        delete draft.serverState.connectionGraphInvalidation;
+        delete draft.serverState.rackCustomizationReady;
+        draft.cables = projectConnectionGraph(layout.connections).cables;
+        return { placements, templates };
+    });
+    return { workspace: workspace.id, revision: workspace.revision, storageName: opts.name, ...result };
+}
+export async function openStorageController(rt, handle, opts) {
+    const { componentId, ...result } = await openStorageComponent(rt, handle, opts, 'controller');
+    return { ...result, controllerId: componentId };
+}
+export async function openStorageSwitch(rt, handle, opts) {
+    const { componentId, ...result } = await openStorageComponent(rt, handle, opts, 'mainSwitch');
+    return { ...result, switchId: componentId };
+}
+/** Launch or reuse a managed template inside the caller's workspace transaction. */
+async function ensureStorageComponentDraft(rt, draft, opts, component, transaction) {
+    const hardwareType = component === 'controller' ? 'storage' : 'switch';
+    const label = component === 'controller' ? 'controller' : 'SAN switch';
+    const displayName = component === 'controller' ? 'Controller' : 'Switch';
+    const networks = readStorageConnectionNetworks(draft.serverState);
+    const matches = networks.filter(network => network.name === opts.name);
+    if (matches.length !== 1)
+        throw new Error(`Choose one existing storage network by its exact name: ${networks.map(network => network.name).join(', ') || 'none'}.`);
+    const network = matches[0];
+    const controller = network[component];
+    const option = typeof controller?.option === 'string' ? controller.option.trim() : '';
+    if (!option || controller.hardwareType !== hardwareType)
+        throw new Error(`Storage network "${opts.name}" has no valid ${label} selection.`);
+    if ([...draft.configurations.values()].some(session => !usesCtoWire(session.mode))) {
+        throw new Error(`Storage ${label} customization requires a CTO workspace.`);
+    }
+    const savedId = typeof controller.id === 'string' ? controller.id.trim() : '';
+    const existing = savedId ? [...draft.configurations.values()].find(session => session.configurationId === savedId) : undefined;
+    if (existing) {
+        if (existing.product.code !== option || existing.raw.type !== hardwareType) {
+            throw new Error(`Storage ${label} ${savedId} refers to a different configured product. Reconcile the storage definition before opening it.`);
+        }
+        const selectedBase = typeof controller.featureCode === 'string' ? controller.featureCode.trim() : '';
+        if (selectedBase && !existing.reduced.sections.some(section => section.results.some(result => result.code === selectedBase && Number(result.quantity) > 0))) {
+            throw new Error(`${displayName} ${option} no longer has requested feature ${selectedBase} selected. Reconcile the storage definition before opening it.`);
+        }
+        return { componentId: savedId, session: existing.id, created: false };
+    }
+    const componentId = savedId || newConfigurationId(draft.locale.country);
+    if ([...draft.rackArea, ...draft.nonRackArea].some(item => physicalIds(item).has(componentId))) {
+        throw new Error(`Storage ${label} ${componentId} collides with a physical item that has no matching configuration.`);
+    }
+    const context = { ...opts.ctx, locale: draft.locale, solution: draft.solution };
+    const launched = await rt.http.send({ endpoint: component === 'controller' ? 'storage_controller_launch' : 'storage_switch_launch', method: 'POST',
+        path: ctoLaunchPath(option),
+        query: launchQuery(draft.solution.solutionMode),
+        body: { kind: 'json', value: {} }, responseKind: 'json', timeoutClass: 'interactive', ctx: context });
+    transaction.remoteApplied = true;
+    const raw = launched.raw;
+    if (!raw || !Array.isArray(raw.tabs) || raw.type !== hardwareType ||
+        String(raw.code || raw.sliceCtoCode || '') !== option) {
+        throw new Error(`DCSC returned no matching ${hardwareType} configuration for ${option}. Workspace was not committed.`);
+    }
+    const configuration = { ...structuredClone(raw), id: componentId, workspaceId: componentId, name: displayName };
+    const reduced = reduceConfiguration(configuration, componentId, 'cto', draft.solution.solutionMode);
+    const featureCode = typeof controller.featureCode === 'string' ? controller.featureCode.trim() : '';
+    // The website launches feature-specific controllers normally. Their base
+    // choice is already selected in unSelectableCharacters, without a derive.
+    // An available catalog feature alone is not proof of that selection.
+    if (featureCode && !reduced.sections.some(section => section.results.some(result => result.code === featureCode && Number(result.quantity) > 0))) {
+        throw new Error(`${displayName} ${option} did not return requested feature ${featureCode} as selected. Workspace was not committed.`);
+    }
+    const session = stageConfiguration(draft, { locale: draft.locale, solution: draft.solution,
+        mode: 'cto', configurationId: componentId, raw: configuration,
+        reduced,
+        validationMode: draft.validationMode, primed: true, configurable: true });
+    network[component] = { ...controller, id: componentId };
+    draft.serverState.storageConnectionNetworks = networks;
+    const networking = draft.serverState.networkingInformation;
+    draft.serverState.networkingInformation = { ...networking, storageNetworks: structuredClone(networks) };
+    return { componentId, session: session.id, created: true };
+}
+/** Captured storage Edit Item lifecycle; both products are nonphysical templates. */
+async function openStorageComponent(rt, handle, opts, component) {
+    const label = component === 'controller' ? 'controller' : 'SAN switch';
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    const transaction = { expectedRevision: opts.expectedRevision, remoteApplied: false };
+    const opened = await rt.sessions.transact(workspace.id, transaction, async (draft) => {
+        const opened = await ensureStorageComponentDraft(rt, draft, opts, component, transaction);
+        if (!opened.created)
+            return opened;
+        const context = { ...opts.ctx, locale: draft.locale, solution: draft.solution };
+        const layout = await customizeLayout(rt.http, context, workspaceCablingPayload(draft), { autoArrange: true, autoConnect: true, cogValidation: true, ...layoutToggleOverrides(draft.serverState) });
+        if (!Array.isArray(layout.rawState.rackArea) || !Array.isArray(layout.rawState.nonRackArea) ||
+            !Array.isArray(layout.rawState.connections)) {
+            throw new Error(`DCSC returned an incomplete storage ${label} layout. Workspace was not committed.`);
+        }
+        const topErrors = layout.rawState.errors;
+        if (layout.errors.length || topErrors && (!Array.isArray(topErrors) || topErrors.length)) {
+            throw new Error(`DCSC rejected the storage ${label} layout: ${JSON.stringify(topErrors ?? layout.errors).slice(0, 1500)}`);
+        }
+        draft.rackArea = layout.rawRackArea;
+        draft.nonRackArea = layout.rawNonRackArea;
+        draft.rackSummaries = layout.racks;
+        draft.serverState[component === 'controller' ? 'storageControllerState' : 'storageSwitchState'] = structuredClone(layout.rawState);
+        draft.serverState.connections = structuredClone(layout.connections);
+        delete draft.serverState.connectionGraphInvalidation;
+        draft.serverState.layoutErrors = structuredClone(layout.errors);
+        draft.cables = projectConnectionGraph(layout.connections).cables;
+        draft.serverState.floorInformation = buildFloorState(draft).information;
+        delete draft.serverState.rackCustomizationReady;
+        return opened;
+    });
+    return { workspace: workspace.id, revision: workspace.revision, storageName: opts.name, ...opened };
+}
+/** Applies the website's server-to-storage selection in full workspace context. */
+export async function assignStorageNetwork(rt, handle, opts) {
+    const resolved = rt.sessions.resolveHandle(handle);
+    if (resolved?.kind !== 'configuration') {
+        throw new Error('Storage assignment requires a configuration handle from dcsc_session_list.');
+    }
+    const session = resolved.session;
+    let connectionCount;
+    await rt.sessions.transact(session.workspaceId, { expectedRevision: opts.expectedRevision, remoteApplied: true,
+        actionHistory: updateHistoryFactory(session.configurationId) }, async (workspace) => {
+        const draft = workspace.configurations.get(session.id);
+        if (!draft)
+            throw new Error('Storage assignment requires one configuration.');
+        await prepareConfigIdsDraft(rt, workspace, opts.ctx);
+        const request = buildStorageAssignmentRequest(workspace, draft.configurationId, opts.networkName);
+        const response = await rt.http.send({ ...request, body: { kind: 'json', value: request.body },
+            responseKind: 'json', timeoutClass: 'heavy', ctx: { ...opts.ctx, locale: workspace.locale, solution: workspace.solution } });
+        const parsed = parseStorageAssignmentResponse(response.raw, draft.configurationId, opts.networkName);
+        if (String(draft.raw.selectedStorageNetwork ?? '') !== String(parsed.configuration.selectedStorageNetwork ?? '')) {
+            invalidateConnectionGraph(workspace.serverState, 'Storage assignment changed without recalculating connections.');
+        }
+        workspace.serverState.storageAssignmentState = parsed.responseState;
+        if (Array.isArray(parsed.responseState.autoDerivedResults)) {
+            workspace.serverState.autoDerivedResults = structuredClone(parsed.responseState.autoDerivedResults);
+        }
+        // This is an explicit accepted edit, so replace the client-owned value
+        // before the generic partial-response merge preserves that value.
+        draft.raw.selectedStorageNetwork = parsed.configuration.selectedStorageNetwork;
+        acceptDerivedWorkspaceConfigurations(workspace, response.raw);
+        const assignments = workspace.serverState.selectedStorageNetwork;
+        if (assignments && typeof assignments === 'object' && !Array.isArray(assignments)) {
+            workspace.serverState.selectedStorageNetwork = { ...assignments,
+                [draft.configurationId]: parsed.configuration.selectedStorageNetwork };
+        }
+        if (opts.autoConnect)
+            connectionCount = (await autoConnectDraft(rt, workspace, opts.ctx)).connections.length;
+    });
+    const workspace = rt.sessions.getWorkspace(session.id);
+    return { workspace: workspace.id, session: session.id, configurationId: session.configurationId,
+        revision: workspace.revision, configurationRevision: session.revision,
+        selectedStorageNetwork: String(session.raw.selectedStorageNetwork ?? ''),
+        autoConnectRequired: opts.autoConnect !== true,
+        connectionGraphStale: workspace.serverState.connectionGraphInvalidation !== undefined,
+        ...(connectionCount !== undefined ? { connectionCount } : {}) };
+}
+export async function addStorageNetwork(rt, handle, opts) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    let storageNetworkCount = 0;
+    await rt.sessions.transact(workspace.id, { expectedRevision: opts.expectedRevision,
+        actionHistory: storageChangeHistoryFactory() }, async (draft) => {
+        const fabric = await rt.fabricOptions({ ...opts.ctx, locale: draft.locale }, draft.solution);
+        const controllerId = opts.input.controllerId ?? fabric.storageControllers[0]?.id;
+        if (!controllerId)
+            throw new Error('DCSC returned no storage controller choices for this workspace.');
+        const networks = addStorageConnectionNetwork(readStorageConnectionNetworks(draft.serverState), fabric, { ...opts.input, controllerId });
+        draft.serverState.storageConnectionNetworks = networks;
+        const previous = draft.serverState.networkingInformation;
+        draft.serverState.networkingInformation = { ...previous, storageNetworks: structuredClone(networks) };
+        storageNetworkCount = networks.length;
+    });
+    return { workspace: workspace.id, revision: workspace.revision, storageNetworkCount };
+}
+export async function editStorageNetwork(rt, handle, opts) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    let storageNetworkCount = 0;
+    let updatedAssignments = 0;
+    let removedConfigurations = 0;
+    await rt.sessions.transact(workspace.id, { expectedRevision: opts.expectedRevision,
+        actionHistory: storageChangeHistoryFactory() }, draft => {
+        const previousNetworks = readStorageConnectionNetworks(draft.serverState);
+        const physicalStorage = opts.action === 'remove' ? storagePhysicalTemplateIds(draft) : new Map();
+        const networks = editStorageConnectionNetwork(previousNetworks, opts);
+        const assigned = [...draft.configurations.values()].filter(session => session.raw.selectedStorageNetwork === opts.name);
+        if (opts.action === 'remove' && assigned.length > 0 && opts.clearAssignments !== true) {
+            throw new Error(`Storage network "${opts.name}" is assigned to ${assigned.length} configurations. Set clearAssignments=true to remove it and clear those references.`);
+        }
+        const nextName = opts.action === 'rename' ? opts.newName.trim() : '';
+        if (opts.action === 'remove' && assigned.length > 0) {
+            invalidateConnectionGraph(draft.serverState, 'An assigned storage definition was removed.');
+        }
+        for (const session of assigned)
+            session.raw.selectedStorageNetwork = nextName;
+        const assignments = draft.serverState.selectedStorageNetwork;
+        if (assignments && typeof assignments === 'object' && !Array.isArray(assignments)) {
+            draft.serverState.selectedStorageNetwork = Object.fromEntries(Object.entries(assignments)
+                .map(([id, name]) => [id, name === opts.name ? nextName : name]));
+        }
+        draft.serverState.storageConnectionNetworks = networks;
+        const previous = draft.serverState.networkingInformation;
+        draft.serverState.networkingInformation = { ...previous, storageNetworks: structuredClone(networks) };
+        if (opts.action === 'remove') {
+            const removedDefinition = previousNetworks.find(network => network.name === opts.name);
+            for (const component of ['controller', 'mainSwitch']) {
+                const selection = removedDefinition[component];
+                const id = selection?.id;
+                const shared = typeof id === 'string' && networks.some(network => [network.controller, network.expansion, network.mainSwitch].some(other => other?.id === id));
+                if (typeof id !== 'string' || !id || shared)
+                    continue;
+                const target = [...draft.configurations.values()].find(session => session.configurationId === id);
+                const expectedType = component === 'controller' ? 'storage' : 'switch';
+                if (target && (target.raw.type !== expectedType || target.product.code !== selection.option)) {
+                    throw new Error(`Storage definition "${opts.name}" references a different configured product. Reconcile it before removal.`);
+                }
+                if (target) {
+                    draft.configurations.delete(target.id);
+                    removedConfigurations += 1;
+                }
+                const removedIds = new Set([id, ...[...physicalStorage]
+                        .filter(([, templateId]) => templateId === id).map(([physicalId]) => physicalId)]);
+                if (removedIds.size > 1)
+                    invalidateConnectionGraph(draft.serverState, 'Physical storage instances were removed with their definition.');
+                removeWorkspaceReferences(draft, removedIds);
+            }
+            draft.rackSummaries = summariseRackArea(draft.rackArea);
+        }
+        storageNetworkCount = networks.length;
+        updatedAssignments = assigned.length;
+    });
+    return { workspace: workspace.id, revision: workspace.revision, storageNetworkCount, updatedAssignments, removedConfigurations };
+}
+export async function reconfigureStorageNetwork(rt, handle, opts) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    const transaction = { expectedRevision: opts.expectedRevision, remoteApplied: false,
+        actionHistory: storageChangeHistoryFactory() };
+    let connectionCount;
+    let preferencesChanged = false;
+    let retainedComponents = [];
+    await rt.sessions.transact(workspace.id, transaction, async (draft) => {
+        const fabric = await rt.fabricOptions({ ...opts.ctx, locale: draft.locale }, draft.solution);
+        const previous = readStorageConnectionNetworks(draft.serverState);
+        const rackIds = new Set(draft.rackArea.flatMap(rack => [...physicalIds(rack)]));
+        const racked = new Map([...storagePhysicalTemplateIds(draft)].filter(([id]) => rackIds.has(id)));
+        const networks = reconfigureStorageConnectionNetwork(previous, fabric, opts.name, opts.changes, new Set(racked.values()));
+        const transition = retainReplacedStorageComponents({ workspace: draft,
+            previousNetworks: previous, nextNetworks: networks, definitionName: opts.name });
+        for (const component of transition.retained) {
+            const template = [...draft.configurations.values()].find(session => session.configurationId === component.templateId);
+            if (!template || template.raw.type !== component.type || template.product.code !== component.code) {
+                throw new Error(`Storage definition "${opts.name}" references a different or missing configured product. Reconcile it before replacement.`);
+            }
+        }
+        draft.serverState.detachedStorageComponents = transition.detachedStorageComponents;
+        retainedComponents = transition.retained;
+        draft.serverState.storageConnectionNetworks = networks;
+        const networking = draft.serverState.networkingInformation;
+        draft.serverState.networkingInformation = { ...networking, storageNetworks: structuredClone(networks) };
+        preferencesChanged = JSON.stringify(previous) !== JSON.stringify(networks);
+        if (preferencesChanged) {
+            invalidateConnectionGraph(draft.serverState, 'Storage network preferences changed. Regenerate the connection graph.');
+        }
+        if (opts.autoConnect) {
+            transaction.remoteApplied = true;
+            await refreshStorageLayoutDraft(rt, draft, opts.ctx);
+            connectionCount = readConnectionGraph(draft.serverState).length;
+        }
+    });
+    return { workspace: workspace.id, revision: workspace.revision,
+        storageNetworkCount: readStorageConnectionNetworks(workspace.serverState).length,
+        connectionGraphStale: workspace.serverState.connectionGraphInvalidation !== undefined,
+        autoConnectRequired: workspace.serverState.connectionGraphInvalidation !== undefined ||
+            preferencesChanged && opts.autoConnect !== true,
+        retainedComponents: retainedComponents.map(({ physicalIds, ...component }) => ({ ...component, physicalCount: physicalIds.length })),
+        ...(connectionCount !== undefined ? { connectionCount } : {}) };
+}
+export async function setNetworkPreferences(rt, handle, opts) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found.`);
+    let connectionCount;
+    let preferencesChanged = false;
+    const transaction = {
+        expectedRevision: opts.expectedRevision,
+        remoteApplied: false,
+        actionHistory: (before, after) => preferencesChanged
+            ? networkChangeHistoryFactory()(before, after) : undefined,
+    };
+    const selections = await rt.sessions.transact(workspace.id, transaction, async (draft) => {
+        const fabric = await rt.fabricOptions({ ...opts.ctx, locale: draft.locale }, draft.solution);
+        const previous = workspaceNetworkTypes(fabric, draft.serverState);
+        const preferences = buildWorkspaceNetworkPreferences({ ...fabric,
+            networkTypes: previous,
+        }, opts.selections);
+        const updates = new Map(preferences.networkTypes.map((network) => [network.id, network]));
+        const networkTypes = previous.map((network) => updates.get(network.id) ?? network);
+        for (const network of preferences.networkTypes)
+            if (!previous.some((item) => item.id === network.id))
+                networkTypes.push(network);
+        draft.serverState.networkTypes = structuredClone(networkTypes);
+        const retainedCluster = workspaceNetworkState(draft).clusterPreference;
+        const priorCluster = new Map((Array.isArray(retainedCluster) ? retainedCluster : [])
+            .filter((entry) => !!entry && typeof entry === 'object')
+            .map(entry => [entry.name, entry]));
+        draft.serverState.clusterPreference = buildClusterPreferences(fabric.networkDevices, networkTypes)
+            .map(entry => ({ ...priorCluster.get(entry.name), ...entry }));
+        const retained = Array.isArray(draft.serverState.networkSelections) ? draft.serverState.networkSelections : [];
+        draft.serverState.networkSelections = [...retained.filter((item) => !updates.has(String(item.networkTypeId))), ...preferences.selections];
+        const networkState = draft.serverState.networkingInformation;
+        draft.serverState.networkingInformation = { ...networkState, clusterPreference: draft.serverState.clusterPreference };
+        preferencesChanged = JSON.stringify(previous) !== JSON.stringify(networkTypes);
+        if (preferencesChanged) {
+            invalidateConnectionGraph(draft.serverState, 'Network preferences changed. Regenerate connections.');
+        }
+        if (opts.autoConnect) {
+            transaction.remoteApplied = true;
+            connectionCount = (await autoConnectDraft(rt, draft, opts.ctx)).connections.length;
+        }
+        else if (preferencesChanged && draft.rackArea.length > 0 &&
+            draft.solution.solutionMode === 'HPC and AI - Systems' &&
+            readAutoConnectSettings(draft.serverState).autoAddSwitch === true) {
+            // Preferences Close provisions required switches even before the user
+            // regenerates P2P cabling. Keep the previous graph explicitly stale.
+            transaction.remoteApplied = true;
+            await provisionSwitchesDraft(rt, draft, opts.ctx);
+        }
+        return preferences.selections;
+    });
+    return { workspace: workspace.id, revision: workspace.revision, selections,
+        connectionGraphStale: workspace.serverState.connectionGraphInvalidation !== undefined,
+        autoConnectRequired: workspace.serverState.connectionGraphInvalidation !== undefined ||
+            preferencesChanged && opts.autoConnect !== true,
+        ...(connectionCount !== undefined ? { connectionCount } : {}) };
+}
+/** The Storage preference panel: definitions, which configurations use them, and hardware left behind by edits. */
+export function inspectStorageNetworks(rt, handle, expectedRevision) {
+    const workspace = rt.sessions.getWorkspace(handle);
+    if (!workspace)
+        throw new Error(`Workspace ${handle} not found. Use dcsc_session_list to see open sessions.`);
+    assertWorkspaceRevision(workspace, expectedRevision);
+    const assignments = [...workspace.configurations.values()]
+        .filter(session => session.raw.selectedStorageNetwork)
+        .map(session => ({ session: session.id, configurationId: session.configurationId,
+        storageNetwork: String(session.raw.selectedStorageNetwork) }));
+    return { workspace: workspace.id, revision: workspace.revision, report: {
+            storageNetworks: structuredClone(storageConnectionNetworkSource(workspace.serverState)),
+            assignments,
+            detachedStorageComponents: structuredClone(workspace.serverState.detachedStorageComponents ?? []),
+        } };
+}
+/** Applies one Storage panel change; the result reports the new workspace revision and the action's details. */
+export async function applyStorageChange(rt, handle, change, expectedRevision, ctx) {
+    let result;
+    switch (change.action) {
+        case 'add': {
+            const { action: _action, ...input } = change;
+            result = await addStorageNetwork(rt, handle, { input, expectedRevision, ctx });
+            break;
+        }
+        case 'update':
+            if (expectedRevision === undefined)
+                throw new Error('Storage update requires expectedRevision.');
+            result = await reconfigureStorageNetwork(rt, handle, { name: change.name, changes: change.changes,
+                expectedRevision, autoConnect: change.autoConnect, ctx });
+            break;
+        case 'rename':
+        case 'remove':
+            result = await editStorageNetwork(rt, handle, { ...change, expectedRevision });
+            break;
+        case 'assign':
+            result = await assignStorageNetwork(rt, handle, { networkName: change.networkName,
+                autoConnect: change.autoConnect, expectedRevision, ctx });
+            break;
+        case 'place': {
+            const placed = await placeStorageNetwork(rt, handle, { name: change.name, rackId: change.rackId, expectedRevision, ctx });
+            result = { ...placed, placements: placed.placements.map(({ raw: _raw, controllerExpansion: _expansion, ...placement }) => placement) };
+            break;
+        }
+        case 'customize':
+            result = change.component === 'controller'
+                ? await openStorageController(rt, handle, { name: change.name, expectedRevision, ctx })
+                : await openStorageSwitch(rt, handle, { name: change.name, expectedRevision, ctx });
+            break;
+    }
+    const { workspace, revision, session, ...details } = result;
+    return { session: handle, revision, ...(session !== undefined && session !== handle ? { configuration: session } : {}),
+        workspace, ...details };
+}
+//# sourceMappingURL=storage.js.map

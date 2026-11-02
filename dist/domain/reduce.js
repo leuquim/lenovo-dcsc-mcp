@@ -1,4 +1,7 @@
+import { storageWizardOption, storageWizardSections } from './storageWizard.js';
+import { pciWizardSections, pciWizardWireFields } from './pciWizard.js';
 import { detachedNestedNodeIds } from './nestedPhysical.js';
+import { powerLoadFactor } from './power.js';
 import { hardwareModeFamily } from './modeFamily.js';
 import { randomUUID } from 'node:crypto';
 import { nonemptyCode, serializeSection, serializeSections, } from './dcscWire.js';
@@ -11,6 +14,7 @@ import { projectRackFiller } from './rackFiller.js';
 import { managedStorageComponentIds, storagePhysicalTemplateIds, storageDependencyColors } from './storagePreferences.js';
 import { createCloneDependencyColor, projectCloneDependency } from './cloneDependency.js';
 import { physicalIds } from './workspaceReferences.js';
+import { cloneConfigurationRaw } from './configurationIdentity.js';
 import { projectChassisManufacturing } from './chassisManufacturing.js';
 import { cloneColorMembers, exactStorageAliasRoot, reconcileImportedCloneOwnership, sameIdentitySet, } from './importCloneOwnership.js';
 /**
@@ -171,7 +175,8 @@ export function applyCatalogChange(config, raw, change) {
  * A launch response has ~168 sections; typically ~34 have results.
  */
 export function reduceConfiguration(raw, configurationId, mode = 'cto', solutionMode = 'General Purpose') {
-    const sections = serializeSections(raw);
+    const sections = storageWizardSections(raw, pciWizardSections(raw, serializeSections(raw)));
+    const selectedStorage = storageWizardOption(raw);
     const underlyingCto = nonemptyCode(raw.sliceCtoCode, raw.ctoCode, raw.code);
     const lfoCode = nonemptyCode(raw.lfoCode, mode === 'lfo' ? raw.code : null) || null;
     const modelNumber = mode === 'lfo' ? (lfoCode ?? underlyingCto) : underlyingCto;
@@ -209,13 +214,17 @@ export function reduceConfiguration(raw, configurationId, mode = 'cto', solution
         expansionMessages: Array.isArray(raw.expansionMessages) ? raw.expansionMessages : [],
         voltage: raw.voltage ?? {},
         currentPowerPolicy: raw.currentPowerPolicy ?? 5,
-        loadFactor: raw.loadFactor ?? 70,
+        loadFactor: powerLoadFactor(raw) ?? 70,
         shippingStatus: raw.shippingStatus ?? [],
-        showExpressMode: false,
+        showExpressMode: raw.showExpressMode === true,
         expressModeAvailable: raw.expressModeAvailable === true,
-        showExpressT2Mode: false,
+        showExpressT2Mode: raw.showExpressT2Mode === true,
+        ...(raw.selectedTceAudience !== undefined ? { selectedTceAudience: structuredClone(raw.selectedTceAudience) } : {}),
         serviceCtoFlag: raw.serviceCtoFlag ?? {},
-        storageWizardOption: null,
+        storageWizardOption: selectedStorage,
+        ...(selectedStorage?.['delta'] && typeof selectedStorage['delta'] === 'object'
+            ? { delta: structuredClone(selectedStorage['delta']) } : {}),
+        ...pciWizardWireFields(raw),
         operationHistories: [],
         pinnedList: [],
     };
@@ -320,7 +329,13 @@ export function buildAutoDeriveRequest(input, opts) {
             return session && hardwareModeFamily(session.mode) === 'cto'
                 ? [[session.configurationId, projectRackFiller(rack, { ...session.raw, id: session.configurationId })]] : [];
         }));
-        const configs = [...ws.configurations.values()].map((s) => reduceConfiguration(projections.get(s.configurationId)?.configuration ?? s.raw, s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode));
+        const configs = [...ws.configurations.values()].map((s) => {
+            const projection = projections.get(s.configurationId);
+            return {
+                ...reduceConfiguration(projection?.configuration ?? s.raw, s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode),
+                ...(projection?.fillerHasChanged ? { fillerHasChanged: true } : {}),
+            };
+        });
         const ids = configs.map((c) => c.id);
         const detachedNodes = detachedNestedNodeIds(ws);
         const managedControllers = managedStorageComponentIds(ws.serverState);
@@ -414,9 +429,33 @@ export const EXPORT_FILE_TYPES = {
     FLOOR: 'FLOOR',
     MESSAGE_HISTORY: 'MESSAGE_HISTORY',
     P2P_REPORT: 'P2P_REPORT',
+    QUOTE_REFERENCE: 'QUOTE_REFERENCE',
+    P2P_BY_RACK: 'P2P_BY_RACK',
+    VLH: 'VLH',
 };
-export const ALL_EXPORT_TYPES = Object.keys(EXPORT_FILE_TYPES);
-export const DEFAULT_EXPORT_TYPES = ALL_EXPORT_TYPES;
+/** Export types the website offers per solution mode, keyed by the mode's systemFunctionList switch. */
+const EXPORT_TYPE_FUNCTION = {
+    QUOTE: 'Quote',
+    QUOTE_SUPPLYINFO: 'QuoteSupplyInfo',
+    QUOTE_GROUP: 'QuoteGroup',
+    QUOTE_REFERENCE: 'QuoteReference',
+    SUMMARY: 'Summary',
+    POWER_REPORT: 'PowerReport',
+    RACK_REPORT: 'RackReport',
+    RACK_DIAGRAM: 'RackDiagram',
+    FLOOR: 'Floor',
+    MESSAGE_HISTORY: 'MessageHistory',
+    P2P_REPORT: 'P2PReport',
+    P2P_BY_RACK: 'P2PByRack',
+    VLH: 'VLH',
+};
+/** The solution mode's exports as the website's export popover lists them; QUOTE_CSV and EPRICE_CSV are software-only. */
+export function defaultExportTypes(functions) {
+    return Object.keys(EXPORT_FILE_TYPES).filter(type => {
+        const fn = EXPORT_TYPE_FUNCTION[type];
+        return type === 'XML' || (fn !== undefined && functions?.[fn] !== false);
+    });
+}
 /** Shared complete browser-equivalent grouping for both scopes. */
 export function buildGroups(raw, configurationId, mode) {
     return buildExportGroups(raw, configurationId, mode).map((group) => ({ ...group }));
@@ -453,19 +492,18 @@ export function buildExportConfiguration(config, raw) {
         selectedTopologies: config.selectedTopologies ?? {},
         selectedStorageNetwork: config.selectedStorageNetwork,
         serviceCtoFlag: config.serviceCtoFlag,
-        storageWizardOption: null,
+        storageWizardOption: storageWizardOption(raw),
+        ...pciWizardWireFields(raw, 'export'),
         shippingStatus: config.shippingStatus,
         voltage: config.voltage,
         currentPowerPolicy: config.currentPowerPolicy,
         loadFactor: config.loadFactor,
         expressModeAvailable: config.expressModeAvailable,
-        showExpressMode: false,
-        showExpressT2Mode: false,
+        showExpressMode: config.showExpressMode,
+        showExpressT2Mode: config.showExpressT2Mode,
+        ...(config.selectedTceAudience !== undefined ? { selectedTceAudience: structuredClone(config.selectedTceAudience) } : {}),
     };
 }
-/** Export hierarchy and physical rack data are separate, never coordinate conversions. */
-export const rackToLocalExportShape = buildRackHierarchy;
-export const rackToServerExportShape = physicalRackData;
 function exportDiagnosticText(value) {
     if (typeof value === 'string')
         return value.trim() === '' ? undefined : value;
@@ -825,12 +863,57 @@ export function buildExportData(opts) {
         const nonRackArea = groupLooseCloneItems(nonRackData, exportCloneDependencyColor, new Set(storageAliases.keys())).map(item => {
             const hierarchy = buildItemHierarchy(item);
             const originals = Array.isArray(item['originalIds']) ? item['originalIds'] : [item['id']];
-            const singletonQuantity = originals.length === 1
-                ? looseConfigs.find(session => session.configurationId === item['id'])?.raw.quantity
+            // The website imports an unracked line as one physical copy per
+            // originalId. A quantity-N configuration with a single physical record
+            // makes /racks/customize fail and the CFXML opens empty, so refuse it
+            // rather than export a file that cannot be reopened.
+            const singleton = originals.length === 1
+                ? looseConfigs.find(session => session.configurationId === item['id'])
                 : undefined;
+            const singletonQuantity = singleton?.raw.quantity ?? 1;
+            if (singleton && singletonQuantity > 1) {
+                const syntheticIds = Array.from({ length: singletonQuantity - 1 }, (_, i) => `${singleton.configurationId}__clone_${i + 1}`);
+                const expandedOriginalIds = [singleton.configurationId, ...syntheticIds];
+                item['quantity'] = singletonQuantity;
+                item['originalIds'] = expandedOriginalIds;
+                const rootRecord = nonRackData.find(r => r['id'] === singleton.configurationId);
+                if (rootRecord) {
+                    rootRecord['quantity'] = 1;
+                    rootRecord['originalIds'] = [singleton.configurationId];
+                }
+                const slice = exportConfigs[configs.indexOf(singleton)]?.slice ?? 'GP';
+                for (const cloneId of syntheticIds) {
+                    const clonedPlacement = rootRecord
+                        ? { ...structuredClone(rootRecord), id: cloneId, quantity: 1, originalIds: [cloneId] }
+                        : buildPlacement(cloneId, singleton.reduced.sliceCtoCode, 1, slice);
+                    if (!rootRecord)
+                        clonedPlacement['originalIds'] = [cloneId];
+                    nonRackData.push(clonedPlacement);
+                }
+                cloneDependency[singleton.configurationId] = expandedOriginalIds;
+                const existingColor = exportCloneDependencyColor[singleton.configurationId];
+                exportCloneDependencyColor[singleton.configurationId] = existingColor
+                    ? { ...existingColor, root: singleton.configurationId, dependBy: expandedOriginalIds }
+                    : createCloneDependencyColor(singleton.configurationId, expandedOriginalIds);
+                if (opts.solution.solutionMode !== 'General Purpose') {
+                    const rootConfig = exportConfigs[configs.indexOf(singleton)];
+                    if (rootConfig)
+                        rootConfig['quantity'] = 1;
+                    for (const cloneId of syntheticIds) {
+                        const clonedRaw = cloneConfigurationRaw(singleton.raw, singleton.configurationId, cloneId);
+                        clonedRaw.quantity = 1;
+                        exportConfigs.push(buildExportConfiguration(reduceConfiguration(clonedRaw, cloneId, hardwareModeFamily(singleton.mode), opts.solution.solutionMode), clonedRaw));
+                    }
+                }
+                return {
+                    ...hierarchy,
+                    quantity: singletonQuantity,
+                    originalIds: structuredClone(expandedOriginalIds),
+                };
+            }
             return {
                 ...hierarchy,
-                quantity: singletonQuantity ?? item['quantity'] ?? 1,
+                quantity: item['quantity'] ?? 1,
                 originalIds: structuredClone(originals),
             };
         });
@@ -875,6 +958,10 @@ export function buildExportData(opts) {
             floorInformation: floor.information,
             networkingInformation: {
                 ...exportNetwork,
+                // Live native state can carry preferences without the imported export mirror.
+                // Explicit empty current selections must also override stale imported values.
+                ...(state.clusterPreference !== undefined ? { clusterPreference: structuredClone(state.clusterPreference) } : {}),
+                ...(state.storageConnectionNetworks !== undefined ? { storageNetworks: structuredClone(state.storageConnectionNetworks) } : {}),
                 // Website power-source preferences use {rack, selection, preferredPDU}.
                 // Local selected-PDU summaries are derived from the rack BOM and must
                 // not replace that distinct, lossless imported preference envelope.

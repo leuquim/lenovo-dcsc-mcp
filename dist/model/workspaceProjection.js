@@ -1,27 +1,26 @@
 import { detachedNestedNodeIds } from '../domain/nestedPhysical.js';
 import { readConnectionGraph } from '../domain/cabling.js';
+import { cablingDiagnostics } from '../domain/cablingDiagnostics.js';
 import { projectJsonPage } from './pagedJson.js';
 import { storageConnectionNetworkSource, storageComponentQuantities, storagePhysicalTemplateIds } from '../domain/storagePreferences.js';
 import { storagePhysicalConfigurations } from '../domain/storagePhysicalState.js';
 import { configurationListPrice } from '../domain/pricing.js';
 import { physicalIds } from '../domain/workspaceReferences.js';
+import { isObject } from '../util/coerce.js';
+import { jsonBytes } from '../util/jsonBytes.js';
+import { PAGE_BYTE_BUDGET, RESPONSE_BYTE_BUDGET } from '../config/constants.js';
 const DEFAULT_PAGE_LIMIT = 20;
 const PREVIEW_TEXT_LIMIT = 160;
-const RESPONSE_BUDGET_BYTES = 7_000;
-const RESPONSE_HARD_LIMIT_BYTES = 7_500;
-function isRecord(value) {
-    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
 function clonedRecords(value) {
     return Array.isArray(value)
-        ? value.filter(isRecord).map(record => structuredClone(record))
+        ? value.filter(isObject).map(record => structuredClone(record))
         : [];
 }
 function fitsResponse(value) {
-    return Buffer.byteLength(JSON.stringify(value, null, 2)) <= RESPONSE_BUDGET_BYTES;
+    return jsonBytes(value) <= PAGE_BYTE_BUDGET;
 }
 function assertResponseFits(value) {
-    if (Buffer.byteLength(JSON.stringify(value, null, 2)) > RESPONSE_HARD_LIMIT_BYTES) {
+    if (jsonBytes(value) > RESPONSE_BYTE_BUDGET) {
         throw new Error('Workspace identity or locale context exceeds the response budget. ' +
             'Use dcsc_recovery_export to inspect the retained workspace safely.');
     }
@@ -75,7 +74,7 @@ function cablePreview(cable, index, options) {
     return preview;
 }
 function rackAttachmentPreview(value, detail, kind) {
-    if (!isRecord(value))
+    if (!isObject(value))
         return null;
     const preview = {};
     const stringFields = kind === 'floor'
@@ -170,13 +169,26 @@ export function workspaceDetailSource(workspace) {
                 session: template?.id, code: template?.product.code, description: template?.product.description };
         })];
     const softwareState = workspace.serverState['standaloneSoftwareState'];
-    const standaloneSoftware = isRecord(softwareState)
+    const standaloneSoftware = isObject(softwareState)
         ? clonedRecords(softwareState['selections'])
+        : [];
+    const hardwareState = workspace.serverState['standaloneHardwareState'];
+    const standaloneHardware = isObject(hardwareState)
+        ? clonedRecords(hardwareState['selections']).map(selection => {
+            const unitPrice = selection['unitPrice'];
+            const quantity = selection['quantity'];
+            const totalPrice = typeof unitPrice === 'number' && Number.isFinite(unitPrice) &&
+                typeof quantity === 'number' && Number.isFinite(quantity) &&
+                selection['priceNotAvailable'] !== true
+                ? Math.round(unitPrice * quantity * 100) / 100
+                : undefined;
+            return { ...selection, ...(totalPrice !== undefined ? { totalPrice } : {}) };
+        })
         : [];
     const rawConnections = readConnectionGraph(workspace.serverState);
     const autoConnectMessages = workspace.rackArea.flatMap(rack => {
         const errors = Array.isArray(rack['errors']) ? rack['errors'] : [];
-        const messages = errors.filter(isRecord)
+        const messages = errors.filter(isObject)
             .filter(error => String(error['code'] ?? '') === '102')
             .map(error => String(error['message'] ?? ''))
             .filter(Boolean);
@@ -200,8 +212,11 @@ export function workspaceDetailSource(workspace) {
         rawNonRackArea: structuredClone(workspace.nonRackArea),
         layoutErrors,
         rawConnections,
+        cablingDiagnostics: cablingDiagnostics([...workspace.configurations.values()].map(session => session.raw), workspace.serverState),
+        importDiagnostics: structuredClone(workspace.serverState.lastImportDiagnostics ?? {}),
         autoConnectMessages,
         standaloneSoftware,
+        standaloneHardware,
         integrityWarnings: [...workspace.integrityWarnings],
     };
 }
@@ -261,7 +276,7 @@ export function projectWorkspaceIntegrity(workspace, options) {
     assertResponseFits(result);
     return result;
 }
-/** Compact replacement for the multi-configuration dcsc_session_info body. */
+/** Compact replacement for the multi-configuration dcsc_workspace_get summary. */
 export function projectWorkspaceSummary(workspace, options) {
     const source = workspaceDetailSource(workspace);
     const totals = workspaceProjectionTotals(source);
@@ -269,6 +284,7 @@ export function projectWorkspaceSummary(workspace, options) {
     const racks = source['racks'];
     const cables = source['cables'];
     const standaloneSoftware = source['standaloneSoftware'];
+    const standaloneHardware = source['standaloneHardware'];
     const warnings = source['integrityWarnings'];
     const configCandidates = configurations.map((configuration, index) => {
         const detail = continuation(options, ['configurations', String(index)]);
@@ -322,8 +338,10 @@ export function projectWorkspaceSummary(workspace, options) {
     });
     const configurationSubtotal = configurations.reduce((sum, configuration) => sum + Number(configuration['extendedPrice'] ?? configuration['knownPriceSubtotal'] ?? 0), 0);
     const standaloneSoftwareSubtotal = standaloneSoftware.reduce((sum, selection) => sum + (softwareSelectionPriceAvailable(selection) ? selection['totalPrice'] : 0), 0);
+    const standaloneHardwareSubtotal = standaloneHardware.reduce((sum, selection) => sum + (softwareSelectionPriceAvailable(selection) ? selection['totalPrice'] : 0), 0);
     const priceIncomplete = configurations.some(configuration => Number(configuration['quantity']) > 0 && configuration['priceAvailable'] !== true) ||
-        standaloneSoftware.some(selection => !softwareSelectionPriceAvailable(selection));
+        standaloneSoftware.some(selection => !softwareSelectionPriceAvailable(selection)) ||
+        standaloneHardware.some(selection => !softwareSelectionPriceAvailable(selection));
     const configPreview = [];
     const rackPreview = [];
     const cablePreviews = [];
@@ -331,6 +349,7 @@ export function projectWorkspaceSummary(workspace, options) {
     const standalonePreviews = [];
     const pages = {
         configurations: collectionNavigation(options, ['configurations'], totals.configurations, 0),
+        cablingDiagnostics: { inspect: continuation(options, ['cablingDiagnostics']) },
         ...(totals.cloneDependency > 0 ? { cloneDependency: collectionNavigation(options, ['cloneDependency'], totals.cloneDependency, 0) } : {}),
         ...(totals.cloneDependencyColor > 0 ? { cloneDependencyColor: collectionNavigation(options, ['cloneDependencyColor'], totals.cloneDependencyColor, 0) } : {}),
         racks: collectionNavigation(options, ['racks'], totals.racks, 0),
@@ -343,24 +362,28 @@ export function projectWorkspaceSummary(workspace, options) {
         standaloneSoftware: collectionNavigation(options, ['standaloneSoftware'], totals.standaloneSoftware, 0),
         integrityWarnings: collectionNavigation(options, ['integrityWarnings'], totals.integrityWarnings, 0),
     };
+    const combinedSubtotal = configurationSubtotal + standaloneSoftwareSubtotal + standaloneHardwareSubtotal;
     const result = {
         workspace: workspace.id,
         revision: workspace.revision,
         ...(workspace.serverState.connectionGraphInvalidation !== undefined ? {
             connectionGraphStale: true,
-            refreshConnections: { tool: 'dcsc_add_cabling', arguments: { session: workspace.id, mode: 'auto' } },
+            refreshConnections: { tool: 'dcsc_auto_connect', arguments: { session: workspace.id } },
         } : {}),
         workspaceRevision: workspace.revision,
         revisionScope: 'workspace',
         integrity: workspace.integrity,
         integrityWarnings: warningPreview,
         isMultiProduct: true,
-        totalPrice: priceIncomplete ? null : Math.round((configurationSubtotal + standaloneSoftwareSubtotal) * 100) / 100,
-        ...(priceIncomplete ? { knownPriceSubtotal: Math.round((configurationSubtotal + standaloneSoftwareSubtotal) * 100) / 100 } : {}),
+        totalPrice: priceIncomplete ? null : Math.round(combinedSubtotal * 100) / 100,
+        ...(priceIncomplete ? { knownPriceSubtotal: Math.round(combinedSubtotal * 100) / 100 } : {}),
         priceIncomplete,
         subtotals: {
             configurations: Math.round(configurationSubtotal * 100) / 100,
             standaloneSoftware: Math.round(standaloneSoftwareSubtotal * 100) / 100,
+            ...(standaloneHardware.length > 0
+                ? { standaloneHardware: Math.round(standaloneHardwareSubtotal * 100) / 100 }
+                : {}),
         },
         currency: workspace.locale.currency,
         country: workspace.locale.country,
@@ -384,7 +407,7 @@ export function projectWorkspaceSummary(workspace, options) {
     assertResponseFits(result);
     return result;
 }
-/** Compact replacement for the default dcsc_workspace_layout response. */
+/** Compact replacement for the dcsc_workspace_get layout view. */
 export function projectWorkspaceLayout(workspace, options) {
     const source = workspaceDetailSource(workspace);
     const totals = workspaceProjectionTotals(source);
@@ -420,6 +443,7 @@ export function projectWorkspaceLayout(workspace, options) {
     const floorPreviews = [];
     const pages = {
         racks: collectionNavigation(options, ['racks'], totals.racks, 0),
+        cablingDiagnostics: { inspect: continuation(options, ['cablingDiagnostics']) },
         ...(totals.cloneDependency > 0 ? { cloneDependency: collectionNavigation(options, ['cloneDependency'], totals.cloneDependency, 0) } : {}),
         ...(totals.cloneDependencyColor > 0 ? { cloneDependencyColor: collectionNavigation(options, ['cloneDependencyColor'], totals.cloneDependencyColor, 0) } : {}),
         unracked: collectionNavigation(options, ['unracked'], totals.unracked, 0),
@@ -440,7 +464,7 @@ export function projectWorkspaceLayout(workspace, options) {
         rackCount: totals.racks,
         ...(workspace.serverState.connectionGraphInvalidation !== undefined ? {
             connectionGraphStale: true,
-            refreshConnections: { tool: 'dcsc_add_cabling', arguments: { session: workspace.id, mode: 'auto' } },
+            refreshConnections: { tool: 'dcsc_auto_connect', arguments: { session: workspace.id } },
         } : {}),
         racks: rackPreview,
         unracked: unrackedPreview,
@@ -539,7 +563,7 @@ function softwareSelectionPriceAvailable(selection) {
     const feature = selection['feature'];
     return typeof selection['totalPrice'] === 'number' && Number.isFinite(selection['totalPrice']) &&
         selection['priceNotAvailable'] !== true &&
-        (!isRecord(feature) || feature['priceNotAvailable'] !== true);
+        (!isObject(feature) || feature['priceNotAvailable'] !== true);
 }
 /** Lossless bounded detail page used when a projection tool receives path. */
 export function projectWorkspacePage(workspace, options) {

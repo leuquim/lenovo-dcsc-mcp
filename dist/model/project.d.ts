@@ -1,20 +1,5 @@
 import type { ConfigIndex } from './index.js';
 import type { IndexedFeature, RawConfiguration } from './types.js';
-/**
- * Progressive disclosure.
- *
- * The raw launch payload is ~150 KB and cannot enter an LLM's context. These
- * projections are strict subsets, each one a drill-down from the last:
- *
- *   L0  session summary   — tabs, counts, subtotals, constraints   (~800 B)
- *   L1  tab view          — sections + current selections, no features
- *   L2  section view      — one line per feature, paginated
- *   L3  feature detail    — everything, for a handful of codes
- *
- * Every projection is byte-budgeted. Silently exceeding the budget would blow
- * the context window the whole design exists to protect.
- */
-export declare const DEFAULT_MAX_BYTES = 6000;
 export interface Constraint {
     name: string;
     used: number;
@@ -28,6 +13,24 @@ export interface Constraint {
  * resulting error afterwards.
  */
 export declare function projectConstraints(raw: RawConfiguration): Constraint[];
+export interface ResourceTrackerView {
+    name: string;
+    unit?: string | undefined;
+    resources: Array<{
+        label: string;
+        value: string;
+    }>;
+}
+/** The configurator's Resource Tracker panel: slot and bay occupancy exactly as DCSC reports it. */
+export declare function projectResourceTrackers(raw: RawConfiguration): ResourceTrackerView[];
+export interface ConfigurationError {
+    tab: string;
+    subTab: string;
+    section: string;
+    errors: unknown[];
+}
+/** The configurator's Show Errors list: rule errors DCSC attached to sections. */
+export declare function projectConfigurationErrors(index: ConfigIndex): ConfigurationError[];
 export interface SessionSummary {
     session: string;
     revision: number;
@@ -91,7 +94,7 @@ export interface TabView {
     tab: string;
     /** Exact identifier accepted by option search's `tab` filter. */
     tabId: string;
-    tabSubtotal: number;
+    tabSubtotal: number | null;
     sections: TabSection[];
     next: string;
 }

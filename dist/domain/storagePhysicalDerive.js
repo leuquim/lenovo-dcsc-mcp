@@ -1,4 +1,5 @@
 import { buildRackConfigurations } from './rack.js';
+import { objectOrUndefined } from '../util/coerce.js';
 /**
  * Refreshes a placed storage alias from its rack-context derived raw while retaining envelope,
  * placement and future physical metadata. `response` is the enclosing auto-derive response; its
@@ -26,9 +27,9 @@ export function refreshStoragePhysicalFeatures(physical, editableTemplate, respo
     // physical variant carries rack-derived prices, rails and manufacturing features, but those
     // remain commercial state and are not copied into the physical rack item's selected features.
     const enriched = structuredClone(editableTemplate);
-    const wrapper = object(response);
+    const wrapper = objectOrUndefined(response);
     const placementResults = Array.isArray(wrapper?.['placementResults'])
-        ? wrapper['placementResults'].map(object).filter((value) => value !== undefined)
+        ? wrapper['placementResults'].map(objectOrUndefined).filter((value) => value !== undefined)
         : [];
     const workspaceId = typeof enriched['workspaceId'] === 'string' && enriched['workspaceId'].trim()
         ? enriched['workspaceId'] : derivedId;
@@ -42,12 +43,12 @@ export function refreshStoragePhysicalFeatures(physical, editableTemplate, respo
         throw new Error(`Cannot project derived storage features for ${physicalId}.`);
     const sectionTypes = selectedSectionTypes(enriched);
     const previousSections = Array.isArray(physical['features'])
-        ? physical['features'].map(object).filter((value) => value !== undefined)
+        ? physical['features'].map(objectOrUndefined).filter((value) => value !== undefined)
         : [];
     const features = compact.sections.map(section => {
         const previousSection = previousSections.find(value => value['name'] === section.name);
         const previousResults = Array.isArray(previousSection?.['results'])
-            ? previousSection['results'].map(object).filter((value) => value !== undefined)
+            ? previousSection['results'].map(objectOrUndefined).filter((value) => value !== undefined)
             : [];
         const results = section.features.map(feature => {
             const previous = previousResults.find(value => value['code'] === feature.code);
@@ -75,12 +76,12 @@ function selectedSectionTypes(configuration) {
             ? tabObject['type'] : undefined;
         const subTabs = Array.isArray(tabObject['subTabs']) ? tabObject['subTabs'] : [];
         for (const subTabValue of subTabs) {
-            const subTab = object(subTabValue);
+            const subTab = objectOrUndefined(subTabValue);
             if (!subTab)
                 continue;
             const sections = Array.isArray(subTab['sections']) ? subTab['sections'] : [];
             for (const sectionValue of sections) {
-                const section = object(sectionValue);
+                const section = objectOrUndefined(sectionValue);
                 const name = section && typeof section['name'] === 'string' ? section['name'] : undefined;
                 if (name && tabType)
                     types.set(name, tabType);
@@ -93,11 +94,11 @@ function applyPlacementResults(configuration, placement) {
     const sections = [
         ...((configuration.tabs ?? []).flatMap(tab => (tab.subTabs ?? []).flatMap(subTab => subTab.sections ?? []))),
         ...(Array.isArray(configuration['unSelectableCharacters'])
-            ? configuration['unSelectableCharacters'].map(object).filter((value) => value !== undefined)
+            ? configuration['unSelectableCharacters'].map(objectOrUndefined).filter((value) => value !== undefined)
             : []),
     ];
     const placements = Array.isArray(placement['sectionPlacement'])
-        ? placement['sectionPlacement'].map(object).filter((value) => value !== undefined)
+        ? placement['sectionPlacement'].map(objectOrUndefined).filter((value) => value !== undefined)
         : [];
     for (const sectionPlacement of placements) {
         const sectionName = sectionPlacement['sectionName'];
@@ -106,9 +107,9 @@ function applyPlacementResults(configuration, placement) {
         const section = sections.find(value => value['name'] === sectionName);
         if (!section || !Array.isArray(section['results']))
             continue;
-        const results = section['results'].map(object).filter((value) => value !== undefined);
+        const results = section['results'].map(objectOrUndefined).filter((value) => value !== undefined);
         const featurePlacements = Array.isArray(sectionPlacement['featurePlacement'])
-            ? sectionPlacement['featurePlacement'].map(object).filter((value) => value !== undefined)
+            ? sectionPlacement['featurePlacement'].map(objectOrUndefined).filter((value) => value !== undefined)
             : [];
         for (const featurePlacement of featurePlacements) {
             const result = results.find(value => value['code'] === featurePlacement['featureCode']);
@@ -118,9 +119,6 @@ function applyPlacementResults(configuration, placement) {
                 ? structuredClone(featurePlacement['installations']) : [];
         }
     }
-}
-function object(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : undefined;
 }
 function identity(configuration, label) {
     const id = typeof configuration.id === 'string' && configuration.id.trim() ? configuration.id : undefined;
@@ -180,7 +178,7 @@ export function splitStoragePhysicalDerive(current, response, aliases) {
         members.add(physicalId);
         aliasesByTemplate.set(templateId, members);
     }
-    const wrapper = object(response);
+    const wrapper = objectOrUndefined(response);
     if (!wrapper || !Array.isArray(wrapper['configurations'])) {
         throw new Error('Auto-derive response is missing its configurations array.');
     }
@@ -188,7 +186,7 @@ export function splitStoragePhysicalDerive(current, response, aliases) {
     const physicalConfigurations = {};
     const ordinaryIds = new Set();
     for (const [index, value] of wrapper['configurations'].entries()) {
-        const rawObject = object(value);
+        const rawObject = objectOrUndefined(value);
         if (!rawObject)
             throw new Error(`Auto-derive configuration at index ${index} is not an object.`);
         const raw = rawObject;

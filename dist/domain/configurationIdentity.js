@@ -1,3 +1,4 @@
+import { isObject } from '../util/coerce.js';
 /**
  * Clones one canonical DCSC configuration under a fresh configuration id.
  *
@@ -35,8 +36,5 @@ function assertIdentity(value, name) {
     if (!value || value.trim() !== value) {
         throw new Error(`${name} must be a non-empty, trimmed configuration identity.`);
     }
-}
-function isObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 //# sourceMappingURL=configurationIdentity.js.map

@@ -1,7 +1,7 @@
 import type { RawConfiguration } from '../model/types.js';
 import type { RackObject } from './rack.js';
 import { type ReducedConfiguration } from './reduce.js';
-type Obj = Record<string, unknown>;
+import { type Obj } from '../util/coerce.js';
 export interface ManualPortChoice {
     configurationId: string;
     code?: string | undefined;
@@ -26,6 +26,8 @@ export interface ManualConnectionView {
     network?: string | undefined;
     topology?: string | undefined;
     type?: string | undefined;
+    category?: string | undefined;
+    divider?: number | undefined;
     source: {
         configurationId: string;
         portName: string;
@@ -61,9 +63,18 @@ export interface ManualConnectionEdit {
     destination?: ManualConnectionEndpointPatch | undefined;
     /** Exact part identifier returned in compatibleCables. */
     cablePart?: string | undefined;
+    /** Per-product selected quantities, including any retained spares. */
+    cableQuantities?: {
+        oldPart: number;
+        newPart: number;
+    } | undefined;
 }
 export interface ManualCableReplacementPlan {
     physicalDestinationId: string;
+    sharedSelection?: {
+        configurationIds: string[];
+        physicalDestinationIds: string[];
+    } | undefined;
     /** Authoritative raw configuration ID, after resolving a managed physical alias. */
     configurationId: string;
     sectionName: string;
@@ -104,6 +115,7 @@ export interface ManualConnectionEditPlan {
         network: string;
     } | undefined;
     cableReplacement?: ManualCableReplacementPlan | undefined;
+    relatedChanges?: ManualConnectionEditPlan['collisionSwaps'];
     collisionSwaps?: Array<{
         index: number;
         connectionId: string;
@@ -116,6 +128,7 @@ export interface AcceptedManualCablePhysicalState {
     nonRackArea: RackObject[];
 }
 export interface ManualCablingInput {
+    cloneDependency?: unknown;
     connections: readonly unknown[];
     configurations: readonly RawConfiguration[];
     rackArea: readonly RackObject[];
@@ -141,4 +154,3 @@ export declare function applyAcceptedManualCablePhysicalState(replacement: Manua
 export declare function stageManualConnectionEdit(input: ManualCablingInput, edit: ManualConnectionEdit): ManualConnectionEditPlan;
 export declare function applyManualConnectionDistance(plan: ManualConnectionEditPlan, value: unknown): ManualConnectionEditPlan;
 export declare function commitManualConnectionEdit(connections: readonly unknown[], plan: ManualConnectionEditPlan): unknown[];
-export {};

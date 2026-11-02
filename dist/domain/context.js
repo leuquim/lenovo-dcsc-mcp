@@ -56,7 +56,4 @@ export function toSolutionContext(modes, preferred) {
     }
     return { solutionMode: chosen.mode, masterSlices: chosen.masterSlices };
 }
-export function baseCtx(corrId, locale) {
-    return { corrId, locale };
-}
 //# sourceMappingURL=context.js.map
