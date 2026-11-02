@@ -24,7 +24,7 @@ npx playwright install chromium
 npm run parity -- all
 ```
 
-All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `npm run parity -- <case>` cases for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. The source-bound matrix results and scoped native limitations are recorded in [current context](.docs/context.md).
+All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `npm run parity -- <case>` cases for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. Scoped native limitations are listed in the README and [current context](.docs/context.md).
 
 `scripts/recon/` contains historical experiments, some dependent on private local captures. It is intentionally excluded from maintained lint/typecheck. Raw `artifacts/` and old `/tmp/` evidence references describe the original development environment; they are not required to run local checks from a fresh clone.
 
@@ -45,4 +45,4 @@ The MCP executable is `dist/mcp/server.js`; this package does not advertise a Ja
 
 Keep exported designs, sessions, browser traces, cookies, credentials and local client configuration out of commits. Test fixtures must contain anonymous or synthetic data and the minimum fields needed for their regression. Preserve the distinction between native DCSC state and local planning metadata. Keep unknown upstream values explicit.
 
-Run appropriate focused tests and affected live parity checks for behavior changes. Update the canonical finding audit when evidence changes; do not claim full parity while a required gate remains unmet. Open pull requests against `main`; GitHub CI checks Node 22 and 24 and production-package startup.
+Run appropriate focused tests and affected live parity checks for behavior changes. Update [.docs/website-actions.md](.docs/website-actions.md) when the website's behaviour or evidence changes; do not claim full parity while a required gate remains unmet. Open pull requests against `main`; GitHub CI checks Node 22 and 24 and production-package startup.

@@ -13,14 +13,16 @@ Read before changing behaviour: [CONTRIBUTING.md](CONTRIBUTING.md), [.docs/conte
 - `src/http` - the only place that talks to DCSC (`DcscHttpClient.send`).
 - `src/domain` - DCSC features: wire shapes (zod), requests, reductions.
 - `src/session` - in-memory sessions and workspaces, persistence, recovery.
+- `src/app` - feature workflows used by `service.ts`; one module per website area.
 - `src/mcp` - tool registration (`*Tools.ts`, wired in `tools.ts`) and `service.ts`. Handlers wrap work in `guard()` from `toolSupport.ts`.
 - `src/files` - the artifact store. All files the MCP writes go through it.
-- `test` - vitest, offline, committed fixtures. `scripts/parity` - live gates (`npm run parity -- <case>`).
+- `test` - vitest, offline, committed fixtures.
+- `scripts/parity` - the browser-vs-MCP harness; cases in `scripts/parity/cases`.
 
 ## Commands
 
 - `npm run check` - typecheck, lint, unit tests, offline contracts, build, stdio smoke. Must pass before a change is done.
-- Live gates: `npm run parity:*`, `npm run contract:live`. They hit dcsc.lenovo.com.
+- Live gates: `npm run parity -- <case|tag|all>`, `npm run contract:live`. They hit dcsc.lenovo.com.
 
 Parity target: [.docs/website-actions.md](.docs/website-actions.md) lists every anonymous website action, its endpoint and its MCP tool. Add a website feature only if it is in that table; update the table when the website changes.
 

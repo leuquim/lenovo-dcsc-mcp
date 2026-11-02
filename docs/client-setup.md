@@ -191,7 +191,7 @@ undocumented DCSC web API, so upstream behavior can change. It backs off on WAF
 responses and limits concurrency and request counts instead of trying to evade
 Lenovo controls.
 
-Known parity limits are tracked in the main README and `.docs/roadmaps/`. The
+Known parity limits are tracked in the main README and `.docs/context.md`. The
 largest current gap is a populated native storage connection graph and managed
 storage cable-part editing. GB300 power/cooling remains unknown when DCSC does
 not return a power report. Account saves and authenticated commercial pricing

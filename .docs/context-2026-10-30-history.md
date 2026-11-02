@@ -2290,7 +2290,7 @@ All source, maintained scripts, test fixtures and current context are versioned 
 
 Snapshot `20261016T041423Z` finished 54 release commands: **52 passed, 0 failed, 2 capability-blocked**. It passed 846 unit tests in 114 files, 17 offline contracts, 89 live contracts, 170 conformance checks across all 72 tools, a 291-call nested lifecycle, and all 15 final headless browser checks. Source integrity passed before and after; the dependency audit reported zero vulnerabilities at that time. These are dated results, not a promise about future Lenovo availability.
 
-Use the [24-finding audit](roadmaps/2026_10_15_dcsc_finding_audit.md) for closure scope and the [roadmap](roadmaps/2026_10_15_dcsc_parity.md) for requirements. The [progress ledger](roadmaps/2026_10_15_dcsc_progress.md) preserves implementation decisions and earlier results, explicitly superseded by its current checkpoint. The review originally had 23 findings; dependency remediation added finding 24.
+The 2026-10 audit, roadmap and progress ledger were retired in the 2026-11 cleanup; see the review cleanup plan.
 
 Confirmed local corrections include commercial/software/service quantities, imported clone ownership, canonical export groups, atomic revision-bound edits, durable recovery and history, rack and supported nested lifecycle, bounded lossless projections, authoritative manufacturing validation, standalone products and Management cabling. Do not replace these with simplified state or infer closure from a successful HTTP status.
 

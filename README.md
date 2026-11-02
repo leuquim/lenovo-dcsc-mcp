@@ -11,7 +11,7 @@ pricing — that is verified, not assumed.
 
 ---
 
-For maintainers: [current context and next steps](.docs/context.md), [roadmap](.docs/roadmaps/2026_10_15_dcsc_parity.md), and [verified findings](.docs/roadmaps/2026_10_15_dcsc_finding_audit.md).
+For maintainers: [current context](.docs/context.md), [review cleanup plan](.docs/roadmaps/2026_11_01_review_cleanup_plan.md), and [Phase 3 design](.docs/roadmaps/2026_11_01_phase3_design.md).
 
 ## Status
 
@@ -43,22 +43,12 @@ For maintainers: [current context and next steps](.docs/context.md), [roadmap](.
 | Cluster / HPC-LeSI solution modes | Cluster mode is not offered anonymously |
 | Account saves and partner/bid pricing | **Not tested** — anonymous workflow coverage only |
 
-The project has completed the **2026-10-31 Anonymous Parity Completion**:
-- **108 Registered MCP Tools**: 108/108 tools verified with complete MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, `title`) and a tightened context diet footprint (< 28,000 description characters).
-- **1,212 Unit Tests across 145 files**: 100% passing test suite across domain logic, serialization, and tool ergonomics.
-- **209/209 Conformance Checks Passed**: `scripts/conformance.ts` asserts 108/108 registered tools invoked and successful, with all tool responses strictly under the 8,000-byte output budget (`maxBytes <= MAX_TOOL_BYTES`).
-- **Complete Parity Phase Pipeline**:
-  - **Phase 0 Inventory**: 381 paths mined from the live DCSC bundle (`app-2026-01-14-5be41ba.js`), classifying 107 MCP-covered routes, 75 auth-gated routes, 41 SPA routes, and 158 candidate gap paths.
-  - **Phase 1 Live Verification**: Automated harness (`scripts/parity-phase1-tools.ts`) verified 25 tool/restart/export capabilities against live `dcsc.lenovo.com` (`artifacts/parity-phase1/2026-10-31/report.json`).
-  - **Phase 2 Gap Packages**: Implemented and verified G1 (Power XLS), G5 (Supply status lead times), G7 (Error customize with auto-derive), G9 (Rule & table versions), G10 (Anonymous discovery helpers), and G11 (Share URL retrieval) (`artifacts/parity-phase2/2026-10-31/report.json`).
-  - **Phase 3 HPC/AI E2E Acceptance**: Verified 3 comprehensive end-to-end scenarios against live DCSC (`artifacts/parity-phase3-hpc-e2e/2026-10-31/report.json`): Scenario 1 (Multi-rack HPC compute cluster), Scenario 2 (AI factory pod), and Scenario 3 (External CFXML import, validate, fix, re-export).
-  - **Verified Release Checkpoint**: Source manifest integrity verified via `scripts/release-checkpoint.ts` (`artifacts/release-2026-10-31-parity-completion/checkpoint/manifest.json`).
-
-The parity implementation is in progress. Run `npm run build`, `npm run typecheck`,
-`npm run lint`, `npm test`, and `npm run contract` for local checks. Live API
-contracts and dynamic MCP conformance are separate gates; a passing request
-alone does not establish website parity. Browser tests use isolated headless
-Chromium. The execution roadmap and evidence ledger are in `.docs/roadmaps/`.
+The server registers **41 MCP tools**, each with complete MCP annotations and a
+bounded response size (8,000 bytes). Run `npm run check` (typecheck, lint, unit
+tests, offline contracts, build, stdio smoke) for local checks. Live API
+contracts and the browser-vs-MCP parity harness (`scripts/parity`) are separate
+gates; a passing request alone does not establish website parity. Browser runs
+use isolated headless Chromium. The plan and design are in `.docs/roadmaps/`.
 
 Rack-bearing export now preserves the slim layout hierarchy, full physical rack
 data and floor information. A generated PNG supplies the Rack Report sheet.
@@ -598,63 +588,18 @@ npx tsx scripts/export-smoke.ts  # launch -> exact CPU derive -> nonempty XML/XL
 npx tsx scripts/mcp-smoke.ts     # bounded stdio responses, mutation and nonempty export
 npx tsx scripts/conformance.ts   # dynamic tool inventory, continuations and response budgets
 npx tsx scripts/verify-fixes.ts  # export regression checks across configuration shapes
-npm run parity -- all            # every case, isolated Chromium; reports pass/fail/blocked per case
-npm run parity -- quantity-handoff-4 # SR630 V3 quantity import, MCP round trip and website re-import
-npm run parity -- software-embedded # fresh headless browser/MCP OS & Software differential
-npm run parity -- recovery-legacy-reconcile # real MCP stdio recovery, SIGKILL/restart and live legacy validation
-npm run parity -- projections # real MCP stdio large-workspace paging and exact detail reconstruction
-npm run parity -- network-switch  # populated Management graph against the browser oracle and a fresh website import
-npm run parity -- network-leaf    # Distributed main/leaf graph, restart, export and website import
-npm run parity -- storage-lifecycle # managed controller and SAN switch lifecycle, restart, export and website re-import
-npm run parity -- storage-placement # managed storage physical placement, derive, export and website re-import
-npm run parity -- storage-fc      # website Direct Attached FC Auto-Connect against the MCP
-npm run parity -- manual-cabling  # every manual cabling mode (create, replace, breakout, storage, shared, collision)
-npm run parity -- manual-source-swap # atomic source-port swap, history, restart and website import
-npm run parity -- rack-power      # website two-rack PDU/cord flow against the MCP, history, restart and re-import
-npm run parity -- rack-power-multi # second power code and non-unit PDU/cord quantities
-npm run parity -- rack-clone        # headless physical-clone browser oracle (also rack-copy, rack-clone-edit-source, rack-clone-delete-root)
-npm run parity -- rack-lock         # rack item and empty-U Lock against the website
-npm run parity -- rack-lifecycle    # two-rack move/unplace/auto-place lifecycle and workbook
-npm run parity -- lfo-as-cto        # LFO as CTO hardware edit, export and re-import
-npm run parity -- nested-vlh        # native supported chassis/node workflow and export handoff
-npm run parity -- nested-lifecycle  # real MCP nested edit/history/crash/import/export lifecycle
-npm run parity -- nested-remove-chassis # native populated-chassis Delete wire oracle
-npm run parity -- nested-remove-node    # native Delete Node wire/export oracle
-npm run parity -- nested-unplace-node   # native Move To Non Rack wire/export oracle
-npm run parity -- controls-locale # headless DE/EUR conflicting-control differential
-npm run parity -- catalogs # exhaustive bounded catalog/fabric/software continuations
-npm run parity -- validation        # strict authoritative verdict, payload/hash and stale-job gate
-npm run parity -- services          # base service + add-on selection, removal, export and reimport
-npm run parity -- storage-wizard # linked storage options/components, recovery, intent and native XML handoff
-npm run parity -- storage-wizard-clear # whole-option clearing, drive guard and native XML handoff
-npm run parity -- storage-wizard-raid # RAID-mode clearing, linked recovery and native XML handoff
-npm run parity -- storage-wizard-raid-reverse # return to non-configured RAID and verify the empty choice
-npm run parity -- storage-wizard-sr850 # mixed SAS/SATA + AnyBay layout on linked SR850 V4 servers
-npm run parity -- pci-wizard # native PCI slots, crash/history, derive, XML and browser handoff
-npm run parity -- power-controls    # native power controls, crash/history, derive, XML and browser handoff
-npm run parity -- chassis-clone     # native populated-chassis clone, undo/redo and browser handoff
-npm run parity -- chassis-copy      # independent populated-chassis Copy and browser handoff
-npm run parity -- chassis-linked-copy # preserve linked sources while creating an independent copy
-npm run parity -- chassis-member-copy # Copy from a linked member; preserve original parent/child groups
-npm run parity -- nested-grouped-import # populated chassis/node groups, restart and native reimport
-npm run parity -- grouped-rack-import # native grouped rack launch, healthy restart and export/browser handoff
-npm run parity -- xconfig-import    # native x-config import/layout, restart and export handoff
-npm run parity -- workbook-import   # Excel import over stdio, crash/restart, export and native browser controls
-npm run parity -- reference-unconfigured      # Unconfigured quantity edit, restart and browser XML handoff
-npm run parity -- reference-download # original-template bytes versus native Export, import and restart
-npm run parity -- reference-solutions # native template catalog/customize, crash/restart and browser handoff
-npm run parity -- storage-fc -- --out /path/to/report # post-import Direct Attached FC control; currently exits 2 on HTTP 200/zero storage rows
-npm run parity -- switch-clone      # HPC switch capacity, linked ownership, history, crash and browser import
-npm run parity -- switch-edit       # linked HPC switch cable edit and native handoff
+npm run parity -- <case|tag|all>  # browser-vs-MCP harness in isolated Chromium; cases live in scripts/parity/cases
 ```
+
+Each case reports pass, fail or blocked. A case id or a tag selects one or more
+cases; an unknown selector prints the available case ids.
 
 Parity runners exit `1` for a failed assertion and `2` when every executed
 assertion passed but a required upstream capability is blocked. A blocked run
 is never reported as release success.
 
-`npm run release:checkpoint` records the current **55-command** local/live/headless
-matrix, including every command advertised above, its fixture dependencies and
-the exact dirty source snapshot. Run that ordered inventory from the materialized
+`npm run release:checkpoint` records the local/live/headless command matrix,
+its fixture dependencies and the exact dirty source snapshot. Run that ordered inventory from the materialized
 checkout described in its manifest; declared exit-2 capabilities remain blocked,
 not passing.
 
@@ -667,7 +612,7 @@ tray in the MGX cabinet. It asserts on the exported CFXML itself — counting
 server's own report of what it exported.
 
 **`conformance.ts` checks transport coverage.** It inventories the current tool
-registry dynamically (85 tools currently) and asserts that every registered
+registry dynamically (41 tools currently) and asserts that every registered
 tool is exercised — the coverage gate fails if a tool is added without a check —
 and it covers what the happy path misses: the LFO endpoint family, batched
 changes, pagination, filters, stale-revision rejection, and the error surface
