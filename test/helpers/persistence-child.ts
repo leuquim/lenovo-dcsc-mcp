@@ -2,20 +2,34 @@ import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { ConfigSchema } from '../../src/config/schema.js';
-import { selectStandaloneSoftware, type StandaloneSoftwareState } from '../../src/domain/standalone.js';
-import {
-  RECONCILIATION_HISTORY_STATE_KEY,
-  RECONCILIATION_PROPOSALS_STATE_KEY,
-} from '../../src/domain/reconciliation.js';
-import { VALIDATION_JOBS_STATE_KEY, type ValidationJob } from '../../src/domain/validationJobs.js';
-import { reduceConfiguration } from '../../src/domain/reduce.js';
+import type { StandaloneSoftwareState } from '../../src/domain/standalone.js';
+import type { ValidationJob } from '../../src/domain/validationJobs.js';
 import type { RawConfiguration } from '../../src/model/types.js';
-import { DcscService } from '../../src/mcp/service.js';
-import { saveSessions } from '../../src/session/persist.js';
-import { registerSessionTools } from '../../src/mcp/sessionTools.js';
-import { registerStandaloneTools } from '../../src/mcp/standaloneTools.js';
 import type { ConfigSession, WorkspaceSession } from '../../src/model/session.js';
+import type { DcscService as Service } from '../../src/mcp/service.js';
+
+import type * as Schema from '../../src/config/schema.js';
+import type * as Standalone from '../../src/domain/standalone.js';
+import type * as Reconciliation from '../../src/domain/reconciliation.js';
+import type * as ValidationJobs from '../../src/domain/validationJobs.js';
+import type * as Reduce from '../../src/domain/reduce.js';
+import type * as ServiceModule from '../../src/mcp/service.js';
+import type * as Persist from '../../src/session/persist.js';
+import type * as SessionTools from '../../src/mcp/sessionTools.js';
+import type * as StandaloneTools from '../../src/mcp/standaloneTools.js';
+
+// Runs on the compiled build: loading the TypeScript sources through a loader costs about a second per child.
+const built = <T>(path: string): Promise<T> => import(new URL(`../../dist/${path}`, import.meta.url).href) as Promise<T>;
+const { ConfigSchema } = await built<typeof Schema>('config/schema.js');
+const { selectStandaloneSoftware } = await built<typeof Standalone>('domain/standalone.js');
+const { RECONCILIATION_HISTORY_STATE_KEY, RECONCILIATION_PROPOSALS_STATE_KEY } =
+  await built<typeof Reconciliation>('domain/reconciliation.js');
+const { VALIDATION_JOBS_STATE_KEY } = await built<typeof ValidationJobs>('domain/validationJobs.js');
+const { reduceConfiguration } = await built<typeof Reduce>('domain/reduce.js');
+const { DcscService } = await built<typeof ServiceModule>('mcp/service.js');
+const { saveSessions } = await built<typeof Persist>('session/persist.js');
+const { registerSessionTools } = await built<typeof SessionTools>('mcp/sessionTools.js');
+const { registerStandaloneTools } = await built<typeof StandaloneTools>('mcp/standaloneTools.js');
 
 type Scenario =
   | 'quantity'
@@ -92,7 +106,7 @@ if (mode === 'mutate') {
   process.stdout.write(`${JSON.stringify({ status: 'verified', scenario })}\n`);
 }
 
-async function mutate(target: DcscService, selected: Scenario): Promise<void> {
+async function mutate(target: Service, selected: Scenario): Promise<void> {
   if (selected === 'software-launch' || selected === 'software-set-quantity' ||
       selected === 'software-remove' || selected === 'software-refresh' || selected === 'software-replace') {
     const handlers = standaloneHandlers(target);
@@ -525,7 +539,7 @@ async function mutate(target: DcscService, selected: Scenario): Promise<void> {
   throw new Error(`Unknown scenario ${selected}`);
 }
 
-async function verify(target: DcscService, selected: Scenario): Promise<void> {
+async function verify(target: Service, selected: Scenario): Promise<void> {
   const workspaces = target.sessions.listWorkspaces();
   if (selected === 'software-launch' || selected === 'software-set-quantity' ||
       selected === 'software-remove' || selected === 'software-refresh' || selected === 'software-replace') {
@@ -863,7 +877,7 @@ async function verify(target: DcscService, selected: Scenario): Promise<void> {
   }
 }
 
-function baseline(target: DcscService): {
+function baseline(target: Service): {
   first: ConfigSession;
   second: ConfigSession;
   workspace: WorkspaceSession;
@@ -978,13 +992,13 @@ function standaloneSoftwareState(): StandaloneSoftwareState {
   };
 }
 
-function findConfiguration(target: DcscService, configurationId: string): ConfigSession {
+function findConfiguration(target: Service, configurationId: string): ConfigSession {
   const match = target.sessions.list().find((session) => session.configurationId === configurationId);
   assert(match, `configuration ${configurationId} missing`);
   return match;
 }
 
-function installFixtureAdapter(target: DcscService): void {
+function installFixtureAdapter(target: Service): void {
   const fixture = JSON.parse(
     readFileSync(new URL('../fixtures/parity/fabric-cabling.json', import.meta.url), 'utf8'),
   ) as Record<string, unknown>;
@@ -1170,7 +1184,7 @@ function installFixtureAdapter(target: DcscService): void {
   }) as unknown as typeof target.http.send;
 }
 
-function completeDerivedFixture(target: DcscService, requested: RawConfiguration): RawConfiguration {
+function completeDerivedFixture(target: Service, requested: RawConfiguration): RawConfiguration {
   const id = String(requested.id ?? '');
   const existing = target.sessions.list().find(item => item.configurationId === id)?.raw;
   const code = String(requested.code ?? requested.sliceCtoCode ?? 'FIXTURE');
@@ -1197,7 +1211,7 @@ function completeDerivedFixture(target: DcscService, requested: RawConfiguration
 type ToolReply = { isError?: boolean; content: Array<{ text?: string }> };
 type ToolHandler = (args: Record<string, unknown>) => Promise<ToolReply>;
 
-function launchHandler(target: DcscService): ToolHandler {
+function launchHandler(target: Service): ToolHandler {
   const handlers = new Map<string, ToolHandler>();
   registerSessionTools({
     registerTool(name: string, _config: unknown, handler: ToolHandler) { handlers.set(name, handler); },
@@ -1205,7 +1219,7 @@ function launchHandler(target: DcscService): ToolHandler {
   return handlers.get('dcsc_launch')!;
 }
 
-function standaloneHandlers(target: DcscService): Map<string, ToolHandler> {
+function standaloneHandlers(target: Service): Map<string, ToolHandler> {
   const handlers = new Map<string, ToolHandler>();
   registerStandaloneTools({
     registerTool(name: string, _config: unknown, handler: ToolHandler) { handlers.set(name, handler); },

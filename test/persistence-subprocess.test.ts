@@ -126,10 +126,11 @@ function child(
   scenario: (typeof scenarios)[number],
   stateFile: string,
 ): ChildProcessWithoutNullStreams {
-  return spawn(process.execPath, ['--import', 'tsx', helper, mode, scenario, stateFile], {
+  return spawn(process.execPath, [helper, mode, scenario, stateFile], {
     cwd: process.cwd(),
     env: {
       ...process.env,
+      NODE_COMPILE_CACHE: join(tmpdir(), 'dcsc-node-compile-cache'),
       // Ensure developer-machine defaults cannot redirect this isolated child.
       DCSC_CONFIG: join(stateFile, '..', 'does-not-exist.json'),
     },

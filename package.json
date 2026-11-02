@@ -21,7 +21,7 @@
     "start": "node dist/mcp/server.js",
     "typecheck": "tsrs -p tsconfig.check.json --noEmit",
     "lint": "oxlint --report-unused-disable-directives --deny-warnings",
-    "test": "vitest run",
+    "test": "npm run -s build && vitest run",
     "test:watch": "vitest",
     "mine": "tsx scripts/mine-bundle.ts",
     "contract": "vitest run --config vitest.contract.config.ts",
@@ -30,7 +30,7 @@
     "release:checkpoint": "tsx scripts/release-checkpoint.ts",
     "prepack": "npm run build",
     "smoke:stdio": "tsx scripts/smoke-stdio.ts",
-    "check": "npm run typecheck && npm run lint && npm test && npm run contract && npm run build && npm run smoke:stdio"
+    "check": "npm run typecheck && npm run lint && npm test && npm run contract && npm run smoke:stdio"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
