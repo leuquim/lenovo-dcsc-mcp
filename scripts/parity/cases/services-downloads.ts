@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { readZip, zipListing, zipNames } from '../archives.js';
+import { readZip, zipNames } from '../archives.js';
 import { array, object, pages } from '../continuations.js';
 import type { ParityCase } from '../harness.js';
 import { openHome, settle } from '../settingsUi.js';
@@ -57,7 +57,8 @@ export default {
       compare('product-search', native.productSearch, [...new Set(codes)].sort());
 
       const exported = await mcp.call('dcsc_export', { kind: 'servicesCatalog', productCode: SERVICE_PRODUCT, fileName: 'mcp-service-export' });
-      compare('export-archive', await zipListing(native.exportPath), await zipListing(String(exported['zipPath'])));
+      compare('export-archive', await zipNames(native.exportPath), await zipNames(String(exported['zipPath'])));
+      compare('export-content', await workbookParts(native.exportPath, out, 'web-export'), await workbookParts(String(exported['zipPath']), out, 'mcp-export'));
 
       const catalog = await mcp.call('dcsc_export', { kind: 'servicesCatalog', fileName: 'mcp-service-catalog' });
       compare('download-catalog-archive', await zipNames(native.catalogPath), await zipNames(String(catalog['zipPath'])));

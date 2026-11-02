@@ -17,6 +17,8 @@ export interface ExpectedDifference extends Diff { doc: string }
 
 /** Query keys only the website's own client adds; they carry no configuration state. */
 const CLIENT_QUERY_KEYS = new Set(['countryName', 'current_country_or_region', 'controlExpressModal', '_request']);
+/** Preamble keys the MCP client sends on every request; the website omits some per request, so they compare only where it sends them. */
+const PREAMBLE_QUERY_KEYS = new Set(['geo', 'country_or_region', 'language', 'currency', 'solutionMode', 'masterSlices', 'sbSlices']);
 
 /** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
 export interface CapturedRequest { method: string; path: string; query?: Record<string, unknown>; body?: unknown }
@@ -136,8 +138,13 @@ export async function createHarness(caseId: string, mode: McpMode = 'stdio', art
         ({ method, path: apiPath(requestPath), query: named(query ?? pathQuery(requestPath)), body: normalize(body) });
       const mcpBody = mcpRequest.body?.kind === 'form' ? mcpRequest.body.fields
         : mcpRequest.body?.kind === 'json' ? mcpRequest.body.value : mcpRequest.body;
-      harness.compare(name, shape(webCapture.method, webCapture.path, webCapture.query, webCapture.body),
-        shape(mcpRequest.method, mcpRequest.path, mcpRequest.query, mcpBody), options.expectedDifferences ? { expectedDifferences: options.expectedDifferences } : {});
+      const web = shape(webCapture.method, webCapture.path, webCapture.query, webCapture.body);
+      const mcp = shape(mcpRequest.method, mcpRequest.path, mcpRequest.query, mcpBody);
+      for (const key of PREAMBLE_QUERY_KEYS) {
+        if (web.query[key] === '') delete web.query[key];
+        if (!(key in web.query)) delete mcp.query[key];
+      }
+      harness.compare(name, web, mcp, options.expectedDifferences ? { expectedDifferences: options.expectedDifferences } : {});
     },
     /** Records a blocked check; `probe` re-attempts the blocked call and must still throw the upstream error. */
     async skip(name: string, reason: string, probe: () => Promise<unknown>): Promise<void> {
