@@ -439,7 +439,7 @@ mode from the start. Importing a General Purpose CFXML can restore its original 
 
 ## Operational rules this codebase enforces
 
-These are structural, not conventional — both are checked by ESLint and by tests.
+These are structural, not conventional — both are checked by oxlint and by tests.
 
 1. **One HTTP chokepoint.** Only `src/http/**` may import `undici`. Everything
    else calls `send()`, which applies the six mandatory headers and seven
