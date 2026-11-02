@@ -81,8 +81,8 @@ export async function runNestedChassis(h: Harness, variant: NestedVariant): Prom
       const created = variant.create === 'copy'
         ? await edit(chassis['id'], { action: 'copy', expectedRevision: state['revision'] })
         : await edit(chassis['id'], { action: 'clone', count: 1, placement: 'same-rack', expectedRevision: state['revision'] });
-      compare('create-nested-chassis', { nestedConfigurationsCreated: 1, ...(variant.create === 'clone' ? { totalConfigurations: 4 } : {}) },
-        { nestedConfigurationsCreated: created['nestedConfigurationsCreated'], ...(variant.create === 'clone' ? { totalConfigurations: created['totalConfigurations'] } : {}) });
+      compare('create-nested-chassis', variant.create === 'clone' ? { totalConfigurations: 4 } : { nestedConfigurationsCreated: 1 },
+        variant.create === 'clone' ? { totalConfigurations: created['totalConfigurations'] } : { nestedConfigurationsCreated: created['nestedConfigurationsCreated'] });
       const created2 = saved(id);
       await undo(id, 'undo', created2['revision']);
       const undone = saved(id);

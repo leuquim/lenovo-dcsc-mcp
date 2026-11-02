@@ -144,11 +144,12 @@ function hardwareCase(quantity: number): ParityCase {
         rows(row['products']).map(product => ({ code: text(product['code']).replaceAll('-', ''), quantity: product['quantity'], unitPrice: product['unitListPrice'] })).sort(byCode),
         normalizers.cfxml(readFileSync(source, 'utf8')).map(line => ({ code: line.code, quantity: line.quantity, unitPrice: line.unitPrice })).sort(byCode));
 
-      await step('website-import', async () => {
+      const websiteFacts = await step('website-import', async () => {
         const page = await h.web.newPage();
         const { response } = await importInBrowser(page, source, SUMMARY_ROUTE);
-        compare('website-import-shape', { configurations: 1, rawQuantities: [1], hardwareSalesQuantity: quantity, dependentsAllMatch: true },
-          importedFacts(object(array(response)[0]), quantity));
+        const facts = importedFacts(object(array(response)[0]), quantity);
+        compare('website-import-shape', { configurations: 1, rawQuantities: [1], hardwareSalesQuantity: quantity, dependentsAllMatch: true }, facts);
+        return facts;
       });
       if (quantity === 1) return;
 
@@ -172,8 +173,8 @@ function hardwareCase(quantity: number): ParityCase {
         await page.waitForTimeout(8_000);
         const exportedQuantities = quantitiesByCode({ lines: normalizers.cfxml(readFileSync(mcpExport.xml, 'utf8')) });
         const browserQuantities = quantitiesByCode({ groups: envelope['groups'] });
-        compare('browser-reimport-quantities', { configurations: quantity, quantities: Object.fromEntries(GROUPED_CODES.map(code => [code, quantity])) },
-          { configurations: array(envelope['configuration']).length, quantities: Object.fromEntries(GROUPED_CODES.map(code => [code, browserQuantities[code]])) });
+        compare('browser-reimport-quantities', { ...websiteFacts, quantities: Object.fromEntries(GROUPED_CODES.map(code => [code, quantity])) },
+          { ...importedFacts(envelope, quantity), quantities: Object.fromEntries(GROUPED_CODES.map(code => [code, browserQuantities[code]])) });
         compare('browser-reimport-matches-export', exportedQuantities, Object.fromEntries(Object.keys(exportedQuantities).map(code => [code, browserQuantities[code]])));
 
         const final = await captureBrowserExport(page, h.out, `browser-final-quantity-${quantity}`);

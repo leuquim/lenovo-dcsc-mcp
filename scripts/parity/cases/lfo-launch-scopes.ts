@@ -35,8 +35,8 @@ export default {
       await (await visible(page.getByText('Customize', { exact: true }), 'Customize')).click();
       await page.waitForURL(/#\/configuration\/lfo\//, { timeout: 90_000 });
       await settle(page);
-      const tabs = (await page.locator('.ant-tabs-tab').allInnerTexts()).map(title => title.trim()).filter(title => title && title !== CLIENT_ONLY_TAB);
-      assert.deepEqual(scopes.slice(0, 2), ['SW', 'HW'], 'The website did not load the SW scope then the HW scope.');
+      const tabs = (await page.locator('.configurator-tabs__main-tab__item .tab-title').allInnerTexts()).map(title => title.trim()).filter(title => title && title !== CLIENT_ONLY_TAB);
+      assert.deepEqual(scopes.slice(0, 2), ['HW', 'SW'], 'The website did not request the HW scope then the SW scope.');
       return tabs;
     });
 

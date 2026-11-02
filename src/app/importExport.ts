@@ -456,12 +456,14 @@ export async function exportZip(rt: Runtime, sessionHandle: string,
         validationMode,
       });
 
+  const importedGroups = workspace?.serverState['groups'];
+  const importedGroupCount = Array.isArray(importedGroups) ? importedGroups.length : 0;
   const form = buildExportForm({
     data,
     image: useWorkspace && hasRacks && opts.fileTypes.includes('RACK_REPORT') ? renderRackImage(workspace) : undefined,
     groups: applyLogicalGroups(useWorkspace
       ? buildGroups(stripped!)
-      : buildGroups(session!.raw, session!.configurationId, session!.mode), opts.logicalGroups ?? []),
+      : buildGroups(session!.raw, session!.configurationId, session!.mode), opts.logicalGroups ?? [], importedGroupCount),
   });
 
   const res = await rt.http.send({

@@ -42,6 +42,8 @@ function layout(value: unknown): unknown {
     nonRack: pick(rows(root['nonRackArea']), rows(information['nonRackData']), rows(workspace['nonRackArea'])).map(physical),
   });
 }
+const countNodes = (items: Json[]): number => items.reduce((total, item) =>
+  total + (item['type'] === 'node' ? 1 : 0) + countNodes([...rows(item['nodes']), ...rows(item['children'])]), 0);
 const exportedLayout = (fields: unknown) => layout(JSON.parse(text(object(fields)['data']) || '{}'));
 
 async function launchOnWebsite(page: Page, code: string): Promise<void> {
@@ -162,10 +164,11 @@ export default {
       await placeFromNonRack(page, NODE);
       const nested = {
         chassisCount: await page.locator('.rack-chassis:visible, .rack-horizontal-chassis:visible').count(),
-        nodeCount: await page.locator('.rack-chassis-node:visible, .rack-horizontal-chassis-node:visible').count(),
       };
       const exported = await exportFromWorkspace(page, h.out, 'browser-nested-vlh');
-      return { nested, exported, reimport: layout(await reimportEnvelope(h, exported.xmlPath)) };
+      const reimport = layout(await reimportEnvelope(h, exported.xmlPath));
+      const nodeCount = countNodes(rows(object(reimport)['racks']));
+      return { nested: { ...nested, nodeCount }, exported, reimport };
     });
 
     await step('mcp', async () => {

@@ -55,7 +55,7 @@ async function websiteRun(h: Harness, variant: Variant, page: Page) {
   await page.waitForTimeout(12_000);
   const actionRequest = customizes.at(-1);
   assert(actionRequest, `${variant.action} emitted no customize request.`);
-  const request = { method: 'POST', path: new URL(actionRequest.url()).pathname, body: actionRequest.postDataJSON() as unknown };
+  const request = { method: 'POST', path: actionRequest.url(), body: actionRequest.postDataJSON() as unknown };
 
   if (variant.deleteRoot) {
     const total = await servers.count();

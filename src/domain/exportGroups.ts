@@ -494,13 +494,14 @@ export interface LogicalGroup { name: string; parent?: string | undefined; produ
 /**
  * Logical Groups are client state on the website; they reach DCSC only as the export form's `groups` field.
  * Product lines move out of the default group by code; index is the position among siblings, with the
- * default group counted as the first top-level sibling.
+ * default group counted as the first top-level sibling. An imported workspace already holds its groups,
+ * and the website counts them in front of the new top-level groups.
  */
-export function applyLogicalGroups(base: ReadonlyArray<Record<string, unknown>>, logical: readonly LogicalGroup[]): Array<Record<string, unknown>> {
+export function applyLogicalGroups(base: ReadonlyArray<Record<string, unknown>>, logical: readonly LogicalGroup[], importedGroupCount = 0): Array<Record<string, unknown>> {
   const [fallback, ...rest] = base as [{ name: string; products: Array<Record<string, unknown>> } & Record<string, unknown>, ...unknown[]];
   if (!fallback || rest.length > 0) throw new Error('Logical groups need exactly one default export group.');
   const names = new Set([fallback.name]);
-  const siblings = new Map<string | undefined, number>([[undefined, 1]]);
+  const siblings = new Map<string | undefined, number>([[undefined, 1 + importedGroupCount]]);
   const claimed = new Set<string>();
   const groups = logical.map(group => {
     if (names.has(group.name)) throw new Error(`Group name "${group.name}" is duplicated or reserved.`);

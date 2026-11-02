@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Page } from 'playwright';
+import type { Locator, Page } from 'playwright';
 
 import { zipText } from './archives.js';
 import { auditForms, captureBrowserExport } from './exportUi.js';
@@ -12,6 +12,8 @@ import { array, importInBrowser, object } from './softwareSummaryUi.js';
 
 
 export const SUMMARY_ROUTE = /#\/(?:rack-summary|summary)\//;
+const RACK_DISTANCE_INPUT = 2;
+const COLD_AISLE_INPUT = 4;
 const WORKSPACE_ROUTE = /#\/rack-configuration/;
 
 /** A fresh website page that imported the file and shows its Summary, with the export-form capture installed. */
@@ -40,7 +42,7 @@ export async function goToWorkspace(page: Page): Promise<void> {
 }
 
 export async function backToSummary(page: Page): Promise<void> {
-  await clickText(page, 'Summary', 'Summary button', true);
+  await clickText(page, 'Summary', 'Summary button');
   await page.waitForURL(SUMMARY_ROUTE, { timeout: 60_000 });
   await settle(page);
 }
@@ -50,23 +52,26 @@ export async function createLogicalGroupsInBrowser(page: Page,
   groups: Array<{ name: string; parent?: string; products: string[] }>): Promise<void> {
   await clickText(page, 'More', 'More menu');
   await clickText(page, 'Logical Groups', 'Logical Groups item');
+  const modal = page.locator('.ant-modal:visible').first();
+  const pickOption = async (select: Locator, label: string) => {
+    await select.click();
+    await (await visible(page.locator('.ant-select-dropdown:visible li').filter({ hasText: label }), `option ${label}`)).click();
+    await settle(page);
+  };
   for (const group of groups) {
-    await (await visible(page.getByPlaceholder(/group name/i), 'Group Name input')).fill(group.name);
-    if (group.parent) {
-      await (await visible(page.locator('.ant-modal:visible .ant-select').first(), 'Sub-group-of select')).click();
-      await clickText(page, group.parent, `parent option ${group.parent}`, true);
-    }
+    await (await visible(modal.locator('#name'), 'Group Name input')).fill(group.name);
+    if (group.parent) await pickOption(modal.locator('.create-group-form .ant-select-selection'), group.parent);
     await clickText(page, 'Create', 'Create button');
   }
   for (const group of groups.filter(entry => entry.products.length > 0)) {
     for (const code of group.products) {
-      const row = page.locator('.ant-modal:visible tr, .ant-modal:visible li').filter({ hasText: code }).first();
-      await (await visible(row.locator('input[type=checkbox]'), `checkbox of ${code}`)).check();
+      const row = modal.locator('tr.ant-table-row').filter({ hasText: code }).first();
+      await (await visible(row.locator('input[type=checkbox]'), `checkbox of ${code}`)).check({ force: true });
     }
-    await (await visible(page.getByText('Move to Group', { exact: true }), 'Move to Group select')).click();
-    await clickText(page, group.name, `target option ${group.name}`, true);
+    await pickOption(modal.locator('.move-to-group-section .ant-select-selection').first(), group.name);
   }
-  await clickText(page, 'Save', 'Save button', true);
+  await (await visible(modal.locator('.action-save'), 'Save button')).click();
+  await settle(page);
 }
 
 /** Summary > a non-rack item's Add Container > Rack > the rack model. */
@@ -79,8 +84,11 @@ export async function addContainerInBrowser(page: Page, rackCode: string): Promi
 /** Summary > a rack line's Add Hardware > the cascading menu path > the product row. */
 export async function addHardwareInBrowser(page: Page, menuPath: string[], productCode: string): Promise<void> {
   await clickText(page, 'Add Hardware', 'Add Hardware link');
-  for (const label of menuPath) await clickText(page, label, `menu ${label}`, true);
-  await clickText(page, new RegExp(productCode), `product ${productCode}`, true);
+  const menus = page.locator('.ant-cascader-menus:visible');
+  for (const label of [...menuPath, productCode]) {
+    await (await visible(menus.locator('li').filter({ hasText: label }).last(), `menu ${label}`)).click();
+    await settle(page);
+  }
 }
 
 /** Workspace > Rack button > Change rack model > the rack model. */
@@ -93,20 +101,22 @@ export async function changeRackModelInBrowser(page: Page, rackCode: string): Pr
 /** Workspace > Floor and Cabling > Floor Preference modal: Show cable lines (view-only), Row +, rack distance, cold aisle, tray cabling. */
 export async function setFloorPreferenceInBrowser(page: Page,
   change: { rowPlus: number; rackDist: number; coldDist: number; trayCabling: boolean }): Promise<void> {
-  await (await visible(page.locator('.anticon-setting'), 'Floor Preference gear')).click();
-  await settle(page);
-  await (await visible(page.getByText('Show cable lines', { exact: false }).locator('xpath=preceding::input[@type="checkbox"][1] | following::input[@type="checkbox"][1]'), 'Show cable lines checkbox')).click();
-  for (let step = 0; step < change.rowPlus; step += 1) await clickText(page, /^Row\s*\+$/, 'Row +');
-  const fill = async (label: string, value: number) => {
-    const input = await visible(page.getByText(label, { exact: true }).locator('xpath=following::input[1]'), `${label} input`);
-    await input.fill(String(value));
-    await input.press('Tab');
+  const panel = page.getByText('Floor and Cabling', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"ant-row")][1]');
+  await (await visible(panel.locator('.anticon-setting'), 'Floor Preference gear')).click();
+  const popover = page.locator('.ant-popover:visible').filter({ hasText: 'Floor Preference' }).first();
+  await (await visible(popover.locator('label', { hasText: 'Show cable lines' }), 'Show cable lines checkbox')).click();
+  for (let step = 0; step < change.rowPlus; step += 1) await popover.getByRole('button', { name: 'Row +' }).click();
+  const distances = popover.locator('input.ant-input-number-input');
+  const fill = async (index: number, value: number) => {
+    await distances.nth(index).fill(String(value));
+    await distances.nth(index).press('Tab');
   };
-  await fill('Rack distance', change.rackDist);
-  await fill('Cold aisle', change.coldDist);
-  const tray = await visible(page.getByText('Tray cabling', { exact: false }).locator('xpath=preceding::input[@type="checkbox"][1] | following::input[@type="checkbox"][1]'), 'Tray cabling checkbox');
-  if ((await tray.isChecked()) !== change.trayCabling) await tray.click();
-  await clickText(page, 'Close', 'Close button');
+  await fill(RACK_DISTANCE_INPUT, change.rackDist);
+  await fill(COLD_AISLE_INPUT, change.coldDist);
+  const tray = popover.locator('input.ant-checkbox-input').last();
+  if ((await tray.isChecked()) !== change.trayCabling) await tray.setChecked(change.trayCabling, { force: true });
+  await popover.getByRole('button', { name: 'Close' }).last().click();
+  await settle(page);
 }
 
 

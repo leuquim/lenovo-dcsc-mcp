@@ -78,7 +78,7 @@ export default {
 
       const exported = await exportFromWorkspace(page, h.out, 'browser-rack-lock');
       return {
-        lockRequest: { method: 'POST', path: new URL(spaceLock.url()).pathname, body: spaceBody },
+        lockRequest: { method: 'POST', path: spaceLock.url(), body: spaceBody },
         refusedReservedU: {
           itemAtReserved: correctedItem?.['position'] === RESERVED_U,
           itemKept: correctedItem !== undefined,

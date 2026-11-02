@@ -138,11 +138,12 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     timeoutClass: 'interactive',
     ctx: { ...ctx, solution },
   });
-  // The website loads the SW scope first, then the HW scope, which carries the configurable tree.
+  // The website requests the HW scope, which carries the configurable tree, then the SW scope.
+  let softwareScope: RawConfiguration | undefined;
   const res = await (mode === 'lfo'
-    ? send('SW').then(async software => {
-      const hardware = await send('HW');
-      return { ...hardware, raw: mergeLfoSoftwareTab(hardware.raw as RawConfiguration, software.raw as RawConfiguration) };
+    ? send('HW').then(async hardware => {
+      softwareScope = (await send('SW')).raw as RawConfiguration;
+      return { ...hardware, raw: mergeLfoSoftwareTab(hardware.raw as RawConfiguration, softwareScope) };
     })
     : send()).catch((err: unknown) => {
     // Verified 2026-08-08: /lfos/{code}/add_options_launch is 404 across
@@ -195,7 +196,7 @@ export async function prepareLaunch(rt: Runtime, opts: LaunchOptions): Promise<C
     });
     if (derived) {
       raw = {
-        ...derived,
+        ...(softwareScope ? mergeLfoSoftwareTab({ ...derived, needLaunchSwTab: raw['needLaunchSwTab'], swTabIsAfter: raw['swTabIsAfter'] }, softwareScope) : derived),
         hipoDerivedItems: derived.hipoDerivedItems ?? raw.hipoDerivedItems,
         hipoServiceCtoServices: derived.hipoServiceCtoServices ?? raw.hipoServiceCtoServices,
       };

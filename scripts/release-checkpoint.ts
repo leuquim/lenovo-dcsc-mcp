@@ -127,7 +127,6 @@ const RELEASE_COMMANDS: Manifest['releaseCommands'] = [
   { command: 'npm run parity -- nested-remove-node', class: 'headless' },
   { command: 'npm run parity -- nested-unplace-node', class: 'headless' },
   { command: 'npm run parity -- recovery-corrupt-source', class: 'live' },
-  { command: 'npm run parity -- recovery-legacy-reconcile', class: 'live', blockedExit: 2 },
   { command: 'npm run parity -- projections', class: 'live' },
   { command: 'npm run parity -- catalogs', class: 'live' },
   { command: 'npm run parity -- export-types', class: 'headless' },

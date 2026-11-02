@@ -16,6 +16,10 @@ export interface Diff { path: string; web: unknown; mcp: unknown }
 export interface ExpectedDifference extends Diff { doc: string }
 
 /** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
+/** Query keys the HTTP client adds to every request, so the recorded MCP request omits them. */
+const CLIENT_QUERY_KEYS = new Set(['geo', 'country_or_region', 'language', 'currency', 'solutionMode', 'masterSlices', 'sbSlices',
+  'countryName', 'current_country_or_region', 'controlExpressModal', '_request']);
+
 export interface CapturedRequest { method: string; path: string; query?: Record<string, unknown>; body?: unknown }
 
 interface StepRecord { name: string; ms: number; ok: boolean; error?: string }
@@ -124,8 +128,13 @@ export async function createHarness(caseId: string, mode: McpMode = 'stdio', art
       options: { normalize?: Normalizer; expectedDifferences?: ExpectedDifference[] } = {}): void {
       const normalize = options.normalize ?? ((value: unknown) => value);
       const apiPath = (value: string) => value.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api(?=\/)/, '').split('?')[0];
-      const shape = (method: string, requestPath: string, query: unknown, body: unknown) =>
-        ({ method, path: apiPath(requestPath), query: query ?? {}, body: normalize(body) });
+      const pathQuery = (value: string) => Object.fromEntries([...new URL(value, 'https://dcsc.lenovo.com').searchParams]
+        .filter(([key]) => !CLIENT_QUERY_KEYS.has(key)));
+      const named = (query: Record<string, unknown>) => Object.fromEntries(Object.entries(query)
+        .filter(([key]) => !CLIENT_QUERY_KEYS.has(key))
+        .map(([key, value]) => [key, key === 'fileName' ? '<file name>' : String(value)]));
+      const shape = (method: string, requestPath: string, query: Record<string, unknown> | undefined, body: unknown) =>
+        ({ method, path: apiPath(requestPath), query: named(query ?? pathQuery(requestPath)), body: normalize(body) });
       const mcpBody = mcpRequest.body?.kind === 'form' ? mcpRequest.body.fields
         : mcpRequest.body?.kind === 'json' ? mcpRequest.body.value : mcpRequest.body;
       harness.compare(name, shape(webCapture.method, webCapture.path, webCapture.query, webCapture.body),
