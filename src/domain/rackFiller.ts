@@ -14,6 +14,8 @@ export interface RackFillerProjection {
   configuration: RawConfiguration;
   filler: RackFiller[];
   selections: Array<{ code: string; quantity: number; derived: true }>;
+  /** True when the packed filler differs from the filler already selected on the rack configuration. */
+  fillerHasChanged: boolean;
 }
 
 const FILLER_CODES = new Set(['4275', '4273', '4271', 'B34A', 'B349', 'B348']);
@@ -80,11 +82,11 @@ export function buildRackFiller(rack: RackObject, force = false): RackFiller[] {
 function applyFillerSelections(
   source: RawConfiguration,
   filler: RackFiller[],
-): { configuration: RawConfiguration; selections: RackFillerProjection['selections'] } {
+): { configuration: RawConfiguration; selections: RackFillerProjection['selections']; fillerHasChanged: boolean } {
   const configuration = structuredClone(source);
   const characters = objectItems(configuration.unSelectableCharacters);
   const mechanical = characters.find((section) => section['name'] === 'MECH_DERIVE_FCS');
-  if (!mechanical) return { configuration, selections: [] };
+  if (!mechanical) return { configuration, selections: [], fillerHasChanged: false };
   const available = new Set(objectItems(mechanical['features']).map((feature) => String(feature['code'] ?? '')));
   const existing = objectItems(mechanical['results']);
   // The SPA passes an EXTENSION_KIT result separately and falls back to AUEE
@@ -106,9 +108,13 @@ function applyFillerSelections(
     const code = mapping[size];
     if (quantity > 0 && (available.has(code) || existingFillerCodes.has(code))) selections.push({ code, quantity, derived: true });
   }
+  const selectedFiller = (code: string) => existing.filter(result => result['code'] === code)
+    .reduce((sum, result) => sum + Number(result['quantity'] ?? 0), 0);
+  const fillerHasChanged = [...FILLER_CODES].some(code =>
+    selectedFiller(code) !== (selections.find(selection => selection.code === code)?.quantity ?? 0));
   mechanical['results'] = [...retained, ...selections];
   configuration.unSelectableCharacters = characters as RawConfiguration['unSelectableCharacters'];
-  return { configuration, selections };
+  return { configuration, selections, fillerHasChanged };
 }
 
 function mergeForAutoConnect(previous: Obj[], sections: Obj[]): Obj[] {
@@ -143,7 +149,7 @@ export function projectRackFiller(
   sourceConfiguration: RawConfiguration,
 ): RackFillerProjection {
   const filler = buildRackFiller(sourceRack);
-  const { configuration, selections } = applyFillerSelections(sourceConfiguration, filler);
+  const { configuration, selections, fillerHasChanged } = applyFillerSelections(sourceConfiguration, filler);
   const compact = buildRackConfigurations([configuration])[0]!;
   const base = compact.sections.find((section) => section.name === 'BASE')?.features[0]?.code;
   const rack: RackObject = {
@@ -152,7 +158,7 @@ export function projectRackFiller(
     features: mergeForAutoConnect(objectItems(sourceRack['features']), compact.sections as unknown as Obj[]),
     ...(base ? { baseFeatureCode: base } : {}),
   };
-  return { rack, configuration, filler, selections };
+  return { rack, configuration, filler, selections, fillerHasChanged };
 }
 
 /** Native chassis cloning reprices changed filler selections locally. */

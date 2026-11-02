@@ -35,6 +35,15 @@ describe('browser rack filler projection', () => {
     expect({ rack, configuration }).toEqual(before);
   });
 
+  it('flags a changed filler only when the packed filler differs from the selected one', () => {
+    const rack = structuredClone(fixture['rack'] as Obj);
+    const packed = projectRackFiller(rack, structuredClone(fixture['configuration'] as RawConfiguration));
+    expect(projectRackFiller(rack, packed.configuration).fillerHasChanged).toBe(false);
+    const fuller = { ...rack, rackItems: [...(rack['rackItems'] as Obj[]), { position: 41, size: 1 }] };
+    const repacked = projectRackFiller(fuller, packed.configuration);
+    expect(repacked.fillerHasChanged).toBe(true);
+  });
+
   it('packs only contiguous free positions in 5U, then 3U, then 1U runs', () => {
     expect(buildRackFiller({
       size: 15,

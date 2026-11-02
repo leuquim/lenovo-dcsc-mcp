@@ -242,6 +242,8 @@ export interface ReducedConfiguration {
   storageWizardOption: Record<string, unknown> | null;
   operationHistories: unknown[];
   pinnedList: unknown[];
+  /** The SPA marks a rack whose packed filler differs from its selection so DCSC reprices the filler. */
+  fillerHasChanged?: true;
   delta?: ConfigDelta;
 }
 
@@ -443,9 +445,11 @@ export function buildAutoDeriveRequest(
       return session && hardwareModeFamily(session.mode) === 'cto'
         ? [[session.configurationId, projectRackFiller(rack, { ...session.raw, id: session.configurationId })] as const] : [];
     }));
-    const configs = [...ws.configurations.values()].map((s) => reduceConfiguration(
-      projections.get(s.configurationId)?.configuration ?? s.raw,
-      s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode));
+    const configs = [...ws.configurations.values()].map((s) => ({
+      ...reduceConfiguration(projections.get(s.configurationId)?.configuration ?? s.raw,
+        s.configurationId, hardwareModeFamily(s.mode), s.solution.solutionMode),
+      ...(projections.get(s.configurationId)?.fillerHasChanged ? { fillerHasChanged: true as const } : {}),
+    }));
     const ids = configs.map((c) => c.id);
     const detachedNodes = detachedNestedNodeIds(ws);
     const managedControllers = managedStorageComponentIds(ws.serverState);
