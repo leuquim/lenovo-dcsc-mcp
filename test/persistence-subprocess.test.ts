@@ -68,9 +68,10 @@ const scenarios = [
 ] as const;
 
 describe('acknowledged mutations survive immediate process death', () => {
-  it.each(scenarios)('%s survives SIGKILL and a clean service restart', async (scenario) => {
+  // Each scenario owns its temp root and child processes, so they run concurrently.
+  it.concurrent.for([...scenarios])('%s survives SIGKILL and a clean service restart', { timeout: 20_000 }, async (scenario, { expect, onTestFinished }) => {
     const root = mkdtempSync(join(tmpdir(), `dcsc-subprocess-${scenario}-`));
-    roots.push(root);
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const stateFile = join(root, 'state', 'sessions.json');
     const writer = child('mutate', scenario, stateFile);
     const writerExit = once(writer, 'exit');
@@ -89,7 +90,7 @@ describe('acknowledged mutations survive immediate process death', () => {
     const [readerCode, readerSignal] = (await readerExit) as [number | null, NodeJS.Signals | null];
     expect(readerSignal).toBeNull();
     expect(readerCode).toBe(0);
-  }, 20_000);
+  });
 });
 
 describe('persistence configuration precedence', () => {
