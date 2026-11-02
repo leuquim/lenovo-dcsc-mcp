@@ -79,7 +79,7 @@ describe('import physical layout hydration', () => {
       id: 'US__rack-1', configurationId: 'US__rack-1', code: '7D6DCTO1WW',
       quantity: 1, serverEnvelopeField: true,
     });
-    expect((draft.rackArea[0]?.['rackItems'] as Obj[])[0]).toMatchObject({
+    expect((draft.rackArea[0]!['rackItems'] as Obj[])[0]).toMatchObject({
       id: 'US__server-1', configurationId: 'US__server-1', code: '7D73CTO1WW',
       quantity: 2, position: 3, endPosition: 3, serverEnvelopeField: true,
       derivedResults: [{ featureCode: '3201', quantity: '1' }],
@@ -150,7 +150,7 @@ describe('import physical layout hydration', () => {
 
     const missingPosition = structuredClone(fixture);
     const floor = (missingPosition['floorInformation'] as Obj)['floorGrid'] as Obj[];
-    delete ((floor[0]?.['items'] as Obj[])[0]!)['position'];
+    delete ((floor[0]!['items'] as Obj[])[0]!)['position'];
     const missingPositionDraft = workspace(missingPosition);
     await expect(hydrateImportedLayout(
       fakeHttp([]), ctx, missingPositionDraft, missingPosition,
@@ -163,7 +163,7 @@ describe('import physical layout hydration', () => {
     const draft = workspace(nestedFixture);
     await hydrateImportedLayout(fakeHttp([]), ctx, draft, structuredClone(nestedFixture));
 
-    const chassis = (draft.rackArea[0]?.['rackItems'] as Obj[])[0]!;
+    const chassis = (draft.rackArea[0]!['rackItems'] as Obj[])[0]!;
     const node = (chassis['nodes'] as Obj[])[0]!;
     expect(chassis).toMatchObject({
       id: 'US__e24502d5-2f5d-4b89-8073-620bd4dd38720', code: '7DD0CTOLWW',
@@ -186,7 +186,7 @@ describe('import physical layout hydration', () => {
     ((((movedCell['items'] as Obj[])[0]!['nodes']) as Obj[])[0]!)['position'] = 2;
     const movedDraft = workspace(moved);
     await hydrateImportedLayout(fakeHttp([]), ctx, movedDraft, moved);
-    const movedChassis = (movedDraft.rackArea[0]?.['rackItems'] as Obj[])[0]!;
+    const movedChassis = (movedDraft.rackArea[0]!['rackItems'] as Obj[])[0]!;
     expect((movedChassis['nodes'] as Obj[])[0]).toMatchObject({ position: 2, occupiedBay: 1 });
   });
 
@@ -204,7 +204,7 @@ describe('import physical layout hydration', () => {
 
     await hydrateImportedLayout(fakeHttp([]), ctx, draft, nativeShape);
 
-    const chassis = (draft.rackArea[0]?.['rackItems'] as Obj[])[0]!;
+    const chassis = (draft.rackArea[0]!['rackItems'] as Obj[])[0]!;
     expect((chassis['nodes'] as Obj[])[0]).toMatchObject({
       id: '8ee40827-b01d-4208-99bc-55c8cc5464cf',
       type: 'node', occupiedBay: nativeRackedImportShape['customizeAcceptedOccupiedBay'], quantity: 1,

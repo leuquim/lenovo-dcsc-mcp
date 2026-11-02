@@ -402,7 +402,7 @@ describe('standalone MCP tools', () => {
       body: { kind: 'form' },
       responseKind: 'stream',
     });
-    const fields = (exportRequest?.['body'] as { fields: Record<string, string> }).fields;
+    const fields = (exportRequest!['body'] as { fields: Record<string, string> }).fields;
     const data = JSON.parse(fields['data'] ?? '{}') as Record<string, unknown>;
     expect(data).not.toHaveProperty('capturedBase');
     expect(data).toMatchObject({
@@ -460,7 +460,7 @@ describe('standalone MCP tools', () => {
       fileTypes: ['XML', 'RACK_REPORT'],
     });
     const mixedRequest = requests.filter((request) => request['path'] === '/ctos/export_zip').at(-1);
-    const mixedFields = (mixedRequest?.['body'] as { fields: Record<string, string> }).fields;
+    const mixedFields = (mixedRequest!['body'] as { fields: Record<string, string> }).fields;
     const mixedData = JSON.parse(mixedFields['data'] ?? '{}') as Record<string, unknown>;
     expect(mixedData).toMatchObject({
       exportFileTypes: ['XML', 'RACK_REPORT'],
@@ -632,7 +632,7 @@ describe('standalone MCP tools', () => {
     expect(service.sessions.getWorkspace(workspace)?.revision).toBe(initialRevision);
     expect(service.sessions.getWorkspace(workspace)?.serverState).toEqual(initialServerState);
     expect(service.sessions.getWorkspace(workspace)?.history).toEqual(initialHistory);
-    expect((service.sessions.getWorkspace(workspace)?.serverState.standaloneServiceState as {
+    expect((service.sessions.getWorkspace(workspace)!.serverState.standaloneServiceState as {
       selections: unknown[];
     }).selections).toEqual([]);
 
@@ -669,7 +669,7 @@ describe('standalone MCP tools', () => {
         typeof buildProductServiceExportEnvelope
       >[0],
     )).toEqual(acceptedExport);
-    expect((service.sessions.getWorkspace(workspace)?.serverState.standaloneServiceState as {
+    expect((service.sessions.getWorkspace(workspace)!.serverState.standaloneServiceState as {
       selections: Array<{ code: string; quantity: number }>;
     }).selections).toEqual([
       expect.objectContaining({ code: '5WS7B99623', quantity: 1 }),
@@ -762,7 +762,7 @@ describe('standalone MCP tools', () => {
       body: { kind: 'form' },
       responseKind: 'stream',
     });
-    const fields = (exportRequest?.['body'] as { fields: Record<string, string> }).fields;
+    const fields = (exportRequest!['body'] as { fields: Record<string, string> }).fields;
     expect(JSON.parse(fields['data'] ?? '[]')).toEqual([
       {
         code: '7D73CTO1WW',

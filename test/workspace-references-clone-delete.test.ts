@@ -91,7 +91,7 @@ describe('removeWorkspaceReferences Clone Multiple ownership', () => {
         retained: { future: true } },
     });
     expect(workspace.serverState.linkedConfigurationEdits).toEqual({ rack: [{ at: 2, members: ['rack'] }] });
-    expect((workspace.rackArea[0]?.rackItems as Array<{ id?: string }>).map(item => item.id))
+    expect((workspace.rackArea[0]!.rackItems as Array<{ id?: string }>).map(item => item.id))
       .toEqual(['server-2', 'server-3']);
     expect(workspace.serverState.importCloneExpansion).toEqual(provenance);
     assertHistoricalExpansionRemainsUsable(workspace);

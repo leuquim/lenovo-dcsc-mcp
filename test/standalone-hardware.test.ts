@@ -194,7 +194,7 @@ describe('standalone hardware tools', () => {
       kind: 'standalone-hardware',
       selections: [{ id: 'line-1', code: '4X97B05748', quantity: 4, unitPrice: 379.5, featureCode: 'C98T' }],
     });
-    const selection = (parsed?.state as { selections: Array<{ part: Record<string, unknown> }> }).selections[0]!;
+    const selection = (parsed!.state as { selections: Array<{ part: Record<string, unknown> }> }).selections[0]!;
     expect(selection.part).not.toHaveProperty('id');
     expect(selection.part).not.toHaveProperty('quantity');
   });

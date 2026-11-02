@@ -59,9 +59,9 @@ describe('configuration-ID feature assignment', () => {
     });
     const items = result.rackData[0]?.['servers'] as Array<Record<string, unknown>>;
     expect(items[0]?.['configIdFeatures']).toEqual(items[1]?.['configIdFeatures']);
-    expect((items[0]?.['configIdFeatures'] as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HP');
-    expect((items[2]?.['configIdFeatures'] as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HQ');
-    expect(((result.nonRackData[0]?.['configIdFeatures']) as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HR');
+    expect((items[0]!['configIdFeatures'] as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HP');
+    expect((items[2]!['configIdFeatures'] as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HQ');
+    expect(((result.nonRackData[0]!['configIdFeatures']) as Array<Record<string, unknown>>)[0]?.['featureCode']).toBe('A2HR');
     expect(result.consumedCatalogFeatures).toBe(3);
   });
 

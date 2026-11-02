@@ -124,7 +124,7 @@ describe('linked Clone Multiple configuration edits', () => {
     expect(body['customizingIds']).toEqual(['server-1', 'server-2']);
     const servers = (body['configurations'] as Obj[]).filter(value => value['id'] !== 'rack-1');
     expect(servers.map(value => ({ id: value['id'], quantity:
-      ((value['sections'] as Obj[]).find(section => section['name'] === 'PROCESSOR')?.['results'] as Obj[])[0]?.['quantity'],
+      ((value['sections'] as Obj[]).find(section => section['name'] === 'PROCESSOR')!['results'] as Obj[])[0]?.['quantity'],
     }))).toEqual([{ id: 'server-1', quantity: 2 }, { id: 'server-2', quantity: 2 }]);
     expect(selection(source)).toBe(2);
     expect(selection(clone)).toBe(2);
