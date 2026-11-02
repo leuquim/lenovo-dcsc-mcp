@@ -9,6 +9,15 @@ DCSC ships only as a browser SPA. This server talks to the same same-origin
 JSON API the SPA uses. **No Lenovo login is required** for catalog, launch and
 pricing — that is verified, not assumed.
 
+## Install as a Claude Code plugin
+
+```bash
+claude plugin marketplace add leuquim/lenovo-architect
+claude plugin install lenovo-dcsc@lenovo-architect
+```
+
+Not affiliated with or endorsed by Lenovo. Prices are DCSC list prices as returned by the public configurator.
+
 ---
 
 For maintainers: [current context](.docs/context.md), [review cleanup plan](.docs/roadmaps/2026_11_01_review_cleanup_plan.md), and [Phase 3 design](.docs/roadmaps/2026_11_01_phase3_design.md).
@@ -521,3 +530,7 @@ Persistence errors return `kind: persistence`, `localNotCommitted: true`, and
 `remoteApplied` to distinguish a local-only failure from a completed Lenovo
 operation whose local save failed. The committed design is retained and no
 automatic retry occurs; follow the returned recovery guidance.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

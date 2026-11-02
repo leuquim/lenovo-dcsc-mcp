@@ -1,1 +1,1 @@
-{ "plugin": "lenovo-dcsc", "include": ["dist"] }
+{ "plugin": "lenovo-dcsc", "include": ["dist", "LICENSE"] }
