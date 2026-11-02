@@ -53,7 +53,7 @@ Layers, top to bottom:
 - `npm run check`: typecheck, lint, unit tests (`test`, offline, committed fixtures), offline
   contracts, build, stdio smoke.
 - `npm run contract:live` and the scripts in `scripts/` (`smoke.ts`, `export-smoke.ts`, `mcp-smoke.ts`,
-  `conformance.ts`, `verify-fixes.ts`, `release-checkpoint.ts`) hit dcsc.lenovo.com. `npm run mine`
+  `conformance.ts`, `verify-fixes.ts`) hit dcsc.lenovo.com. `npm run mine`
   diffs the live SPA bundle against the previous baseline at zero API cost.
 - Parity harness `scripts/parity`: runs the same website action in a headless Chromium browser and
   through the MCP over stdio, and computes pass, fail or blocked from the comparison. Cases are in

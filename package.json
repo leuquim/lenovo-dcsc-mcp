@@ -27,7 +27,6 @@
     "contract": "vitest run --config vitest.contract.config.ts",
     "contract:live": "tsx scripts/contract-suite.ts",
     "parity": "tsx scripts/parity/run.ts",
-    "release:checkpoint": "tsx scripts/release-checkpoint.ts",
     "prepack": "npm run build",
     "smoke:stdio": "tsx scripts/smoke-stdio.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run contract && npm run smoke:stdio"

@@ -598,10 +598,7 @@ Parity runners exit `1` for a failed assertion and `2` when every executed
 assertion passed but a required upstream capability is blocked. A blocked run
 is never reported as release success.
 
-`npm run release:checkpoint` records the local/live/headless command matrix,
-its fixture dependencies and the exact dirty source snapshot. Run that ordered inventory from the materialized
-checkout described in its manifest; declared exit-2 capabilities remain blocked,
-not passing.
+A release is a commit on `main`: CI runs `npm run check` on it, and `npm run parity -- all` is run serially against that commit.
 
 **`verify-fixes.ts` covers breadth.** Where conformance walks every tool once,
 this walks the same fixes across shapes that behave differently: a plain CTO

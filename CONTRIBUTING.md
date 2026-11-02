@@ -24,7 +24,7 @@ npx playwright install chromium
 npm run parity -- all
 ```
 
-All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `npm run parity -- <case>` cases for affected workflows and `release:checkpoint` to record a source-bound full matrix. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. Scoped native limitations are listed in the README and [current context](.docs/context.md).
+All browser tests must be headless. CI runs offline checks only, avoiding uncontrolled upstream traffic and transient availability failures. Use the maintained `npm run parity -- <case>` cases for affected workflows, and `npm run parity -- all` serially before a release. Selected gates exit 2 when an upstream capability is unavailable; report that as blocked, never passed. Scoped native limitations are listed in the README and [current context](.docs/context.md).
 
 `scripts/recon/` contains historical experiments, some dependent on private local captures. It is intentionally excluded from maintained lint/typecheck. Raw `artifacts/` and old `/tmp/` evidence references describe the original development environment; they are not required to run local checks from a fresh clone.
 
