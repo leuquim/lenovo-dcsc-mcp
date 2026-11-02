@@ -3,7 +3,7 @@ import { modesContaining, launch, configure, loadUnconfigured, setUnconfigured, 
 import { inspectAutoFix, autoFix, validate, validationJobs, diffSessions } from '../app/validation.js';
 import { inspectStorageWizard, setStorageWizard, inspectPciWizard, setPciWizard, inspectWorkspacePowerControls, setPowerControls, placeStorageNetwork, openStorageController, openStorageSwitch, assignStorageNetwork, addStorageNetwork, editStorageNetwork, reconfigureStorageNetwork, setNetworkPreferences } from '../app/storage.js';
 import { assertTrustedWorkspace, proposeReconciliation, reconciliationProposal, acceptReconciliation } from '../app/reconciliation.js';
-import { scaleOut, addRack, addHardware, changeRackModel, placeInRack, editLayout, placeOnFloor, setFloorPreferences, setLayoutControls, setRackColor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
+import { scaleOut, addRack, addHardware, changeRackModel, placeInRack, editLayout, placeOnFloor, setFloorPreferences, setLayoutControls, setRackItemColor, setRackLock, copyRackItem, cloneConfiguration, configurePdu } from '../app/rack.js';
 import { runAutoConnect, inspectManualCabling, inspectManualCableChoices, createNativeManualCabling, inspectNativeManualCabling, editManualCabling, inspectCabling, applyCablingChanges, applyTopology } from '../app/cabling.js';
 import { Runtime } from '../app/runtime.js';
 
@@ -217,8 +217,8 @@ export class DcscService extends Runtime {
     return setLayoutControls(this, ...args);
   }
 
-  setRackColor(...args: AppArgs<typeof setRackColor>): ReturnType<typeof setRackColor> {
-    return setRackColor(this, ...args);
+  setRackItemColor(...args: AppArgs<typeof setRackItemColor>): ReturnType<typeof setRackItemColor> {
+    return setRackItemColor(this, ...args);
   }
 
   setRackLock(...args: AppArgs<typeof setRackLock>): ReturnType<typeof setRackLock> {

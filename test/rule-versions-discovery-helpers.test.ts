@@ -61,7 +61,7 @@ function parse(reply: ToolReply): Record<string, unknown> {
   return JSON.parse(reply.content[0]?.text ?? '{}') as Record<string, unknown>;
 }
 
-describe('Phase 2 Part B: G7 — Batch & Error Customize', () => {
+describe('Error customize with auto-derive', () => {
   it('errorCustomizeWithAutoDerive calls CTO endpoint by default', async () => {
     const { service } = await setupTestEnvironment();
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -107,7 +107,7 @@ describe('Phase 2 Part B: G7 — Batch & Error Customize', () => {
   });
 });
 
-describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
+describe('Rule and table versions', () => {
   it('fetchCtoVersions fetches version list for a CTO product', async () => {
     const { service } = await setupTestEnvironment();
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -228,7 +228,7 @@ describe('Phase 2 Part B: G9 — Rule & Table Versions', () => {
   });
 });
 
-describe('Phase 2 Part B: G10 — Discovery Helpers', () => {
+describe('Discovery helpers', () => {
   it('caseStudies queries /categories/caseStudy/{id}', async () => {
     const { service } = await setupTestEnvironment();
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({

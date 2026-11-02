@@ -371,6 +371,20 @@ describe('export grouping', () => {
     expect(products.slice(6).map(product => product.id)).toEqual(['rack-config', 'rack-config']);
   });
 
+  it('keeps a clone group hardware price unavailable instead of summing the priced members to zero', () => {
+    const unpriced = { ...structuredClone(server), totalPrice: undefined } as unknown as RawConfiguration;
+    const workspace = {
+      serverState: { cloneDependency: { 'server-config': ['server-config', 'clone-config'] } },
+      configurations: new Map([
+        ['session-server', { configurationId: 'server-config', raw: unpriced, product: { code: '7D73CTO1WW' } }],
+        ['session-clone', { configurationId: 'clone-config', raw: structuredClone(unpriced), product: { code: '7D73CTO1WW' } }],
+      ]),
+    };
+    expect(buildExportGroups(workspace)[0]!.products.find(product => product.type === 'hardware')).toMatchObject({
+      quantity: 2, price: null,
+    });
+  });
+
   it('uses the dependency key as root when the browser serializes the clone before it', () => {
     const clone = structuredClone(server);
     clone.id = 'clone-raw-id';

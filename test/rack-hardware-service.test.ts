@@ -109,8 +109,10 @@ describe('rack hardware and container flows', () => {
     const { service, workspace, server } = setup();
     workspace.rackArea = [];
     install(service);
+    const revisionBefore = workspace.revision;
     await service.addRack(workspace.id, NEW_RACK, service.newCtx(), undefined, server.id);
     const saved = service.sessions.getWorkspace(workspace.id)!;
+    expect(saved.revision).toBe(revisionBefore + 1);
     expect(saved.rackArea).toHaveLength(1);
     expect(saved.rackArea[0]).toMatchObject({ code: NEW_RACK, rackItems: [{ id: 'server-1' }] });
     expect(saved.nonRackArea).toEqual([]);

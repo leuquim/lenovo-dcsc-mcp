@@ -121,9 +121,11 @@ export function layoutToggleOverrides(serverState: Record<string, unknown>, forc
   };
 }
 
-/** Sets the colour of a rack cell on the floor grid. */
-export function colourRackCell(info: Record<string, unknown>, rackId: string, color: string): Record<string, unknown> {
-  const grid = Array.isArray(info['floorGrid']) ? info['floorGrid'] as Array<Record<string, unknown>> : [];
-  const cell = grid.find(entry => entry['id'] === rackId) ?? { id: rackId, sourceId: rackId, type: 'rack' };
-  return { ...info, floorGrid: grid.filter(entry => entry['id'] !== rackId).concat({ ...cell, color }) };
+/** Sets the colour of one rack item, as the website's item Color action does; returns undefined when no rack holds the item. */
+export function colourRackItem(rackArea: Array<Record<string, unknown>>, itemId: string, color: string): Array<Record<string, unknown>> | undefined {
+  const holdsItem = (rack: Record<string, unknown>) => Array.isArray(rack['rackItems']) && (rack['rackItems'] as Array<Record<string, unknown>>).some(item => item['id'] === itemId);
+  if (!rackArea.some(holdsItem)) return undefined;
+  return rackArea.map(rack => holdsItem(rack)
+    ? { ...rack, rackItems: (rack['rackItems'] as Array<Record<string, unknown>>).map(item => item['id'] === itemId ? { ...item, color } : item) }
+    : rack);
 }

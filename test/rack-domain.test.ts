@@ -196,7 +196,7 @@ it('queries product-compatible rack cabinets while preserving generic discovery'
 it('posts the captured Add Hardware request and returns the id-less new rack item', async () => {
   const capture = JSON.parse(readFileSync('test/fixtures/parity/rack-add-hardware-capture.json', 'utf8'));
   const calls: SendInput[] = [];
-  const http = fakeHttp([capture.response], calls);
+  const http = fakeHttp(capture.response, calls);
   const rack = { id: capture.request.rackId, rackItems: capture.request.rackItems };
   const added = await addRackHardware(http, ctx, { rack, product: capture.request.newHardware[0],
     workspace: { rackArea: [rack], nonRackArea: [], configurations: [], cloneDependency: {} } });

@@ -101,6 +101,25 @@ describe('workspace export clone dependency/color consistency', () => {
     ]);
   });
 
+  it('expands each unracked configuration by its own quantity and leaves racked ones alone', () => {
+    const workspace = workspaceWith(['a', 'b', 'c']);
+    const quantities: Record<string, number> = { a: 1, b: 3, c: 2 };
+    for (const session of workspace.configurations.values()) session.raw.quantity = quantities[session.configurationId]!;
+    workspace.rackArea = [{ id: 'rack-1', code: 'RACK', type: 'rack', rackItems: [
+      { id: 'c', code: '7D73CTO1WW', type: 'server', position: 10, size: 1, quantity: 1 },
+    ] }];
+    workspace.nonRackArea = workspace.nonRackArea.filter(item => item.id !== 'c');
+
+    const info = exportWorkspace(workspace).workspaceInformation as Record<string, unknown>;
+
+    expect((info.nonRackData as Array<Record<string, unknown>>).map(r => r.id)).toEqual(
+      ['a', 'b', 'b__clone_1', 'b__clone_2'],
+    );
+    expect((info.rackData as Array<Record<string, unknown>>)[0]?.rackItems).toEqual([
+      expect.objectContaining({ id: 'c' }),
+    ]);
+  });
+
   it('preserves connection graph topology when auto-expanding unracked multi-unit configurations', () => {
     const workspace = workspaceWith(['only']);
     for (const session of workspace.configurations.values()) session.raw.quantity = 3;

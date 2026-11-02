@@ -225,6 +225,41 @@ describe('SessionStore transactions', () => {
     expect(session.revision).toBe(expectedRevision + 1);
   });
 
+  it('lets one of two workspace writes at the same expected revision persist, in revision order', async () => {
+    const store = new SessionStore();
+    const session = addSession(store);
+    const workspace = store.getWorkspace(session.workspaceId)!;
+    const expectedRevision = workspace.revision;
+    const persisted: Array<{ revision: number; quantity: number | null | undefined }> = [];
+    store.setPersistenceWriter(async (candidates) => {
+      await Promise.resolve();
+      const candidate = candidates[0]!;
+      persisted.push({
+        revision: candidate.revision,
+        quantity: [...candidate.configurations.values()][0]?.raw.quantity,
+      });
+    });
+    const setQuantity = (handle: string, quantity: number, revision: number) =>
+      store.transact(handle, { expectedRevision: revision }, (draft) => {
+        [...draft.configurations.values()][0]!.raw.quantity = quantity;
+      });
+
+    const results = await Promise.allSettled([
+      setQuantity(workspace.id, 2, expectedRevision),
+      setQuantity(workspace.id, 3, expectedRevision),
+    ]);
+    const rejected = results.filter((result) => result.status === 'rejected');
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(rejected[0]?.status === 'rejected' && rejected[0].reason).toBeInstanceOf(SessionConflictError);
+    expect(persisted).toEqual([{ revision: expectedRevision + 1, quantity: 2 }]);
+
+    await setQuantity(workspace.id, 4, expectedRevision + 1);
+    expect(persisted).toEqual([
+      { revision: expectedRevision + 1, quantity: 2 },
+      { revision: expectedRevision + 2, quantity: 4 },
+    ]);
+  });
+
   it('preserves an undo callback history edit and treats empty undo as a no-op', async () => {
     const store = new SessionStore();
     const session = addSession(store);

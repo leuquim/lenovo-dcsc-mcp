@@ -144,7 +144,7 @@ const workspaceRevision = z.number().int().min(1).optional().describe('Workspace
 const floorChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('place'), rackId: z.string().describe('Rack id from dcsc_rack_add.'),
     x: z.number().int().min(0).describe('Floor tile X (0-based).'), y: z.number().int().min(0).describe('Floor tile Y (0-based).') }),
-  z.object({ kind: z.literal('color'), rackId: z.string(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).describe('Hex colour, e.g. "#21bbbb".') }),
+  z.object({ kind: z.literal('color'), itemId: z.string().describe('Rack item id.'), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).describe('Hex colour, e.g. "#21bbbb".') }),
   z.object({
     kind: z.literal('preferences'),
     rowCount: z.number().int().min(2).max(100).optional().describe('Grid rows.'),
@@ -371,7 +371,7 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
     {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: 'Set floor layout and layout switches',
-      description: 'Places a rack on floor tiles, sets its colour, edits the Floor Preference (grid size, aisle and slack distances) or flips the workspace Auto Arrange and COG Validation switches. Floor state is client-side planning data that exports carry.',
+      description: 'Places a rack on floor tiles, colours a rack item, edits the Floor Preference (grid size, aisle and slack distances) or flips the workspace Auto Arrange and COG Validation switches. Floor state is client-side planning data that exports carry.',
       inputSchema: {
         session: z.string().describe('Workspace or configuration handle.'),
         change: floorChangeSchema,
@@ -387,8 +387,8 @@ export function registerRackLayoutTools(server: McpServer, service: DcscService)
             return { ...writeHeader(service, args.session), floorPlacement: result.item, clientSide: result.clientSide, warning: result.warning };
           }
           case 'color':
-            await service.setRackColor(args.session, change.rackId, change.color, args.expectedRevision);
-            return { ...writeHeader(service, args.session), rackId: change.rackId, color: change.color, clientSide: true };
+            await service.setRackItemColor(args.session, change.itemId, change.color, args.expectedRevision);
+            return { ...writeHeader(service, args.session), itemId: change.itemId, color: change.color, clientSide: true };
           case 'preferences': {
             const { kind: _kind, ...preferences } = change;
             return { ...writeHeader(service, args.session), floorPreference: await service.setFloorPreferences(args.session, preferences, args.expectedRevision), clientSide: true };

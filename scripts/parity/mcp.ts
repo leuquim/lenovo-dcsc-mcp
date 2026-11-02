@@ -7,7 +7,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { loadConfig } from '../../src/config/load.js';
 import { ConfigSchema } from '../../src/config/schema.js';
 import type { SendInput } from '../../src/http/request.js';
 import { DcscService } from '../../src/mcp/service.js';
@@ -47,10 +46,10 @@ const connectStdio = (env: Record<string, string>) => async (): Promise<Connecti
   };
 };
 
-/** Runs the server in this process over the same state dir; a crash drops the service without close(). */
+/** Runs the server in this process over the same state dir; a crash drops the service without close(), after its in-flight writes settle so none lands after the restart. */
 const connectInProcess = (files: { sessionFile: string; artifactDir: string }, requests: WireRequest[]) =>
   async (): Promise<Connection> => {
-    const config = loadConfig({ logLevel: 'error', files: { persistSessions: true, ...files } });
+    const config = ConfigSchema.parse({ logLevel: 'error', files: { persistSessions: true, ...files } });
     const service = new DcscService(config);
     const send = service.http.send.bind(service.http) as (input: SendInput) => ReturnType<typeof service.http.send>;
     service.http.send = (async (input: SendInput) => {
@@ -76,7 +75,7 @@ const connectInProcess = (files: { sessionFile: string; artifactDir: string }, r
     const dropTransports = async () => { await client.close().catch(() => undefined); await server.close().catch(() => undefined); };
     return {
       client,
-      crash: dropTransports,
+      async crash() { await dropTransports(); await service.sessions.drain(); },
       async close() { await dropTransports(); await service.close(); },
     };
   };

@@ -34,7 +34,7 @@ afterEach(async () => {
 });
 
 async function setupTestEnvironment() {
-  const artifacts = await mkdtemp(join(tmpdir(), 'dcsc-phase2-'));
+  const artifacts = await mkdtemp(join(tmpdir(), 'dcsc-export-extras-'));
   tempDirs.push(artifacts);
   const service = new DcscService(
     ConfigSchema.parse({
@@ -80,8 +80,8 @@ function createMockStream(content: string | Buffer): Readable {
   });
 }
 
-describe('Phase 2 Part A: G1, G2, G11 (Export Extras)', () => {
-  it('G1: exportPowerXls streams the workbook into the artifact store', async () => {
+describe('Export extras: power workbook and share URL', () => {
+  it('exportPowerXls streams the workbook into the artifact store', async () => {
     const { service, artifacts } = await setupTestEnvironment();
     const fakeData = Buffer.from('PK\x03\x04fake-power-xls');
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -111,7 +111,7 @@ describe('Phase 2 Part A: G1, G2, G11 (Export Extras)', () => {
     expect(await readFile(result.path)).toEqual(fakeData);
   });
 
-  it('G1: exportPowerXls rejects a body that is not an xlsx container', async () => {
+  it('exportPowerXls rejects a body that is not an xlsx container', async () => {
     const { service } = await setupTestEnvironment();
     vi.spyOn(service.http, 'send').mockResolvedValue({
       stream: createMockStream('<html>maintenance</html>'),
@@ -125,7 +125,7 @@ describe('Phase 2 Part A: G1, G2, G11 (Export Extras)', () => {
     })).rejects.toThrow(/not an \.xlsx workbook/);
   });
 
-  it('G11: fetchShareUrl calls GET /copy/url and parses shareable link', async () => {
+  it('fetchShareUrl calls GET /copy/url and parses shareable link', async () => {
     const { service } = await setupTestEnvironment();
     const mockShareUrl = 'https://us-dcsc.lenovo.com/redirect/rack-summary/rack-cto?configuration_id=CID123&locale=en_';
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -148,7 +148,7 @@ describe('Phase 2 Part A: G1, G2, G11 (Export Extras)', () => {
   });
 });
 
-describe('Phase 2 Part A: G5 (Supply Status & ESD)', () => {
+describe('Supply status and ESD', () => {
   it('fetchSupplyStatus retrieves shipping lead times from /supply/status', async () => {
     const { service } = await setupTestEnvironment();
     const sendSpy = vi.spyOn(service.http, 'send').mockResolvedValue({
@@ -212,7 +212,7 @@ describe('Phase 2 Part A: G5 (Supply Status & ESD)', () => {
   });
 });
 
-describe('Phase 2 Part A: Tool Surface Extensions', () => {
+describe('Export and search tool extensions', () => {
   it('dcsc_export writes the POWER_XLS report to the artifact store and returns its path', async () => {
     const { service, handlers, artifacts } = await setupTestEnvironment();
     const raw = { id: '7D73CTO1WW', code: '7D73CTO1WW', sliceCtoCode: '7D73CTO1WW', type: 'server', quantity: 1, tabs: [] };

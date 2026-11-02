@@ -21,7 +21,7 @@ import { projectConnectionGraph } from '../domain/cabling.js';
 import { detachPhysicalItem, physicalIds, removeWorkspaceReferences } from '../domain/workspaceReferences.js';
 import { buildFloorState } from '../domain/floorWire.js';
 import { stageRackItemLock, stageRackSpaceLock } from '../domain/rackLocks.js';
-import { applyFloorPreference, layoutToggleOverrides, colourRackCell, placeRackOnFloor, type FloorPlacementResult, type FloorPreferenceChange } from '../domain/floor.js';
+import { applyFloorPreference, layoutToggleOverrides, colourRackItem, placeRackOnFloor, type FloorPlacementResult, type FloorPreferenceChange } from '../domain/floor.js';
 import {
   listPduCatalog,
   resolvePowerChange,
@@ -211,13 +211,13 @@ export async function addRack(rt: Runtime, sessionHandle: string, rackCode: stri
       const rackSession = created[0]!;
       const next = [...draft.rackArea, buildRackObject(envelope, rackSession.configurationId)];
       result = await syncLayout(rt, draft, next, ctx);
+      if (containedConfiguration !== undefined) {
+        result = await placeInRackDraft(rt, draft, { rackId: rackSession.configurationId, sessionId: containedConfiguration, ctx });
+      }
     },
   });
   if (!result) throw new Error('Rack creation did not produce a layout.');
-  if (containedConfiguration === undefined) return result;
-  const rackId = result.racks.find(rack => !ws.rackArea.some(known => known['id'] === rack.id))?.id;
-  if (!rackId) throw new Error('Rack creation did not report the new rack.');
-  return placeInRack(rt, ws.id, { rackId, sessionId: containedConfiguration, ctx });
+  return result;
 }
 
 async function openRackEnvelope(rt: Runtime, ctx: RequestCtx, rackCode: string, solutionMode: string) {
@@ -304,7 +304,12 @@ export async function placeInRack(rt: Runtime, sessionHandle: string,
     expectedRevision: opts.expectedRevision,
     remoteApplied: true,
     actionHistory: moveHistoryFactory(opts.sessionId),
-  }, async (ws) => {
+  }, ws => placeInRackDraft(rt, ws, opts));
+}
+
+/** Places a configuration in a rack on a transaction draft; callers own the transaction. */
+async function placeInRackDraft(rt: Runtime, ws: WorkspaceSession,
+  opts: { rackId: string; sessionId: string; position?: number | undefined; ctx: RequestCtx }): Promise<LayoutResult> {
   const aliasTemplateId = storagePhysicalTemplateIds(ws).get(opts.sessionId);
   const target = ws.configurations.get(opts.sessionId) ?? [...ws.configurations.values()].find((session) =>
     session.configurationId === (aliasTemplateId ?? opts.sessionId));
@@ -370,7 +375,6 @@ export async function placeInRack(rt: Runtime, sessionHandle: string,
     throw new Error('DCSC did not accept the requested rack placement. Workspace was not changed.');
   }
   return result;
-  });
 }
 
 /** Website Add Node -> Already Configured Nodes -> As Copy. */
@@ -684,12 +688,13 @@ export async function setLayoutControls(rt: Runtime, sessionHandle: string, cont
   });
 }
 
-/** Rack colour from the rack header menu, stored on the floor grid cell. */
-export async function setRackColor(rt: Runtime, sessionHandle: string, rackId: string, color: string,
+/** Website rack-item Color action: the colour travels on the rack item and its floor grid entry. */
+export async function setRackItemColor(rt: Runtime, sessionHandle: string, itemId: string, color: string,
   expectedRevision?: number): Promise<void> {
   await rt.sessions.transact(workspaceId(rt, sessionHandle), { expectedRevision }, (workspace) => {
-    if (!workspace.rackArea.some(rack => rack['id'] === rackId)) throw new Error(`Rack ${rackId} is not in this workspace.`);
-    workspace.serverState.floorInformation = colourRackCell((workspace.serverState.floorInformation ?? {}) as Record<string, unknown>, rackId, color);
+    const rackArea = colourRackItem(workspace.rackArea, itemId, color);
+    if (!rackArea) throw new Error(`Rack item ${itemId} is not in a rack of this workspace.`);
+    workspace.rackArea = rackArea;
   });
 }
 

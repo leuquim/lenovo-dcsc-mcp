@@ -113,6 +113,43 @@ describe('Domain: SIDs', () => {
   });
 });
 
+describe('Domain: SIDs input handling', () => {
+  it('encodes the category into the path, rejects blank ids before HTTP, and defaults malformed fields', async () => {
+    const service = createService();
+    const ctx = service.newCtx({ solution });
+    const send = vi.spyOn(service.http, 'send');
+
+    await expect(querySids(service.http, { categoryId: '   ' }, ctx)).rejects.toThrow(/A category ID is required/);
+    await expect(customizeSid(service.http, '   ', ctx)).rejects.toThrow(/A non-empty SID number is required/);
+    expect(send).not.toHaveBeenCalled();
+
+    send.mockResolvedValueOnce({
+      raw: {
+        content: [{
+          sidShortDesc: 'SID Test', sidNumber: 'SID001', cpu: ['CPU 1'], ram: ['RAM 1'],
+          storage: null, gpu: 'not-an-array', network: [], ctoCount: 'invalid-num', sidPrice: null,
+        }],
+        totalElements: 1,
+        number: 1,
+      },
+    } as never);
+    const result = await querySids(
+      service.http,
+      { categoryId: 'SERVER/STORAGE & SPECIAL?ID', pageIndex: 1, pageSize: 10 },
+      ctx,
+    );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/sids/query/SERVER%2FSTORAGE%20%26%20SPECIAL%3FID' }),
+    );
+    expect(result.content[0]).toMatchObject({ storage: [], gpu: [], ctoCount: 1, sidPrice: 0 });
+
+    send.mockResolvedValueOnce({ raw: ['array-is-not-solution-payload'] } as never);
+    await expect(customizeSid(service.http, 'SID_FAIL', ctx)).rejects.toThrow(
+      /returned no customizable reference solution/,
+    );
+  });
+});
+
 describe('MCP Tools: SIDs', () => {
 
   it('dcsc_search sids returns paginated SID list', async () => {

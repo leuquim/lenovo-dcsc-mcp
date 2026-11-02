@@ -18,7 +18,7 @@ import { RequestBudget } from '../src/http/resilience/pacer.js';
 import { sanitiseFileName } from '../src/files/artifactStore.js';
 import { diffConfigurations } from '../src/model/diff.js';
 import { launchQuery, rackLaunchQuery } from '../src/domain/endpoints.js';
-import { applyFloorPreference, colourRackCell, layoutToggleOverrides } from '../src/domain/floor.js';
+import { applyFloorPreference, colourRackItem, layoutToggleOverrides } from '../src/domain/floor.js';
 
 const locale = { country: 'US', geo: 'NA', language: 'en', currency: 'USD' };
 const solution = { solutionMode: 'General Purpose', masterSlices: ['GP', 'HPCGPALL'] };
@@ -473,8 +473,9 @@ describe('floor preferences and layout switches', () => {
     expect(layoutToggleOverrides({ layoutControls: { autoArrange: false } }, true)).toEqual({});
   });
 
-  it('colours one rack cell and leaves the others', () => {
-    const info = colourRackCell({ floorGrid: [{ id: 'a', row: 0, color: '#000000' }, { id: 'b', color: '#111111' }] }, 'a', '#21bbbb');
-    expect(info['floorGrid']).toEqual([{ id: 'b', color: '#111111' }, { id: 'a', row: 0, color: '#21bbbb' }]);
+  it('colours one rack item and leaves the others', () => {
+    const racks = [{ id: 'r', rackItems: [{ id: 'a', color: '#000000' }, { id: 'b', color: '#111111' }] }];
+    expect(colourRackItem(racks, 'a', '#21bbbb')).toEqual([{ id: 'r', rackItems: [{ id: 'a', color: '#21bbbb' }, { id: 'b', color: '#111111' }] }]);
+    expect(colourRackItem(racks, 'missing', '#21bbbb')).toBeUndefined();
   });
 });
