@@ -23,25 +23,25 @@ For maintainers: [current context](.docs/context.md), [review cleanup plan](.doc
 | List pricing + resource constraints | **Working** |
 | Bill of materials | **Working** |
 | Change selections (mutation, with rules reconciliation) | **Working** |
-| PCI and storage wizards | **Working for documented CTO cases** — inspect/select options, edit components and optional PCI slots, clear storage options, and switch RAID mode |
+| PCI and storage wizards | **Working** — inspect/select options, edit components and optional PCI slots, clear storage options, switch RAID mode (`pci-wizard*`, `storage-wizard*`) |
 | Multiple identical units (quantity) | **Working** — extends price and the exported line |
-| Duplicate a configured product N times | **Verified configuration copies, direct racked Clone Multiple and independent Copy** — source/member linked edits and fresh-browser handoffs pass; the supported nested D3/SD535 lifecycle and linked chassis PSU edits also pass |
+| Duplicate a configured product N times | **Working** — configuration copies, racked Clone Multiple, linked edits and independent Copy (`rack-clone*`, `rack-copy`, `chassis-*`, `quantity-handoff-*`) |
 | Export CFXML + Excel ZIP | **Working** — per configuration or per workspace |
-| Import XML | **Working** — via DCSC's own `/multiple/cfxml_import` |
+| Import XML | **Working** via DCSC's own `/multiple/cfxml_import`, except the x-config fixture, which DCSC rejects for the website too (`xconfig-import`) |
 | Preconfigured (LFO) models | **Working** — launch, inspect, export |
 | Multi-product solutions (server + switch + rack) | **Working** — one workspace, many configurations |
-| Rack enclosures + U placement | **Working** — placement validated by DCSC |
+| Rack enclosures + U placement | **Working** — placement validated by DCSC (`rack-*`) |
 | PDUs, line cords, power & heat reporting | **Working** |
-| Power settings | **Working for supported products** — voltage, policy and load factor; missing native power remains explicitly unavailable |
+| Power settings | **Working** — voltage, policy and load factor (`power-controls`); missing native power is reported as unavailable |
 | Native reference solutions | **Working** — browse, customize and download Lenovo's original XML |
-| Manufacturing validation (`/lmc_validation`) | **Verified valid/invalid workflow** — on 2026-10-16, live rack/server cases returned authoritative terminal verdicts with canonical payload/revision binding. Responses stay bounded, with full saved diagnostics available through inspection. Unavailable and stale results never count as valid. |
-| Cabling | **Verified automatic Management and manual Management/100GbE/DAC storage workflows** — creation, replacement, shared selections, recovery and website handoff for the documented cases. Four-way breakout survives MCP recovery; native website import loses its breakout shape. Broader topologies remain unverified. |
-| Rack/floor export | **Verified one-/two-rack and captured PDU/cord workflows** — XML linkage, workbook sheets, browser handoff and restart; broader physical matrix remains |
-| Storage definitions and components | **Verified documented DAC cases; broader coverage partial** — definitions, placement, server assignment, controller/SAN editing, manual DAC connections and replacement, export/reimport and removal. Tested FC/optical cases lack usable native connections; tested catalogs expose no expansions. |
-| Standalone software and product services | **Verified basic workflows** — software quantity and covered-product count, persistence reload, export and headless website import; imported service quantities are preserved; independent services use a separate basket |
-| Guided/Expert and Auto-Correct | **Implemented** — Guided supports on/off; Expert forces Auto-Correct off |
-| Cluster / HPC-LeSI solution modes | Cluster mode is not offered anonymously |
-| Account saves and partner/bid pricing | **Not tested** — anonymous workflow coverage only |
+| Manufacturing validation (`/lmc_validation`) | **Working** — terminal valid/invalid verdicts bound to the current export payload (`validation`); the website's own call errors anonymously |
+| Cabling | **Working** — automatic Management and manual Management/100GbE/DAC storage workflows, replacement, shared selections (`manual-*`, `network-*`); breakout is a known difference after DCSC reimport |
+| Rack/floor export | **Working** — rack/floor data, PDU/cord reports and workbook sheets (`rack-lifecycle`, `floor-preference`, `rack-power*`, `workbook-import`) |
+| Storage definitions and components | **Working** — definitions, placement, server assignment, controller/SAN editing, manual DAC connections, direct-attached FC, export/reimport and removal (`storage-*`) |
+| Standalone software and product services | **Working** — software quantity and covered-product count, export and website import; independent services use a separate basket (`software-*`, `services*`) |
+| Guided/Expert and Auto-Correct | **Working** — Guided supports on/off; Expert forces Auto-Correct off |
+| Cluster / HPC-LeSI solution modes | Not offered anonymously (`/api/solution_modes` lists General Purpose and HPC and AI - Systems) |
+| Account saves and partner/bid pricing | Login-gated; out of scope (website-actions.md "Authenticated backlog") |
 
 The server registers **41 MCP tools**, each with complete MCP annotations and a
 bounded response size (8,000 bytes). Run `npm run check` (typecheck, lint, unit
@@ -49,11 +49,6 @@ tests, offline contracts, build, stdio smoke) for local checks. Live API
 contracts and the browser-vs-MCP parity harness (`scripts/parity`) are separate
 gates; a passing request alone does not establish website parity. Browser runs
 use isolated headless Chromium. The plan and design are in `.docs/roadmaps/`.
-
-Rack-bearing export now preserves the slim layout hierarchy, full physical rack
-data and floor information. A generated PNG supplies the Rack Report sheet.
-The verified one-rack import/re-export preserved eight product lines, quantities,
-prices and currency. Broader layout and connection cases remain release gates.
 
 **CTO and LFO are mirrored endpoint families and both must be routed
 explicitly** — `/ctos/*` vs `/lfos/*` for launch, autoDerive and export. The
@@ -141,160 +136,85 @@ For development, `npm run check` runs typecheck, lint, unit tests, offline contr
 | `dcsc_reconcile_workspace` | Propose, inspect and accept reconciliation of damaged or legacy workspaces. |
 | `dcsc_recovery_export` | Export a recovery JSON snapshot or original archive bytes. |
 
-### Workflow limits to keep in mind
+### Workflow notes
 
-**x-config rack migration initializes missing floor metadata.** When Lenovo
-omits the floor grid, the MCP uses native hierarchy U-position codes and the
-website's default client-side floor placement. Incomplete explicit metadata
-still fails. Saved source cabling is not proven recovered merely because
-Lenovo accepts the XML; inspect the import diagnostics.
+**Imports.** `dcsc_import` goes through DCSC's own importer. When Lenovo omits the
+floor grid on an x-config rack, the MCP uses native hierarchy U-position codes and
+the website's default client-side floor placement; incomplete explicit metadata
+still fails. Inspect the import diagnostics: Lenovo accepting the XML does not mean
+saved cabling was recovered. Native compressed rack groups expand by original
+identity and U-position (`grouped-rack-import`, `nested-grouped-import`). Imported
+Unconfigured selections are kept across derivation and exported as separate lines
+(`reference-unconfigured`); edit them with `dcsc_launch` and `dcsc_configure`.
 
-**Grouped rack imports preserve physical instances.** Native compressed groups
-expand by original identity and U-position. The GB300 NVL72 reference design
-passes launch, restart, export and browser reimport with 29 racked devices,
-a spare tray, selected parts and prices preserved. MGX rack filler selections
-follow its catalog; numeric GB300 power remains unavailable upstream.
+**PCI risers use the native wizard.** Discover choices with `dcsc_wizard_get`, then
+`dcsc_wizard_set` with the workspace revision, option ID and optional row/slot
+choices. Ordinary riser feature edits are rejected because Lenovo can silently
+discard them (`pci-wizard`, `pci-wizard-linked`).
 
-**Grouped chassis imports preserve child ownership.** A native D3 export with
-two linked populated chassis now imports as two chassis with the correct node
-in each. `dcsc_rack_edit` with `placement: "same-rack"` also clones
-populated chassis and their direct node children into separate linked groups.
-The D3 case passes undo/redo, restart and browser export/reimport with prices
-preserved. Simple product/machine-type capacity bounds are supported; deeper containers, VLH and complex placement rules remain unsupported.
+**Storage wizard.** `dcsc_wizard_get` shows option IDs, groups, feature codes and
+quantities; `dcsc_wizard_set` selects an option or edits a component. `optionId: null`
+clears the option once its drives are removed, as the website's drive guard
+requires. Adding a controller can create an invalid combination: the response
+reports native storage errors; remove the previous controller separately. On
+storage-wizard CTOs, changing `RAID_CONFIG` through `dcsc_configure` clears drives,
+backplanes and controllers like the website: submit the mode switch alone, then
+choose parts (`storage-wizard`, `storage-wizard-raid`, `storage-wizard-sr850`).
 
-**Reference solutions use Lenovo's current catalog.** Imported Unconfigured selections are retained
-across hardware derivation and exported as separate commercial lines. Editing
-those selections uses `dcsc_launch` and `dcsc_configure`;
-one native quantity-edit/export comparison passes; broader linked/product coverage remains open. Original-template downloads use Lenovo’s validation/download flow; broader
-reference-solution families still need verification.
+**Power.** `dcsc_power_get` lists voltage IDs and policy values; `dcsc_power_set`
+saves them with the returned workspace revision. `loadFactor` is the slider
+percentage; reported utilization is calculated. Export warns for nondefault load
+factors.
 
-**Excel support depends on the workbook.** Lenovo's website and API reject a
-tested mixed rack/server workbook with an unsupported-multiple-products error.
-Use its companion CFXML in that case. Populated cabling recovery through Excel
-remains unverified.
-
-**PCI risers use the native wizard where available.** Discover choices with
-`dcsc_wizard_get`, then call `dcsc_wizard_set` with the current workspace
-revision, option ID and optional row/slot choices. Ordinary riser feature edits
-are rejected on these products because Lenovo can silently discard them.
-SR650 V4 optional-slot addition is verified through crash recovery, undo/redo,
-subsequent derivation and XML import on both MCP and website. Successful spare-slot
-removal and the 500W alternative riser also match native API results. Live edits
-through a linked copy update both configurations, and both retain the result
-after MCP and website XML import. Other wizard option families remain additional
-coverage targets.
-
-**Storage wizard choices retain explicit intent.** Use `dcsc_wizard_get` to
-inspect option IDs, groups, feature codes and offered quantities, then
-`dcsc_wizard_set` to select an option or edit one of its components.
-Pass `optionId: null` to clear the entire option after removing configured drives;
-the MCP enforces the website's drive guard.
-Adding a controller can temporarily create an invalid combination; the response
-reports native storage errors and the accepted quantity. Remove the previous
-controller separately when replacing it. SR860 V4 option/component edits are
-verified across four linked servers, recovery, history, later derivation and
-MCP/website XML import. SR850 V4 mixed SAS/SATA + AnyBay option/component edits
-are also verified across four linked servers and the same recovery/XML handoff.
-On storage-wizard CTOs, changing `RAID_CONFIG` mode through
-`dcsc_configure` clears previous drives, backplanes and controllers, matching the
-website. Submit the mode switch alone, then choose new storage parts. Same-mode
-edits preserve storage intent. LFO mode switching is rejected until its fixed-part
-restoration is verified; other product families remain additional coverage targets.
-
-**Power settings have an XML round-trip limit.** Use `dcsc_power_get` to
-discover exact voltage IDs and policy values, then `dcsc_power_set`
-with its returned workspace revision. `loadFactor` is the slider percentage;
-the reported power utilization is a calculated output. Saved MCP sessions keep
-the selected load factor across restart and undo/redo. Lenovo's CFXML importer
-can reset it: native and MCP SR630 V3 exports saved at 100% both reimported at
-70%, while preserving 230 V and policy. Export warns for nondefault load
-factors; inspect and reapply the desired setting after XML import.
-
-**Cabling counts are not a completeness verdict.** Auto-connect reports how many
-requested networks have no connections and links to per-network diagnostics.
-A working Management network does not establish that an assigned storage network
-has been cabled. Follow `pages.diagnostics`, or inspect
-`dcsc_workspace_get` with `path: ["cablingDiagnostics"]`. Check P2P settings,
-assignments, compatible ports, placement and Lenovo messages before changing
-hardware. Use `dcsc_cabling_get` followed by
-`dcsc_cabling_set` to modify existing native rows. To refresh choices for
-one existing row, call `dcsc_cabling_get` with `refreshConnectionId` and
-`expectedRevision`; this queries Lenovo without changing the design.
-Replacement recalculates choices when the requested part is absent from saved choices.
-Manual planning
-links are not included in native connection counts or Lenovo exports. For native manual
-creation, choose free ports, call `dcsc_cabling_get`, then pass an offered
-part and the same workspace revision to `dcsc_cabling_set`. If discovery
-reports pinnable routes, use `pinExistingRoutes: true` to retain their exact ports
-and cables by marking them MANUAL. Without pinning, native rerouting is rejected.
-This preserves routes during creation; a later explicit Auto-Connect operation
-still recalculates the complete graph.
-Creation selects the new source connector and preserves the cable quantity in
-both configuration and rack data during derivation. Management and 100 GbE copper
-creation have passed browser export/reimport checks. A compatible uplink port
-alone does not establish that a switch supports the requested host-network topology.
-For cable replacement, optional `cableQuantities: { oldPart, newPart }` sets the
-per-product quantities, including spares, across a shared template or linked group.
-For example, `{ oldPart: 2, newPart: 2 }` retains a pair of each cable type when
-changing one route on a controller that requires paired cables. Quantities must
-cover every physical instance's remaining routes. Native cable-rule errors abort
-the edit without committing the graph, quantities, history or revision.
-Manual 10 GbE DAC creation also passes with two physical DE2000H controllers
-sharing a template and using different cable parts. Import preserves explicitly
-selected spare cable quantities across layout recalculation; the mixed-cable case
-passes restart recovery and website import with matching connections and prices.
-Manual creation intersects distance choices with Lenovo's cable catalog for the
-requested topology. Breakout and splitter cables require a different connection
-model and are excluded from this point-to-point operation.
+**Cabling.** Auto-connect counts are not a completeness verdict: follow
+`pages.diagnostics` or `dcsc_workspace_get` with `path: ["cablingDiagnostics"]`.
+Edit existing native rows with `dcsc_cabling_get` then `dcsc_cabling_set`;
+`refreshConnectionId` plus `expectedRevision` refreshes the choices of one row
+without changing the design. For manual creation, choose free ports, call
+`dcsc_cabling_get`, then pass an offered part and the same revision to
+`dcsc_cabling_set`; `pinExistingRoutes: true` keeps existing routes as MANUAL,
+otherwise native rerouting is rejected. `cableQuantities: { oldPart, newPart }` sets
+per-product quantities on replacement. Native cable-rule errors abort the edit
+without committing anything. Manual planning links are not in native connection
+counts or Lenovo exports. Cases: `manual-create*`, `manual-cabling-*`,
+`manual-replace-*`, `manual-source-swap`.
 
 **Scope follows the handle.** `dcsc_export` and `dcsc_validate` treat a
-configuration id as *that configuration* and a workspace id as *the whole
-solution*. They used to resolve a configuration id up to its parent workspace,
-so asking to export one node in a seven-product solution exported all seven.
+configuration id as that configuration and a workspace id as the whole solution.
 
-**Quantity is not placement.** `dcsc_configure` with `salesQuantity: 4` prices four nodes but is
-still one configuration, so `dcsc_rack_edit` adds one item to the cabinet.
-For four nodes in a rack, use `dcsc_rack_edit` (action `clone`) and place each. The explicit
-`placement: "same-rack"` option also places clones of a supported racked source; its
-placement, grouped commercial export, browser reimport and restart gates pass.
-Linked edits initiated from the source or a clone update the entire group atomically;
-both paths pass commercial export and fresh-browser reimport. Linked HPC node
-edits from a cloned D3/SD535 member also update both nodes and survive native
-export/reimport; when an edit updates parent chassis too, use workspace history
-to restore the dependent changes together. Configuration undo
-restores the group only while every member still shares that edit boundary; use
-workspace history after intervening edits. Divergent linked configurations are
-rejected during export. `dcsc_rack_edit` implements the website's distinct
-Copy operation for a supported direct General Purpose CTO item or populated
-HPC chassis with direct node children. It creates independent parent and child
-configurations with their own commercial lines; export, fresh-browser reimport,
-workspace undo/redo and immediate process-kill recovery pass for the captured
-D3/SD535 case. A copied-node processor edit leaves the original unchanged and
-survives restart and native browser reimport. Copy from a linked chassis root or member preserves the original groups and creates independent
-parent/child copies; copied-node edits, history, restart and native reimport pass.
-Deeper/VLH
-containers remain unsupported.
+**Quantity is not placement.** `dcsc_configure` with `salesQuantity: 4` prices four
+nodes but is one configuration, so `dcsc_rack_edit` adds one item to the cabinet.
+For four nodes in a rack use `dcsc_rack_edit` (action `clone`, optionally
+`placement: "same-rack"`) and place each (`rack-clone`, `quantity-handoff-*`).
+Linked edits from the source or a clone update the whole group atomically; divergent
+linked configurations are rejected during export. Configuration undo restores the
+group only while every member shares that edit boundary; use workspace history
+after intervening edits or when a chassis edit also updates its nodes
+(`chassis-clone`, `chassis-parent-edit`). `dcsc_rack_edit` also implements the
+website's independent Copy (`rack-copy`, `chassis-copy`, `chassis-linked-copy`,
+`chassis-member-copy`). Unsupported imported container shapes are rejected with
+their source data preserved rather than flattened.
 
-Workspace exports preserve imported Message History records and include current
-diagnostics. Supported HPC edits append native-style action records in the same
-durable commit as the edit. Workspace undo/redo restores those records exactly.
-Configuration-only `dcsc_undo` restores configuration state without rewinding
-the workspace action history; use `dcsc_workspace_get` for that scope.
+**Large results.** Workspace summaries and layouts include executable `inspect`,
+`detail` and `next` objects; pass their arguments unchanged. `expectedRevision`
+stops an edit shifting the results midway; restart inspection after a revision
+conflict. Part and standalone software catalog continuations carry a fingerprint
+and keep the query and filters.
 
-Workspace summaries and layouts include executable `inspect`, `detail` and
-`next` objects for large collections, raw connection fields and warnings. Pass
-their arguments unchanged: `expectedRevision` prevents a design edit
-from shifting the results midway through inspection. Restart inspection after a
-revision conflict. Global part and standalone software catalog continuations
-similarly carry a fingerprint and preserve the query and filters. Page offsets
-advance by the number actually returned after response-size trimming.
+**Auto-connect settings** are optional partial edits, e.g.
+`dcsc_auto_connect(session, settings: {autoAddPDU: false})`; omitted fields keep
+their value, and a rejected operation leaves settings and connections unchanged.
+An empty connection result does not prove a networking design works.
 
-Auto-connect settings are optional partial edits, for example
-`dcsc_auto_connect(session, settings: {autoAddPDU: false})`. Omitted fields retain
-their saved value. Settings and the accepted connection result commit together;
-a rejected operation leaves both unchanged. These settings apply to subsequent
-layout and auto-connect requests. A successful empty connection result does not
-prove a populated networking design works.
+**Standalone services** support one serviced product with one base package plus
+independent add-on families, kept separate from hardware and software baskets
+(`services`, `services-quantity`). After import, `dcsc_launch(workspace, refresh: true)`
+restores selectable metadata. Unsupported quantities in `dcsc_basket_set` fail
+without saving state.
+
+**Software** group selection, multi-select, maintenance and CAL quantity changes
+follow the captured website contracts (`software-*`). Discover section IDs with
+`dcsc_configuration_get`; change derived licence quantities separately.
 
 ### Why the tools look like this
 
@@ -317,97 +237,40 @@ Two deliberate choices worth knowing:
   current selection ("+$4,200"), because that is the question actually being
   asked.
 
-Linked HPC D3 chassis edits update their dependent node shared data atomically.
-Use workspace undo when a parent or child edit updates both groups. The native
-PSU change is verified through restart and website reimport.
 
 ## What it cannot do yet
 
-- Populated Management cabling passes browser/MCP graph and export handoff checks.
-  `dcsc_cabling_get` exposes stable existing-row IDs, endpoint ports and
-  compatible cable parts; `dcsc_cabling_set` supports revision-bound
-  endpoint and cable-part edits with authoritative distance/derive results, atomic
-  persistence and crash recovery. Lenovo's UI has not exposed Add/Delete for these
-  rows. Lenovo's native shared-part edit preserves the graph row but drops its
-  part from the canonical BOM; the MCP uses a quantity-preserving request path
-  that passes derive, export and immediate process-kill recovery. Same-component
-  occupied destination ports are swapped atomically with both affected rows
-  reported. Same-component source-port swaps are also supported when connector
-  names, assigned network and topology match. The MCP swaps both rows atomically;
-  the tested native editor instead duplicates the source endpoint. Correct swaps
-  pass Lenovo API retention, restart, history, MCP and fresh website import. Distributed leaf preference Close now matches Lenovo's switch
-  calculation, launch, layout and derive sequence. Its exact three-row graph,
-  crash restart, export and fresh-browser handoff pass. Managed-storage
-  physical-alias cable-part edits pass the documented shared-storage replacement
-  and imported-linked lifecycle checks. The
-  maintained post-import Direct Attached FC probe receives HTTP 200 without
-  errors but returns zero storage rows; its historical input retains a prior SAN
-  configuration. Separate clean FC and optical iSCSI exports also return zero
-  rows after fresh import, but that import collapses the managed template root
-  into its physical alias and omits `definition.controller.id`; those results
-  remain qualified post-import controls. A fresh optical-iSCSI pre-export case
-  preserved the distinct managed root and physical alias, controller reference,
-  assigned racked server, compatible connector media and P2P settings, with no
-  switches present. Lenovo still returned HTTP 200 without errors and zero
-  connections. This is a bounded result for that tested design, not evidence of
-  a global storage outage. The maintained FC runner exits 2 rather than treating
-  an unrelated Management row as storage evidence.
-- Controller editing supports the captured DM3200F and selected-base BCBN launch contracts.
-  SAN-switch opening, reuse, option edits propagated to physical aliases,
-  commercial export/reimport and exclusive deletion also pass. Current supported
-  catalogs contain no expansions.
-  Controller browser import matches the website-own XML import, including its
-  limitation: it drops the editable controller configuration while retaining the definition and commercial rows.
-- Allowed multiple PDU quantities pass. Supported nested chassis/node creation,
-  export/import, independent nested-node edits, unplace/re-place, detach,
-  chassis removal with explicit child disposition, history and immediate
-  process-kill recovery pass. The strengthened real-MCP lifecycle covers 291
-  calls, including both parent dispositions and their reimports; all three native
-  removal action gates also pass. Native Delete Node keeps the node's commercial
-  configuration in the export but Lenovo drops it on reimport. The MCP therefore
-  exposes that behavior as `detach` with an explicit warning; `unplace` preserves
-  the node as a loose physical item through export/import. Broader VLH/container
-  shapes remain matrix growth.
-  Item and empty-U locks use captured wire formats and pass transactional,
-  restart and live server-acceptance checks. Reserved U positions survive CFXML
-  export/import. Lenovo's own CFXML exporter does not persist an item's `lock`
-  flag: replaying the browser-native export form and importing its XML drops the
-  item lock while retaining the reserved U. The MCP matches that upstream limit.
-  Direct racked Clone Multiple, linked edits and independent Copy pass. The captured two-rack PDU/cord handoff and MCP workspace history pass.
-  Unsupported imported container shapes are rejected with
-  their source data preserved rather than flattened.
-- Standalone service coverage currently supports one serviced product with one
-  base package plus independent add-on families. Use `dcsc_launch(workspace, refresh: true)` to restore
-  selectable metadata after import before selecting another option. Independent services remain separate from hardware
-  and standalone software, matching the website workflow. The website selects one
-  of each service per product; its summary counter changes covered-product count.
-  `dcsc_basket_set` preserves imported service quantities and
-  refreshes summary pricing. `dcsc_basket_set` is an API extension:
-  unsupported quantities fail without saving state and report the requested and
-  accepted values. Imported non-unit service quantities remain readable and
-  exportable. In the verified non-unit service case, Lenovo displays the correct
-  quantities after import and product resize, but its native Save sends an empty
-  service list and returns HTTP 500. MCP export preserves those quantities and
-  reimports correctly; use the MCP to save further changes in that workflow.
-- Software group selection/removal, multi-select, maintenance and priced CAL
-  quantity changes follow captured website contracts. Discover exact section IDs
-  with `dcsc_configuration_get`; change derived licence quantities separately. The
-  verified 50-user CAL filter has no None option: remove its User CAL group to
-  match the website's Reset while retaining Device CAL. Priced CAL quantity-three exports match the browser in both scopes. Broader licensing remains a verification case.
-- Saved quantity imports from earlier builds have their linked clone ownership
-  repaired on restart when the original identities and selected configurations
-  prove the repair safe. The original file is archived first. Conflicting or
-  independently edited members remain readable but cannot be changed; recover
-  the source file and import complete CFXML into a new workspace.
-- Designs migrated from v1 remain `legacy-unverified`. Export and manufacturing
+Limits are where the website does something the MCP does not, or where DCSC
+refuses. Evidence is the latest parity report for the case id, or
+[.docs/website-actions.md](.docs/website-actions.md).
+
+- **Upstream errors for the website too.** x-config rack import (`xconfig-import`,
+  `POST /multiple/cfxml_import` returns HTTP 500) and `.vlh` import (`vlh-import`,
+  `POST /vlh/import` returns HTTP 500) are blocked. The website's Manufacture
+  Validation and Tools > Recovery server list also fail anonymously (HTTP 500).
+- **Breakout cabling does not survive DCSC's own CFXML import.** The MCP keeps the
+  breakout divider; the website returns P2P/divider 1 after reimport
+  (`manual-create-breakout`, `manual-replace-breakout`, known differences).
+  Breakout and splitter cables are excluded from manual point-to-point creation.
+- **Power load factor resets on CFXML import** (`power-controls`): inspect and
+  reapply it after import.
+- **LFO RAID-mode switching is rejected** until fixed-part restoration is supported
+  (`src/app/serviceHelpers.ts`); use the website.
+- **Legacy Excel recovery is unsupported.** When Lenovo asks for a companion Excel
+  recovery step on import, the MCP warns that floor placement and cabling may be
+  incomplete (`src/app/importExport.ts`).
+- **Designs migrated from v1 are `legacy-unverified`.** Export and manufacturing
   validation require re-import or explicit acceptance of a current reconciliation.
-  Configuration reconciliation cannot certify legacy physical layouts or repair
-  quarantined configurations, cables, racks, floor items or PDU references. Those
-  designs require repair or a complete current CFXML import. Discarded history
-  stays recoverable without being confused with missing current design data.
-  Restore failures and original-file archives are discoverable through
-  `dcsc_session_list`; `dcsc_recovery_export(archiveId)` preserves source bytes
-  even when JSON parsing failed.
+  Restore failures and original-file archives are listed by `dcsc_session_list`;
+  `dcsc_recovery_export(archiveId)` returns the source bytes.
+- **Website actions with no tool** (the website-actions.md "GAP" rows): feature-flag
+  list, news panel, configuration name and colour, Show Errors and the Auto-Correct
+  character table, slot-occupancy summary, view-only filter, sort and column
+  state, the direct `/ctos/export` Save, and the `isAiExpress` category filter.
+- **Login-gated, out of scope:** Config AI+, quote spreadsheet export, saved
+  configurations and auto-save restore, partner/bid pricing (website-actions.md
+  "Authenticated backlog"). Cluster / HPC-LeSI modes are not offered anonymously;
+  `/api/solution_modes` returns General Purpose and HPC and AI - Systems only.
 
 Software-only export defaults to the reports offered by the website, including
 CFXML, workbook and CSV outputs. Rack and connection reports require hardware.

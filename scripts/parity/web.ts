@@ -10,7 +10,7 @@ export const DCSC_HOME = 'https://dcsc.lenovo.com/';
 const CFXML_IMPORT_PATH = '/multiple/cfxml_import';
 
 /** Reads the body through CDP: Playwright discards it when the SPA navigates away right after the import. */
-async function watchImportResponse(page: Page): Promise<() => Promise<{ status: number; raw: unknown }>> {
+async function watchImportResponse(page: Page): Promise<{ response: Promise<{ status: number; raw: unknown }> }> {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Network.enable', { maxTotalBufferSize: 100_000_000, maxResourceBufferSize: 50_000_000 });
   const response = new Promise<{ status: number; raw: unknown }>((resolve, reject) => {
@@ -28,7 +28,9 @@ async function watchImportResponse(page: Page): Promise<() => Promise<{ status: 
         .then(raw => resolve({ status, raw }), reject).finally(() => clearTimeout(timer));
     });
   });
-  return () => response;
+  // Handled here too, so a failed upload that never awaits the response leaves no unhandled rejection.
+  response.catch(() => undefined).finally(() => void cdp.detach().catch(() => undefined));
+  return { response };
 }
 
 export function createWeb(outDir: string) {
@@ -52,9 +54,9 @@ export function createWeb(outDir: string) {
       await page.goto(DCSC_HOME, { waitUntil: 'domcontentloaded', timeout: 60_000 });
       const input = page.locator('input[type="file"]').first();
       await input.waitFor({ state: 'attached', timeout: 60_000 });
-      const response = await watchImportResponse(page);
+      const { response } = await watchImportResponse(page);
       await input.setInputFiles(file);
-      const { status, raw } = await response();
+      const { status, raw } = await response;
       if (status !== 200) throw new Error(`Browser import returned HTTP ${status}.`);
       await writeFile(path.join(outDir, `${label}-browser-import.json`), JSON.stringify(raw, null, 2));
       await page.context().close();

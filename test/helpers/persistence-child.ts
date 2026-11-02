@@ -18,7 +18,7 @@ import type * as Persist from '../../src/session/persist.js';
 import type * as SessionTools from '../../src/mcp/sessionTools.js';
 import type * as StandaloneTools from '../../src/mcp/standaloneTools.js';
 
-// Runs on the compiled build: loading the TypeScript sources through a loader costs about a second per child.
+// Runs on the compiled build (built by test/setup/build-dist.ts): a TypeScript loader costs about a second per child.
 const built = <T>(path: string): Promise<T> => import(new URL(`../../dist/${path}`, import.meta.url).href) as Promise<T>;
 const { ConfigSchema } = await built<typeof Schema>('config/schema.js');
 const { selectStandaloneSoftware } = await built<typeof Standalone>('domain/standalone.js');

@@ -456,7 +456,7 @@ export async function exportZip(rt: Runtime, sessionHandle: string,
         validationMode,
       });
 
-  const importedGroups = workspace?.serverState['groups'];
+  const importedGroups = useWorkspace ? workspace.serverState['groups'] : undefined;
   const importedGroupCount = Array.isArray(importedGroups) ? importedGroups.length : 0;
   const form = buildExportForm({
     data,

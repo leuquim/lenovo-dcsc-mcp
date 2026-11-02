@@ -1,7 +1,9 @@
 /** Services page product search, Export (one product's catalog) and Download Catalog (country catalog). */
+import { createHash } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { zipListing } from '../archives.js';
+import { readZip, zipListing, zipNames } from '../archives.js';
 import { array, object, pages } from '../continuations.js';
 import type { ParityCase } from '../harness.js';
 import { openHome, settle } from '../settingsUi.js';
@@ -9,6 +11,20 @@ import { downloadByClick, openServiceProduct, SERVICE_PRODUCT } from '../service
 import { DCSC_HOME } from '../web.js';
 
 const SEARCH_TEXT = '7D73';
+
+/** The catalog workbooks' parts by content hash; docProps carry the generation time, so they are left out. */
+async function workbookParts(zipPath: string, out: string, label: string): Promise<Array<{ name: string; sha256: string }>> {
+  const workbooks = await readZip(zipPath);
+  const parts: Array<{ name: string; sha256: string }> = [];
+  for (const [index, workbook] of workbooks.entries()) {
+    const inner = path.join(out, `${label}-${index}.xlsx`);
+    await writeFile(inner, workbook.bytes);
+    for (const part of await readZip(inner)) {
+      if (!part.name.startsWith('docProps/')) parts.push({ name: part.name, sha256: createHash('sha256').update(part.bytes).digest('hex') });
+    }
+  }
+  return parts.sort((left, right) => left.name.localeCompare(right.name));
+}
 const SEARCH_PAGE_SIZE = 50;
 
 export default {
@@ -44,7 +60,9 @@ export default {
       compare('export-archive', await zipListing(native.exportPath), await zipListing(String(exported['zipPath'])));
 
       const catalog = await mcp.call('dcsc_export', { kind: 'servicesCatalog', fileName: 'mcp-service-catalog' });
-      compare('download-catalog-archive', await zipListing(native.catalogPath), await zipListing(String(catalog['zipPath'])));
+      compare('download-catalog-archive', await zipNames(native.catalogPath), await zipNames(String(catalog['zipPath'])));
+      compare('download-catalog-content', await workbookParts(native.catalogPath, out, 'web-catalog'),
+        await workbookParts(String(catalog['zipPath']), out, 'mcp-catalog'));
     });
   },
 } satisfies ParityCase;

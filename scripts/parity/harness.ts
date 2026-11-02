@@ -15,11 +15,10 @@ export type Normalizer = (value: unknown) => unknown;
 export interface Diff { path: string; web: unknown; mcp: unknown }
 export interface ExpectedDifference extends Diff { doc: string }
 
-/** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
-/** Query keys the HTTP client adds to every request, so the recorded MCP request omits them. */
-const CLIENT_QUERY_KEYS = new Set(['geo', 'country_or_region', 'language', 'currency', 'solutionMode', 'masterSlices', 'sbSlices',
-  'countryName', 'current_country_or_region', 'controlExpressModal', '_request']);
+/** Query keys only the website's own client adds; they carry no configuration state. */
+const CLIENT_QUERY_KEYS = new Set(['countryName', 'current_country_or_region', 'controlExpressModal', '_request']);
 
+/** A website request captured with page.on('request'); body is the decoded form fields or JSON. */
 export interface CapturedRequest { method: string; path: string; query?: Record<string, unknown>; body?: unknown }
 
 interface StepRecord { name: string; ms: number; ok: boolean; error?: string }
